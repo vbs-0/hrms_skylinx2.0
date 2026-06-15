@@ -66,11 +66,11 @@
             <span class="text-4xl inline">
                 {% if request.path not in request.META.HTTP_REFERER %}
                 <a href="{{ request.META.HTTP_REFERER }}">
-                    <ion-icon name="arrow-back-outline" class="text-[{{theme_obj.primary_800|default:"#E54F38"}}]" style="font-size: 28px; "></ion-icon>
+                    <ion-icon name="arrow-back-outline" class="text-[{{theme_obj.primary_800|default:"#7C3AED"}}]" style="font-size: 28px; "></ion-icon>
                 </a>
                 {% else %}
                 <a href="/">
-                    <ion-icon name="arrow-back-outline" class="text-[{{theme_obj.primary_800|default:"#E54F38"}}]" style="font-size: 28px; "></ion-icon>
+                    <ion-icon name="arrow-back-outline" class="text-[{{theme_obj.primary_800|default:"#7C3AED"}}]" style="font-size: 28px; "></ion-icon>
                 </a>
                 {% endif %}
             </span>
