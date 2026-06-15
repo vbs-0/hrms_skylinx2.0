@@ -1,0 +1,169 @@
+{% load static %} {% load i18n %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - {{white_label_company_name}}</title>
+    <link rel="apple-touch-icon" sizes="180x180"
+        href="{% if white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/apple-touch-icon.png' %}{% endif %}">
+    <link rel="icon" type="image/png" sizes="32x32"
+        href="{% if white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/favicon-32x32.png' %}{% endif %}">
+    <link rel="icon" type="image/png" sizes="16x16"
+        href="{% if white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/favicon-16x16.png' %}{% endif %}">
+    <link rel="stylesheet" href="{% static '/build/css/style.min.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/skylinx-redesign.css' %}" />
+    <link rel="manifest" href="{% static 'build/manifest.json' %}" />
+    <style>
+        body { margin: 0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+        .sx-auth { display: grid; grid-template-columns: 1.05fr 1fr; min-height: 100vh; }
+        .sx-auth__brand {
+            position: relative; overflow: hidden; color: #fff;
+            background: radial-gradient(120% 120% at 0% 0%, #8b5cf6 0%, #6d28d9 45%, #4c1d95 100%);
+            display: flex; flex-direction: column; justify-content: center; padding: 64px 56px;
+        }
+        .sx-auth__brand::after {
+            content: ""; position: absolute; inset: 0;
+            background-image: linear-gradient(115deg, transparent 0 48%, rgba(255,255,255,.06) 48% 52%, transparent 52%),
+                              linear-gradient(115deg, transparent 0 68%, rgba(255,255,255,.05) 68% 71%, transparent 71%);
+            pointer-events: none;
+        }
+        .sx-auth__brand .sx-orb { position: absolute; border-radius: 50%; filter: blur(2px); opacity: .25; }
+        .sx-auth__brand .sx-orb--1 { width: 240px; height: 240px; background: #c4b5fd; top: -60px; right: -40px; }
+        .sx-auth__brand .sx-orb--2 { width: 180px; height: 180px; background: #a78bfa; bottom: -50px; left: -30px; }
+        .sx-auth__logo { font-size: 30px; font-weight: 800; letter-spacing: -.5px; position: relative; z-index: 2; }
+        .sx-auth__logo span { background: rgba(255,255,255,.18); border-radius: 10px; padding: 2px 10px; margin-right: 8px; }
+        .sx-auth__tagline { font-size: 34px; font-weight: 800; line-height: 1.2; margin: 28px 0 14px; position: relative; z-index: 2; max-width: 460px; }
+        .sx-auth__sub { font-size: 15px; opacity: .85; max-width: 420px; position: relative; z-index: 2; }
+        .sx-auth__points { list-style: none; padding: 0; margin: 34px 0 0; position: relative; z-index: 2; display: grid; gap: 14px; }
+        .sx-auth__points li { display: flex; align-items: center; gap: 12px; font-size: 14px; opacity: .92; }
+        .sx-auth__points ion-icon { font-size: 20px; background: rgba(255,255,255,.15); border-radius: 8px; padding: 6px; }
+        .sx-auth__form-wrap { display: flex; align-items: center; justify-content: center; padding: 40px 24px; background: var(--sx-bg); }
+        .sx-auth__card { width: 100%; max-width: 400px; }
+        .sx-auth__card h1 { font-size: 26px; font-weight: 800; margin: 0 0 6px; color: var(--sx-text); }
+        .sx-auth__card .sx-muted { color: var(--sx-text-muted); margin: 0 0 26px; font-size: 14px; }
+        .sx-auth__mlogo { height: 40px; margin-bottom: 26px; }
+        @media (max-width: 860px) { .sx-auth { grid-template-columns: 1fr; } .sx-auth__brand { display: none; } }
+    </style>
+</head>
+
+<body>
+    <div class="oh-alert-container">
+        {% for message in messages %}
+        <div class="oh-alert oh-alert--animated {{ message.tags }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="sx-auth">
+        <!-- Brand panel -->
+        <aside class="sx-auth__brand">
+            <span class="sx-orb sx-orb--1"></span>
+            <span class="sx-orb sx-orb--2"></span>
+            <div class="sx-auth__logo"><span>S</span>{{ white_label_company_name }}</div>
+            <div class="sx-auth__tagline">{% trans "Run your people operations in one place." %}</div>
+            <p class="sx-auth__sub">{% trans "Hiring, attendance, leave, payroll and performance — unified, modern and effortless." %}</p>
+            <ul class="sx-auth__points">
+                <li><ion-icon name="people-outline"></ion-icon> {% trans "Centralized employee management" %}</li>
+                <li><ion-icon name="time-outline"></ion-icon> {% trans "Smart attendance & leave tracking" %}</li>
+                <li><ion-icon name="card-outline"></ion-icon> {% trans "Automated payroll & compliance" %}</li>
+            </ul>
+        </aside>
+
+        <!-- Form panel -->
+        <main class="sx-auth__form-wrap">
+            <div class="sx-auth__card">
+                <img class="sx-auth__mlogo"
+                    src={% if white_label_company.icon %}"{{white_label_company.icon.url}}"{% else %}"{% static 'images/ui/auth-logo.png' %}"{% endif %}
+                    alt="{{white_label_company_name}}" />
+                <h1>{% trans "Welcome back" %}</h1>
+                <p class="sx-muted">{% trans "Sign in to continue to your dashboard." %}</p>
+
+                <form method="post" class="oh-form-group">
+                    {% csrf_token %}
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="username">{% trans "Username" %}</label>
+                        <input type="text" id="username" name="username" class="oh-input w-100"
+                            placeholder="e.g. adam.luis@skylinx.com" />
+                    </div>
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="password">{% trans "Password" %}</label>
+                        <div class="oh-password-input-container">
+                            <input type="password" id="password" name="password"
+                                class="oh-input oh-input--password w-100" placeholder="Use alphanumeric characters" />
+                            <button type="button" class="oh-btn oh-btn--transparent oh-password-input--toggle">
+                                <ion-icon class="oh-passowrd-input__show-icon" title="{% trans 'Show Password' %}"
+                                    name="eye-outline"></ion-icon>
+                                <ion-icon class="oh-passowrd-input__hide-icon d-none" title="{% trans 'Hide Password' %}"
+                                    name="eye-off-outline"></ion-icon>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit"
+                        class="oh-btn oh-onboarding-card__button mt-4 oh-btn--secondary oh-btn--shadow w-100 mb-3"
+                        role="button">
+                        <ion-icon class="me-2" name="lock-closed-outline"></ion-icon>
+                        {% trans "Secure Sign-in" %}
+                    </button>
+                    {% if not initialize_database %}
+                        <small class="text-center">
+                            <a href="{% url 'forgot-password' %}" class="oh-link oh-link--secondary justify-content-center">
+                                {% trans "Forgot password" %}?
+                            </a>
+                        </small>
+                    {% endif %}
+                </form>
+
+                {% if initialize_database %}
+                    <div>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'initialize-database' %}"
+                                class="oh-btn oh-onboarding-card__button mt-3 oh-btn--light w-100 mb-2"
+                                role="button">
+                                {% trans "Initialize Database" %}
+                                <ion-icon class="ms-2" name="arrow-forward-outline"></ion-icon>
+                            </a>
+                            <a onclick="$('#dataLoadAuthentication').toggleClass('oh-modal--show');"
+                                class="oh-btn oh-onboarding-card__button mt-3 w-100 mb-2"
+                                style="background-color: #31b46e1f; color: #1fad61" role="button">
+                                {% trans "Load Demo Data" %}
+                                <ion-icon class="ms-2" name="arrow-forward-outline"></ion-icon>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="oh-modal" id="dataLoadAuthentication" role="dialog" aria-labelledby="dataLoadAuthenticationLabel" aria-hidden="true" style="backdrop-filter: blur(8px);">
+                        <div class="oh-modal__dialog">
+                            {% include "demo_database/auth_load_data.html" %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if white_label_company %}
+                    <p class="sx-muted text-center mt-3">{{white_label_company}}</p>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+
+    <script src="{% static '/build/js/web.frontend.min.js' %}"></script>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script type="module" src="{% static 'images/ionicons/ui_icons/ionicons/ionicons.esm.js' %}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
+    <script>
+        $(document).ready(function () {
+            if ($(".oh-alert--warning").length > 0) {
+                Swal.fire({
+                    title: 'Access Denied !',
+                    text: 'Your login credentials are currently blocked. Please contact HR administrators for assistance.',
+                    icon: 'warning',
+                    confirmButtonText: 'OK',
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>
