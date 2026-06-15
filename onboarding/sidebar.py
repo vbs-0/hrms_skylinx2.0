@@ -16,8 +16,12 @@ IMG_SRC = "images/ui/rocket.svg"
 
 SUBMENUS = [
     {
+        "menu": _("Dashboard"),
+        "redirect": reverse("onboarding-dashboard"),
+    },
+    {
         "menu": _("Onboarding view"),
-        "redirect": reverse("onboarding-view") + "?closed=false",
+        "redirect": reverse("cbv-pipeline-onboarding") + "?closed=false",
         "accessibility": "onboarding.sidebar.onboarding_view_accessibility",
     },
     {

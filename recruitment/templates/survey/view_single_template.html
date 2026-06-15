@@ -63,36 +63,48 @@
         {% if perms.recruitment.change_recruitmentsurvey and perms.recruitment.delete_recruitmentsurvey %}
         <div class="oh-btn-group">
             <a class="oh-btn oh-btn--info" hx-get="{% url 'recruitment-survey-question-template-edit' question.id %}"
-                data-toggle="oh-modal-toggle" data-target="#updateSurvey" hx-target="#updateSurveyModalBody"
+                data-toggle="oh-modal-toggle" data-target="#genericModal" hx-target="#genericModalBody"
                 style="width: 50%;">
                 <ion-icon name="create-outline" role="img" class="md hydrated" aria-label="create outline">
                 </ion-icon>{% trans "Edit" %}
             </a>
-            <a href="{% url 'recruitment-survey-question-template-delete' question.id %}"
-                onclick="return confirm('{% trans " Are you sure want to delete?" %}')" class="oh-btn oh-btn--danger"
-                style="width: 50%;">
-                <ion-icon name="trash-outline" role="img" class="md hydrated" aria-label="create outline"></ion-icon>
-                {% trans "Delete" %}
-            </a>
+            <form
+                hx-post="{% url 'recruitment-survey-question-template-delete' question.id %}"
+                hx-swap="none"
+                hx-confirm="{% trans 'Are you sure want to delete?' %}"
+                style="width: 50%;"
+            >
+                {% csrf_token %}
+                <button type="submit" class="oh-btn oh-btn--danger" style="width: 100%;">
+                    <ion-icon name="trash-outline" role="img" class="md hydrated" aria-label="create outline"></ion-icon>
+                    {% trans "Delete" %}
+                </button>
+            </form>
         </div>
 
         {% else %}
         <div class="oh-btn-group">
             {% if perms.recruitment.change_recruitmentsurvey %}
             <a class="oh-btn oh-btn--info" hx-get="{% url 'recruitment-survey-question-template-edit' question.id %}"
-                data-toggle="oh-modal-toggle" data-target="#updateSurvey" hx-target="#updateSurveyModalBody"
+                data-toggle="oh-modal-toggle" data-target="#genericModal" hx-target="#genericModalBody"
                 style="width: 100%;">
                 <ion-icon name="create-outline" role="img" class="md hydrated" aria-label="create outline">
                 </ion-icon>{% trans "Edit" %}
             </a>
             {% endif %}
             {% if perms.recruitment.delete_recruitmentsurvey %}
-            <a href="{% url 'recruitment-survey-question-template-delete' question.id %}"
-                onclick="return confirm('{% trans " Are you sure want to delete?" %}')" class="oh-btn oh-btn--danger"
-                style="width: 100%;">
-                <ion-icon name="trash-outline" role="img" class="md hydrated" aria-label="create outline"></ion-icon>
-                {% trans "Delete" %}
-            </a>
+            <form
+                hx-post="{% url 'recruitment-survey-question-template-delete' question.id %}"
+                hx-swap="none"
+                hx-confirm="{% trans 'Are you sure want to delete?' %}"
+                style="width: 100%;"
+            >
+                {% csrf_token %}
+                <button type="submit" class="oh-btn oh-btn--danger" style="width: 100%;">
+                    <ion-icon name="trash-outline" role="img" class="md hydrated" aria-label="create outline"></ion-icon>
+                    {% trans "Delete" %}
+                </button>
+            </form>
             {% endif %}
         </div>
         {% endif %}

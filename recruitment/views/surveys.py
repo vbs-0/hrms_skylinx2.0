@@ -10,6 +10,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.core import serializers
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -55,8 +56,16 @@ def survey_form(request):
     """
     This method is used to render survey wform
     """
-    recruitment_id = request.GET["recId"]
-    recruitment = Recruitment.objects.get(id=recruitment_id)
+    recruitment_id = request.GET.get("recId")
+    recruitment = Recruitment.find(recruitment_id)
+    if not recruitment_id or not recruitment:
+        message = (
+            _("Missing Recruitment ID")
+            if not recruitment_id
+            else _("No Recruitment found matching the query.")
+        )
+        return SkylinxRedirect(request, message=message)
+
     form = SurveyForm(recruitment=recruitment).form
     return render(request, "survey/form.html", {"form": form})
 
@@ -68,20 +77,26 @@ def survey_preview(request, pk=None):
     Used to render survey form to the candidate
     """
     title = request.GET.get("title")
-    template = SurveyTemplate.objects.get(title=title)
+    template = SurveyTemplate.objects.filter(title=title).first()
+    if not title or not template:
+        message = (
+            _("Missing Survey Template Title")
+            if not title
+            else _("No Survey Template found matching the query.")
+        )
+        return SkylinxRedirect(request, message=message)
 
     form = SurveyPreviewForm(template=template).form
+    preview_template = "survey/survey_preview.html"
+    if request.META.get("HTTP_HX_REQUEST") == "true":
+        preview_template = "survey/survey_preview_container.html"
     return render(
         request,
-        "survey/survey_preview.html",
+        preview_template,
         {"form": form, "template": template},
     )
 
 
-from django.views.decorators.csrf import csrf_exempt
-
-
-@csrf_exempt
 @login_required
 def question_order_update(request):
     if request.method == "POST":
@@ -114,6 +129,10 @@ def candidate_survey(request):
     Used to render survey form to the candidate
     """
     MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB in bytes
+    if not request.session.get("candidate"):
+        return SkylinxRedirect(
+            request, message=_("No candidate found matching the query.")
+        )
     candidate_json = request.session["candidate"]
     candidate_dict = json.loads(candidate_json)
     rec_id = candidate_dict[0]["fields"]["recruitment_id"]
@@ -121,9 +140,16 @@ def candidate_survey(request):
     job = JobPosition.objects.get(id=job_id)
     recruitment = Recruitment.objects.get(id=rec_id)
     stage_id = candidate_dict[0]["fields"]["stage_id"]
+    created_by = candidate_dict[0]["fields"].get("created_by")
+    modified_by = candidate_dict[0]["fields"].get("modified_by")
     candidate_dict[0]["fields"]["recruitment_id"] = recruitment
     candidate_dict[0]["fields"]["job_position_id"] = job
     candidate_dict[0]["fields"]["stage_id"] = Stage.objects.get(id=stage_id)
+    UserModel = get_user_model()
+    if created_by:
+        candidate_dict[0]["fields"]["created_by"] = UserModel(id=created_by)
+    if modified_by:
+        candidate_dict[0]["fields"]["modified_by"] = UserModel(id=modified_by)
     candidate = Candidate(**candidate_dict[0]["fields"])
     form = SurveyForm(recruitment=recruitment).form
     if request.method == "POST":
@@ -284,12 +310,7 @@ def update_question_template(request, survey_id):
             instance.recruitment_ids.set(form.recruitment)
             # instance.job_position_ids.set(form.job_positions)
             messages.success(request, _("New survey question updated."))
-            return HttpResponse(
-                render(
-                    request, "survey/template_update_form.html", {"form": form}
-                ).content.decode("utf-8")
-                + "<script>location.reload();</script>"
-            )
+            return SkylinxRedirect(request)
     return render(request, "survey/template_update_form.html", {"form": form})
 
 
@@ -310,12 +331,7 @@ def create_question_template(request):
             instance.template_id.set(form.cleaned_data["template_id"])
             # instance.job_position_ids.set(form.job_positions)
             messages.success(request, _("New survey question created."))
-            return HttpResponse(
-                render(
-                    request, "survey/template_form.html", {"form": form}
-                ).content.decode("utf-8")
-                + "<script>location.reload();</script>"
-            )
+            return SkylinxRedirect(request)
     return render(request, "survey/template_form.html", {"form": form})
 
 
@@ -332,6 +348,10 @@ def delete_survey_question(request, survey_id):
         messages.error(request, _("Question not found."))
     except ProtectedError:
         messages.error(request, _("You cannot delete this question"))
+    if request.META.get("HTTP_HX_REQUEST") == "true":
+        from recruitment.views.search import filter_survey
+
+        return filter_survey(request)
     return redirect(view_question_template)
 
 
@@ -382,19 +402,14 @@ def application_form(request):
             request.session["candidate"] = serializers.serialize(
                 "json", [candidate_obj]
             )
-            if RecruitmentSurvey.objects.filter(
+            has_direct_survey = RecruitmentSurvey.objects.filter(
                 recruitment_ids=recruitment_id
-            ).exists():
-                try:
-                    employee = request.user.employee_get
-                    if (
-                        not request.user.has_perm("perms.recruitment.add_candidate")
-                        or employee not in recruitment.recruitment_managers.all()
-                        or not employee.stage_set.filter(recruitment_id=recruitment)
-                    ):
-                        return redirect(candidate_survey)
-                except:
-                    return redirect(candidate_survey)
+            ).exists()
+            has_template_survey = RecruitmentSurvey.objects.filter(
+                template_id__in=recruitment.survey_templates.all()
+            ).exists()
+            if has_direct_survey or has_template_survey:
+                return redirect(candidate_survey)
             candidate_obj.save()
 
             if resume_obj:
@@ -402,9 +417,27 @@ def application_form(request):
                 resume_obj.save()
 
             return render(request, "candidate/success.html")
-        form.fields["job_position_id"].queryset = (
-            form.instance.recruitment_id.open_positions.all()
-        )
+        for field_name, field_errors in form.errors.items():
+            if field_name == "__all__":
+                for error in field_errors:
+                    messages.error(request, error)
+            else:
+                field_label = (
+                    form.fields.get(field_name).label
+                    if form.fields.get(field_name)
+                    else field_name
+                )
+                for error in field_errors:
+                    messages.error(request, f"{field_label}: {error}")
+        recruitment_for_job_position = form.data.get("recruitment_id") or recruitment_id
+        if recruitment_for_job_position:
+            recruitment_for_job_position = Recruitment.objects.filter(
+                id=recruitment_for_job_position
+            ).first()
+            if recruitment_for_job_position:
+                form.fields["job_position_id"].queryset = (
+                    recruitment_for_job_position.open_positions.all()
+                )
     else:
         # 811
         initial_data = {"resume": resume_obj.file.url} if resume_obj else {}
@@ -477,6 +510,8 @@ def delete_template(request):
     else:
         messages.success(request, "Template group deleted")
 
+    if request.META.get("HTTP_HX_REQUEST") == "true":
+        return HttpResponse("<script>$('#filterSubmit').click();</script>")
     return SkylinxRedirect(request)
 
 
@@ -498,5 +533,13 @@ def question_add(request):
         if form.is_valid():
             form.save()
             messages.success(request, "Question added")
+            if request.META.get("HTTP_HX_REQUEST") == "true":
+                return HttpResponse(
+                    "<script>"
+                    "$('#templateModal').removeClass('oh-modal--show');"
+                    "$('#genericModal').removeClass('oh-modal--show');"
+                    "$('#filterSubmit').click();"
+                    "</script>"
+                )
             return SkylinxRedirect(request)
     return render(request, "survey/add_form.html", {"form": form})

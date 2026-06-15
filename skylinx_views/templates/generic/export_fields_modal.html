@@ -19,7 +19,7 @@
       <div class="oh-modal__dialog-body">
         <form
           method="post"
-          action="/{{export_path}}"
+          action="{{export_path}}"
           onsubmit="
             const selectedFields = $('#{{view_id|safe}} input[name=selected_fields]:checked').map(function() {
                 return [[$(this).attr('data-label'),this.value]];
@@ -51,7 +51,7 @@
             </div>
           </div>
           <div class="row">
-            {% for col in columns %}
+            {% for col in export_columns %}
             <div class="col-sm-12 col-md-6 col-lg-4">
               <div class="oh-input-group">
                 <label class="oh-label">
@@ -88,6 +88,8 @@
               </div>
             </div>
             {% endfor %}
+            <input type="text" hidden name="export_fields" value="{{export_fields}}">
+
             {% for col in export_fields %}
             <div class="col-sm-12 col-md-6 col-lg-4">
               <div class="oh-input-group">
@@ -106,6 +108,11 @@
               </div>
             </div>
             {% endfor %}
+            <label class="oh-label" style="color:hsl(8deg 76.82% 46.12%);">
+              {% trans "File name:" %}
+              <br>
+            <input type="text" class="oh-input" required name="export_file_name" value="{{view.export_file_name}}">
+            </label>
           </div>
 
           <div class="oh-modal__dialog-footer p-0 mt-3">

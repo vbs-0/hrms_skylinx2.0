@@ -3,57 +3,58 @@ leave/sidebar.py
 """
 
 from django.apps import apps
-from django.urls import reverse
-from django.utils.translation import gettext_lazy as trans
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
 
 from base.templatetags.basefilters import is_leave_approval_manager, is_reportingmanager
+from skylinx.menu import settings_menu
 from leave.templatetags.leavefilters import is_compensatory
 
-MENU = trans("Leave")
+MENU = _("Leave")
 IMG_SRC = "images/ui/leave.svg"
 
 SUBMENUS = [
     {
-        "menu": trans("Dashboard"),
-        "redirect": reverse("leave-dashboard"),
+        "menu": _("Dashboard"),
+        "redirect": reverse_lazy("leave-dashboard"),
         "accessibility": "leave.sidebar.dashboard_accessibility",
     },
     {
-        "menu": trans("My Leave Requests"),
-        "redirect": reverse("user-request-view"),
+        "menu": _("My Leave Requests"),
+        "redirect": reverse_lazy("user-request-view"),
     },
     {
-        "menu": trans("Leave Requests"),
-        "redirect": reverse("request-view"),
+        "menu": _("Leave Requests"),
+        "redirect": reverse_lazy("request-view"),
         "accessibility": "leave.sidebar.leave_request_accessibility",
     },
     {
-        "menu": trans("Leave Types"),
-        "redirect": reverse("type-view"),
+        "menu": _("Leave Types"),
+        "redirect": reverse_lazy("type-view"),
         "accessibility": "leave.sidebar.type_accessibility",
     },
     {
-        "menu": trans("Assigned Leave"),
-        "redirect": reverse("assign-view"),
+        "menu": _("Assigned Leave"),
+        "redirect": reverse_lazy("assign-view"),
         "accessibility": "leave.sidebar.assign_accessibility",
     },
     {
-        "menu": trans("Leave Allocation Request"),
-        "redirect": reverse("leave-allocation-request-view"),
+        "menu": _("Leave Allocation Request"),
+        "redirect": reverse_lazy("leave-allocation-request-view"),
     },
     {
-        "menu": trans("Holidays"),
-        "redirect": reverse("holiday-view"),
+        "menu": _("Holidays"),
+        "redirect": reverse_lazy("holiday-view"),
         "accessibility": "leave.sidebar.holiday_accessibility",
     },
     {
-        "menu": trans("Company Leaves"),
-        "redirect": reverse("company-leave-view"),
+        "menu": _("Company Leaves"),
+        "redirect": reverse_lazy("company-leave-view"),
         "accessibility": "leave.sidebar.company_leave_accessibility",
     },
     {
-        "menu": trans("Restrict Leaves"),
-        "redirect": reverse("restrict-view"),
+        "menu": _("Restrict Leaves"),
+        "redirect": reverse_lazy("restrict-view"),
         "accessibility": "leave.sidebar.restrict_leave_accessibility",
     },
 ]
@@ -62,7 +63,9 @@ SUBMENUS = [
 def dashboard_accessibility(request, submenu, user_perms, *args, **kwargs):
     have_perm = request.user.has_perm("leave.view_leaverequest")
     if not have_perm:
-        submenu["redirect"] = reverse("leave-employee-dashboard") + "?dashboard=true"
+        submenu["redirect"] = (
+            reverse_lazy("leave-employee-dashboard") + "?dashboard=true"
+        )
     return True
 
 
@@ -106,11 +109,45 @@ def restrict_leave_accessibility(request, submenu, user_perms, *args, **kwargs):
 if apps.is_installed("attendance"):
     SUBMENUS.append(
         {
-            "menu": trans("Compensatory Leave Requests"),
-            "redirect": reverse("view-compensatory-leave"),
+            "menu": _("Compensatory Leave Requests"),
+            "redirect": reverse_lazy("view-compensatory-leave"),
             "accessibility": "leave.sidebar.componstory_accessibility",
         }
     )
 
     def componstory_accessibility(request, submenu, user_perms, *args, **kwargs):
         return is_compensatory(request.user)
+
+
+# ---------------------------------------------------------------------------
+# Settings menu registrations
+# ---------------------------------------------------------------------------
+
+
+def restrictions_accessibility(request, submenu, user_perms, *args, **kwargs):
+    return request.user.has_perm("leave.add_restrictleave")
+
+
+def compensatory_leave_accessibility(request, submenu, user_perms, *args, **kwargs):
+    return apps.is_installed("attendance") and request.user.has_perm(
+        "attendance.view_attendancevalidationcondition"
+    )
+
+
+@settings_menu.register
+class LeaveSettings:
+    title = _("Leave")
+    order = 6
+    condition = lambda self, request: apps.is_installed("leave")
+    items = [
+        {
+            "label": _("Restrictions"),
+            "url": reverse_lazy("employee-past-leave-restriction"),
+            "accessibility": restrictions_accessibility,
+        },
+        {
+            "label": _("Compensatory Leave"),
+            "url": reverse_lazy("compensatory-leave-settings-view"),
+            "accessibility": compensatory_leave_accessibility,
+        },
+    ]

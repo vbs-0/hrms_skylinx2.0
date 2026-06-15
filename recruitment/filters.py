@@ -5,19 +5,45 @@ This page is used to register filter for recruitment models
 
 """
 
+import ast
 import uuid
 
 import django_filters
 from django import forms
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
+
+def _filter_has_referral(qs, name, value):
+    if value:
+        return qs.filter(referral__isnull=False)
+    return qs.filter(referral__isnull=True)
+
+
+def _filter_source_not_set(qs, name, value):
+    if value:
+        return qs.filter(Q(source__isnull=True) | Q(source=""), referral__isnull=True)
+    return qs
+
+
+def _filter_recruitment_by_obj_id(qs, name, value):
+    try:
+        return qs.filter(id=int(value))
+    except (ValueError, TypeError):
+        return qs
+
+
 from base.filters import FilterSet
+from skylinx.filters import SkylinxFilterSet, filter_by_name
 from recruitment.models import (
     Candidate,
     InterviewSchedule,
     LinkedInAccount,
     Recruitment,
     RecruitmentSurvey,
+    RecruitmentSurveyAnswer,
+    RejectReason,
+    Skill,
     SkillZone,
     SkillZoneCandidate,
     Stage,
@@ -27,7 +53,7 @@ from recruitment.models import (
 # from django.forms.widgets import Boo
 
 
-class CandidateFilter(FilterSet):
+class CandidateFilter(SkylinxFilterSet):
     """
     Filter set class for Candidate model
 
@@ -36,9 +62,19 @@ class CandidateFilter(FilterSet):
     """
 
     name = django_filters.CharFilter(field_name="name", lookup_expr="icontains")
-    start_onboard = django_filters.CharFilter(
-        method="start_onboard_method", lookup_expr="icontains"
+    search = django_filters.CharFilter(method="search_by_name", lookup_expr="icontains")
+    has_referral = django_filters.BooleanFilter(
+        method=_filter_has_referral,
+        widget=django_filters.widgets.BooleanWidget(),
     )
+    source_not_set = django_filters.BooleanFilter(
+        method=_filter_source_not_set,
+        widget=django_filters.widgets.BooleanWidget(),
+    )
+
+    # start_onboard = django_filters.CharFilter(
+    #     method="start_onboard_method", lookup_expr="icontains"
+    # )
 
     candidate = django_filters.ModelMultipleChoiceFilter(
         queryset=Candidate.objects.all(),
@@ -83,6 +119,26 @@ class CandidateFilter(FilterSet):
         field_name="hired_date",
         widget=forms.DateInput(attrs={"type": "date"}),
     )
+    joining_date_from = django_filters.DateFilter(
+        field_name="joining_date",
+        lookup_expr="gte",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    joining_date_till = django_filters.DateFilter(
+        field_name="joining_date",
+        lookup_expr="lte",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    onboarding_end_date_from = django_filters.DateFilter(
+        field_name="onboarding_stage__onboarding_end_date",
+        lookup_expr="gte",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    onboarding_end_date_till = django_filters.DateFilter(
+        field_name="onboarding_stage__onboarding_end_date",
+        lookup_expr="lte",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
     interview_date = django_filters.DateFilter(
         field_name="candidate_interview__interview_date",
         widget=forms.DateInput(attrs={"type": "date"}),
@@ -118,12 +174,16 @@ class CandidateFilter(FilterSet):
         ).distinct()
         return queryset
 
-    def start_onboard_method(self, queryset, _, value):
+    def search_by_name(self, queryset, _, value):
         """
-        This method will include the candidates whether they are on the onboarding pipline stage
+        search by name method
         """
-
-        return queryset.filter(onboarding_stage__isnull=False)
+        queryset = (
+            queryset.filter(name__icontains=value)
+            | queryset.filter(stage_id__stage__icontains=value)
+            | queryset.filter(stage_id__recruitment_id__title__icontains=value)
+        )
+        return queryset.distinct()
 
     class Meta:
         """
@@ -166,6 +226,7 @@ class CandidateFilter(FilterSet):
             "offer_letter_status",
             "candidate_rating__rating",
             "candidate_interview__employee_id",
+            "source",
         ]
 
     def __init__(self, *args, **kwargs):
@@ -178,6 +239,55 @@ class CandidateFilter(FilterSet):
             form_fields[field].widget.attrs["id"] = str(uuid.uuid4())
 
         self._update_field_labels(form_fields)
+        choices = []
+        try:
+            survey_answers = RecruitmentSurveyAnswer.objects.all()
+            for survey in survey_answers:
+                candidate = survey.candidate_id
+                answer_json = survey.answer_json
+
+                # Parse JSON if stored as string
+                if isinstance(answer_json, str):
+                    try:
+                        answer_json = ast.literal_eval(answer_json)
+                    except Exception:
+                        continue
+
+                # Extract questions & answers
+                for question, answer_list in answer_json.items():
+                    if question == "csrfmiddlewaretoken":
+                        continue
+
+                    answer = (
+                        ", ".join(answer_list)
+                        if isinstance(answer_list, list)
+                        else str(answer_list)
+                    )
+
+                    choices.append(
+                        (
+                            candidate.pk,
+                            f"Q: {question} || Ans: {answer} || {candidate.get_full_name()}",
+                        )
+                    )
+        except:
+            pass
+
+        # Add filter dynamically
+        survey_answer_by = django_filters.MultipleChoiceFilter(
+            choices=choices,
+            field_name="recruitmentsurveyanswer__candidate_id",
+            label=_("Survey Answer By"),
+        )
+        self.filters["survey_answer_by"] = survey_answer_by
+        self.form.fields["survey_answer_by"] = survey_answer_by.field
+        self.form.fields["survey_answer_by"].widget.attrs.update(
+            {
+                "data-placeholder": _("Select survey answers..."),
+                "class": "survey-select w-100",
+                "style": "width:100% !important;",
+            }
+        )
 
     def _update_field_labels(self, form_fields):
         """Helper method to update field labels from model verbose names"""
@@ -236,7 +346,7 @@ BOOLEAN_CHOICES = (
 )
 
 
-class RecruitmentFilter(FilterSet):
+class RecruitmentFilter(SkylinxFilterSet):
     """
     Filter set class for Recruitment model
 
@@ -274,6 +384,7 @@ class RecruitmentFilter(FilterSet):
             (False, "No"),
         ]
     )
+    obj_id = django_filters.CharFilter(method=_filter_recruitment_by_obj_id)
 
     class Meta:
         """
@@ -311,9 +422,12 @@ class RecruitmentFilter(FilterSet):
         first_name = parts[0]
         last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
 
-        job_queryset = queryset.filter(
-            open_positions__job_position__icontains=value
-        ) | queryset.filter(title__icontains=value)
+        job_queryset = (
+            queryset.filter(open_positions__job_position__icontains=value)
+            | queryset.filter(title__icontains=value)
+            | queryset.filter(stage_set__stage__icontains=value)
+            | queryset.filter(stage_set__candidate__name__icontains=value)
+        )
         if first_name and last_name:
             queryset = queryset.filter(
                 recruitment_managers__employee_first_name__icontains=first_name,
@@ -356,7 +470,29 @@ class RecruitmentFilter(FilterSet):
         return queryset.distinct()
 
 
-class StageFilter(FilterSet):
+class SkillsFilter(FilterSet):
+
+    search = django_filters.CharFilter(field_name="title", lookup_expr="icontains")
+
+    class Meta:
+        model = Skill
+        fields = [
+            "title",
+        ]
+
+
+class RejectReasonFilter(FilterSet):
+
+    search = django_filters.CharFilter(field_name="title", lookup_expr="icontains")
+
+    class Meta:
+        model = RejectReason
+        fields = [
+            "title",
+        ]
+
+
+class StageFilter(SkylinxFilterSet):
     """
     Filter set class for Stage model
 
@@ -391,7 +527,13 @@ class StageFilter(FilterSet):
         parts = value.split()
         first_name = parts[0]
         last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
-        recruitment_query = queryset.filter(recruitment_id__title__icontains=value)
+        recruitment_query = (
+            queryset.filter(recruitment_id__title__icontains=value)
+            | queryset.filter(candidate__name__icontains=value)
+            | queryset.filter(
+                recruitment_id__stage_set__candidate__name__icontains=value
+            )
+        )
         # Filter the queryset by first name and last name
         stage_queryset = queryset.filter(stage__icontains=value)
         if first_name and last_name:
@@ -409,7 +551,7 @@ class StageFilter(FilterSet):
             )
 
         queryset = queryset | stage_queryset | recruitment_query
-        return queryset
+        return queryset.distinct()
 
     def pipeline_search(self, queryset, _, value):
         """
@@ -423,7 +565,7 @@ class StageFilter(FilterSet):
         return queryset.distinct()
 
 
-class SurveyFilter(FilterSet):
+class SurveyFilter(SkylinxFilterSet):
     """
     SurveyFIlter
     """
@@ -510,7 +652,7 @@ class SkillZoneFilter(FilterSet):
         ]
 
 
-class SkillZoneCandFilter(FilterSet):
+class SkillZoneCandFilter(SkylinxFilterSet):
     """
     Skillzone Candidate FIlter
     """
@@ -628,7 +770,7 @@ class SkillZoneCandFilter(FilterSet):
         ).distinct()
 
 
-class InterviewFilter(FilterSet):
+class InterviewFilter(SkylinxFilterSet):
     """
     Filter set class for Candidate model
 

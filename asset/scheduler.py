@@ -17,16 +17,15 @@ def notify_expiring_assets():
     """
     Finds all Expiring Assets and send a notification on the notify_before date.
     """
-    from django.contrib.auth.models import User
-
     from asset.models import Asset
+    from skylinx_auth.models import SkylinxUser
 
     today = date.today()
     assets = Asset.objects.all()
 
     # Cache bot & superuser once
-    bot = User.objects.filter(username="Skylinx Bot").only("id").first()
-    superuser = User.objects.filter(is_superuser=True).only("id").first()
+    bot = SkylinxUser.objects.filter(username="Skylinx Bot").only("id").first()
+    superuser = SkylinxUser.objects.filter(is_superuser=True).only("id").first()
 
     # Query only assets that are expiring today
     assets = Asset.objects.filter(
@@ -54,17 +53,32 @@ def notify_expiring_assets():
                 )
 
 
+def mark_expired_assets():
+    """
+    Finds all assets past their expiry date and sets their status to Not-Available.
+    """
+    from asset.models import Asset
+
+    today = date.today()
+    expired = Asset.objects.filter(
+        expiry_date__isnull=False,
+        expiry_date__lt=today,
+    ).exclude(asset_status="Not-Available")
+    for asset in expired:
+        asset.asset_status = "Not-Available"
+        asset.save()
+
+
 def notify_expiring_documents():
     """
     Finds all Expiring Documents and send a notification on the notify_before date.
     """
-    from django.contrib.auth.models import User
-
+    from skylinx_auth.models import SkylinxUser
     from skylinx_documents.models import Document
 
     today = date.today()
     documents = Document.objects.all()
-    bot = User.objects.filter(username="Skylinx Bot").first()
+    bot = SkylinxUser.objects.filter(username="Skylinx Bot").first()
     for document in documents:
         if document.expiry_date:
             expiry_date = document.expiry_date
@@ -99,4 +113,5 @@ if not any(
     scheduler = BackgroundScheduler()
     scheduler.add_job(notify_expiring_assets, "interval", days=1)
     scheduler.add_job(notify_expiring_documents, "interval", hours=4)
+    scheduler.add_job(mark_expired_assets, "interval", days=1)
     scheduler.start()

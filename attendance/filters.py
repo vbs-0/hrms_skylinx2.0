@@ -10,20 +10,25 @@ import uuid
 
 import django_filters
 from django import forms
+from django.db.models import Value
+from django.db.models.functions import Coalesce, Concat
 from django.forms import DateTimeInput
 from django.utils.translation import gettext_lazy as _
 
 from attendance.models import (
     Attendance,
     AttendanceActivity,
+    AttendanceGeneralSetting,
     AttendanceLateComeEarlyOut,
     AttendanceOverTime,
+    AttendanceValidationCondition,
+    GraceTime,
     strtime_seconds,
 )
 from base.filters import FilterSet
 from employee.filters import EmployeeFilter
 from employee.models import Employee
-from skylinx.filters import filter_by_name
+from skylinx.filters import SkylinxFilterSet, filter_by_name
 
 
 class DurationInSecondsFilter(django_filters.CharFilter):
@@ -50,7 +55,7 @@ class DurationInSecondsFilter(django_filters.CharFilter):
         return qs
 
 
-class AttendanceOverTimeFilter(FilterSet):
+class AttendanceOverTimeFilter(SkylinxFilterSet):
     """
     Filter set class for AttendanceOverTime model
 
@@ -125,8 +130,12 @@ class AttendanceOverTimeFilter(FilterSet):
         for field in self.form.fields.keys():
             self.form.fields[field].widget.attrs["id"] = f"{uuid.uuid4()}"
 
+        self.form.fields["employee_id__employee_work_info__location"].widget.attrs[
+            "placeholder"
+        ] = _("Work Location")
 
-class LateComeEarlyOutFilter(FilterSet):
+
+class LateComeEarlyOutFilter(SkylinxFilterSet):
     """
     LateComeEarlyOutFilter class
     """
@@ -246,7 +255,7 @@ class LateComeEarlyOutFilter(FilterSet):
             self.form.fields[field].widget.attrs["id"] = f"{uuid.uuid4()}"
 
 
-class AttendanceActivityFilter(FilterSet):
+class AttendanceActivityFilter(SkylinxFilterSet):
     """
     Filter set class for AttendanceActivity model
 
@@ -328,8 +337,12 @@ class AttendanceActivityFilter(FilterSet):
         for field in self.form.fields.keys():
             self.form.fields[field].widget.attrs["id"] = f"{uuid.uuid4()}"
 
+        self.form.fields["employee_id__employee_work_info__location"].widget.attrs[
+            "placeholder"
+        ] = _("Work Location")
 
-class AttendanceFilters(FilterSet):
+
+class AttendanceFilters(SkylinxFilterSet):
     """
     Filter set class for Attendance model
 
@@ -339,6 +352,8 @@ class AttendanceFilters(FilterSet):
 
     id = django_filters.NumberFilter(field_name="id")
     search = django_filters.CharFilter(method="filter_by_name")
+    search_field = django_filters.CharFilter(method="search_in")
+
     employee = django_filters.CharFilter(field_name="employee_id__id")
     date_attendance = django_filters.DateFilter(field_name="attendance_date")
     employee_id = django_filters.ModelMultipleChoiceFilter(
@@ -389,23 +404,31 @@ class AttendanceFilters(FilterSet):
     attendance_date = django_filters.DateFilter(
         widget=forms.DateInput(attrs={"type": "date"}),
     )
-    pending_hour__lte = DurationInSecondsFilter(
+    pending_hour_lte = DurationInSecondsFilter(
         method="filter_pending_hour",
     )
-    pending_hour__gte = DurationInSecondsFilter(
+    pending_hour_gte = DurationInSecondsFilter(
         method="filter_pending_hour",
     )
     at_work_second__lte = DurationInSecondsFilter(
-        field_name="at_work_second", lookup_expr="lte"
+        field_name="at_work_second",
+        lookup_expr="lte",
+        widget=forms.TimeInput(attrs={"type": "time"}),
     )
     at_work_second__gte = DurationInSecondsFilter(
-        field_name="at_work_second", lookup_expr="gte"
+        field_name="at_work_second",
+        lookup_expr="gte",
+        widget=forms.TimeInput(attrs={"type": "time"}),
     )
     overtime_second__lte = DurationInSecondsFilter(
-        field_name="overtime_second", lookup_expr="lte"
+        field_name="overtime_second",
+        lookup_expr="lte",
+        widget=forms.TimeInput(attrs={"type": "time"}),
     )
     overtime_second__gte = DurationInSecondsFilter(
-        field_name="overtime_second", lookup_expr="gte"
+        field_name="overtime_second",
+        lookup_expr="gte",
+        widget=forms.TimeInput(attrs={"type": "time"}),
     )
     year = django_filters.CharFilter(field_name="attendance_date", lookup_expr="year")
     month = django_filters.CharFilter(field_name="attendance_date", lookup_expr="month")
@@ -414,6 +437,17 @@ class AttendanceFilters(FilterSet):
         field_name="employee_id__employee_work_info__department_id__department",
         lookup_expr="icontains",
     )
+
+    @property
+    def form(self):
+        form = super().form
+        form.fields["pending_hour_lte"].widget = forms.TimeInput(
+            attrs={"type": "time", "class": "oh-input w-100 form-control"}
+        )
+        form.fields["pending_hour_gte"].widget = forms.TimeInput(
+            attrs={"type": "time", "class": "oh-input w-100 form-control"}
+        )
+        return form
 
     def filter_pending_hour(self, queryset, name, value):
         """
@@ -488,7 +522,14 @@ class AttendanceFilters(FilterSet):
         for field in self.form.fields.keys():
             self.form.fields[field].widget.attrs["id"] = f"{uuid.uuid4()}"
 
+        self.form.fields["employee_id__employee_work_info__location"].widget.attrs[
+            "placeholder"
+        ] = _("Work Location")
+
     def filter_by_name(self, queryset, name, value):
+
+        if self.data.get("search_field"):
+            return queryset
         # Call the imported function
         """
         This method allows filtering by the employee's first and/or last name or by other
@@ -505,28 +546,30 @@ class AttendanceFilters(FilterSet):
             "company": "employee_id__employee_work_info__company_id__company__icontains",
         }
         search_field = self.data.get("search_field")
+        qs = queryset
         if not search_field:
-            parts = value.split()
-            first_name = parts[0]
-            last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+            value = " ".join(value.split())
 
-            # Filter the queryset by first name and last name
-            if first_name and last_name:
-                queryset = queryset.filter(
-                    employee_id__employee_first_name__icontains=first_name,
-                    employee_id__employee_last_name__icontains=last_name,
+            queryset = queryset.annotate(
+                full_name=Concat(
+                    Coalesce("employee_id__employee_first_name", Value("")),
+                    Value(" "),
+                    Coalesce("employee_id__employee_last_name", Value("")),
                 )
-            elif first_name:
-                queryset = queryset.filter(
-                    employee_id__employee_first_name__icontains=first_name
-                )
-            elif last_name:
-                queryset = queryset.filter(
-                    employee_id__employee_last_name__icontains=last_name
-                )
+            )
+
+            queryset = queryset.filter(full_name__icontains=value)
+
+            queryset = (
+                queryset | qs.filter(employee_id__badge_id__icontains=value)
+            ).distinct()
         else:
             filter = filter_method.get(search_field)
             queryset = queryset.filter(**{filter: value})
+
+        queryset = (
+            queryset | qs.filter(employee_id__badge_id__icontains=value).distinct()
+        )
 
         return queryset
 
@@ -649,6 +692,54 @@ class AttendanceRequestReGroup:
         ("employee_id__employee_work_info__employee_type_id", "Employment Type"),
         ("employee_id__employee_work_info__company_id", "Company"),
     ]
+
+
+class AttendanceBreakpointFilter(FilterSet):
+    """
+    filter class for attendance breakpoint condition model
+    """
+
+    search = django_filters.CharFilter(field_name="company_id", lookup_expr="icontains")
+
+    class Meta:
+        model = AttendanceValidationCondition
+        fields = [
+            "validation_at_work",
+            "minimum_overtime_to_approve",
+            "overtime_cutoff",
+            "company_id",
+        ]
+
+
+class GraceTimeFilter(SkylinxFilterSet):
+
+    search = django_filters.CharFilter(method="search_method")
+
+    class Meta:
+        model = GraceTime
+        fields = ["company_id"]
+
+    def search_method(self, queryset, _, value):
+        """
+        This method is used to mail server
+        """
+
+        return ((queryset.filter(company_id__company__icontains=value))).distinct()
+
+
+class AttendanceGeneralSettingFilter(SkylinxFilterSet):
+
+    search = django_filters.CharFilter(method="search_method")
+
+    class Meta:
+        model = AttendanceGeneralSetting
+        fields = ["company_id"]
+
+    def search_method(self, queryset, _, value):
+        """
+        This method is used to mail server
+        """
+        return ((queryset.filter(company_id__company__icontains=value))).distinct()
 
 
 def get_working_today(queryset, _name, value):

@@ -3,6 +3,7 @@ apps.py
 """
 
 from django.apps import AppConfig
+from django.conf import settings
 
 
 class RecruitmentConfig(AppConfig):
@@ -23,11 +24,10 @@ class RecruitmentConfig(AppConfig):
     def ready(self):
         from django.urls import include, path
 
-        from skylinx.skylinx_settings import APPS
         from skylinx.urls import urlpatterns
         from recruitment import signals
 
-        APPS.append("recruitment")
+        settings.APPS.append("recruitment")
         urlpatterns.append(
             path("recruitment/", include("recruitment.urls")),
         )

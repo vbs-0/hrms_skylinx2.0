@@ -55,7 +55,7 @@ def object_check(cls, pk):
 class TicketTypeGetCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
-    queryset = TicketType.objects.all()
+    queryset = TicketType.objects.none()  # For drf-yasg schema generation
 
     def get_queryset(self):
         # Handle schema generation for DRF-YASG
@@ -117,7 +117,7 @@ class FAQCategoryGetCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_class = FAQCategoryFilter
-    queryset = FAQCategory.objects.all()
+    queryset = FAQCategory.objects.none()  # For drf-yasg schema generation
 
     def get_queryset(self):
         # Handle schema generation for DRF-YASG
@@ -180,7 +180,7 @@ class FAQGetCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_class = FAQFilter
-    queryset = FAQ.objects.all()
+    queryset = FAQ.objects.none()  # For drf-yasg schema generation
 
     def get_queryset(self):
         # Handle schema generation for DRF-YASG
@@ -246,7 +246,7 @@ class TicketGetCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_class = TicketFilter
-    queryset = Ticket.objects.all()
+    queryset = Ticket.objects.none()  # For drf-yasg schema generation
 
     def get_queryset(self):
         # Handle schema generation for DRF-YASG

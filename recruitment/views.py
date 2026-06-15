@@ -145,6 +145,9 @@ def recruitment(request):
                     icon="people-circle",
                     redirect=reverse("pipeline"),
                 )
+            response = render(
+                request, "recruitment/recruitment_form.html", {"form": form}
+            )
             return SkylinxRedirect(request)
     return render(request, "recruitment/recruitment_form.html", {"form": form})
 
@@ -508,6 +511,7 @@ def recruitment_update_pipeline(request, rec_id):
                     icon="people-circle",
                     redirect=reverse("pipeline"),
                 )
+
             return SkylinxRedirect(request)
     return render(request, "pipeline/form/recruitment_update.html", {"form": form})
 

@@ -361,7 +361,7 @@
                             )"
                     class="oh-btn oh-btn--secondary oh-btn--shadow"
                     id="trigger-onboarding"
-                    title="Send portal link / Trigger Onboarding"
+                    title="{% trans 'Send portal link / Trigger Onboarding' %}"
                 >
                     {% trans "Send Portal Link" %}
                 </button>
@@ -438,7 +438,8 @@
                     window.location.reload()
                 },
                 error: function () {
-                console.error("An error occured...");
+                    reloadMessage()
+                    console.error("An error occured...");
                 },
             });
         }
@@ -475,6 +476,7 @@
                             window.location.reload()
                         },
                         error: function () {
+                            reloadMessage()
                             console.error("An error occured...");
                         },
                     });

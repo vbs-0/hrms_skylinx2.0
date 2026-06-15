@@ -1,6 +1,8 @@
 {% extends 'index.html' %}
 {% block content %}
+{% include "generic/components.html" %}
 {% load i18n %} {% load basefilters %}
+
 <style>
     .oh-modal_close--custom {
         border: none;
@@ -12,7 +14,6 @@
         right: 15px;
     }
 </style>
-
 <div class="oh-modal" id="addSurvey" role="dialog" aria-labelledby="addSurvey" aria-hidden="true">
     <div class="oh-modal__dialog">
         <div class="oh-modal__dialog-header">
@@ -88,38 +89,38 @@
         </div>
     </div>
 </section>
-<div class="oh-tabs oh-wrapper">
+<div class="oh-tabs oh-wrapper" id="surveyTabsWrapper">
     <ul class="oh-tabs__tablist">
         <li class="oh-tabs__tab oh-tabs__tab--active" data-target="#templateTab">
             {% trans "Templates" %}
-            {% if perms.recruitment.add_surveytemplate %}
-                <button onclick="event.stopPropagation()" style="display: inline-block;padding: 0px;
-                    border-radius: 6px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    width: 50px;
-                    height: 28px;" class="oh-btn oh-btn--secondary-outline float-end ms-3"
-                    hx-get="{% url 'survey-template-create' %}" hx-target="#templateModalBody" data-toggle="oh-modal-toggle"
-                    data-target="#templateModal" title="{% trans " Create template group" %}">
-                    <ion-icon name="add-outline" class="m-0 md hydrated" role="img" aria-label="add outline"></ion-icon>
-                </button>
+            {% if perms.recruitment.add_recruitmentsurvey %}
+            <button onclick="event.stopPropagation()" style="display: inline-block;padding: 0px;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 50px;
+          height: 28px;" class="oh-btn oh-btn--secondary-outline float-end ms-3"
+                hx-get="{% url 'survey-template-create' %}" hx-target="#genericModalBody" data-toggle="oh-modal-toggle"
+                data-target="#genericModal" title="{% trans " Create template group" %}">
+                <ion-icon name="add-outline" class="m-0 md hydrated" role="img" aria-label="add outline"></ion-icon>
+            </button>
             {% endif %}
         </li>
         <li class="oh-tabs__tab" data-target="#questionTab">
             {% trans "Questions" %}
             {% if perms.recruitment.add_recruitmentsurvey %}
-                <button onclick="event.stopPropagation()" style="display: inline-block;padding: 0px;
-                        border-radius: 6px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        width: 50px;
-                        height: 28px;" class="oh-btn oh-btn--secondary-outline float-end ms-3"
-                    hx-get="{% url 'recruitment-survey-question-template-create' %}" hx-target="#templateModalBody"
-                    data-toggle="oh-modal-toggle" data-target="#templateModal" title="{% trans 'Create survey questions' %}">
-                    <ion-icon name="add-outline" class="m-0 md hydrated" role="img" aria-label="add outline"></ion-icon>
-                </button>
+            <button onclick="event.stopPropagation()" style="display: inline-block;padding: 0px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 28px;" class="oh-btn oh-btn--secondary-outline float-end ms-3"
+                hx-get="{% url 'recruitment-survey-question-template-create' %}" hx-target="#genericModalBody"
+                data-toggle="oh-modal-toggle" data-target="#genericModal" title="{% trans 'Create survey questions' %}">
+                <ion-icon name="add-outline" class="m-0 md hydrated" role="img" aria-label="add outline"></ion-icon>
+            </button>
             {% endif %}
         </li>
     </ul>
@@ -142,10 +143,19 @@
 </div>
 <script>
     $(document).ready(function () {
-        var activeTab = localStorage.getItem("activeSurveyTab")
+        const params = new URLSearchParams(window.location.search);
+        const shouldOpenDefault = params.get("closed") === "false";
+        let activeTab = localStorage.getItem("activeSurveyTab");
+        const tabSelector = `.oh-tabs__tab[data-target='${activeTab}']`;
+        if (shouldOpenDefault || !activeTab || $(tabSelector).length === 0) {
+            activeTab = "#templateTab";
+            localStorage.setItem("activeSurveyTab", activeTab);
+        }
         $(".oh-tabs__tab--active").removeClass("oh-tabs__tab--active");
         $(`[data-target='${activeTab}']`).addClass("oh-tabs__tab--active");
-        $(`[data-target='${activeTab}']`).click();
+        if ($(`[data-target='${activeTab}']`).length) {
+            $(`[data-target='${activeTab}']`).click();
+        }
         $(".oh-tabs__tab").on("click", function (e) {
             var dataTarget = $(this).data('target');
             localStorage.setItem("activeSurveyTab", dataTarget)

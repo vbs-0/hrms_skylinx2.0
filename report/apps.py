@@ -9,7 +9,6 @@ class ReportConfig(AppConfig):
         ready = super().ready()
         from django.urls import include, path
 
-        from skylinx.skylinx_settings import APPS
         from skylinx.urls import urlpatterns
 
         urlpatterns.append(

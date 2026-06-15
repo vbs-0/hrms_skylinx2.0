@@ -14,8 +14,7 @@ provide the main entry points for interacting with the application's functionali
 import logging
 import uuid
 
-from skylinx.skylinx_settings import DYNAMIC_URL_PATTERNS, SKYLINX_DATE_FORMATS
-from skylinx.http import SkylinxRedirect
+from skylinx.http.response import SkylinxRedirect
 from skylinx.methods import remove_dynamic_url
 
 logger = logging.getLogger(__name__)
@@ -24,11 +23,13 @@ import calendar
 import contextlib
 import io
 import json
+import os
 from collections import defaultdict
 from datetime import date, datetime, timedelta
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlparse
 
 import pandas as pd
+from django.conf import settings
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.core.validators import validate_ipv46_address
@@ -44,6 +45,7 @@ from django.utils.timezone import now
 from django.utils.translation import gettext as __
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
+from xlsxwriter.utility import xl_range
 
 from attendance.filters import (
     AttendanceActivityFilter,
@@ -168,8 +170,9 @@ def profile_attendance_tab(request):
 
 
 @login_required
+@hx_request_required
 @manager_can_enter("employee.view_employee")
-def attendance_tab(request, emp_id):
+def attendance_tab(request, pk):
     """
     This function is used to view attendance tab of an employee in individual view.
 
@@ -182,16 +185,16 @@ def attendance_tab(request, emp_id):
 
     requests = Attendance.objects.filter(
         is_validate_request=True,
-        employee_id=emp_id,
+        employee_id=pk,
     )
     attendances_ids = json.dumps([instance.id for instance in requests])
     validate_attendances = Attendance.objects.filter(
-        attendance_validated=False, employee_id=emp_id
+        attendance_validated=False, employee_id=pk
     )
     validate_attendances_ids = json.dumps(
         [instance.id for instance in validate_attendances]
     )
-    accounts = AttendanceOverTime.objects.filter(employee_id=emp_id)
+    accounts = AttendanceOverTime.objects.filter(employee_id=pk)
     accounts_ids = json.dumps([instance.id for instance in accounts])
 
     context = {
@@ -263,6 +266,7 @@ def attendance_excel(_request):
 
 @login_required
 @permission_required("attendance.add_attendance")
+@require_http_methods(["POST"])
 def attendance_import(request):
     """
     Save the import of attendance data from an uploaded Excel file, validate the data,
@@ -452,6 +456,21 @@ def attendance_update(request, obj_id):
     )
 
 
+def attendance_view_redirect(request):
+    """
+    Full page redirect for normal navigation; for HTMX requests (attendance-view),
+    trigger a client-side refresh of the list container without reloading the page.
+    """
+    if request.META.get("HTTP_HX_REQUEST"):
+        response = HttpResponse("", status=200)
+        # Fire on document body so handlers run even if the initiating node is swapped/removed (hx-swap=none).
+        response["HX-Trigger"] = json.dumps(
+            {"reloadAttendanceView": {"target": "body"}}
+        )
+        return response
+    return SkylinxRedirect(request)
+
+
 @login_required
 @permission_required("attendance.delete_attendance")
 @require_http_methods(["POST"])
@@ -479,25 +498,25 @@ def attendance_delete(request, obj_id):
                     total_overtime = attendance_overtime_seconds - total_overtime
                 overtime.overtime = format_time(total_overtime)
                 overtime.save()
-            try:
-                attendance.delete()
-                messages.success(request, _("Attendance deleted."))
-            except ProtectedError as e:
-                model_verbose_names_set = set()
-                for obj in e.protected_objects:
-                    model_verbose_names_set.add(__(obj._meta.verbose_name.capitalize()))
-                model_names_str = ", ".join(model_verbose_names_set)
-                messages.error(
-                    request,
-                    _(
-                        ("An attendance entry for {} already exists.").format(
-                            model_names_str
-                        )
-                    ),
-                )
+        try:
+            attendance.delete()
+            messages.success(request, _("Attendance deleted."))
+        except ProtectedError as e:
+            model_verbose_names_set = set()
+            for obj in e.protected_objects:
+                model_verbose_names_set.add(__(obj._meta.verbose_name.capitalize()))
+            model_names_str = ", ".join(model_verbose_names_set)
+            messages.error(
+                request,
+                _(
+                    ("An attendance entry for {} already exists.").format(
+                        model_names_str
+                    )
+                ),
+            )
     except (Attendance.DoesNotExist, OverflowError):
         messages.error(request, _("Attendance Does not exists.."))
-    return SkylinxRedirect(request)
+    return attendance_view_redirect(request)
 
 
 @login_required
@@ -550,7 +569,7 @@ def attendance_bulk_delete(request):
         messages.success(request, f"{success_count} attendances deleted successfully.")
     for error in error_messages:
         messages.error(request, error)
-    return redirect("/attendance/attendance-search")
+    return JsonResponse({"message": "Success"})
 
 
 @login_required
@@ -644,6 +663,7 @@ def attendance_overtime_view(request):
     )
 
 
+@login_required
 def attendance_account_export(request):
     if request.META.get("HTTP_HX_REQUEST") == "true":
         context = {
@@ -702,6 +722,7 @@ def attendance_overtime_delete(request, obj_id):
     hx_target = request.META.get("HTTP_HX_TARGET", None)
     try:
         attendance = AttendanceOverTime.objects.get(id=obj_id)
+        employee_id = attendance.employee_id.id
         attendance.delete()
         if hx_target == "ot-table":
             messages.success(request, _("Hour account deleted."))
@@ -714,7 +735,17 @@ def attendance_overtime_delete(request, obj_id):
     if hx_target and hx_target == "ot-table":
         hour_account = AttendanceOverTime.objects.all()
         if hour_account.exists():
-            return redirect(f"/attendance/attendance-overtime-search?{previous_data}")
+            path = request.META.get("HTTP_HX_CURRENT_URL", None)
+            parsed_url = urlparse(path)
+            parsed_path = parsed_url.path.lstrip("/")
+            if parsed_path == "attendance/attendance-overtime-view/":
+                return redirect(
+                    f"/attendance/attendance-overtime-search?{previous_data}"
+                )
+            else:
+                return redirect(
+                    f"/attendance/attendance-overtime-individual-tab/{employee_id}/?deleted=true"
+                )
         else:
             return SkylinxRedirect(request)
     elif hx_target:
@@ -727,8 +758,7 @@ def attendance_account_bulk_delete(request):
     """
     This method is used to bulk delete for Payslip
     """
-    ids = request.POST["ids"]
-    ids = json.loads(ids)
+    ids = json.loads(request.POST.get("ids", "[]"))
     for id in ids:
         try:
             hour_account = AttendanceOverTime.objects.get(id=id)
@@ -747,6 +777,51 @@ def attendance_account_bulk_delete(request):
                 _("You cannot delete {hour_account}").format(hour_account=hour_account),
             )
     return JsonResponse({"message": "Success"})
+
+
+@login_required
+@hx_request_required
+def form_shift_dynamic_data(request):
+    """
+    This method is used to update the shift details to the form
+    """
+    shift_id = request.POST.get("shift_id")
+    attendance_date_str = request.POST.get("attendance_date")
+    today = datetime.now()
+    attendance_date = date(day=today.day, month=today.month, year=today.year)
+    if attendance_date_str is not None and attendance_date_str != "":
+        attendance_date = datetime.strptime(attendance_date_str, "%Y-%m-%d").date()
+    day = attendance_date.strftime("%A").lower()
+    schedule_today = EmployeeShiftSchedule.objects.filter(
+        shift_id__id=shift_id, day__day=day
+    ).first()
+    shift_start_time = ""
+    shift_end_time = ""
+    minimum_hour = "00:00"
+    attendance_clock_out_date = attendance_date
+    if schedule_today is not None:
+        shift_start_time = schedule_today.start_time
+        shift_end_time = schedule_today.end_time
+        minimum_hour = schedule_today.minimum_working_hour
+        if shift_end_time < shift_start_time:
+            attendance_clock_out_date = attendance_date + timedelta(days=1)
+    worked_hour = minimum_hour
+    if attendance_date == date(day=today.day, month=today.month, year=today.year):
+        shift_end_time = datetime.now().strftime("%H:%M")
+        worked_hour = "00:00"
+
+    minimum_hour = attendance_day_checking(str(attendance_date), minimum_hour)
+
+    return JsonResponse(
+        {
+            "shift_start_time": shift_start_time,
+            "shift_end_time": shift_end_time,
+            "checkin_date": attendance_date.strftime("%Y-%m-%d"),
+            "minimum_hour": minimum_hour,
+            "worked_hour": worked_hour,
+            "checkout_date": attendance_clock_out_date.strftime("%Y-%m-%d"),
+        }
+    )
 
 
 @login_required
@@ -822,7 +897,7 @@ def activity_single_view(request, obj_id):
 def attendance_activity_delete(request, obj_id):
     """
     This method is used to delete attendance activity
-    args:
+    args:attendance-activity-delete
         obj_id : attendance activity id
     """
     request_copy = request.GET.copy()
@@ -835,6 +910,7 @@ def attendance_activity_delete(request, obj_id):
         messages.error(request, _("Attendance activity Does not exists.."))
     except ProtectedError:
         messages.error(request, _("You cannot delete this activity"))
+
     if not request.GET.get("instances_ids"):
         return redirect(f"/attendance/attendance-activity-search?{previous_data}")
     else:
@@ -846,7 +922,7 @@ def attendance_activity_delete(request, obj_id):
             json.loads(instances_ids), obj_id
         )
         return redirect(
-            f"/attendance/attendance-activity-single-view/{next_instance}/?{previous_data}&instances_ids={instances_list}"
+            f"/attendance/attendance-activity-single-view/{next_instance}/?{previous_data}&instance_ids={instances_list}&deleted=true"
         )
 
 
@@ -1000,7 +1076,7 @@ def handle_activity_import_error(error_data):
     # Create a unique path for the error file download
     path_info = f"activity-error-sheet-{uuid.uuid4()}"
     urlpatterns.append(path(path_info, get_activity_error_sheet, name=path_info))
-    DYNAMIC_URL_PATTERNS.append(path_info)
+    settings.DYNAMIC_URL_PATTERNS.append(path_info)
 
     # Return the path information
     path_info = f"attendance/{path_info}"
@@ -1079,19 +1155,25 @@ def attendance_activity_export(request):
 
 
 @login_required
+@hx_request_required
 def on_time_view(request):
     """
     This method render template to view all on come early out entries
     """
     total_attendances = AttendanceFilters(request.GET).qs
     ids_to_exclude = AttendanceLateComeEarlyOut.objects.filter(
-        attendance_id__id__in=[attendance.id for attendance in total_attendances],
+        attendance_id__in=total_attendances.values_list("id", flat=True),
         type="late_come",
-    ).values_list("attendance_id__id", flat=True)
-    # Exclude attendances with related objects in AttendanceLateComeEarlyOut
+    ).values_list("attendance_id", flat=True)
+    # Filter out late-come attendances
     total_attendances = total_attendances.exclude(id__in=ids_to_exclude)
+
+    paginator = Paginator(total_attendances, 50)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
     context = {
-        "attendances": total_attendances,
+        "attendances": page_obj.object_list,
     }
     return render(
         request, "attendance/attendance/attendance_on_time.html", context=context
@@ -1188,7 +1270,7 @@ def late_come_early_out_delete(request, obj_id):
             json.loads(instances_ids), obj_id
         )
         return redirect(
-            f"/attendance/late-in-early-out-single-view/{next_instance}/?{previous_data}&instances_ids={instances_list}"
+            f"/attendance/late-in-early-out-single-view/{next_instance}/?{previous_data}&instance_ids={instances_list}&deleted=true"
         )
 
 
@@ -1201,18 +1283,15 @@ def late_come_early_out_bulk_delete(request):
     """
     ids = request.POST["ids"]
     ids = json.loads(ids)
+    del_ids = []
     for attendance_id in ids:
         try:
             late_come = AttendanceLateComeEarlyOut.objects.get(id=attendance_id)
             late_come.delete()
-            messages.success(
-                request,
-                _("{employee} Late-in early-out deleted.").format(
-                    employee=late_come.employee_id
-                ),
-            )
+            del_ids.append(late_come)
         except (AttendanceLateComeEarlyOut.DoesNotExist, OverflowError, ValueError):
             messages.error(request, _("Attendance not found."))
+    messages.success(request, _("{} Late-in early-out deleted.".format(len(del_ids))))
     return JsonResponse({"message": "Success"})
 
 
@@ -1276,8 +1355,22 @@ def validate_bulk_attendance(request):
     validate_req_count = 0
     success_messages = []
     error_messages = []
+    filtered_ids = []
 
     for obj_id in ids:
+        try:
+            attendance = Attendance.objects.get(id=obj_id)
+            if attendance.employee_id.id != request.user.employee_get.id:
+                filtered_ids.append(obj_id)
+        except Attendance.DoesNotExist:
+            error_messages.append(_("Attendance not found"))
+        except (OverflowError, ValueError):
+            error_messages.append(_("Invalid attendance ID"))
+
+    if request.user.is_superuser:
+        filtered_ids = ids
+
+    for obj_id in filtered_ids:
         try:
             attendance = Attendance.objects.get(id=obj_id)
 
@@ -1293,7 +1386,10 @@ def validate_bulk_attendance(request):
             # Recalculate worked hours from attendance activities before validation
             # to ensure Hours Account reflects actual worked time.
             # Fixes: https://github.com/skylinx/skylinx-hr/issues/1055
-            if not attendance.attendance_worked_hour or attendance.attendance_worked_hour == "00:00":
+            if (
+                not attendance.attendance_worked_hour
+                or attendance.attendance_worked_hour == "00:00"
+            ):
                 at_work_seconds = attendance.get_at_work_from_activities()
                 if at_work_seconds > 0:
                     attendance.attendance_worked_hour = format_time(at_work_seconds)
@@ -1342,11 +1438,18 @@ def validate_this_attendance(request, obj_id):
     """
     try:
         attendance = Attendance.objects.get(id=obj_id)
+        if not request.user.is_superuser:
+            if attendance.employee_id.id == request.user.employee_get.id:
+                messages.error(request, _("You cannot validate your own attendance."))
+                return attendance_view_redirect(request)
         attendance.attendance_validated = True
         # Recalculate worked hours from attendance activities before validation
         # to ensure Hours Account reflects actual worked time.
         # Fixes: https://github.com/skylinx/skylinx-hr/issues/1055
-        if not attendance.attendance_worked_hour or attendance.attendance_worked_hour == "00:00":
+        if (
+            not attendance.attendance_worked_hour
+            or attendance.attendance_worked_hour == "00:00"
+        ):
             at_work_seconds = attendance.get_at_work_from_activities()
             if at_work_seconds > 0:
                 attendance.attendance_worked_hour = format_time(at_work_seconds)
@@ -1375,7 +1478,7 @@ def validate_this_attendance(request, obj_id):
     except (Attendance.DoesNotExist, ValueError):
         messages.error(request, _("Attendance not found"))
 
-    return SkylinxRedirect(request)
+    return attendance_view_redirect(request)
 
 
 @login_required
@@ -1386,7 +1489,12 @@ def revalidate_this_attendance(request, obj_id):
         id  : attendance id
     """
 
-    attendance = Attendance.objects.get(id=obj_id)
+    attendance = Attendance.find(obj_id)
+    if not attendance:
+        return SkylinxRedirect(
+            request, message=_("No Attendance found matching the query.")
+        )
+
     if is_reportingmanger(request, attendance) or request.user.has_perm(
         "attendance.change_attendance"
     ):
@@ -1417,6 +1525,7 @@ def revalidate_this_attendance(request, obj_id):
 
 @login_required
 @manager_can_enter("attendance.change_attendance")
+@require_http_methods(["GET", "POST"])
 def approve_overtime(request, obj_id):
     """
     This method is used to approve attendance overtime
@@ -1425,6 +1534,10 @@ def approve_overtime(request, obj_id):
     """
     try:
         attendance = Attendance.objects.get(id=obj_id)
+        if not request.user.is_superuser:
+            if attendance.employee_id.id == request.user.employee_get.id:
+                messages.error(request, _("You cannot approve your own overtime."))
+                return attendance_view_redirect(request)
         attendance.attendance_overtime_approve = True
         attendance.save()
         urlencode = request.GET.urlencode()
@@ -1452,7 +1565,7 @@ def approve_overtime(request, obj_id):
             )
     except (Attendance.DoesNotExist, OverflowError):
         messages.error(request, _("Attendance not found"))
-    return SkylinxRedirect(request)
+    return attendance_view_redirect(request)
 
 
 @login_required
@@ -1461,14 +1574,24 @@ def approve_bulk_overtime(request):
     """
     This method is used to approve bulk of attendance
     """
-    ids = request.POST["ids"]
-    ids = json.loads(ids)
+    ids = json.loads(request.POST.get("ids", "[]"))
+    otapprove_ids = []
+    filtered_ids = []
     for attendance_id in ids:
+        try:
+            attendance = Attendance.objects.get(id=attendance_id)
+            if attendance.employee_id.employee_user_id != request.user:
+                filtered_ids.append(attendance_id)
+        except (Attendance.DoesNotExist, OverflowError, ValueError):
+            messages.error(request, _("Attendance not found"))
+    if request.user.is_superuser:
+        filtered_ids = ids
+    for attendance_id in filtered_ids:
         try:
             attendance = Attendance.objects.get(id=attendance_id)
             attendance.attendance_overtime_approve = True
             attendance.save()
-            messages.success(request, _("Overtime approved"))
+            otapprove_ids.append(attendance)
             notify.send(
                 request.user.employee_get,
                 recipient=attendance.employee_id.employee_user_id,
@@ -1487,10 +1610,14 @@ def approve_bulk_overtime(request):
             )
         except (Attendance.DoesNotExist, OverflowError, ValueError):
             messages.error(request, _("Attendance not found"))
+    if otapprove_ids:
+        messages.success(request, _(" {} Overtime approved".format(len(otapprove_ids))))
+
     return JsonResponse({"message": "Success"})
 
 
 @login_required
+@hx_request_required
 # @manager_can_enter("attendance.change_attendance")
 def attendance_add_to_batch(request):
     """
@@ -1534,14 +1661,27 @@ def update_fields_based_shift(request):
 
     employee_ids = (
         request.GET.get("employee_id")
-        if hx_target == "attendanceUpdateForm" or hx_target == "attendanceRequestDiv"
+        if hx_target
+        in [
+            "attendanceUpdate",
+            "attendanceRequest",
+            "attendanceUpdateFormFields",
+            "attendanceFormFields",
+            "attendanceRequestDiv",
+        ]
         else request.GET.getlist("employee_id")
     )
     employee_queryset = (
         (
             Employee.objects.get(id=employee_ids)
-            if hx_target == "attendanceUpdateForm"
-            or hx_target == "attendanceRequestDiv"
+            if hx_target
+            in [
+                "attendanceUpdate",
+                "attendanceUpdateFormFields",
+                "attendanceRequest",
+                "attendanceRequestDiv",
+                "attendanceFormFields",
+            ]
             else Employee.objects.filter(id__in=employee_ids)
         )
         if employee_ids
@@ -1599,13 +1739,48 @@ def update_fields_based_shift(request):
     }
     form = (
         AttendanceUpdateForm(initial=initial_data)
-        if hx_target == "attendanceUpdateForm"
+        if hx_target in ["attendanceUpdate", "attendanceUpdateFormFields"]
         else (
             NewRequestForm(initial=initial_data)
-            if hx_target == "attendanceRequestDiv"
+            if hx_target in ["attendanceRequest", "attendanceRequestDiv"]
             else AttendanceForm(initial=initial_data)
         )
     )
+    return render(
+        request,
+        "attendance/attendance/update_hx_form.html",
+        {"request": request, "form": form},
+    )
+
+
+@login_required
+@hx_request_required
+def update_worked_hour_field(request):
+    """
+    Update the worked hour field based on clock-in and clock-out times.
+
+    This view function calculates the total worked hours for an employee
+    by parsing the clock-in and clock-out dates and times from the request
+    parameters. It computes the duration between the two times and formats
+    the result as a string in the "HH:MM" format. The computed worked hours
+    are then initialized in an AttendanceForm, which is rendered in the
+    specified HTML template.
+    """
+    clock_in = parse_datetime(
+        request.GET.get("attendance_clock_in_date"),
+        request.GET.get("attendance_clock_in"),
+    )
+    clock_out = parse_datetime(
+        request.GET.get("attendance_clock_out_date"),
+        request.GET.get("attendance_clock_out"),
+    )
+
+    total_seconds = (
+        (clock_out - clock_in).total_seconds() if clock_in and clock_out else -1
+    )
+    hours, minutes = divmod(max(total_seconds, 0), 3600)
+    worked_hours_str = f"{int(hours):02}:{int(minutes // 60):02}"
+    form = AttendanceForm(initial={"attendance_worked_hour": worked_hours_str})
     return render(
         request,
         "attendance/attendance/update_hx_form.html",
@@ -1658,13 +1833,20 @@ def update_worked_hour_field(request):
 
 
 @login_required
+@hx_request_required
 def form_date_checking(request):
-    attendance_date_str = request.POST["attendance_date"]
     minimum_hour = "00:00"
+    attendance_date_str = request.POST.get("attendance_date")
+    if not attendance_date_str:
+        return JsonResponse(
+            {
+                "minimum_hour": minimum_hour,
+            }
+        )
     # Converting to date type.
     attendance_date = datetime.strptime(attendance_date_str, "%Y-%m-%d").date()
 
-    if request.POST["shift_id"]:
+    if request.POST.get("shift_id"):
         shift_id = request.POST["shift_id"]
         day = attendance_date.strftime("%A").lower()
         schedule_today = EmployeeShiftSchedule.objects.filter(
@@ -1696,7 +1878,11 @@ def user_request_one_view(request, id):
     Returns:
     GET : return one user attendance request view template
     """
-    attendance_request = Attendance.objects.get(id=id)
+    attendance_request = Attendance.find(id)
+    if not attendance_request:
+        return SkylinxRedirect(
+            request, message=_("No Attendance found matching the query.")
+        )
 
     at_work_seconds = attendance_request.at_work_second
     hours_at_work = at_work_seconds // 3600
@@ -1737,6 +1923,7 @@ def get_attendance_activities(request, obj_id):
 
 
 @login_required
+@hx_request_required
 def hour_attendance_select(request):
     page_number = request.GET.get("page")
     context = {}
@@ -1760,18 +1947,20 @@ def hour_attendance_select(request):
 
 
 @login_required
+@hx_request_required
 def hour_attendance_select_filter(request):
     page_number = request.GET.get("page")
     filtered = request.GET.get("filter")
     filters = json.loads(filtered) if filtered else {}
+    context = {}
 
     if page_number == "all":
         if request.user.has_perm("attendance.view_attendanceovertime"):
-            employee_filter = AttendanceOverTimeFilter(
+            attendance_filter = AttendanceOverTimeFilter(
                 filters, queryset=AttendanceOverTime.objects.all()
             )
         else:
-            employee_filter = AttendanceOverTimeFilter(
+            attendance_filter = AttendanceOverTimeFilter(
                 filters,
                 queryset=AttendanceOverTime.objects.filter(
                     employee_id__employee_user_id=request.user
@@ -1782,51 +1971,55 @@ def hour_attendance_select_filter(request):
             )
 
         # Get the filtered queryset
-        filtered_employees = employee_filter.qs
+        filtered_attendance = attendance_filter.qs
 
-        employee_ids = [str(emp.id) for emp in filtered_employees]
-        total_count = filtered_employees.count()
+        attendance_ids = [str(attendance.id) for attendance in filtered_attendance]
+        total_count = filtered_attendance.count()
 
-        context = {"employee_ids": employee_ids, "total_count": total_count}
+        context = {"employee_ids": attendance_ids, "total_count": total_count}
 
-        return JsonResponse(context)
+    return JsonResponse(context)
 
 
 @login_required
+@hx_request_required
 def activity_attendance_select(request):
     page_number = request.GET.get("page")
+    activity = AttendanceActivity.objects.all()
 
     if page_number == "all":
         if request.user.has_perm("attendance.view_attendanceovertime"):
-            employees = AttendanceActivity.objects.all()
+            activity = AttendanceActivity.objects.all()
         else:
-            employees = AttendanceActivity.objects.filter(
-                employee_id__employee_user_id=request.user
+            activity = AttendanceActivity.objects.filter(
+                employee_id=request.user.employee_get
             ) | AttendanceActivity.objects.filter(
-                employee_id__employee_work_info__reporting_manager_id__employee_user_id=request.user
+                employee_id__employee_work_info__reporting_manager_id=request.user.employee_get
             )
 
-    employee_ids = [str(emp.id) for emp in employees]
-    total_count = employees.count()
+    activity_ids = [str(act.id) for act in activity]
+    total_count = activity.count()
 
-    context = {"employee_ids": employee_ids, "total_count": total_count}
+    context = {"employee_ids": activity_ids, "total_count": total_count}
 
     return JsonResponse(context, safe=False)
 
 
 @login_required
+@hx_request_required
 def activity_attendance_select_filter(request):
     page_number = request.GET.get("page")
     filtered = request.GET.get("filter")
     filters = json.loads(filtered) if filtered else {}
+    context = {}
 
     if page_number == "all":
         if request.user.has_perm("attendance.view_attendanceovertime"):
-            employee_filter = AttendanceActivityFilter(
+            activity_filter = AttendanceActivityFilter(
                 filters, queryset=AttendanceActivity.objects.all()
             )
         else:
-            employee_filter = AttendanceActivityFilter(
+            activity_filter = AttendanceActivityFilter(
                 filters,
                 queryset=AttendanceActivity.objects.filter(
                     employee_id__employee_user_id=request.user
@@ -1837,51 +2030,55 @@ def activity_attendance_select_filter(request):
             )
 
         # Get the filtered queryset
-        filtered_employees = employee_filter.qs
+        filtered_activity = activity_filter.qs
 
-        employee_ids = [str(emp.id) for emp in filtered_employees]
-        total_count = filtered_employees.count()
+        activity_ids = [str(emp.id) for emp in filtered_activity]
+        total_count = filtered_activity.count()
 
-        context = {"employee_ids": employee_ids, "total_count": total_count}
+        context = {"employee_ids": activity_ids, "total_count": total_count}
 
-        return JsonResponse(context)
+    return JsonResponse(context)
 
 
 @login_required
+@hx_request_required
 def latecome_attendance_select(request):
     page_number = request.GET.get("page")
+    late_objs = AttendanceLateComeEarlyOut.objects.none()
 
     if page_number == "all":
         if request.user.has_perm("attendance.view_attendancelatecomeearlyout"):
-            employees = AttendanceLateComeEarlyOut.objects.all()
+            late_objs = AttendanceLateComeEarlyOut.objects.all()
         else:
-            employees = AttendanceLateComeEarlyOut.objects.filter(
+            late_objs = AttendanceLateComeEarlyOut.objects.filter(
                 employee_id__employee_user_id=request.user
             ) | AttendanceLateComeEarlyOut.objects.filter(
                 employee_id__employee_work_info__reporting_manager_id__employee_user_id=request.user
             )
 
-    employee_ids = [str(emp.id) for emp in employees]
-    total_count = employees.count()
+    late_ids = [str(emp.id) for emp in late_objs]
+    total_count = late_objs.count()
 
-    context = {"employee_ids": employee_ids, "total_count": total_count}
+    context = {"employee_ids": late_ids, "total_count": total_count}
 
     return JsonResponse(context, safe=False)
 
 
 @login_required
+@hx_request_required
 def latecome_attendance_select_filter(request):
     page_number = request.GET.get("page")
     filtered = request.GET.get("filter")
     filters = json.loads(filtered) if filtered else {}
+    context = {}
 
     if page_number == "all":
         if request.user.has_perm("attendance.view_attendancelatecomeearlyout"):
-            employee_filter = LateComeEarlyOutFilter(
+            late_filter = LateComeEarlyOutFilter(
                 filters, queryset=AttendanceLateComeEarlyOut.objects.all()
             )
         else:
-            employee_filter = LateComeEarlyOutFilter(
+            late_filter = LateComeEarlyOutFilter(
                 filters,
                 queryset=AttendanceLateComeEarlyOut.objects.filter(
                     employee_id__employee_user_id=request.user
@@ -1892,14 +2089,14 @@ def latecome_attendance_select_filter(request):
             )
 
         # Get the filtered queryset
-        filtered_employees = employee_filter.qs
+        filtered_obj = late_filter.qs
 
-        employee_ids = [str(emp.id) for emp in filtered_employees]
-        total_count = filtered_employees.count()
+        late_ids = [str(emp.id) for emp in filtered_obj]
+        total_count = filtered_obj.count()
 
-        context = {"employee_ids": employee_ids, "total_count": total_count}
+        context = {"employee_ids": late_ids, "total_count": total_count}
 
-        return JsonResponse(context)
+    return JsonResponse(context)
 
 
 @login_required
@@ -1940,6 +2137,7 @@ def create_grace_time(request):
 @permission_required("base.change_employeeshift")
 def assign_shift(request, grace_id):
     gracetime = GraceTime.objects.filter(id=grace_id).first() if grace_id else None
+
     if gracetime:
         form = GraceTimeAssignForm()
         if request.method == "POST":
@@ -2003,22 +2201,37 @@ def delete_grace_time(request, grace_id):
     GET : return grace time form template
     """
     try:
-        GraceTime.objects.get(id=grace_id).delete()
+        delete_error = False
+        default_grace_time_count = GraceTime.objects.filter(is_default=True).count()
+        grace_time_count = GraceTime.objects.filter(is_default=False).count()
+        grace_time = GraceTime.objects.get(id=grace_id)
+        grace_time_type = grace_time.is_default
+        grace_time.delete()
         messages.success(request, _("Grace time deleted successfully."))
     except GraceTime.DoesNotExist:
+        delete_error = True
         messages.error(request, _("Grace Time Does not exists.."))
+        return SkylinxRedirect(request)
     except ProtectedError:
+        delete_error = True
         messages.error(request, _("Related datas exists."))
-    context = {
-        "condition": AttendanceValidationCondition.objects.first(),
-        "default_grace_time": GraceTime.objects.filter(is_default=True).first(),
-        "grace_times": GraceTime.objects.all().exclude(is_default=True),
-    }
-
-    return render(request, "attendance/grace_time/grace_time_table.html", context)
+    if delete_error:
+        if grace_time_type:
+            return HttpResponse(
+                "<script>$('#default-containerReload').click();</script>"
+            )
+        return HttpResponse("<script>$('#gracetime-containerReload').click();</script>")
+    elif default_grace_time_count == 1 and grace_time_type:
+        return HttpResponse(
+            "<script>$('#default-containerReload').click();$('.defaultGraceNav').click();</script>"
+        )
+    elif grace_time_count == 1 and not grace_time_type:
+        return HttpResponse("<script>$('#gracetime-containerReload').click();</script>")
+    return HttpResponse("<script>$('#reloadMessagesButton').click();</script>")
 
 
 @login_required
+@hx_request_required
 @permission_required("attendance.update_gracetime")
 def update_isactive_gracetime(request):
     """
@@ -2029,7 +2242,13 @@ def update_isactive_gracetime(request):
     """
     isChecked = request.POST.get("isChecked")
     gracetimeId = request.POST.get("gracetimeId")
+    if not gracetimeId:
+        return JsonResponse({"type": "error", "message": "GraceTime ID missing"})
+
     gracetime = GraceTime.objects.get(id=gracetimeId)
+    if not gracetime:
+        return JsonResponse({"type": "error", "message": "GraceTime not found"})
+
     if isChecked == "true":
         gracetime.is_active = True
         response = {
@@ -2047,6 +2266,7 @@ def update_isactive_gracetime(request):
 
 
 @login_required
+@hx_request_required
 @permission_required("attendance.update_gracetime")
 def update_gracetime_clock_in_clock_out(request):
     """
@@ -2055,32 +2275,38 @@ def update_gracetime_clock_in_clock_out(request):
     - isChecked: Boolean value representing the state of grace time,
     - gracetimeId: Id of PayslipAutoGenerate object
     """
-    isChecked = request.POST.get("isChecked")
     gracetimeId = request.POST.get("gracetimeId")
+    if not gracetimeId:
+        return JsonResponse({"type": "error", "message": "GraceTime ID missing"})
+
+    isChecked = request.POST.get("isChecked")
     update = request.POST.get("update")
-    garcetime = GraceTime.objects.get(id=gracetimeId)
+    gracetime = GraceTime.objects.get(id=gracetimeId)
+    if not gracetime:
+        return JsonResponse({"type": "error", "message": "GraceTime not found"})
+
     if update == "clock_in":
         if isChecked == "true":
-            garcetime.allowed_clock_in = True
+            gracetime.allowed_clock_in = True
             response = {
                 "type": "success",
                 "message": _("Gracetime applicable on clock-In successfully."),
             }
         else:
-            garcetime.allowed_clock_in = False
+            gracetime.allowed_clock_in = False
             response = {
                 "type": "success",
                 "message": _("Gracetime unapplicable on clock-In  successfully."),
             }
     elif update == "clock_out":
         if isChecked == "true":
-            garcetime.allowed_clock_out = True
+            gracetime.allowed_clock_out = True
             response = {
                 "type": "success",
                 "message": _("Gracetime applicable on clock-out successfully."),
             }
         else:
-            garcetime.allowed_clock_out = False
+            gracetime.allowed_clock_out = False
             response = {
                 "type": "success",
                 "message": _("Gracetime unapplicable on clock-out successfully."),
@@ -2090,11 +2316,12 @@ def update_gracetime_clock_in_clock_out(request):
             "type": "error",
             "message": _("Something went wrong ."),
         }
-    garcetime.save()
+    gracetime.save()
     return JsonResponse(response)
 
 
 @login_required
+@hx_request_required
 def create_attendancerequest_comment(request, attendance_id):
     """
     This method renders form and template to create Attendance request comments
@@ -2215,6 +2442,7 @@ def create_attendancerequest_comment(request, attendance_id):
 
 
 @login_required
+@hx_request_required
 def view_attendancerequest_comment(request, attendance_id):
     """
     This method is used to show Attendance request comments
@@ -2246,18 +2474,25 @@ def view_attendancerequest_comment(request, attendance_id):
 
 
 @login_required
+@hx_request_required
 def delete_attendancerequest_comment(request, comment_id):
     """
     This method is used to delete Attendance request comments
     """
+    comment = AttendanceRequestComment.find(comment_id)
+    if not comment:
+        return SkylinxRedirect(
+            request, message=_("No Comment found matching the query.")
+        )
+
     script = ""
-    comment = AttendanceRequestComment.objects.get(id=comment_id)
     comment.delete()
     messages.success(request, _("Comment deleted successfully!"))
     return HttpResponse(script)
 
 
 @login_required
+@hx_request_required
 def delete_comment_file(request):
     """
     Used to delete attachment
@@ -2273,9 +2508,11 @@ def delete_comment_file(request):
 def work_records(request):
     today = date.today()
     previous_data = request.GET.urlencode()
+    employee_filter_form = EmployeeFilter(request.GET)
     context = {
         "current_date": today,
         "pd": previous_data,
+        "f": employee_filter_form,
     }
     return render(
         request, "attendance/work_record/work_record_view.html", context=context
@@ -2292,36 +2529,87 @@ def work_records_change_month(request):
         request, employee_filter_form.qs, "attendance.view_attendance"
     )
 
+    all_employees = employees
+
+    paginator_emp = Paginator(employees, 20)
+    page_emp = paginator_emp.get_page(request.GET.get("page"))
+
     month_str = request.GET.get("month", f"{date.today().year}-{date.today().month}")
     try:
         year, month = map(int, month_str.split("-"))
     except ValueError:
         year, month = date.today().year, date.today().month
 
-    employees = [request.user.employee_get] + list(employees)
+    employees = [request.user.employee_get] + list(page_emp.object_list)
 
-    month_dates = [
-        datetime(year, month, day).date()
-        for week in calendar.monthcalendar(year, month)
-        for day in week
-        if day
-    ]
+    start_date_str = request.GET.get("start_date")
+    end_date_str = request.GET.get("end_date")
+
+    if start_date_str or end_date_str:
+        # Initialize as None
+        start_date = None
+        end_date = None
+
+        # Try parsing the start date
+        if start_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+            except ValueError:
+                start_date = None
+
+        # Try parsing the end date
+        if end_date_str:
+            try:
+                end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+            except ValueError:
+                end_date = None
+
+        # Default end_date to today if missing or invalid
+        if not end_date:
+            today = date.today()
+            last_day = calendar.monthrange(today.year, today.month)[1]
+            end_date = date(today.year, today.month, last_day)
+
+        # Default start_date to first day of end_date's month if missing or invalid
+        if not start_date:
+            start_date = date(year=end_date.year, month=end_date.month, day=1)
+
+        # Ensure start_date is not after end_date
+        if start_date > end_date:
+            # Optional: raise error or swap, depending on your use case
+            start_date = date(year=end_date.year, month=end_date.month, day=1)
+
+        # Generate list of dates between start_date and end_date (inclusive)
+        month_dates = []
+        current_date = start_date
+        while current_date <= end_date:
+            month_dates.append(current_date)
+            current_date += timedelta(days=1)
+    else:
+        month_dates = [
+            datetime(year, month, day).date()
+            for week in calendar.monthcalendar(year, month)
+            for day in week
+            if day
+        ]
 
     work_records = WorkRecords.objects.filter(
-        date__in=month_dates, employee_id__in=employees
+        date__in=month_dates, employee_id__in=page_emp.object_list
     ).select_related("employee_id", "shift_id", "attendance_id")
 
     work_records_dict = {(wr.employee_id.id, wr.date): wr for wr in work_records}
 
-    data = {
+    work_record_table = {
         employee: [
             work_records_dict.get((employee.id, current_date))
             for current_date in month_dates
         ]
-        for employee in employees
+        for employee in all_employees
     }
 
-    paginator = Paginator(list(data.items()), get_pagination())
+    paginated_table = list(work_record_table.items())
+
+    paginator = Paginator(paginated_table, 20)
     page = paginator.get_page(request.GET.get("page"))
 
     context = {
@@ -2339,16 +2627,61 @@ def work_records_change_month(request):
 @login_required
 @permission_required("attendance.view_workrecords")
 def work_record_export(request):
+
     try:
-        month = int(request.GET.get("month") or date.today().month)
-        year = int(request.GET.get("year") or date.today().year)
+        month_str = request.GET.get("month")
+        if month_str:
+            year, month = map(int, month_str.split("-"))
+        else:
+            today = date.today()
+            year, month = today.year, today.month
     except ValueError:
         return HttpResponseBadRequest("Invalid month or year parameter.")
 
     employees = EmployeeFilter(request.GET).qs
     records = WorkRecords.objects.filter(date__month=month, date__year=year)
-    num_days = calendar.monthrange(year, month)[1]
-    all_date_objects = [date(year, month, day) for day in range(1, num_days + 1)]
+    # all_date_objects = [date(year, month, day) for day in range(1, num_days + 1)]
+
+    start_date_str = request.GET.get("start_date")
+    end_date_str = request.GET.get("end_date")
+
+    # Initialize as None
+    start_date = None
+    end_date = None
+
+    # Try parsing the start date
+    if start_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            start_date = None
+
+    # Try parsing the end date
+    if end_date_str:
+        try:
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            end_date = None
+
+    # Default end_date to today if missing or invalid
+    if not end_date:
+        end_date = date.today()
+
+    # Default start_date to first day of end_date's month if missing or invalid
+    if not start_date:
+        start_date = date(year=end_date.year, month=end_date.month, day=1)
+
+    # Ensure start_date is not after end_date
+    if start_date > end_date:
+        # Optional: raise error or swap, depending on your use case
+        start_date = date(year=end_date.year, month=end_date.month, day=1)
+
+    # Generate list of dates between start_date and end_date (inclusive)
+    all_date_objects = []
+    current_date = start_date
+    while current_date <= end_date:
+        all_date_objects.append(current_date)
+        current_date += timedelta(days=1)
     leave_dates = set(monthly_leave_days(month, year))
 
     record_lookup = defaultdict(lambda: "ABS")
@@ -2358,7 +2691,7 @@ def work_record_export(request):
             record_lookup[record_key] = record.work_record_type
 
     date_format = request.user.employee_get.get_date_format()
-    format_string = SKYLINX_DATE_FORMATS.get(date_format)
+    format_string = settings.SKYLINX_DATE_FORMATS.get(date_format)
     formatted_dates = [day.strftime(format_string) for day in all_date_objects]
     data_rows = []
 
@@ -2375,12 +2708,66 @@ def work_record_export(request):
     columns = ["Employee"] + formatted_dates
     df = pd.DataFrame(data_rows, columns=columns)
 
+    company = getattr(request, "selected_company_instance", None)
+    logo_path = getattr(company, "icon", "") if company else ""
+    company_title = getattr(company, "company", "") if company else ""
+    date_range = f"{start_date} TO {end_date}"
+    report_title = str(_("Work Records Status"))
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        df.to_excel(writer, index=False, sheet_name="Sheet1")
+        df.to_excel(
+            writer, index=False, sheet_name="Sheet1", startrow=6
+        )  # leave space for header
         workbook = writer.book
         worksheet = writer.sheets["Sheet1"]
 
+        # --- Header Formats ---
+        company_format = workbook.add_format(
+            {"bold": True, "font_size": 16, "align": "center", "valign": "vcenter"}
+        )
+        title_format = workbook.add_format(
+            {
+                "bold": True,
+                "font_size": 14,
+                "align": "center",
+                "valign": "vcenter",
+                "font_color": "#FF0000",
+            }
+        )
+        date_format = workbook.add_format(
+            {"italic": True, "font_size": 11, "align": "center", "valign": "vcenter"}
+        )
+
+        # --- Calculate header merge range ---
+        total_columns = len(df.columns)
+        merge_range = xl_range(0, 0, 0, total_columns - 1)
+
+        # --- 1️⃣ Company Name ---
+        worksheet.merge_range(merge_range, company_title or "", company_format)
+
+        # --- 2️⃣ Report Title ---
+        worksheet.merge_range(
+            xl_range(1, 0, 2, total_columns - 1), report_title or "", title_format
+        )
+
+        # --- 3️⃣ Date Range ---
+        worksheet.merge_range(
+            xl_range(3, 0, 3, total_columns - 1), date_range or "", date_format
+        )
+
+        # --- 4️⃣ Company Logo (optional) ---
+        if logo_path:
+            try:
+                worksheet.insert_image(
+                    "A1",
+                    str(os.path.join(settings.MEDIA_ROOT, str(logo_path))),
+                    {"x_scale": 0.5, "y_scale": 0.5},
+                )
+            except Exception as e:
+                print(f"Logo insert failed: {e}")
+
+        # --- Cell formats for codes ---
         formats = {
             "ABS": workbook.add_format(
                 {"bg_color": "#808080", "font_color": "#ffffff"}
@@ -2399,14 +2786,18 @@ def work_record_export(request):
             ),
         }
 
-        for row_idx, row in enumerate(df.itertuples(index=False), start=1):
-            for col_idx, cell_value in enumerate(row[1:], start=1):
+        # --- Apply cell formats ---
+        for row_idx, row in enumerate(
+            df.itertuples(index=False), start=7
+        ):  # data starts from row 7
+            for col_idx, cell_value in enumerate(row):
                 if cell_value in formats:
                     worksheet.write(row_idx, col_idx, cell_value, formats[cell_value])
 
+        # --- Auto column width ---
         for col_idx, col in enumerate(df.columns):
             max_len = max(df[col].astype(str).map(len).max(), len(col))
-            worksheet.set_column(col_idx, col_idx, max_len)
+            worksheet.set_column(col_idx, col_idx, min(max_len + 2, 50))
 
     output.seek(0)
 
@@ -2414,12 +2805,11 @@ def work_record_export(request):
         output.read(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-    response["Content-Disposition"] = 'attachment; filename="work_record_export.xlsx"'
+    response["Content-Disposition"] = f'attachment; filename="Work Record Status.xlsx"'
     return response
 
 
 @login_required
-@hx_request_required
 @permission_required("attendance.add_attendancegeneralsetting")
 def enable_timerunner(request):
     """
@@ -2439,9 +2829,20 @@ def track_late_come_early_out(request):
     """
     Renders the form to track late arrivals and early departures in attendance.
     """
-    tracking = TrackLateComeEarlyOut.objects.first()
+    selected_company = request.session.get("selected_company")
+    if selected_company == "all":
+        company = None
+    else:
+        from base.models import Company
+
+        company = Company.objects.filter(id=selected_company).first()
+    tracking = TrackLateComeEarlyOut.objects.filter(company_id=company).first()
     form = TrackLateComeEarlyOutForm(
-        initial={"is_enable": tracking.is_enable} if tracking else {}
+        initial=(
+            {"is_enable": tracking.is_enable, "company_id": company}
+            if tracking
+            else {"company_id": company}
+        )
     )
     return render(
         request, "attendance/late_come_early_out/tracking.html", {"form": form}
@@ -2455,8 +2856,18 @@ def enable_disable_tracking_late_come_early_out(request):
     Enables or disables the tracking of late arrivals and early departures in attendance.
     """
     if request.method == "POST":
+        from base.models import Company
+
         enable = bool(request.POST.get("is_enable"))
-        tracking, created = TrackLateComeEarlyOut.objects.get_or_create()
+        selected_company = request.session.get("selected_company")
+        if selected_company == "all":
+            company = None
+        else:
+            company = Company.objects.filter(id=selected_company).first()
+
+        tracking, created = TrackLateComeEarlyOut.objects.get_or_create(
+            company_id=company
+        )
         tracking.is_enable = enable
         tracking.save()
         message = _("enabled") if enable else _("disabled")
@@ -2514,7 +2925,7 @@ def grace_time_view(request):
     """
     condition = AttendanceValidationCondition.objects.first()
     default_grace_time = GraceTime.objects.filter(is_default=True).first()
-    grace_times = GraceTime.objects.all().exclude(is_default=True)
+    grace_times = GraceTime.objects.entire().exclude(is_default=True)
     return render(
         request,
         "attendance/grace_time/grace_time.html",
@@ -2543,6 +2954,7 @@ def validation_condition_view(request):
 
 
 @login_required
+@hx_request_required
 @permission_required("attendance.add_attendancevalidationcondition")
 def validation_condition_create(request):
     """
@@ -2602,6 +3014,7 @@ def allowed_ips(request):
 
 @login_required
 @permission_required("attendance.add_attendance")
+@require_http_methods(["POST"])
 def enable_ip_restriction(request):
     """
     This function is used to enable the allowed ips
@@ -2614,13 +3027,10 @@ def enable_ip_restriction(request):
             ip_restiction = AttendanceAllowedIP.objects.create(is_enabled=True)
             return SkylinxRedirect(request)
 
-        if not ip_restiction.is_enabled:
-            ip_restiction.is_enabled = True
-        elif ip_restiction.is_enabled:
-            ip_restiction.is_enabled = False
+        ip_restiction.is_enabled = not ip_restiction.is_enabled
 
         ip_restiction.save()
-        return SkylinxRedirect(request)
+    return SkylinxRedirect(request)
 
 
 def validate_ip_address(self, value):
@@ -2638,6 +3048,7 @@ def validate_ip_address(self, value):
 
 
 @login_required
+@hx_request_required
 @permission_required("attendance.add_attendance")
 def create_allowed_ips(request):
     """
@@ -2721,7 +3132,7 @@ def edit_allowed_ips(request):
         return redirect("allowed-ips")
 
     ips = allowed_ips.additional_data.get("allowed_ips", [])
-    id = request.GET.get("id")
+    id = request.GET["id"]
 
     try:
         id = int(id)

@@ -8,39 +8,31 @@ from django.template.defaultfilters import register
 from base.methods import get_pagination
 from base.models import MultipleApprovalManagers
 from employee.models import Employee, EmployeeWorkInformation
+from skylinx.menu.settings_menu import get_settings_menu
 
 register = template.Library()
 
 
-@register.filter(name="cancel_request")
-def cancel_request(user, request):
-    employee = user.employee_get
-    employee_manages = employee.reporting_manager.all()
-    return bool(
-        request.employee_id == employee
-        or user.has_perm("perms.base.cancel_worktyperequest")
-        or user.has_perm("perms.base.cancel_shiftrequest")
-        or employee_manages.exists()
-    )
+@register.filter
+def equals(value, arg):
+    """Check if value equals arg"""
+    return value == arg
 
 
-@register.filter(name="update_request")
-def update_request(user, request):
-    employee = user.employee_get
-    return bool(
-        not request.canceled
-        and not request.approved
-        and (
-            employee == request.employee_id
-            or user.has_perm("perms.base.change_worktyperequest")
-            or user.has_perm("perms.base.change_shiftrequest")
-        )
-    )
+@register.simple_tag
+def is_manager_of(user, instance, field_name="employee_id"):
+    employee = Employee.objects.filter(employee_user_id=user).first()
+
+    target_employee = getattr(instance, field_name, None)
+
+    return EmployeeWorkInformation.objects.filter(
+        reporting_manager_id=employee, employee_id=target_employee
+    ).exists()
 
 
 @register.filter(name="is_reportingmanager")
 def is_reportingmanager(user):
-    """{% load basefilters %}
+    """
 
     This method will return true if the user employee profile is reporting manager to any employee
     """
@@ -57,7 +49,9 @@ def is_leave_approval_manager(user):
     """
     employee = Employee.objects.filter(employee_user_id=user).first()
     manager = (
-        MultipleApprovalManagers.objects.filter(employee_id=employee.id).exists()
+        MultipleApprovalManagers.objects.entire()
+        .filter(employee_id=employee.id)
+        .exists()
         if employee
         else False
     )
@@ -84,6 +78,7 @@ def filtersubordinates(user):
     args:
         user    : request.user
     """
+
     employee = user.employee_get
     employee_manages = employee.reporting_manager.all()
     return employee_manages.exists()
@@ -146,6 +141,14 @@ def startswith(value, arg):
     return value.startswith(arg)
 
 
+@register.filter(name="has_content")
+def has_content(value):
+    """Returns True if the input string has non-whitespace content."""
+    if isinstance(value, str):
+        return bool(value.strip())
+    return True
+
+
 @register.filter(name="readable")
 def readable(value):
     try:
@@ -153,3 +156,170 @@ def readable(value):
     except:
         value = value
     return value
+
+
+@register.simple_tag(takes_context=True)
+def general_section_main(context):
+    user = context["request"].user
+
+    if not user.is_authenticated:
+        return False
+
+    return any(
+        [
+            user.has_perm("base.change_announcementexpire"),
+            user.has_perm("base.view_dynamicpagination"),
+            user.has_perm("skylinx_audit.view_accountblockunblock"),
+            user.has_perm("offboarding.change_offboardinggeneralsetting"),
+            user.has_perm("attendance.change_attendancegeneralsetting"),
+            user.has_perm("payroll.change_payrollgeneralsetting"),
+            user.has_perm("employee.change_employeegeneralsetting"),
+            user.has_perm("payroll.change_encashmentgeneralsetting"),
+            user.has_perm("base.view_historytrackingfields"),
+            user.has_perm("payroll.view_payrollsettings"),
+            user.has_perm("auth.view_permission"),
+            user.has_perm("auth.view_group"),
+            user.has_perm("base.view_company"),
+            user.has_perm("base.view_tags"),
+            user.has_perm("employee.view_employeetag"),
+            user.has_perm("skylinx_audit.view_audittag"),
+            user.has_perm("base.view_dynamicemailconfiguration"),
+            user.has_perm("skylinx_backup.view_googledrivebackup"),
+        ]
+    )
+
+
+@register.simple_tag(takes_context=True)
+def general_section(context):
+    user = context["request"].user
+
+    if not user.is_authenticated:
+        return False
+
+    return any(
+        [
+            user.has_perm("base.change_announcementexpire"),
+            user.has_perm("base.view_dynamicpagination"),
+            user.has_perm("skylinx_audit.view_accountblockunblock"),
+            user.has_perm("offboarding.change_offboardinggeneralsetting"),
+            user.has_perm("attendance.change_attendancegeneralsetting"),
+            user.has_perm("payroll.change_payrollgeneralsetting"),
+            user.has_perm("employee.change_employeegeneralsetting"),
+            user.has_perm("payroll.change_encashmentgeneralsetting"),
+            user.has_perm("base.view_historytrackingfields"),
+            user.has_perm("payroll.view_payrollsettings"),
+        ]
+    )
+
+
+@register.simple_tag(takes_context=True)
+def employee_section(context):
+    user = context["request"].user
+
+    if not user.is_authenticated:
+        return False
+
+    return any(
+        [
+            user.has_perm("base.view_worktype"),
+            user.has_perm("base.view_rotatingworktype"),
+            user.has_perm("base.view_employeeshift"),
+            user.has_perm("base.view_rotatingshift"),
+            user.has_perm("base.view_employeeshiftschedule"),
+            user.has_perm("base.view_employeetype"),
+            user.has_perm("employee.view_actiontype"),
+            user.has_perm("employee.view_employeetag"),
+        ]
+    )
+
+
+@register.simple_tag(takes_context=True)
+def attendance_section(context):
+    user = context["request"].user
+
+    if not user.is_authenticated:
+        return False
+
+    return any(
+        [
+            user.has_perm("attendance.view_attendancevalidationcondition"),
+            user.has_perm("base.view_biometricattendance"),
+            user.has_perm("attendance.add_attendance"),
+            user.has_perm("geofencing.add_geofencing"),
+            user.has_perm("facedetection.add_facedetection"),
+        ]
+    )
+
+
+@register.simple_tag(takes_context=True)
+def show_section(context):
+    user = context["request"].user
+
+    if not user.is_authenticated:
+        return False
+
+    return any(
+        [
+            user.has_perm("attendance.view_attendancevalidationcondition"),
+            user.has_perm("helpdesk.view_departmentmanager"),
+            user.has_perm("helpdesk.view_tickettype"),
+            user.has_perm("employee.view_employeetag"),
+            user.has_perm("pms.add_bonuspointsetting"),
+            user.has_perm("payroll.view_payslipautogenerate"),
+            user.has_perm("leave.add_restrictleave"),
+            user.has_perm("base.view_biometricattendance"),
+            user.has_perm("attendance.add_attendance"),
+            user.has_perm("geofencing.add_geofencing"),
+            user.has_perm("facedetection.add_facedetection"),
+            user.has_perm("recruitment.view_recruitment"),
+            user.has_perm("recruitment.view_rejectreason"),
+            user.has_perm("recruitment.add_recruitment"),
+            user.has_perm("recruitment.add_linkedinaccount"),
+            user.has_perm("skylinx_audit.view_accountblockunblock"),
+            user.has_perm("offboarding.change_offboardinggeneralsetting"),
+            user.has_perm("attendance.change_attendancegeneralsetting"),
+            user.has_perm("payroll.change_payrollgeneralsetting"),
+            user.has_perm("employee.change_employeegeneralsetting"),
+            user.has_perm("payroll.change_encashmentgeneralsetting"),
+            user.has_perm("payroll.view_payrollsettings"),
+            user.has_perm("auth.view_permission"),
+            user.has_perm("auth.view_group"),
+            user.has_perm("skylinx_audit.view_audittag"),
+            user.has_perm("skylinx_backup.view_googledrivebackup"),
+            user.has_perm("skylinx_ldap.add_ldapsettings"),
+            user.has_perm("skylinx_ldap.update_ldapsettings"),
+            user.has_perm("employee.view_actiontype"),
+            user.has_perm("helpdesk.view_tag"),
+            user.has_perm("whatsapp.view_whatsappcredentials"),
+            user.has_perm("base.view_company"),
+            user.has_perm("base.view_tags"),
+            user.has_perm("base.view_dynamicemailconfiguration"),
+            user.has_perm("base.view_department"),
+            user.has_perm("base.view_jobposition"),
+            user.has_perm("base.view_jobrole"),
+            user.has_perm("base.view_worktype"),
+            user.has_perm("base.view_rotatingworktype"),
+            user.has_perm("base.view_employeeshift"),
+            user.has_perm("base.view_rotatingshift"),
+            user.has_perm("base.view_employeeshiftschedule"),
+            user.has_perm("base.view_employeetype"),
+            user.has_perm("base.change_announcementexpire"),
+            user.has_perm("base.view_dynamicpagination"),
+            user.has_perm("skylinx_backup.view_googledrivebackup"),
+            user.has_perm("recruitment.view_linkedinaccount"),
+            user.has_perm("skylinx_ldap.add_ldapsettings"),
+            user.has_perm("skylinx_ldap.update_ldapsettings"),
+            user.has_perm("skylinx_meet.view_googlecloudcredential"),
+            user.has_perm("whatsapp.add_whatsappcredentials"),
+            user.has_perm("skylinx_theme.view_skylinxcolortheme"),
+        ]
+    )
+
+
+@register.simple_tag(takes_context=True)
+def settings_menu(context):
+
+    request = context.get("request")
+    if request is None:
+        return []
+    return get_settings_menu(request)

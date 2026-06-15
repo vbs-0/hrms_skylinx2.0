@@ -4,60 +4,73 @@ employee/sidebar.py
 To set Skylinx sidebar for employee
 """
 
-from django.urls import reverse
-from django.utils.translation import gettext_lazy as trans
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
 
 from accessibility.methods import check_is_accessible
 from base.templatetags.basefilters import is_reportingmanager
+from skylinx.skylinx_middlewares import _thread_locals
+from skylinx.menu import settings_menu
 
-MENU = trans("Employee")
+request = getattr(_thread_locals, "request", None)
+MENU = _("Employee")
 IMG_SRC = "images/ui/employees.svg"
+
 
 SUBMENUS = [
     {
-        "menu": trans("Profile"),
-        "redirect": reverse("employee-profile"),
+        "menu": _("My Dashboard"),
+        "redirect": reverse_lazy("ess-dashboard"),
+    },
+    {
+        "menu": _("Profile"),
+        "redirect": reverse_lazy("employee-profile"),
         "accessibility": "employee.sidebar.profile_accessibility",
     },
     {
-        "menu": trans("Employees"),
-        "redirect": reverse("employee-view"),
+        "menu": _("Employees"),
+        "redirect": reverse_lazy("employee-view"),
         "accessibility": "employee.sidebar.employee_accessibility",
     },
     {
-        "menu": trans("Document Requests"),
-        "redirect": reverse("document-request-view"),
+        "menu": _("Document Requests"),
+        "redirect": reverse_lazy("document-request-view"),
         "accessibility": "employee.sidebar.document_accessibility",
     },
     {
-        "menu": trans("Shift Requests"),
-        "redirect": reverse("shift-request-view"),
+        "menu": _("Shift Requests"),
+        "redirect": reverse_lazy("shift-request-view"),
     },
     {
-        "menu": trans("Work Type Requests"),
-        "redirect": reverse("work-type-request-view"),
+        "menu": _("Work Type Requests"),
+        "redirect": reverse_lazy("work-type-request-view"),
     },
     {
-        "menu": trans("Rotating Shift Assign"),
-        "redirect": reverse("rotating-shift-assign"),
+        "menu": _("Rotating Shift Assign"),
+        "redirect": reverse_lazy("rotating-shift-assign"),
         "accessibility": "employee.sidebar.rotating_shift_accessibility",
     },
     {
-        "menu": trans("Rotating Work Type Assign"),
-        "redirect": reverse("rotating-work-type-assign"),
+        "menu": _("Rotating Work Type Assign"),
+        "redirect": reverse_lazy("rotating-work-type-assign"),
         "accessibility": "employee.sidebar.rotating_work_type_accessibility",
     },
     {
-        "menu": trans("Disciplinary Actions"),
-        "redirect": reverse("disciplinary-actions"),
+        "menu": _("Shift Roster"),
+        "redirect": reverse_lazy("roster-home"),
+        "accessibility": "employee.sidebar.shift_roster_accessibility",
     },
     {
-        "menu": trans("Policies"),
-        "redirect": reverse("view-policies"),
+        "menu": _("Disciplinary Actions"),
+        "redirect": reverse_lazy("disciplinary-actions"),
     },
     {
-        "menu": trans("Organization Chart"),
-        "redirect": reverse("organisation-chart"),
+        "menu": _("Policies"),
+        "redirect": reverse_lazy("view-policies"),
+    },
+    {
+        "menu": _("Organization Chart"),
+        "redirect": reverse_lazy("organisation-chart"),
     },
 ]
 
@@ -70,6 +83,12 @@ def profile_accessibility(request, submenu, user_perms, *args, **kwargs):
         ) == str(request.session["selected_company"])
     finally:
         return accessible
+        # try:
+        #     if accessible:
+        #         submenu["redirect"] = reverse_lazy("employee-profile", kwargs={"obj_id": request.user.employee_get.id})
+        # except Exception:
+        #     # If an exception occurs, do nothing
+        #     pass
 
 
 def document_accessibility(request, submenu, user_perms, *args, **kwargs):
@@ -90,6 +109,12 @@ def rotating_work_type_accessibility(request, submenu, user_perms, *args, **kwar
     ) or is_reportingmanager(request.user)
 
 
+def shift_roster_accessibility(request, submenu, user_perms, *args, **kwargs):
+    return request.user.has_perm("base.view_roster") or is_reportingmanager(
+        request.user
+    )
+
+
 def employee_accessibility(request, submenu, user_perms, *args, **kwargs):
     """
     Employee accessibility method
@@ -101,3 +126,88 @@ def employee_accessibility(request, submenu, user_perms, *args, **kwargs):
         or request.user.has_perm("employee.view_employee")
         or check_is_accessible("employee_view", cache_key, employee)
     )
+
+
+# ---------------------------------------------------------------------------
+# Settings menu registrations
+# ---------------------------------------------------------------------------
+
+
+def work_type_accessibility(request, submenu, user_perms, *args, **kwargs):
+    return request.user.has_perm("base.view_worktype")
+
+
+def rotating_work_type_accessibility(request, submenu, user_perms, *args, **kwargs):
+    return request.user.has_perm("base.view_rotatingworktype")
+
+
+def employee_shift_accessibility(request, submenu, user_perms, *args, **kwargs):
+    return request.user.has_perm("base.view_employeeshift")
+
+
+def rotating_shift_accessibility(request, submenu, user_perms, *args, **kwargs):
+    return request.user.has_perm("base.view_rotatingshift")
+
+
+def shift_schedule_accessibility(request, submenu, user_perms, *args, **kwargs):
+    return request.user.has_perm("base.view_employeeshiftschedule")
+
+
+def employee_type_accessibility(request, submenu, user_perms, *args, **kwargs):
+    return request.user.has_perm("base.view_employeetype")
+
+
+def disciplinary_action_accessibility(request, submenu, user_perms, *args, **kwargs):
+    return request.user.has_perm("employee.view_actiontype")
+
+
+def employee_tag_accessibility(request, submenu, user_perms, *args, **kwargs):
+    return request.user.has_perm("employee.view_employeetag")
+
+
+@settings_menu.register
+class EmployeeSettings:
+    title = _("Employee")
+    order = 3
+    items = [
+        {
+            "label": _("Work Type"),
+            "url": reverse_lazy("work-type-view"),
+            "accessibility": work_type_accessibility,
+        },
+        {
+            "label": _("Rotating Work Type"),
+            "url": reverse_lazy("rotating-work-type-view"),
+            "accessibility": rotating_work_type_accessibility,
+        },
+        {
+            "label": _("Employee Shift"),
+            "url": reverse_lazy("employee-shift-view"),
+            "accessibility": employee_shift_accessibility,
+        },
+        {
+            "label": _("Rotating Shift"),
+            "url": reverse_lazy("rotating-shift-view"),
+            "accessibility": rotating_shift_accessibility,
+        },
+        {
+            "label": _("Employee Shift Schedule"),
+            "url": reverse_lazy("employee-shift-schedule-view"),
+            "accessibility": shift_schedule_accessibility,
+        },
+        {
+            "label": _("Employee Type"),
+            "url": reverse_lazy("employee-type-view"),
+            "accessibility": employee_type_accessibility,
+        },
+        {
+            "label": _("Disciplinary Action Type"),
+            "url": reverse_lazy("action-type"),
+            "accessibility": disciplinary_action_accessibility,
+        },
+        {
+            "label": _("Employee Tags"),
+            "url": reverse_lazy("employee-tag-view"),
+            "accessibility": employee_tag_accessibility,
+        },
+    ]

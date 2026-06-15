@@ -24,6 +24,7 @@ def enter_if_accessible(function, feature, perm=None, method=None):
         request = getattr(_thread_locals, "request")
         if not getattr(self, "request", None):
             self.request = request
+
         accessible = False
         cache_key = request.session.session_key + "accessibility_filter"
         employee = getattr(request.user, "employee_get")

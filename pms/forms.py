@@ -81,7 +81,7 @@ class ObjectiveForm(BaseForm):
         label=_("Key result"),
         widget=forms.SelectMultiple(
             attrs={
-                "class": "oh-select oh-select-2",
+                "class": "oh-select oh-select-2 select2-hidden-accessible",
                 "onchange": "keyResultChange($(this))",
             }
         ),
@@ -122,7 +122,7 @@ class ObjectiveForm(BaseForm):
             widget=SkylinxMultiSelectWidget(
                 filter_route_name="employee-widget-filter",
                 filter_class=EmployeeFilter,
-                filter_instance_contex_name="f",
+                filter_instance_context_name="f",
                 filter_template_path="employee_filters.html",
                 required=False,
                 instance=self.instance,
@@ -135,7 +135,7 @@ class ObjectiveForm(BaseForm):
             widget=SkylinxMultiSelectWidget(
                 filter_route_name="employee-widget-filter",
                 filter_class=EmployeeFilter,
-                filter_instance_contex_name="f",
+                filter_instance_context_name="f",
                 filter_template_path="employee_filters.html",
                 required=False,
                 instance=self.instance,
@@ -249,7 +249,7 @@ class EmployeeObjectiveForm(BaseForm):
         label=_("Key result"),
         widget=forms.Select(
             attrs={
-                "class": "oh-select oh-select-2",
+                "class": "oh-select oh-select-2 select2-hidden-accessible",
                 "onchange": "keyResultChange($(this))",
             }
         ),
@@ -307,13 +307,15 @@ class EmployeeObjectiveCreateForm(BaseForm):
         required=False,
         widget=forms.SelectMultiple(
             attrs={
-                "class": "oh-select oh-select-2",
+                "class": "oh-select oh-select-2 select2-hidden-accessible",
                 "onchange": "keyResultChange($(this))",
             }
         ),
     )
     objective_id = forms.ModelChoiceField(
-        queryset=Objective.objects.all().exclude(archive=True),
+        queryset=Objective.objects.all()
+        .exclude(archive=True)
+        .exclude(is_template=True),
         required=True,
         label=_("Objective"),
         widget=forms.Select(
@@ -345,7 +347,7 @@ class EmployeeObjectiveCreateForm(BaseForm):
         widgets = {
             "start_date": forms.DateInput(
                 attrs={"class": "oh-input w-100", "type": "date"}
-            ),
+            )
         }
 
     def __init__(self, *args, **kwargs):
@@ -390,7 +392,7 @@ class EmployeeKeyResultForm(BaseForm):
         label=_("Key result"),
         widget=forms.Select(
             attrs={
-                "class": "oh-select oh-select-2",
+                "class": "oh-select oh-select-2 select2-hidden-accessible",
                 "onchange": "keyResultChange($(this))",
             }
         ),
@@ -413,6 +415,17 @@ class EmployeeKeyResultForm(BaseForm):
         ]
         widgets = {
             "employee_objective_id": forms.HiddenInput(),
+            "start_date": forms.DateInput(
+                attrs={
+                    "class": "oh-input w-100",
+                    "type": "date",
+                    "required": True,
+                    "onchange": "startDateChange()",
+                }
+            ),
+            "end_date": forms.DateInput(
+                attrs={"class": "oh-input w-100", "type": "date"}
+            ),
         }
 
     def as_p(self):
@@ -426,7 +439,6 @@ class EmployeeKeyResultForm(BaseForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         request = getattr(skylinx_middlewares._thread_locals, "request", None)
-        self.fields["start_date"].widget.attrs.update({"onchange": "startDateChange()"})
         if self.initial.get("employee_objective_id"):
             if (
                 type(self.initial.get("employee_objective_id")) == int
@@ -468,11 +480,6 @@ class KRForm(SkylinxModelForm):
             "target_value",
             "duration",
             "company_id",
-            "archive",
-        ]
-        exclude = [
-            "history",
-            "objects",
         ]
 
     def as_p(self):
@@ -562,7 +569,7 @@ class KeyResultForm(ModelForm):
             ),
             "employee_id": forms.Select(
                 attrs={
-                    "class": "oh-select oh-select-2",
+                    "class": "oh-select oh-select-2 select2-hidden-accessible",
                     "style": "display:none;",
                 }
             ),
@@ -571,6 +578,12 @@ class KeyResultForm(ModelForm):
             ),
             "target_value": forms.NumberInput(
                 attrs={"class": "oh-input w-100", "required": True}
+            ),
+            "start_date": forms.DateInput(
+                attrs={"type": "date", "class": "oh-input w-100", "required": True}
+            ),
+            "end_date": forms.DateInput(
+                attrs={"type": "date", "class": "oh-input w-100", "required": True}
             ),
             "progress_type": forms.Select(
                 attrs={
@@ -670,12 +683,56 @@ class FeedbackForm(SkylinxModelForm):
 
     class Meta:
         model = Feedback
-        fields = "__all__"
-        exclude = ["status", "archive", "is_active"]
+        fields = [
+            "review_cycle",
+            "employee_id",
+            "manager_id",
+            "subordinate_id",
+            "colleague_id",
+            "start_date",
+            "end_date",
+            "question_template_id",
+            "employee_key_results_id",
+            "cyclic_feedback",
+            "cyclic_feedback_days_count",
+            "cyclic_feedback_period",
+        ]
+        # fields = "__all__"
+        exclude = [
+            "status",
+            "archive",
+            "is_active",
+            "cyclic_next_start_date",
+            "cyclic_next_end_date",
+        ]
+
+        labels = {
+            "manager_id": _("Manager"),
+            "employee_id": _("Employee"),
+            "colleague_id": _("Colleague"),
+            "question_template_id": _("Question Template"),
+            "employee_key_results_id": _("Key Result"),
+            "cyclic_feedback": _("Is Cyclic Feedback"),
+            # "cyclic_feedback_period":_("")
+        }
 
         widgets = {
+            "employee_key_results_id": forms.SelectMultiple(
+                attrs={
+                    "class": "oh-select oh-select-2 w-100",
+                    "multiple": "multiple",
+                    "style": "width:100%; display:none;",
+                    "required": False,
+                }
+            ),
             "review_cycle": forms.TextInput(
                 attrs={"placeholder": _("Enter a title"), "class": "oh-input w-100"}
+            ),
+            "start_date": forms.DateInput(
+                attrs={"type": "date", "class": "oh-input w-100"}
+            ),
+            "end_date": forms.DateInput(
+                attrs={"type": "date", "class": "oh-input w-100"}
             ),
             "cyclic_feedback": forms.CheckboxInput(
                 attrs={
@@ -691,6 +748,8 @@ class FeedbackForm(SkylinxModelForm):
         """
         request = getattr(skylinx_middlewares._thread_locals, "request", None)
         super().__init__(*args, **kwargs)
+        # if instance:
+        #     kwargs["initial"] = set_date_field_initial(instance)
 
         user = request.user if request else None
         user_perms = user.get_all_permissions() if user else set()
@@ -755,7 +814,7 @@ class FeedbackForm(SkylinxModelForm):
         #     widget=SkylinxMultiSelectWidget(
         #         filter_route_name="employee-widget-filter",
         #         filter_class=EmployeeFilter,
-        #         filter_instance_contex_name="f",
+        #         filter_instance_context_name="f",
         #         filter_template_path="employee_filters.html",
         #         instance=self.instance,
         #         required=False,
@@ -787,13 +846,16 @@ class QuestionTemplateForm(ModelForm):
     Form for creating or updating a question template instance
     """
 
+    cols = {"question_template": 12, "company_id": 12}
+
     question_template = forms.CharField(
+        label=_("Question Template"),
         widget=forms.TextInput(
             attrs={
                 "class": "oh-input oh-input--small oh-input--res-height w-100",
                 "placeholder": _("For Developer"),
             }
-        )
+        ),
     )
 
     class Meta:
@@ -939,7 +1001,7 @@ class ObjectiveCommentForm(ModelForm):
         reload_queryset(self.fields)
 
 
-class PeriodForm(SkylinxModelForm):
+class PeriodForm(ModelForm):
     """
     A form for creating or updating a Period object.
     """
@@ -955,6 +1017,12 @@ class PeriodForm(SkylinxModelForm):
         widgets = {
             "period_name": forms.TextInput(
                 attrs={"placeholder": "Q1.", "class": "oh-input w-100"}
+            ),
+            "start_date": forms.DateInput(
+                attrs={"type": "date", "class": "oh-input  w-100"}
+            ),
+            "end_date": forms.DateInput(
+                attrs={"type": "date", "class": "oh-input  w-100"}
             ),
         }
 
@@ -990,6 +1058,15 @@ class PeriodForm(SkylinxModelForm):
 
 
 class AnonymousFeedbackForm(BaseForm):
+    cols = {
+        "feedback_subject": 12,
+        "based_on": 12,
+        "feedback_description": 12,
+        "employee_id": 12,
+        "department_id": 12,
+        "job_position_id": 12,
+    }
+
     class Meta:
         model = AnonymousFeedback
         fields = "__all__"
@@ -997,15 +1074,17 @@ class AnonymousFeedbackForm(BaseForm):
 
 
 class MeetingsForm(BaseForm):
+
+    cols = {
+        "employee_id": 12,
+        "manager": 12,
+        "answer_employees": 12,
+        "question_template": 12,
+    }
     date = forms.DateTimeField(
         widget=forms.DateTimeInput(
-            format="%Y-%m-%dT%H:%M",
-            attrs={
-                "class": "oh-input w-100",
-                "type": "datetime-local",
-            },
+            attrs={"class": "oh-input w-100", "type": "datetime-local"}
         ),
-        input_formats=["%Y-%m-%dT%H:%M"],
     )
 
     class Meta:
@@ -1055,7 +1134,7 @@ class MeetingsForm(BaseForm):
             widget=SkylinxMultiSelectWidget(
                 filter_route_name="employee-widget-filter",
                 filter_class=EmployeeFilter,
-                filter_instance_contex_name="f",
+                filter_instance_context_name="f",
                 filter_template_path="employee_filters.html",
                 form=self,
                 instance=self.instance,
@@ -1070,6 +1149,21 @@ class MeetingsForm(BaseForm):
                 self.fields["answer_employees"].queryset = employees
         except:
             pass
+
+
+class MeetingResponseForm(ModelForm):
+    """
+    Meeting response form
+    """
+
+    cols = {"response": 12}
+
+    class Meta:
+        model = Meetings
+        fields = ["response"]
+        widgets = {
+            "response": forms.Textarea(attrs={"data-summernote": ""}),
+        }
 
 
 class BonusPointSettingForm(SkylinxModelForm):
@@ -1162,7 +1256,7 @@ class EmployeeFeedbackForm(SkylinxModelForm):
             widget=SkylinxMultiSelectWidget(
                 filter_route_name="employee-widget-filter",
                 filter_class=EmployeeFilter,
-                filter_instance_contex_name="f",
+                filter_instance_context_name="f",
                 filter_template_path="employee_filters.html",
                 form=self,
                 instance=self.instance,
@@ -1259,7 +1353,7 @@ class BulkFeedbackForm(SkylinxModelForm):
             widget=SkylinxMultiSelectWidget(
                 filter_route_name="employee-widget-filter",
                 filter_class=EmployeeFilter,
-                filter_instance_contex_name="f",
+                filter_instance_context_name="f",
                 filter_template_path="employee_filters.html",
                 form=self,
                 instance=self.instance,

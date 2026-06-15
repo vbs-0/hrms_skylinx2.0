@@ -3,16 +3,19 @@ import os
 from functools import wraps
 from urllib.parse import urlencode
 
+from django.apps import apps
 from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext as _
 
+from skylinx import settings
 from skylinx.http import SkylinxRedirect
 from skylinx.methods import handle_no_permission
-from skylinx.settings import BASE_DIR, DEBUG, TEMPLATES
+from skylinx.settings import BASE_DIR, TEMPLATES
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +89,7 @@ def delete_permission(function):
             return function(request, *args, **kwargs)
 
         return handle_no_permission(
-            request, message=_("You don't have permission to delete.")
+            request, message=_("You dont have permission for delete.")
         )
 
     return _function
@@ -124,7 +127,7 @@ def duplicate_permission(function):
             return function(request, *args, **kwargs)
 
         return handle_no_permission(
-            request, message=_("You don't have permission for duplicate action.")
+            request, message=_("You dont have permission for duplicate action.")
         )
 
     return _function
@@ -147,6 +150,7 @@ def manager_can_enter(function, perm):
     do not have permission also checks, has reporting manager.
     """
 
+    @wraps(function)
     def _function(request, *args, **kwargs):
         leave_perm = [
             "leave.view_leaverequest",
@@ -201,6 +205,7 @@ def is_recruitment_manager(function, perm):
 
 
 def login_required(view_func):
+    @wraps(view_func)
     def wrapped_view(request, *args, **kwargs):
         path = request.path
         res = path.split("/", 2)[1].capitalize().replace("-", " ").upper()
@@ -232,42 +237,54 @@ def login_required(view_func):
             return redirect(redirect_url)
         try:
             func = view_func(request, *args, **kwargs)
+        except KeyError:
+            raise
         except Exception as e:
             logger.error(e)
             if (
                 "notifications_notification" in str(e)
                 and request.headers.get("X-Requested-With") != "XMLHttpRequest"
             ):
+                messages.warning(request, str(e))
                 referer = request.META.get("HTTP_REFERER", "/")
+                # Prevent open redirect + XSS
                 if not url_has_allowed_host_and_scheme(
                     referer,
                     allowed_hosts={request.get_host()},
                     require_https=request.is_secure(),
                 ):
                     referer = "/"
-                messages.warning(request, str(e))
+
                 return redirect(referer)
 
-            if DEBUG:
-                return render(request, "went_wrong.html")
-            return view_func(request, *args, **kwargs)
+            if not settings.DEBUG:
+                messages.error(request, str(e))
+                return render(request, "went_wrong.html", status=404)
+            raise e
         return func
 
     return wrapped_view
 
 
 def hx_request_required(view_func):
+    @wraps(view_func)
     def wrapped_view(request, *args, **kwargs):
         key = "HTTP_HX_REQUEST"
         if key not in request.META.keys():
-            return render(request, "405.html")
+            return render(request, "405.html", status=405)
         return view_func(request, *args, **kwargs)
 
     return wrapped_view
 
 
 @decorator_with_arguments
-def owner_can_enter(function, perm: str, model: object, manager_access=False):
+def owner_can_enter(
+    function,
+    perm: str,
+    model: object,
+    manager_access=False,
+    employee_field="employee_id",
+):
     from employee.models import Employee, EmployeeWorkInformation
 
     """
@@ -281,15 +298,11 @@ def owner_can_enter(function, perm: str, model: object, manager_access=False):
             employee = Employee.objects.filter(id=instance_id).first()
         else:
             try:
-                employee = (
-                    model.objects.filter(id=instance_id).first().employee_id
-                    if model.objects.filter(id=instance_id).first()
-                    else None
-                )
+                obj = model.objects.filter(id=instance_id).first()
+                employee = getattr(obj, employee_field, None) if obj else None
             except:
-                return SkylinxRedirect(
-                    request, message=_("Sorry, something went wrong!")
-                )
+                messages.error(request, ("Sorry, something went wrong!"))
+                return SkylinxRedirect(request)
         can_enter = (
             request.user.employee_get == employee
             or request.user.has_perm(perm)
@@ -310,11 +323,19 @@ def owner_can_enter(function, perm: str, model: object, manager_access=False):
 
 
 def install_required(function):
-    from base.models import BiometricAttendance, TrackLateComeEarlyOut
+    from base.models import BiometricAttendance, Company, TrackLateComeEarlyOut
 
     def _function(request, *args, **kwargs):
         if request.path_info.endswith("late-come-early-out-view/"):
-            object, created = TrackLateComeEarlyOut.objects.get_or_create()
+            selected_company = request.session.get("selected_company")
+            if selected_company == "all":
+                company = None
+            else:
+                company = Company.objects.filter(id=selected_company).first()
+
+            object, created = TrackLateComeEarlyOut.objects.get_or_create(
+                company_id=company
+            )
             if not object or object.is_enable:
                 return function(request, *args, **kwargs)
             else:
@@ -323,8 +344,14 @@ def install_required(function):
                     _("Please enable the Track Late Come & Early Out from settings"),
                 )
                 return SkylinxRedirect(request)
-
-        object = BiometricAttendance.objects.all().first()
+        selected_company = request.session.get("selected_company")
+        if selected_company == "all":
+            biometric_company = None
+        else:
+            biometric_company = Company.objects.filter(id=selected_company).first()
+        object = BiometricAttendance.objects.filter(
+            company_id=biometric_company
+        ).first()
         if not object or object.is_installed:
             return function(request, *args, **kwargs)
         else:
@@ -432,3 +459,33 @@ def apply_decorators(decorators):
         return wrapper
 
     return decorator
+
+
+@decorator_with_arguments
+def check_integration_enabled(func, app_name):
+    """
+    Decorator to check if the integration app is installed and enabled.
+    """
+    from base.models import IntegrationApps
+
+    @wraps(func)
+    def wrapper(request=None, *args, **kwargs):
+        if not IntegrationApps.objects.filter(
+            app_label=app_name, is_enabled=True
+        ).exists():
+            if request:
+                try:
+                    app_config = apps.get_app_config(app_name)
+                    app_verbose_name = app_config.verbose_name
+                except LookupError:
+                    app_verbose_name = app_name
+
+                return handle_no_permission(
+                    request, message=f"Access to '{app_verbose_name}' is disabled."
+                )
+
+            return None
+
+        return func(request, *args, **kwargs)
+
+    return wrapper

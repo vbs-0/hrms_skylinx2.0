@@ -12,7 +12,7 @@ def update_rotating_work_type_assign(rotating_work_type, new_date):
     """
     Here will update the employee work information details and send notification
     """
-    from django.contrib.auth.models import User
+    from skylinx_auth.models import SkylinxUser
 
     employee = rotating_work_type.employee_id
     employee_work_info = employee.employee_work_info
@@ -41,7 +41,7 @@ def update_rotating_work_type_assign(rotating_work_type, new_date):
     rotating_work_type.current_work_type = rotating_work_type.next_work_type
     rotating_work_type.next_work_type = next_work_type
     rotating_work_type.save()
-    bot = User.objects.filter(username="Skylinx Bot").first()
+    bot = SkylinxUser.objects.filter(username="Skylinx Bot").first()
     if bot is not None:
         employee = rotating_work_type.employee_id
         notify.send(
@@ -128,7 +128,7 @@ def update_rotating_shift_assign(rotating_shift, new_date):
     """
     Here will update the employee work information and send notification
     """
-    from django.contrib.auth.models import User
+    from skylinx_auth.models import SkylinxUser
 
     next_shift_index = 0
     employee = rotating_shift.employee_id
@@ -154,7 +154,7 @@ def update_rotating_shift_assign(rotating_shift, new_date):
     rotating_shift.current_shift = rotating_shift.next_shift
     rotating_shift.next_shift = next_shift
     rotating_shift.save()
-    bot = User.objects.filter(username="Skylinx Bot").first()
+    bot = SkylinxUser.objects.filter(username="Skylinx Bot").first()
     if bot is not None:
         employee = rotating_shift.employee_id
         notify.send(
@@ -254,9 +254,8 @@ def switch_shift():
     """
     This method change employees shift information regards to the shift request
     """
-    from django.contrib.auth.models import User
-
     from base.models import ShiftRequest
+    from skylinx_auth.models import SkylinxUser
 
     today = date.today()
 
@@ -272,7 +271,7 @@ def switch_shift():
             request.approved = True
             request.shift_changed = True
             request.save()
-            bot = User.objects.filter(username="Skylinx Bot").first()
+            bot = SkylinxUser.objects.filter(username="Skylinx Bot").first()
             if bot is not None:
                 employee = request.employee_id
                 notify.send(
@@ -293,9 +292,8 @@ def undo_shift():
     """
     This method undo previous employees shift information regards to the shift request
     """
-    from django.contrib.auth.models import User
-
     from base.models import ShiftRequest
+    from skylinx_auth.models import SkylinxUser
 
     today = date.today()
     # here will get all the active shift requests
@@ -314,7 +312,7 @@ def undo_shift():
             # making the instance in-active
             request.is_active = False
             request.save()
-            bot = User.objects.filter(username="Skylinx Bot").first()
+            bot = SkylinxUser.objects.filter(username="Skylinx Bot").first()
             if bot is not None:
                 employee = request.employee_id
                 notify.send(
@@ -335,9 +333,8 @@ def switch_work_type():
     """
     This method change employees work type information regards to the work type request
     """
-    from django.contrib.auth.models import User
-
     from base.models import WorkTypeRequest
+    from skylinx_auth.models import SkylinxUser
 
     today = date.today()
     work_type_requests = WorkTypeRequest.objects.filter(
@@ -354,7 +351,7 @@ def switch_work_type():
         request.approved = True
         request.work_type_changed = True
         request.save()
-        bot = User.objects.filter(username="Skylinx Bot").first()
+        bot = SkylinxUser.objects.filter(username="Skylinx Bot").first()
         if bot is not None:
             employee = request.employee_id
             notify.send(
@@ -375,9 +372,8 @@ def undo_work_type():
     """
     This method undo previous employees work type information regards to the work type request
     """
-    from django.contrib.auth.models import User
-
     from base.models import WorkTypeRequest
+    from skylinx_auth.models import SkylinxUser
 
     today = date.today()
     # here will get all the active work type requests
@@ -396,7 +392,7 @@ def undo_work_type():
         # making the instance is in-active
         request.is_active = False
         request.save()
-        bot = User.objects.filter(username="Skylinx Bot").first()
+        bot = SkylinxUser.objects.filter(username="Skylinx Bot").first()
         if bot is not None:
             employee = request.employee_id
             notify.send(
@@ -433,6 +429,33 @@ def recurring_holiday():
             recurring_holiday.start_date = new_start_date
             recurring_holiday.end_date = new_end_date
         recurring_holiday.save()
+
+
+def sync_roster_shifts():
+    """
+    Daily at 00:05 — sync published roster entries to employee work info.
+    For each employee with a published non-off roster entry dated today,
+    update their EmployeeWorkInformation.shift_id to match.
+    """
+    from base.models import Roster
+    from employee.models import EmployeeWorkInformation
+
+    today = date.today()
+    entries = (
+        Roster.objects.filter(date=today, is_published=True, is_off=False)
+        .select_related("employee", "shift")
+        .exclude(shift__isnull=True)
+    )
+    for entry in entries:
+        try:
+            work_info = EmployeeWorkInformation.objects.filter(
+                employee_id=entry.employee
+            ).first()
+            if work_info and work_info.shift_id != entry.shift:
+                work_info.shift_id = entry.shift
+                work_info.save(update_fields=["shift_id"])
+        except Exception:
+            pass
 
 
 if not any(
@@ -498,4 +521,5 @@ if not any(
         pass
 
     scheduler.add_job(recurring_holiday, "interval", hours=4)
+    scheduler.add_job(sync_roster_shifts, "interval", hours=4)
     scheduler.start()

@@ -3,14 +3,14 @@ Biometric App sidebar configuration
 """
 
 from django.urls import reverse_lazy
-from django.utils.translation import gettext_lazy as trans
+from django.utils.translation import gettext_lazy as _
 
 from attendance.sidebar import SUBMENUS
 from base.context_processors import biometric_app_exists
 from biometric.context_processors import biometric_is_installed
 
 biometric_submenu = {
-    "menu": trans("Biometric Devices"),
+    "menu": _("Biometric Devices"),
     "redirect": reverse_lazy("view-biometric-devices"),
     "accessibility": "biometric.sidebar.biometric_device_accessibility",
 }
@@ -39,5 +39,5 @@ def biometric_device_accessibility(request, submenu, user_perms, *args, **kwargs
     return (
         biometric_app_exists(None).get("biometric_app_exists")
         and request.user.has_perm("biometric.view_biometricdevices")
-        and biometric_is_installed(None)["is_installed"]
+        and biometric_is_installed(request)["is_installed"]
     )

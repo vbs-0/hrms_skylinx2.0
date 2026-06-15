@@ -17,20 +17,20 @@ from django.apps import apps
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import SetPasswordForm, _unicode_ci_compare
-from django.contrib.auth.models import Group, Permission, User
+from django.contrib.auth.models import Group, Permission
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
 from django.core.validators import validate_ipv46_address
-from django.forms import HiddenInput, TextInput
+from django.forms import DateInput, HiddenInput, TextInput
 from django.template import loader
 from django.template.loader import render_to_string
+from django.urls import reverse_lazy
 from django.utils.encoding import force_bytes
 from django.utils.html import strip_tags
 from django.utils.http import urlsafe_base64_encode
-from django.utils.translation import gettext as _
-from django.utils.translation import gettext_lazy as _trans
+from django.utils.translation import gettext_lazy as _
 
 from base.methods import reload_queryset
 from base.models import (
@@ -56,6 +56,7 @@ from base.models import (
     JobRole,
     MultipleApprovalCondition,
     PenaltyAccounts,
+    Roster,
     RotatingShift,
     RotatingShiftAssign,
     RotatingWorkType,
@@ -68,13 +69,15 @@ from base.models import (
     WorkTypeRequest,
     WorkTypeRequestComment,
 )
+from base.widgets import CustomModelChoiceWidget
 from employee.filters import EmployeeFilter
 from employee.forms import MultipleFileField
-from employee.models import Employee
+from employee.models import Employee, EmployeeTag
 from skylinx import skylinx_middlewares
 from skylinx.skylinx_middlewares import _thread_locals
 from skylinx.methods import get_skylinx_model_class
 from skylinx_audit.models import AuditTag
+from skylinx_auth.models import SkylinxUser
 from skylinx_widgets.widgets.skylinx_multi_select_field import SkylinxMultiSelectField
 from skylinx_widgets.widgets.select_widgets import SkylinxMultiSelectWidget
 
@@ -98,9 +101,9 @@ def validate_time_format(value):
 
 
 BASED_ON = [
-    ("after", _trans("After")),
-    ("weekly", _trans("Weekend")),
-    ("monthly", _trans("Monthly")),
+    ("after", _("After")),
+    ("weekly", _("Weekend")),
+    ("monthly", _("Monthly")),
 ]
 
 
@@ -195,7 +198,7 @@ class ModelForm(forms.ModelForm):
         now = datetime.now()
 
         default_input_class = "oh-input w-100"
-        select_class = "oh-select oh-select-2"
+        select_class = "oh-select oh-select-2 select2-hidden-accessible"
         checkbox_class = "oh-switch__checkbox"
 
         for field_name, field in self.fields.items():
@@ -231,6 +234,25 @@ class ModelForm(forms.ModelForm):
                         "placeholder": label,
                     }
                 )
+
+            # ===================================== DISABLED FOR NOW. Rendering datetime field for attendance issue =====================================
+
+            # DateTime field
+            # elif isinstance(widget, forms.DateTimeInput):
+            #     field.initial = now.strftime("%Y-%m-%d %H:%M")
+            #     widget.input_type = "datetime-local"
+            #     widget.format = "%Y-%m-%dT%H:%M"
+            #     field.input_formats = ["%Y-%m-%dT%H:%M"]
+
+            #     existing_class = widget.attrs.get("class", default_input_class)
+            #     widget.attrs.update(
+            #         {
+            #             "class": f"{existing_class} form-control",
+            #             "placeholder": label,
+            #         }
+            #     )
+
+            # ==================================== DISABLED FOR NOW =====================================
 
             # Number, Email, Text, File, URL fields
             elif isinstance(
@@ -328,7 +350,9 @@ class Form(forms.Form):
                 if field.label is not None:
                     label = field.label.replace("id", " ")
                 field.empty_label = _("---Choose {label}---").format(label=label)
-                field.widget.attrs.update({"class": "oh-select oh-select-2"})
+                field.widget.attrs.update(
+                    {"class": "oh-select oh-select-2 select2-hidden-accessible"}
+                )
             elif isinstance(widget, (forms.Textarea)):
                 label = _(field.label)
                 field.widget.attrs.update(
@@ -356,7 +380,6 @@ class UserGroupForm(ModelForm):
 
     try:
         permissions = forms.MultipleChoiceField(
-            choices=[(perm.codename, perm.name) for perm in Permission.objects.all()],
             required=False,
             error_messages={
                 "required": "Please choose a permission.",
@@ -372,6 +395,16 @@ class UserGroupForm(ModelForm):
 
         model = Group
         fields = ["name", "permissions"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        try:
+            self.fields["permissions"].choices = [
+                (perm.codename, perm.name) for perm in Permission.objects.all()
+            ]
+        except Exception:
+            # Safe fallback when DB is not ready
+            self.fields["permissions"].choices = []
 
     def save(self, commit=True):
         """
@@ -403,7 +436,13 @@ class AssignUserGroup(Form):
     employee = forms.ModelMultipleChoiceField(
         queryset=Employee.objects.all(), required=False
     )
-    group = forms.ModelChoiceField(queryset=Group.objects.all())
+
+    group = forms.ModelChoiceField(
+        queryset=Group.objects.all(),
+        error_messages={
+            "invalid_choice": _("Invalid group ID."),
+        },
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -438,6 +477,30 @@ class AssignUserGroup(Form):
         return group
 
 
+class AddToUserGroupForm(Form):
+    """
+    Form to add employee in to  groups
+    """
+
+    group = forms.ModelMultipleChoiceField(queryset=Group.objects.all(), required=False)
+    employee = forms.ModelChoiceField(queryset=Employee.objects.all())
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        reload_queryset(self.fields)
+
+    def save(self):
+        """
+        Save method to assign the selected groups to the employee
+        """
+        employee = self.cleaned_data["employee"]
+        groups = self.cleaned_data["group"]
+        employee.employee_user_id.groups.clear()
+        for group in groups:
+            employee.employee_user_id.groups.add(group)
+        return employee
+
+
 class AssignPermission(Form):
     """
     Forms to assign user permision
@@ -448,7 +511,7 @@ class AssignPermission(Form):
         widget=SkylinxMultiSelectWidget(
             filter_route_name="employee-widget-filter",
             filter_class=EmployeeFilter,
-            filter_instance_contex_name="f",
+            filter_instance_context_name="f",
             filter_template_path="employee_filters.html",
             required=True,
         ),
@@ -456,7 +519,6 @@ class AssignPermission(Form):
     )
     try:
         permissions = forms.MultipleChoiceField(
-            choices=[(perm.codename, perm.name) for perm in Permission.objects.all()],
             error_messages={
                 "required": "Please choose a permission.",
             },
@@ -467,6 +529,15 @@ class AssignPermission(Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         reload_queryset(self.fields)
+
+        # Dynamically load permission choices only when DB is ready
+        try:
+            self.fields["permissions"].choices = [
+                (perm.codename, perm.name) for perm in Permission.objects.all()
+            ]
+        except Exception:
+            # Fallback in case the DB isn't ready yet
+            self.fields["permissions"].choices = []
 
     def clean(self):
         emps = self.data.getlist("employee")
@@ -484,7 +555,7 @@ class AssignPermission(Form):
         ).values_list("employee_user_id", flat=True)
         permissions = self.cleaned_data["permissions"]
         permissions = Permission.objects.filter(codename__in=permissions)
-        users = User.objects.filter(id__in=user_ids)
+        users = SkylinxUser.objects.filter(id__in=user_ids)
         for user in users:
             user.user_permissions.add(*permissions)
 
@@ -495,6 +566,15 @@ class CompanyForm(ModelForm):
     """
     Company model's form
     """
+
+    cols = {
+        "company": 12,
+        "address": 12,
+        "country": 12,
+        "state": 12,
+        "city": 12,
+        "zip": 12,
+    }
 
     class Meta:
         """
@@ -529,6 +609,8 @@ class DepartmentForm(ModelForm):
     Department model's form
     """
 
+    cols = {"department": 12, "company_id": 12}
+
     class Meta:
         """
         Meta class for additional options
@@ -544,6 +626,16 @@ class JobPositionForm(ModelForm):
     JobPosition model's form
     """
 
+    department_id = forms.ModelMultipleChoiceField(
+        queryset=Department.objects.all(),
+        label="Department",
+        widget=forms.SelectMultiple(
+            attrs={"class": "oh-select oh-select2 w-100", "style": "height:45px;"}
+        ),
+    )
+
+    cols = {"job_position": 12, "department_id": 12}
+
     class Meta:
         """
         Meta class for additional options
@@ -551,7 +643,74 @@ class JobPositionForm(ModelForm):
 
         model = JobPosition
         fields = "__all__"
-        exclude = ["is_active"]
+        exclude = ["is_active", "department_id", "company_id"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.fields["department_id"] = forms.ModelChoiceField(
+                queryset=self.fields["department_id"].queryset,
+                label="Department",
+                widget=forms.Select(
+                    attrs={
+                        "class": "oh-select oh-select2 w-100",
+                        "style": "height:45px;",
+                    }
+                ),
+            )
+
+    def clean(self):
+        """
+        Perform custom validation.
+        """
+        cleaned_data = super().clean()
+        job_position = cleaned_data.get("job_position")
+        department_ids = cleaned_data.get("department_id")
+
+        if department_ids and not hasattr(department_ids, "__iter__"):
+            department_ids = [department_ids]
+
+        if self.instance.pk and job_position and department_ids:
+            for department_id in department_ids:
+                if (
+                    JobPosition.objects.filter(
+                        department_id=department_id, job_position=job_position
+                    )
+                    .exclude(pk=self.instance.pk)
+                    .exists()
+                ):
+                    raise ValidationError(
+                        _(
+                            f"Job position '{job_position}' already exists under department {department_id}"
+                        )
+                    )
+
+        return cleaned_data
+
+    def save(self, commit, *args, **kwargs) -> Any:
+        if not self.instance.pk:
+            request = getattr(_thread_locals, "request")
+            department = Department.objects.filter(
+                id__in=self.data.getlist("department_id")
+            )
+            positions = []
+            for dep in department:
+                position = JobPosition()
+                position.department_id = dep
+                position.job_position = self.data["job_position"]
+                form_data = self.data["job_position"]
+                if JobPosition.objects.filter(
+                    department_id=dep, job_position=form_data
+                ).exists():
+                    messages.error(request, f"Job position already exists under {dep}")
+                else:
+                    messages.success(
+                        request, _("Job position has been created successfully!")
+                    )
+                    position.save()
+                positions.append(position.pk)
+            return JobPosition.objects.filter(id__in=positions)
+        super().save(commit, *args, **kwargs)
 
 
 class JobPositionMultiForm(ModelForm):
@@ -631,16 +790,33 @@ class JobRoleForm(ModelForm):
     JobRole model's form
     """
 
+    job_position_id = forms.ModelMultipleChoiceField(
+        queryset=JobPosition.objects.all(),
+        label="Job Position",
+        widget=forms.SelectMultiple(
+            attrs={
+                "class": "w-100 oh-select",
+                "style": "height:45px;",
+            }
+        ),
+    )
+
+    cols = {"job_position_id": 12, "job_role": 12}
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not self.instance.pk:
-            self.fields["job_position_id"] = forms.ModelMultipleChoiceField(
+        if self.instance.pk:
+            job_position_id = forms.ModelChoiceField(
                 queryset=self.fields["job_position_id"].queryset,
-                label=JobRole._meta.get_field("job_position_id").verbose_name,
+                label="Job Position",
+                widget=forms.Select(
+                    attrs={
+                        "class": "w-100 oh-select",
+                        "style": "height:45px;",
+                    }
+                ),
             )
-            attrs = self.fields["job_position_id"].widget.attrs
-            attrs["class"] = "oh-select oh-select2 w-100"
-            attrs["style"] = "height:45px;"
+            self.fields["job_position_id"] = job_position_id
 
     class Meta:
         """
@@ -649,7 +825,25 @@ class JobRoleForm(ModelForm):
 
         model = JobRole
         fields = "__all__"
-        exclude = ["is_active"]
+        exclude = ["is_active", "job_position_id", "company_id"]
+
+    def clean(self):
+        cleaned_data = super().clean()
+        job_position_id = cleaned_data.get("job_position_id")
+        job_role = cleaned_data.get("job_role")
+
+        if job_position_id and not hasattr(job_position_id, "__iter__"):
+            job_position_id = [job_position_id]
+
+        if self.instance.pk and job_position_id and job_role:
+            existing_roles = JobRole.objects.filter(
+                job_position_id__in=job_position_id, job_role=job_role
+            ).exclude(pk=self.instance.pk)
+            if existing_roles.exists():
+                raise ValidationError(
+                    f"{job_role} already exists under this job position"
+                )
+        return cleaned_data
 
     def save(self, commit, *args, **kwargs) -> Any:
         if not self.instance.pk:
@@ -664,6 +858,9 @@ class JobRoleForm(ModelForm):
                 role.job_role = self.data["job_role"]
                 try:
                     role.save()
+                    messages.success(
+                        request, _("Job role has been created successfully!")
+                    )
                 except:
                     messages.info(request, f"Role already exists under {position}")
                 roles.append(role.pk)
@@ -676,6 +873,8 @@ class WorkTypeForm(ModelForm):
     WorkType model's form
     """
 
+    cols = {"work_type": 12, "company_id": 12}
+
     class Meta:
         """
         Meta class for additional options
@@ -685,11 +884,28 @@ class WorkTypeForm(ModelForm):
         fields = "__all__"
         exclude = ["is_active"]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.instance.pk:
+            request = getattr(_thread_locals, "request", None)
+            if request:
+                selected_company = request.session.get("selected_company")
+                if selected_company and selected_company != "all":
+                    self.initial["company_id"] = Company.objects.filter(
+                        id=selected_company
+                    )
+
 
 class RotatingWorkTypeForm(ModelForm):
     """
     RotatingWorkType model's form
     """
+
+    cols = {
+        "name": 12,
+        "work_type1": 12,
+        "work_type2": 12,
+    }
 
     class Meta:
         """
@@ -700,6 +916,7 @@ class RotatingWorkTypeForm(ModelForm):
         fields = "__all__"
         exclude = ["employee_id", "is_active"]
         widgets = {
+            "start_date": DateInput(attrs={"type": "date"}),
             "additional_data": forms.HiddenInput(),
         }
 
@@ -708,18 +925,21 @@ class RotatingWorkTypeForm(ModelForm):
         work_type_counts = 0
 
         def create_work_type_field(work_type_key, required, initial=None):
+
             self.fields[work_type_key] = forms.ModelChoiceField(
                 queryset=WorkType.objects.all(),
-                widget=forms.Select(
+                widget=CustomModelChoiceWidget(
+                    delete_url="/add-remove-work-type-fields",
                     attrs={
-                        "class": "oh-select oh-select-2 mb-3",
+                        "class": "oh-select oh-select-2 mb-3 ",
                         "name": work_type_key,
                         "id": f"id_{work_type_key}",
-                    }
+                    },
                 ),
                 required=required,
                 empty_label=_("---Choose Work Type---"),
                 initial=initial,
+                label="",
             )
 
         for key in self.data.keys():
@@ -796,20 +1016,31 @@ class RotatingWorkTypeAssignForm(ModelForm):
     RotatingWorkTypeAssign model's form
     """
 
-    employee_id = SkylinxMultiSelectField(
-        queryset=Employee.objects.filter(employee_work_info__isnull=False),
-        widget=SkylinxMultiSelectWidget(
-            filter_route_name="employee-widget-filter",
-            filter_class=EmployeeFilter,
-            filter_instance_contex_name="f",
-            filter_template_path="employee_filters.html",
-        ),
-        label=_trans("Employees"),
+    cols = {
+        "employee_id": 12,
+        "rotating_work_type_id": 12,
+        "start_date": 12,
+        "based_on": 12,
+        "rotate_after_day": 12,
+        "rotate_every_weekend": 12,
+        "rotate_every": 12,
+    }
+
+    # employee_id = SkylinxMultiSelectField(
+    #     queryset=Employee.objects.filter(employee_work_info__isnull=False),
+    #     widget=SkylinxMultiSelectWidget(
+    #         filter_route_name="employee-widget-filter",
+    #         filter_class=EmployeeFilter,
+    #         filter_instance_context_name="f",
+    #         filter_template_path="employee_filters.html",
+    #     ),
+    #     label=_("Employees"),
+    # )
+    based_on = forms.ChoiceField(choices=BASED_ON, initial="daily", label=_("Based on"))
+    rotate_after_day = forms.IntegerField(initial=5, label=_("Rotate after day"))
+    start_date = forms.DateField(
+        initial=date.today, widget=forms.DateInput, label=_("Start date")
     )
-    based_on = forms.ChoiceField(
-        choices=BASED_ON, initial="daily", label=_trans("Based on")
-    )
-    rotate_after_day = forms.IntegerField(initial=5, label=_trans("Rotate after day"))
 
     class Meta:
         """
@@ -826,68 +1057,51 @@ class RotatingWorkTypeAssignForm(ModelForm):
             "additional_data",
         ]
         widgets = {
+            "start_date": DateInput(attrs={"type": "date"}),
             "is_active": HiddenInput(),
         }
         labels = {
-            "is_active": _trans("Is Active"),
-            "rotate_every_weekend": _trans("Rotate every weekend"),
-            "rotate_every": _trans("Rotate every"),
+            "is_active": _("Is Active"),
+            "rotate_every_weekend": _("Rotate every weekend"),
+            "rotate_every": _("Rotate every"),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         reload_queryset(self.fields)
-        for field_name, field in self.fields.items():
-            if field.required:
-                self.fields[field_name].label_suffix = " *"
-
-        self.fields["rotate_every_weekend"].widget.attrs.update(
-            {
-                "class": "w-100",
-                "style": "display:none; height:50px; border-radius:0;border:1px \
-                    solid hsl(213deg,22%,84%);",
-                "data-hidden": True,
-            }
-        )
-        self.fields["rotate_every"].widget.attrs.update(
-            {
-                "class": "w-100",
-                "style": "display:none; height:50px; border-radius:0;border:1px \
-                    solid hsl(213deg,22%,84%);",
-                "data-hidden": True,
-            }
-        )
-        self.fields["rotate_after_day"].widget.attrs.update(
-            {
-                "class": "w-100 oh-input",
-                "style": " height:50px; border-radius:0;",
-            }
-        )
-        self.fields["based_on"].widget.attrs.update(
-            {
-                "class": "w-100",
-                "style": " height:50px; border-radius:0;border:1px solid hsl(213deg,22%,84%);",
-            }
-        )
-        self.fields["rotating_work_type_id"].widget.attrs.update(
-            {
-                "class": "oh-select oh-select-2",
-            }
-        )
-        self.fields["employee_id"].widget.attrs.update(
-            {
-                "class": "oh-select oh-select-2",
-            }
-        )
+        request = getattr(_thread_locals, "request", None)
+        self.fields["employee_id"].initial = request.GET.get("emp_id")
+        if not self.instance.pk and not request.GET.get("emp_id"):
+            self.fields["employee_id"] = SkylinxMultiSelectField(
+                queryset=Employee.objects.filter(
+                    employee_work_info__isnull=False, is_active=True
+                ),
+                widget=SkylinxMultiSelectWidget(
+                    filter_route_name="employee-widget-filter",
+                    filter_class=EmployeeFilter,
+                    filter_instance_context_name="f",
+                    filter_template_path="employee_filters.html",
+                ),
+                label=_("Employees"),
+            )
 
     def clean_employee_id(self):
-        employee_ids = self.cleaned_data.get("employee_id")
-        if employee_ids:
-            return employee_ids[0]
+        if self.instance.pk:
+            return self.cleaned_data.get("employee_id")
         else:
-            return ValidationError(_("This field is required"))
+            employee_ids = self.cleaned_data.get("employee_id")
+            if isinstance(employee_ids, Employee):
+                return employee_ids
+            else:
+                if employee_ids:
+                    return employee_ids[0]
+                else:
+                    return ValidationError(_("This field is required"))
 
     def clean(self):
+        if self.instance.pk:
+            return super().clean()
+
         super().clean()
         self.instance.employee_id = Employee.objects.filter(
             id=self.data.get("employee_id")
@@ -903,10 +1117,6 @@ class RotatingWorkTypeAssignForm(ModelForm):
         return cleaned_data
 
     def save(self, commit=False, manager=None):
-        employee_ids = self.data.getlist("employee_id")
-        rotating_work_type = RotatingWorkType.objects.get(
-            id=self.data["rotating_work_type_id"]
-        )
 
         day_name = self.cleaned_data["rotate_every_weekend"]
         day_names = [
@@ -920,21 +1130,12 @@ class RotatingWorkTypeAssignForm(ModelForm):
         ]
         target_day = day_names.index(day_name.lower())
 
-        for employee_id in employee_ids:
-            employee = Employee.objects.filter(id=employee_id).first()
+        if self.instance.pk:
+            employee = Employee.objects.get(id=self.instance.pk)
             rotating_work_type_assign = RotatingWorkTypeAssign()
-            rotating_work_type_assign.rotating_work_type_id = rotating_work_type
-            rotating_work_type_assign.employee_id = employee
-            rotating_work_type_assign.based_on = self.cleaned_data["based_on"]
-            rotating_work_type_assign.start_date = self.cleaned_data["start_date"]
-            rotating_work_type_assign.next_change_date = self.cleaned_data["start_date"]
-            rotating_work_type_assign.rotate_after_day = self.data.get(
-                "rotate_after_day"
+            rotating_work_type = RotatingWorkType.objects.get(
+                id=self.data["rotating_work_type_id"]
             )
-            rotating_work_type_assign.rotate_every = self.cleaned_data["rotate_every"]
-            rotating_work_type_assign.rotate_every_weekend = self.cleaned_data[
-                "rotate_every_weekend"
-            ]
             rotating_work_type_assign.next_change_date = self.cleaned_data["start_date"]
             rotating_work_type_assign.current_work_type = (
                 employee.employee_work_info.work_type_id
@@ -942,33 +1143,79 @@ class RotatingWorkTypeAssignForm(ModelForm):
             rotating_work_type_assign.next_work_type = rotating_work_type.work_type1
             rotating_work_type_assign.additional_data["next_work_type_index"] = 1
             based_on = self.cleaned_data["based_on"]
-            start_date = self.cleaned_data["start_date"]
+            start_date = self.instance.start_date
             if based_on == "weekly":
                 next_date = get_next_week_date(target_day, start_date)
-                rotating_work_type_assign.next_change_date = next_date
+                self.instance.next_change_date = next_date
             elif based_on == "monthly":
-                # 0, 1, 2, ..., 31, or "last"
-                rotate_every = self.cleaned_data["rotate_every"]
-                start_date = self.cleaned_data["start_date"]
+                rotate_every = self.instance.rotate_every  # 0, 1, 2, ..., 31, or "last"
+                start_date = self.instance.start_date
                 next_date = get_next_monthly_date(start_date, rotate_every)
-                rotating_work_type_assign.next_change_date = next_date
+                self.instance.next_change_date = next_date
             elif based_on == "after":
-                rotating_work_type_assign.next_change_date = (
-                    rotating_work_type_assign.start_date
-                    + timedelta(days=int(self.data.get("rotate_after_day")))
+                self.instance.next_change_date = self.instance.start_date + timedelta(
+                    days=int(self.data.get("rotate_after_day"))
                 )
+            return super().save()
 
-            rotating_work_type_assign.save()
+        else:
+            employee_ids = self.data.getlist("employee_id")
+            rotating_work_type = RotatingWorkType.objects.get(
+                id=self.data["rotating_work_type_id"]
+            )
+            for employee_id in employee_ids:
+                employee = Employee.objects.filter(id=employee_id).first()
+                rotating_work_type_assign = RotatingWorkTypeAssign()
+                rotating_work_type_assign.rotating_work_type_id = rotating_work_type
+                rotating_work_type_assign.employee_id = employee
+                rotating_work_type_assign.based_on = self.cleaned_data["based_on"]
+                rotating_work_type_assign.start_date = self.cleaned_data["start_date"]
+                rotating_work_type_assign.next_change_date = self.cleaned_data[
+                    "start_date"
+                ]
+                rotating_work_type_assign.rotate_after_day = self.data.get(
+                    "rotate_after_day"
+                )
+                rotating_work_type_assign.rotate_every = self.cleaned_data[
+                    "rotate_every"
+                ]
+                rotating_work_type_assign.rotate_every_weekend = self.cleaned_data[
+                    "rotate_every_weekend"
+                ]
+                rotating_work_type_assign.next_change_date = self.cleaned_data[
+                    "start_date"
+                ]
+                rotating_work_type_assign.current_work_type = (
+                    employee.employee_work_info.work_type_id
+                )
+                rotating_work_type_assign.next_work_type = rotating_work_type.work_type2
+                rotating_work_type_assign.additional_data["next_shift_index"] = 1
+                based_on = self.cleaned_data["based_on"]
+                start_date = self.cleaned_data["start_date"]
+                if based_on == "weekly":
+                    next_date = get_next_week_date(target_day, start_date)
+                    rotating_work_type_assign.next_change_date = next_date
+                elif based_on == "monthly":
+                    # 0, 1, 2, ..., 31, or "last"
+                    rotate_every = self.cleaned_data["rotate_every"]
+                    start_date = self.cleaned_data["start_date"]
+                    next_date = get_next_monthly_date(start_date, rotate_every)
+                    rotating_work_type_assign.next_change_date = next_date
+                elif based_on == "after":
+                    rotating_work_type_assign.next_change_date = (
+                        rotating_work_type_assign.start_date
+                        + timedelta(days=int(self.data.get("rotate_after_day")))
+                    )
+
+                rotating_work_type_assign.save()
 
 
-class RotatingWorkTypeAssignUpdateForm(ModelForm):
+class RotatingWorkTypeAssignUpdateForm(forms.ModelForm):
     """
     RotatingWorkTypeAssign model's form
     """
 
-    based_on = forms.ChoiceField(
-        choices=BASED_ON, initial="daily", label=_trans("Based on")
-    )
+    based_on = forms.ChoiceField(choices=BASED_ON, initial="daily", label=_("Based on"))
 
     class Meta:
         """
@@ -984,13 +1231,16 @@ class RotatingWorkTypeAssignUpdateForm(ModelForm):
             "is_active",
             "additional_data",
         ]
+        widgets = {
+            "start_date": DateInput(attrs={"type": "date"}),
+        }
         labels = {
-            "start_date": _trans("Start date"),
-            "rotate_after_day": _trans("Rotate after day"),
-            "rotate_every_weekend": _trans("Rotate every weekend"),
-            "rotate_every": _trans("Rotate every"),
-            "based_on": _trans("Based on"),
-            "is_active": _trans("Is Active"),
+            "start_date": _("Start date"),
+            "rotate_after_day": _("Rotate after day"),
+            "rotate_every_weekend": _("Rotate every weekend"),
+            "rotate_every": _("Rotate every"),
+            "based_on": _("Based on"),
+            "is_active": _("Is Active"),
         }
 
     def __init__(self, *args, **kwargs):
@@ -1027,6 +1277,13 @@ class RotatingWorkTypeAssignUpdateForm(ModelForm):
                 "class": "w-100",
                 "style": " height:50px; border-radius:0; border:1px solid \
                     hsl(213deg,22%,84%);",
+            }
+        )
+        self.fields["start_date"].widget = forms.DateInput(
+            attrs={
+                "class": "w-100 oh-input",
+                "type": "date",
+                "style": " height:50px; border-radius:0;",
             }
         )
         self.fields["rotating_work_type_id"].widget.attrs.update(
@@ -1075,6 +1332,8 @@ class EmployeeTypeForm(ModelForm):
     EmployeeType form
     """
 
+    cols = {"employee_type": 12, "company_id": 12}
+
     class Meta:
         """
         Meta class for additional options
@@ -1097,14 +1356,7 @@ class EmployeeShiftForm(ModelForm):
 
         model = EmployeeShift
         fields = "__all__"
-        exclude = ["days", "is_active"]
-
-    def clean(self):
-        full_time = self.data["full_time"]
-        validate_time_format(full_time)
-        full_time = self.data["weekly_full_time"]
-        validate_time_format(full_time)
-        return super().clean()
+        exclude = ["days", "is_active", "weekly_full_time", "full_time"]
 
 
 class EmployeeShiftScheduleUpdateForm(ModelForm):
@@ -1196,6 +1448,8 @@ class EmployeeShiftScheduleForm(ModelForm):
     EmployeeShiftSchedule model's form
     """
 
+    cols = {"day": 12}
+
     day = forms.ModelMultipleChoiceField(
         queryset=EmployeeShiftDay.objects.all(),
     )
@@ -1207,26 +1461,26 @@ class EmployeeShiftScheduleForm(ModelForm):
 
         model = EmployeeShiftSchedule
         fields = "__all__"
-        exclude = ["is_night_shift", "is_active"]
+        exclude = ["is_active", "day", "is_night_shift"]
+        widgets = {
+            "start_time": forms.TimeInput(),
+            "end_time": forms.TimeInput(),
+        }
 
     def __init__(self, *args, **kwargs):
-        if instance := kwargs.get("instance"):
-            # """
-            # django forms not showing value inside the date, time html element.
-            # so here overriding default forms instance method to set initial value
-            # """
-            initial = {
-                "start_time": instance.start_time.strftime("%H:%M"),
-                "end_time": instance.end_time.strftime("%H:%M"),
-            }
-            if apps.is_installed("attendance"):
-                initial["auto_punch_out_time"] = (
-                    instance.auto_punch_out_time.strftime("%H:%M")
-                    if instance.auto_punch_out_time
-                    else None
-                )
-            kwargs["initial"] = initial
         super().__init__(*args, **kwargs)
+
+        self.fields["end_time"].initial = None
+        if self.instance.pk:
+            self.fields["day"] = forms.ModelChoiceField(
+                queryset=EmployeeShiftDay.objects.all(),
+                widget=forms.Select(
+                    attrs={
+                        "class": "oh-select oh-select2 w-100",
+                        "style": "height:45px;",
+                    }
+                ),
+            )
         self.fields["day"].widget.attrs.update({"id": str(uuid.uuid4())})
         self.fields["shift_id"].widget.attrs.update({"id": str(uuid.uuid4())})
         if not apps.is_installed("attendance"):
@@ -1273,47 +1527,65 @@ class EmployeeShiftScheduleForm(ModelForm):
                             )
                         }
                     )
+        if self.instance.pk:
+            shift_id = cleaned_data.get("shift_id")
+            day_field = self["day"].value()
+            if day_field and not hasattr(day_field, "__iter__"):
+                day_field = [day_field]
+
+            if self.instance.pk and shift_id and day_field:
+                shift = EmployeeShiftSchedule.objects.filter(
+                    day=day_field, shift_id=shift_id
+                )
+                shifts = shift.first()
+                if shift.exclude(pk=self.instance.pk).exists():
+                    raise ValidationError(
+                        _(
+                            f"Shift schedule already exists for '{shifts.day}' on '{shift_id}' "
+                        )
+                    )
         return cleaned_data
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        for day in self.data.getlist("day"):
-            if int(day) != int(instance.day.id):
+        if not self.instance.pk:
+            for day in self.data.getlist("day"):
+                # if int(day) != int(instance.day.id):
                 data_copy = self.data.copy()
                 data_copy.update({"day": str(day)})
                 shift_schedule = EmployeeShiftScheduleUpdateForm(data_copy).save(
                     commit=False
                 )
                 shift_schedule.save()
-        if commit:
-            instance.save()
         return instance
 
     def clean_day(self):
         """
         Validation to day field
         """
-        days = self.cleaned_data["day"]
-        for day in days:
-            attendance = EmployeeShiftSchedule.objects.filter(
-                day=day, shift_id=self.data["shift_id"]
-            ).first()
-            if attendance is not None:
-                raise ValidationError(
-                    _("Shift schedule is already exist for {day}").format(
-                        day=_(day.day)
+        if not self.instance.pk:
+            days = self.cleaned_data["day"]
+            for day in days:
+                attendance = EmployeeShiftSchedule.objects.filter(
+                    day=day, shift_id=self.data["shift_id"]
+                ).first()
+                if attendance is not None:
+                    raise ValidationError(
+                        _("Shift schedule is already exist for {day}").format(
+                            day=_(day.day)
+                        )
                     )
-                )
-        if days.first() is None:
-            raise ValidationError(_("Employee not chosen"))
-
-        return days.first()
+            if days.first() is None:
+                raise ValidationError(_("Employee not chosen"))
+            return days.first()
 
 
 class RotatingShiftForm(ModelForm):
     """
     RotatingShift model's form
     """
+
+    cols = {"name": 12, "shift1": 12, "shift2": 12}
 
     class Meta:
         """
@@ -1333,22 +1605,23 @@ class RotatingShiftForm(ModelForm):
         def create_shift_field(shift_key, required, initial=None):
             self.fields[shift_key] = forms.ModelChoiceField(
                 queryset=EmployeeShift.objects.all(),
-                widget=forms.Select(
+                widget=CustomModelChoiceWidget(
+                    delete_url="/add-remove-shift-fields",
                     attrs={
                         "class": "oh-select oh-select-2 mb-3",
                         "name": shift_key,
                         "id": f"id_{shift_key}",
-                    }
+                    },
                 ),
                 required=required,
                 empty_label=_("---Choose Shift---"),
                 initial=initial,
             )
 
-        for field in self.fields:
-            if field.startswith("shift"):
-                shift_counts += 1
-                create_shift_field(field, shift_counts <= 2)
+        # for field in self.fields:
+        #     if field.startswith("shift"):
+        #         shift_counts += 1
+        #         create_shift_field(field, shift_counts <= 2)
 
         for key in self.data.keys():
             if key.startswith("shift") and self.data[key]:
@@ -1362,11 +1635,10 @@ class RotatingShiftForm(ModelForm):
         if additional_shifts:
             shift_counts = 3
             for shift_id in additional_shifts:
-                if shift_id:
-                    create_shift_field(
-                        f"shift{shift_counts}", shift_counts <= 2, initial=shift_id
-                    )
-                    shift_counts += 1
+                create_shift_field(
+                    f"shift{shift_counts}", shift_counts <= 2, initial=shift_id
+                )
+                shift_counts += 1
 
         self.shift_counts = shift_counts
 
@@ -1417,20 +1689,31 @@ class RotatingShiftAssignForm(ModelForm):
     RotatingShiftAssign model's form
     """
 
-    employee_id = SkylinxMultiSelectField(
-        queryset=Employee.objects.filter(employee_work_info__isnull=False),
-        widget=SkylinxMultiSelectWidget(
-            filter_route_name="employee-widget-filter",
-            filter_class=EmployeeFilter,
-            filter_instance_contex_name="f",
-            filter_template_path="employee_filters.html",
-        ),
-        label=_trans("Employees"),
+    cols = {
+        "employee_id": 12,
+        "rotating_shift_id": 12,
+        "start_date": 12,
+        "based_on": 12,
+        "rotate_after_day": 12,
+        "rotate_every_weekend": 12,
+        "rotate_every": 12,
+    }
+
+    # employee_id = SkylinxMultiSelectField(
+    #     queryset=Employee.objects.filter(employee_work_info__isnull=False),
+    #     widget=SkylinxMultiSelectWidget(
+    #         filter_route_name="employee-widget-filter",
+    #         filter_class=EmployeeFilter,
+    #         filter_instance_context_name="f",
+    #         filter_template_path="employee_filters.html",
+    #     ),
+    #     label=_("Employees"),
+    # )
+    based_on = forms.ChoiceField(choices=BASED_ON, initial="daily", label=_("Based on"))
+    rotate_after_day = forms.IntegerField(initial=5, label=_("Rotate after day"))
+    start_date = forms.DateField(
+        initial=date.today, widget=forms.DateInput, label=_("Start date")
     )
-    based_on = forms.ChoiceField(
-        choices=BASED_ON, initial="daily", label=_trans("Based on")
-    )
-    rotate_after_day = forms.IntegerField(initial=5, label=_trans("Rotate after day"))
 
     class Meta:
         """
@@ -1446,71 +1729,55 @@ class RotatingShiftAssignForm(ModelForm):
             "is_active",
             "additional_data",
         ]
+        widgets = {
+            "start_date": DateInput(attrs={"type": "date"}),
+        }
         labels = {
-            "rotating_shift_id": _trans("Rotating Shift"),
+            "rotating_shift_id": _("Rotating Shift"),
             "start_date": _("Start date"),
-            "is_active": _trans("Is Active"),
-            "rotate_every_weekend": _trans("Rotate every weekend"),
-            "rotate_every": _trans("Rotate every"),
+            "is_active": _("Is Active"),
+            "rotate_every_weekend": _("Rotate every weekend"),
+            "rotate_every": _("Rotate every"),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         reload_queryset(self.fields)
-        for field_name, field in self.fields.items():
-            if field.required:
-                self.fields[field_name].label_suffix = " *"
-
-        self.fields["rotate_every_weekend"].widget.attrs.update(
-            {
-                "class": "w-100 ",
-                "style": "display:none; height:50px; border-radius:0;border:1px \
-                    solid hsl(213deg,22%,84%);",
-                "data-hidden": True,
-            }
-        )
-        self.fields["rotate_every"].widget.attrs.update(
-            {
-                "class": "w-100 ",
-                "style": "display:none; height:50px; border-radius:0;border:1px \
-                    solid hsl(213deg,22%,84%);",
-                "data-hidden": True,
-            }
-        )
-        self.fields["rotate_after_day"].widget.attrs.update(
-            {
-                "class": "w-100 oh-input",
-                "style": " height:50px; border-radius:0;",
-            }
-        )
-        self.fields["based_on"].widget.attrs.update(
-            {
-                "class": "w-100",
-                "style": " height:50px; border-radius:0;border:1px solid hsl(213deg,22%,84%);",
-            }
-        )
-        self.fields["rotating_shift_id"].widget.attrs.update(
-            {
-                "class": "oh-select oh-select-2",
-            }
-        )
-        self.fields["employee_id"].widget.attrs.update(
-            {
-                "class": "oh-select oh-select-2",
-            }
-        )
+        request = getattr(_thread_locals, "request", None)
+        self.fields["employee_id"].initial = request.GET.get("emp_id")
+        if not self.instance.pk and not request.GET.get("emp_id"):
+            self.fields["employee_id"] = SkylinxMultiSelectField(
+                queryset=Employee.objects.filter(
+                    employee_work_info__isnull=False, is_active=True
+                ),
+                widget=SkylinxMultiSelectWidget(
+                    filter_route_name="employee-widget-filter",
+                    filter_class=EmployeeFilter,
+                    filter_instance_context_name="f",
+                    filter_template_path="employee_filters.html",
+                ),
+                label=_("Employees"),
+            )
 
     def clean_employee_id(self):
         """
         Validation to employee_id field
         """
-        employee_ids = self.cleaned_data.get("employee_id")
-        if employee_ids:
-            return employee_ids[0]
+        if self.instance.pk:
+            return self.cleaned_data.get("employee_id")
         else:
-            return ValidationError(_("This field is required"))
+            employee_ids = self.cleaned_data.get("employee_id")
+            if isinstance(employee_ids, Employee):
+                return employee_ids
+            else:
+                if employee_ids:
+                    return employee_ids[0]
+                else:
+                    return ValidationError(_("This field is required"))
 
     def clean(self):
+        if self.instance.pk:
+            return super().clean()
         super().clean()
         self.instance.employee_id = Employee.objects.filter(
             id=self.data.get("employee_id")
@@ -1525,13 +1792,7 @@ class RotatingShiftAssignForm(ModelForm):
             del self.errors["rotate_after_day"]
         return cleaned_data
 
-    def save(
-        self,
-        commit=False,
-    ):
-        employee_ids = self.data.getlist("employee_id")
-        rotating_shift = RotatingShift.objects.get(id=self.data["rotating_shift_id"])
-
+    def save(self, commit=False):
         day_name = self.cleaned_data["rotate_every_weekend"]
         day_names = [
             "monday",
@@ -1543,40 +1804,66 @@ class RotatingShiftAssignForm(ModelForm):
             "sunday",
         ]
         target_day = day_names.index(day_name.lower())
-        for employee_id in employee_ids:
-            employee = Employee.objects.filter(id=employee_id).first()
-            rotating_shift_assign = RotatingShiftAssign()
-            rotating_shift_assign.rotating_shift_id = rotating_shift
-            rotating_shift_assign.employee_id = employee
-            rotating_shift_assign.based_on = self.cleaned_data["based_on"]
-            rotating_shift_assign.start_date = self.cleaned_data["start_date"]
-            rotating_shift_assign.next_change_date = self.cleaned_data["start_date"]
-            rotating_shift_assign.rotate_after_day = self.data.get("rotate_after_day")
-            rotating_shift_assign.rotate_every = self.cleaned_data["rotate_every"]
-            rotating_shift_assign.rotate_every_weekend = self.cleaned_data[
-                "rotate_every_weekend"
-            ]
-            rotating_shift_assign.next_change_date = self.cleaned_data["start_date"]
-            rotating_shift_assign.current_shift = employee.employee_work_info.shift_id
-            rotating_shift_assign.next_shift = rotating_shift.shift1
-            rotating_shift_assign.additional_data["next_shift_index"] = 1
+
+        if self.instance.pk:
             based_on = self.cleaned_data["based_on"]
-            start_date = self.cleaned_data["start_date"]
+            start_date = self.instance.start_date
             if based_on == "weekly":
                 next_date = get_next_week_date(target_day, start_date)
-                rotating_shift_assign.next_change_date = next_date
+                self.instance.next_change_date = next_date
             elif based_on == "monthly":
-                # 0, 1, 2, ..., 31, or "last"
-                rotate_every = self.cleaned_data["rotate_every"]
-                start_date = self.cleaned_data["start_date"]
+                rotate_every = self.instance.rotate_every  # 0, 1, 2, ..., 31, or "last"
+                start_date = self.instance.start_date
                 next_date = get_next_monthly_date(start_date, rotate_every)
-                rotating_shift_assign.next_change_date = next_date
+                self.instance.next_change_date = next_date
             elif based_on == "after":
-                rotating_shift_assign.next_change_date = (
-                    rotating_shift_assign.start_date
-                    + timedelta(days=int(self.data.get("rotate_after_day")))
+                self.instance.next_change_date = self.instance.start_date + timedelta(
+                    days=int(self.data.get("rotate_after_day"))
                 )
-            rotating_shift_assign.save()
+            return super().save()
+        else:
+            employee_ids = self.data.getlist("employee_id")
+            rotating_shift = RotatingShift.objects.get(
+                id=self.data["rotating_shift_id"]
+            )
+            for employee_id in employee_ids:
+                employee = Employee.objects.filter(id=employee_id).first()
+                rotating_shift_assign = RotatingShiftAssign()
+                rotating_shift_assign.rotating_shift_id = rotating_shift
+                rotating_shift_assign.employee_id = employee
+                rotating_shift_assign.based_on = self.cleaned_data["based_on"]
+                rotating_shift_assign.start_date = self.cleaned_data["start_date"]
+                rotating_shift_assign.next_change_date = self.cleaned_data["start_date"]
+                rotating_shift_assign.rotate_after_day = self.data.get(
+                    "rotate_after_day"
+                )
+                rotating_shift_assign.rotate_every = self.cleaned_data["rotate_every"]
+                rotating_shift_assign.rotate_every_weekend = self.cleaned_data[
+                    "rotate_every_weekend"
+                ]
+                rotating_shift_assign.next_change_date = self.cleaned_data["start_date"]
+                rotating_shift_assign.current_shift = (
+                    employee.employee_work_info.shift_id
+                )
+                rotating_shift_assign.next_shift = rotating_shift.shift1
+                rotating_shift_assign.additional_data["next_shift_index"] = 1
+                based_on = self.cleaned_data["based_on"]
+                start_date = self.cleaned_data["start_date"]
+                if based_on == "weekly":
+                    next_date = get_next_week_date(target_day, start_date)
+                    rotating_shift_assign.next_change_date = next_date
+                elif based_on == "monthly":
+                    # 0, 1, 2, ..., 31, or "last"
+                    rotate_every = self.cleaned_data["rotate_every"]
+                    start_date = self.cleaned_data["start_date"]
+                    next_date = get_next_monthly_date(start_date, rotate_every)
+                    rotating_shift_assign.next_change_date = next_date
+                elif based_on == "after":
+                    rotating_shift_assign.next_change_date = (
+                        rotating_shift_assign.start_date
+                        + timedelta(days=int(self.data.get("rotate_after_day")))
+                    )
+                rotating_shift_assign.save()
 
 
 class RotatingShiftAssignUpdateForm(ModelForm):
@@ -1584,9 +1871,7 @@ class RotatingShiftAssignUpdateForm(ModelForm):
     RotatingShiftAssign model's form
     """
 
-    based_on = forms.ChoiceField(
-        choices=BASED_ON, initial="daily", label=_trans("Based on")
-    )
+    based_on = forms.ChoiceField(choices=BASED_ON, initial="daily", label=_("Based on"))
 
     class Meta:
         """
@@ -1602,13 +1887,16 @@ class RotatingShiftAssignUpdateForm(ModelForm):
             "is_active",
             "additional_data",
         ]
+        widgets = {
+            "start_date": DateInput(attrs={"type": "date"}),
+        }
         labels = {
-            "start_date": _trans("Start date"),
-            "rotate_after_day": _trans("Rotate after day"),
-            "rotate_every_weekend": _trans("Rotate every weekend"),
-            "rotate_every": _trans("Rotate every"),
-            "based_on": _trans("Based on"),
-            "is_active": _trans("Is Active"),
+            "start_date": _("Start date"),
+            "rotate_after_day": _("Rotate after day"),
+            "rotate_every_weekend": _("Rotate every weekend"),
+            "rotate_every": _("Rotate every"),
+            "based_on": _("Based on"),
+            "is_active": _("Is Active"),
         }
 
     def __init__(self, *args, **kwargs):
@@ -1644,6 +1932,13 @@ class RotatingShiftAssignUpdateForm(ModelForm):
             {
                 "class": "w-100",
                 "style": " height:50px; border-radius:0; border:1px solid hsl(213deg,22%,84%);",
+            }
+        )
+        self.fields["start_date"].widget = forms.DateInput(
+            attrs={
+                "class": "w-100 oh-input",
+                "type": "date",
+                "style": " height:50px; border-radius:0;",
             }
         )
         self.fields["rotating_shift_id"].widget.attrs.update(
@@ -1692,6 +1987,8 @@ class ShiftRequestForm(ModelForm):
     ShiftRequest model's form
     """
 
+    cols = {"description": 12}
+
     class Meta:
         """
         Meta class for additional options
@@ -1709,10 +2006,14 @@ class ShiftRequestForm(ModelForm):
             "is_active",
             "shift_changed",
         ]
+        widgets = {
+            "requested_date": DateInput(attrs={"type": "date"}),
+            "requested_till": DateInput(attrs={"type": "date"}),
+        }
         labels = {
-            "description": _trans("Description"),
-            "requested_date": _trans("Requested Date"),
-            "requested_till": _trans("Requested Till"),
+            "description": _("Description"),
+            "requested_date": _("Requested Date"),
+            "requested_till": _("Requested Till"),
         }
 
     def as_p(self):
@@ -1740,6 +2041,8 @@ class ShiftAllocationForm(ModelForm):
     ShiftRequest model's form
     """
 
+    cols = {"description": 12}
+
     class Meta:
         """
         Meta class for additional options
@@ -1757,21 +2060,24 @@ class ShiftAllocationForm(ModelForm):
             "is_active",
             "shift_changed",
         )
+        widgets = {
+            "requested_date": DateInput(attrs={"type": "date"}),
+            "requested_till": DateInput(attrs={"type": "date", "required": "true"}),
+        }
 
         labels = {
-            "description": _trans("Description"),
-            "requested_date": _trans("Requested Date"),
-            "requested_till": _trans("Requested Till"),
+            "description": _("Description"),
+            "requested_date": _("Requested Date"),
+            "requested_till": _("Requested Till"),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["requested_till"].required = True
-        self.fields["requested_till"].widget.attrs.update({"required": True})
         self.fields["shift_id"].widget.attrs.update(
             {
                 "hx-target": "#id_reallocate_to_parent_div",
                 "hx-trigger": "change",
+                "hx-swap": "innerHTML",
                 "hx-get": "/update-employee-allocation",
             }
         )
@@ -1801,6 +2107,8 @@ class WorkTypeRequestForm(ModelForm):
     WorkTypeRequest model's form
     """
 
+    cols = {"description": 12}
+
     class Meta:
         """
         Meta class for additional options
@@ -1815,10 +2123,14 @@ class WorkTypeRequestForm(ModelForm):
             "is_active",
             "work_type_changed",
         )
+        widgets = {
+            "requested_date": DateInput(attrs={"type": "date"}),
+            "requested_till": DateInput(attrs={"type": "date"}),
+        }
         labels = {
-            "requested_date": _trans("Requested Date"),
-            "requested_till": _trans("Requested Till"),
-            "description": _trans("Description"),
+            "requested_date": _("Requested Date"),
+            "requested_till": _("Requested Till"),
+            "description": _("Description"),
         }
 
     def as_p(self):
@@ -1950,7 +2262,7 @@ class ChangeUsernameForm(forms.Form):
 
     def clean_password(self):
         username = self.cleaned_data.get("username")
-        if User.objects.filter(username=username).exists():
+        if SkylinxUser.objects.filter(username=username).exists():
             raise forms.ValidationError("Username already exists.")
         password = self.cleaned_data.get("password")
         if not self.user.check_password(password):
@@ -2132,10 +2444,30 @@ class TagsForm(ModelForm):
         return table_html
 
 
+class EmployeeTagForm(ModelForm):
+    """
+    Employee Tags form
+    """
+
+    class Meta:
+        """
+        Meta class for additional options
+        """
+
+        model = EmployeeTag
+        fields = "__all__"
+        exclude = ["is_active"]
+        widgets = {"color": TextInput(attrs={"type": "color", "style": "height:50px"})}
+
+
 class AuditTagForm(ModelForm):
     """
     Audit Tags form
     """
+
+    cols = {
+        "title": 12,
+    }
 
     class Meta:
         """
@@ -2201,13 +2533,15 @@ class DynamicMailTestForm(forms.Form):
     DynamicEmailTest
     """
 
-    to_email = forms.EmailField(label="To email", required=True)
+    to_email = forms.EmailField(label=_("To email"), required=True)
 
 
 class MailTemplateForm(ModelForm):
     """
     MailTemplateForm
     """
+
+    cols = {"title": 12, "body": 12, "company_id": 12}
 
     class Meta:
         model = SkylinxMailTemplate
@@ -2216,6 +2550,7 @@ class MailTemplateForm(ModelForm):
             "body": forms.Textarea(
                 attrs={"data-summernote": "", "style": "display:none;"}
             ),
+            "is_active": forms.HiddenInput(),
         }
 
     def clean_body(self):
@@ -2300,6 +2635,11 @@ class MailTemplateForm(ModelForm):
 
 
 class MultipleApproveConditionForm(ModelForm):
+
+    cols = {
+        "multi_approval_manager": 12,
+    }
+
     CONDITION_CHOICE = [
         ("equal", _("Equal (==)")),
         ("notequal", _("Not Equal (!=)")),
@@ -2327,6 +2667,7 @@ class MultipleApproveConditionForm(ModelForm):
                 "hx-get": "condition-value-fields",
             },
         ),
+        label=_("Condition Operator"),
     )
 
     class Meta:
@@ -2385,11 +2726,24 @@ class AnnouncementForm(ModelForm):
         widget=SkylinxMultiSelectWidget(
             filter_route_name="employee-widget-filter",
             filter_class=EmployeeFilter,
-            filter_instance_contex_name="f",
+            filter_instance_context_name="f",
             filter_template_path="employee_filters.html",
         ),
         label="Employees",
+        help_text=_(
+            "If no employee, department or job position is selected, the announcement will be visible to all employees in the selected company."
+        ),
     )
+
+    cols = {
+        "title": 12,
+        "description": 12,
+        "attachments": 12,
+        "expire_date": 12,
+        "employees": 12,
+        "department": 12,
+        "job_position": 12,
+    }
 
     class Meta:
         """
@@ -2401,6 +2755,7 @@ class AnnouncementForm(ModelForm):
         exclude = ["is_active"]
         widgets = {
             "description": forms.Textarea(attrs={"data-summernote": ""}),
+            "expire_date": DateInput(attrs={"type": "date"}),
         }
 
     def clean_description(self):
@@ -2460,16 +2815,16 @@ class AnnouncementForm(ModelForm):
         job_positions_selected = self.cleaned_data.get("job_position")
 
         # Check if none of the three are selected
-        if (
-            not employees_selected
-            and not departments_selected
-            and not job_positions_selected
-        ):
-            raise forms.ValidationError(
-                _(
-                    "You must select at least one of: Employees, Department, or Job Position."
-                )
-            )
+        # if (
+        #     not employees_selected
+        #     and not departments_selected
+        #     and not job_positions_selected
+        # ):
+        #     raise forms.ValidationError(
+        #         _(
+        #             "You must select at least one of: Employees, Department, or Job Position."
+        #         )
+        #     )
 
         return cleaned_data
 
@@ -2581,7 +2936,7 @@ class PassWordResetForm(forms.Form):
         user.
         """
         username = self.cleaned_data["email"]
-        user = User.objects.get(username=username)
+        user = SkylinxUser.objects.get(username=username)
         employee = user.employee_get
         email = employee.email
         work_mail = None
@@ -2634,7 +2989,7 @@ def validate_ip_or_cidr(value):
 
 class AttendanceAllowedIPForm(forms.ModelForm):
     ip_addresses = forms.CharField(
-        widget=forms.Textarea(attrs={"rows": 3, "class": "form-control w-100"}),
+        widget=forms.Textarea(attrs={"rows": 3, "class": "form-control oh-input"}),
         label=_("Allowed IP Addresses or Network Prefixes"),
         help_text=_(
             "Enter multiple IP addresses or network prefixes, separated by commas."
@@ -2700,13 +3055,13 @@ class AttendanceAllowedIPUpdateForm(ModelForm):
 class TrackLateComeEarlyOutForm(ModelForm):
     class Meta:
         model = TrackLateComeEarlyOut
-        fields = ["is_enable"]
+        fields = ["is_enable", "company_id"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["is_enable"].widget.attrs.update(
             {
-                "hx-post": "/attendance/enable-disable-tracking-late-come-early-out",
+                "hx-post": reverse_lazy("enable-disable-tracking-late-come-early-out"),
                 "hx-target": "this",
                 "hx-trigger": "change",
             }
@@ -2719,7 +3074,20 @@ class HolidayForm(ModelForm):
 
     This form allows users to create or update holiday data by specifying details such as
     the start date and end date.
+
+    Attributes:
+        - start_date: A DateField representing the start date of the holiday.
+        - end_date: A DateField representing the end date of the holiday.
     """
+
+    cols = {"name": 12}
+
+    start_date = forms.DateField(
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    end_date = forms.DateField(
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
 
     def clean_end_date(self):
         start_date = self.cleaned_data.get("start_date")
@@ -2741,12 +3109,18 @@ class HolidayForm(ModelForm):
         fields = "__all__"
         exclude = ["is_active"]
         labels = {
-            "name": _("Name"),
+            "name": _("Holiday Name"),
         }
 
     def __init__(self, *args, **kwargs):
         super(HolidayForm, self).__init__(*args, **kwargs)
         self.fields["name"].widget.attrs["autocomplete"] = "name"
+        self.fields["start_date"].label = (
+            f"{self.Meta.model()._meta.get_field('start_date').verbose_name}"
+        )
+        self.fields["end_date"].label = (
+            f"{self.Meta.model()._meta.get_field('end_date').verbose_name}"
+        )
 
 
 class HolidaysColumnExportForm(forms.Form):
@@ -2837,3 +3211,22 @@ class PenaltyAccountForm(ModelForm):
                 id__in=available_leaves.values_list("leave_type_id", flat=True)
             )
             self.fields["leave_type_id"].queryset = assigned_leave_types
+
+
+# ---------------------------------------------------------------------------
+# Roster Forms
+# ---------------------------------------------------------------------------
+
+
+class RosterCellUpdateForm(ModelForm):
+    """
+    Inline HTMX form for updating a single roster cell (shift / day-off / notes).
+    """
+
+    class Meta:
+        model = Roster
+        fields = ["shift", "is_off", "is_published", "notes"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["shift"].required = False

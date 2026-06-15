@@ -2,10 +2,23 @@
 init.py
 """
 
-from skylinx import (
-    skylinx_apps,
-    skylinx_context_processors,
-    skylinx_middlewares,
-    skylinx_settings,
-    rest_conf,
-)
+import sys
+
+# Patch makemigrations and migrate to use SkylinxAutodetector.
+#
+# Django stores the autodetector as a class attribute on each command
+# (`autodetector = MigrationAutodetector`), so we patch the class attribute
+# directly — patching the module-level name has no effect.
+#
+# Django 6.x requires both commands to share the same autodetector class
+# (system check commands.E001), so we always patch both.
+try:
+    from django.core.management.commands.makemigrations import Command as _MM
+    from django.core.management.commands.migrate import Command as _Migrate
+
+    from skylinx.inherit.autodetect import SkylinxAutodetector
+
+    _MM.autodetector = SkylinxAutodetector
+    _Migrate.autodetector = SkylinxAutodetector
+except ImportError:
+    pass

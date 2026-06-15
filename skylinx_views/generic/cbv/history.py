@@ -9,11 +9,12 @@ from django.views.generic import DetailView
 from simple_history.utils import get_history_model_for_model
 
 from skylinx.skylinx_middlewares import _thread_locals
-from skylinx_views.cbv_methods import hx_request_required
+from skylinx_views.cbv_methods import hx_request_required, login_required
 from skylinx_views.generic.cbv.views import SkylinxFormView
 from skylinx_views.history_methods import get_diff
 
 
+@method_decorator(login_required, name="dispatch")
 @method_decorator(hx_request_required, name="dispatch")
 class SkylinxHistoryView(DetailView):
     """

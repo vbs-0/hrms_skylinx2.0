@@ -10,9 +10,9 @@ from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
 
 from base.forms import ModelForm
+from skylinx_backup.gdrive import authenticate
 
-from .gdrive import authenticate
-from .models import *
+from .models import GoogleDriveBackup, LocalBackup
 
 
 class LocalBackupSetupForm(ModelForm):
@@ -99,12 +99,7 @@ class GdriveBackupSetupForm(ModelForm):
 
     class Meta:
         model = GoogleDriveBackup
-        exclude = [
-            "active",
-            "access_token",
-            "refresh_token",
-            "token_expiry",
-        ]  # Exclude token fields
+        exclude = ["active"]
 
     def as_p(self):
         """

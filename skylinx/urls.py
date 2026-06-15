@@ -18,6 +18,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path, re_path
+from django.views.i18n import JavaScriptCatalog
 
 import notifications.urls
 
@@ -35,13 +36,14 @@ urlpatterns = [
     path("", include("base.urls")),
     path("", include("skylinx_automations.urls")),
     path("", include("skylinx_views.urls")),
+    path("", include("skylinx_audit.urls")),
     path("employee/", include("employee.urls")),
     path("skylinx-widget/", include("skylinx_widgets.urls")),
-    path("api/", include("skylinx_api.urls")),
     re_path(
         "^inbox/notifications/", include(notifications.urls, namespace="notifications")
     ),
     path("i18n/", include("django.conf.urls.i18n")),
+    path("jsi18n/", JavaScriptCatalog.as_view(), name="javascript-catalog"),
     path("health/", health_check),
 ]
 

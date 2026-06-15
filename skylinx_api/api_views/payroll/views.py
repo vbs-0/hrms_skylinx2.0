@@ -47,12 +47,15 @@ class PayslipView(APIView):
     def get(self, request, id=None):
         if id:
             payslip = Payslip.objects.filter(id=id).first()
+            if payslip is None:
+                return Response({"detail": "Not found."}, status=404)
             if (
                 request.user.has_perm("payroll.view_payslip")
                 or payslip.employee_id == request.user.employee_get
             ):
                 serializer = PayslipSerializer(payslip)
-            return Response(serializer.data, status=200)
+                return Response(serializer.data, status=200)
+            return Response({"detail": "Permission denied."}, status=403)
         if request.user.has_perm("payroll.view_payslip"):
             payslips = Payslip.objects.all()
         else:
@@ -118,14 +121,7 @@ class ContractView(APIView):
 
     def get(self, request, id=None):
         if id:
-            if request.user.has_perm("payroll.view_contract"):
-                contract = Contract.objects.filter(id=id).first()
-            else:
-                contract = Contract.objects.filter(
-                    id=id, employee_id=request.user.employee_get
-                ).first()
-            if not contract:
-                return Response(status=404)
+            contract = Contract.objects.filter(id=id).first()
             serializer = ContractSerializer(contract)
             return Response(serializer.data, status=200)
         if request.user.has_perm("payroll.view_contract"):
@@ -337,46 +333,26 @@ class ReimbusementApproveRejectView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        from django.shortcuts import get_object_or_404
-
-        reimbursement = get_object_or_404(Reimbursement, id=pk)
-        user_employee = getattr(request.user, "employee_get", None)
-        owner = reimbursement.employee_id
-        work_info = getattr(owner, "employee_work_info", None)
-        reporting_manager = (
-            getattr(work_info, "reporting_manager_id", None) if work_info else None
-        )
-        is_manager = user_employee is not None and reporting_manager == user_employee
-        has_permission = request.user.has_perm("payroll.change_reimbursement")
-
-        if not (is_manager or has_permission):
-            return Response(
-                {
-                    "error": "You do not have permission to approve/reject this reimbursement."
-                },
-                status=403,
-            )
-
         status = request.data.get("status", None)
+        amount = request.data.get("amount", None)
         amount = (
             eval_validate(request.data.get("amount"))
             if request.data.get("amount")
             else 0
         )
         amount = max(0, amount)
+        reimbursement = Reimbursement.objects.filter(id=pk)
         if amount:
-            reimbursement.amount = amount
-        reimbursement.status = status
-        reimbursement.save()
-        return Response({"status": reimbursement.status}, status=200)
+            reimbursement.update(amount=amount)
+        reimbursement.update(status=status)
+        return Response({"status": reimbursement.first().status}, status=200)
 
 
 class TaxBracketView(APIView):
-    permission_classes = [IsAuthenticated]
 
     def get(self, request, pk=None):
         if pk:
-            tax_bracket = TaxBracket.objects.get(id=pk)
+            tax_bracket = TaxBracket.find(pk)
             serializer = TaxBracketSerializer(tax_bracket)
             return Response(serializer.data, status=200)
         tax_brackets = TaxBracket.objects.all()
@@ -408,6 +384,7 @@ class TaxBracketView(APIView):
 
 from datetime import datetime
 
+from django.conf import settings
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
@@ -419,8 +396,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
-
-from skylinx.skylinx_settings import SKYLINX_DATE_FORMATS
 
 # Your models / helpers
 from payroll.models.models import Company, EmployeeWorkInformation, Payslip
@@ -501,10 +476,10 @@ class PayslipPDFAPIView(APIView):
 
         # formatted date for chosen company format (safe default if not found)
         formatted_start_date = start_date.strftime(
-            SKYLINX_DATE_FORMATS.get(date_format, "%b. %d, %Y")
+            settings.SKYLINX_DATE_FORMATS.get(date_format, "%b. %d, %Y")
         )
         formatted_end_date = end_date.strftime(
-            SKYLINX_DATE_FORMATS.get(date_format, "%b. %d, %Y")
+            settings.SKYLINX_DATE_FORMATS.get(date_format, "%b. %d, %Y")
         )
 
         # fill template context like original view

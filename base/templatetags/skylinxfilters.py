@@ -16,10 +16,11 @@ from django.template import TemplateSyntaxError
 from django.template.defaultfilters import register
 from django.utils.translation import gettext as _
 
-from base.models import Company, EmployeeShiftSchedule
+from base.models import Company, EmployeeShiftSchedule, IntegrationApps
 from employee.methods.duration_methods import strtime_seconds
 from skylinx.skylinx_middlewares import _thread_locals
 from skylinx.methods import get_skylinx_model_class
+from skylinx_theme.models import CompanyTheme, SkylinxColorTheme
 
 register = template.Library()
 
@@ -237,6 +238,16 @@ def base64_encode(value):
 
 
 @register.filter
+def absolute_url(url, request):
+    if not url:
+        return ""
+    if url.startswith("http"):
+        return url
+
+    return request.build_absolute_uri(url)
+
+
+@register.filter
 def get_item(list, i):
     try:
         return list[i]
@@ -250,6 +261,20 @@ def app_installed(app_name):
     Returns True if the app with the given name is installed, otherwise False.
     """
     return apps.is_installed(app_name)
+
+
+@register.filter(name="integration_installed")
+def is_integration_installed(app_name):
+    """
+    Custom function to check if an app is installed and enabled.
+    """
+
+    integrations = IntegrationApps.objects.values_list("app_label", flat=True)
+
+    if app_name not in integrations and not apps.is_installed(app_name):
+        return False
+
+    return IntegrationApps.objects.filter(app_label=app_name, is_enabled=True).exists()
 
 
 @register.filter(name="is_stagemanager")
@@ -334,3 +359,53 @@ def verbose_name(instance, field_name):
         return instance._meta.get_field(field_name).verbose_name
     except Exception:
         return field_name
+
+
+@register.simple_tag(takes_context=True)
+def get_company(context):
+    request = context["request"]
+    company_id = request.session.get("selected_company")
+    if company_id != "all":
+        company = Company.objects.filter(id=company_id).first()
+        theme = CompanyTheme.objects.filter(company=company).first()
+        if theme:
+            return SkylinxColorTheme.objects.filter(id=theme.theme.id).first()
+        else:
+            return SkylinxColorTheme.objects.filter(is_default=True).first()
+    return SkylinxColorTheme.objects.filter(is_default=True).first()
+
+
+@register.simple_tag
+def remove_item_at(obj, idx):
+    try:
+        idx = int(idx)
+    except (ValueError, TypeError):
+        return obj
+
+    # Handle dictionary
+    if isinstance(obj, dict):
+        items = list(obj.items())
+        if 0 <= idx < len(items):
+            items.pop(idx)
+        return items
+
+    # Handle list
+    if isinstance(obj, list):
+        new_list = obj.copy()
+        if 0 <= idx < len(new_list):
+            new_list.pop(idx)
+        return new_list
+
+    # Handle tuple
+    if isinstance(obj, tuple):
+        temp = list(obj)
+        if 0 <= idx < len(temp):
+            temp.pop(idx)
+        return tuple(temp)
+
+    return obj
+
+
+@register.simple_tag(takes_context=True)
+def get_def_theme(context):
+    return SkylinxColorTheme.objects.filter(is_default=True).first()

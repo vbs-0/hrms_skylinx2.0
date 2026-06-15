@@ -173,34 +173,8 @@
           gap: 16px;
         }
       </style>
-
-      <script>
-          function printDiv() {
-              const printContents = document.getElementById('printDiv').innerHTML;
-              const originalContents = document.body.innerHTML;
-
-              // Replace body content with print content
-              document.body.innerHTML = printContents;
-
-              // Add event listener for after printing
-              window.onafterprint = () => {
-                  window.location.href = document.referrer; // Redirect to the previous page
-              };
-
-              // Open print dialog
-              window.print();
-
-              // Restore original content
-              document.body.innerHTML = originalContents;
-
-            }
-
-            // Call printDiv on page load
-            window.onload = printDiv;
-
-      </script>
-
     </head>
+
     <body id="printDiv">
           <div class="container oh-payslip-container">
       <div class="oh-payslip">
@@ -218,7 +192,7 @@
               <div class="cs-payslip_right cs-text_right">
                 <div class="oh-logo cs-mb5">
                   {% comment %} This works for: Local media, Cloud storage (GCS / S3), Signed URLs, PDF printing {% endcomment %}
-                  <img src="{{employee.employee_work_info.company_id.icon.url}}" alt="Logo" />
+                  <img src="{{employee.employee_work_info.company_id.icon.url|absolute_url:request}}" alt="Logo" />
                 </div>
               </div>
             </div>
@@ -234,7 +208,8 @@
               </div>
               <div class="cs-payslip_right cs-text_right">
                 <div class="oh-logo cs-mb5">
-                  <img src="{{protocol}}://{{host}}{{company.icon.url}}" alt="Logo" />
+                  {% comment %} This works for: Local media, Cloud storage (GCS / S3), Signed URLs, PDF printing {% endcomment %}
+                  <img src="{{company.icon.url|absolute_url:request}}" alt="Logo" />
                 </div>
               </div>
             </div>
@@ -328,6 +303,17 @@
                   {{loss_of_pay|floatformat:2|currency_symbol_position}}
                 </td>
               </tr>
+              {% if custom_leave_deduction %}
+              <tr style="color: #c47d00;">
+                <td class="" style="padding-left: 1.2rem; font-size:0.85em;">
+                  ↳ {% trans "Leave Payment Reduction" %}
+                  <br><span style="color:#888; font-size:0.85em;">{% trans "Partial deduction — leave type pays reduced %" %}</span>
+                </td>
+                <td class="oh-allowance-amount">
+                  {{custom_leave_deduction|floatformat:2|currency_symbol_position}}
+                </td>
+              </tr>
+              {% endif %}
               {% for deduction in basic_pay_deductions %}
                 <tr>
                   <td class="">{{deduction.title}}</td>
@@ -414,9 +400,6 @@
       </div>
     </div>
     </body>
-    <button type="button" onclick="printDiv()" id="" style="display:none;">
-        print as PDF
-    </button>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
 </html>

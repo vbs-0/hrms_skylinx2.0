@@ -14,6 +14,7 @@ from django.core.mail import EmailMessage
 from django.core.paginator import Paginator
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
+from django.utils.translation import gettext_lazy as _
 
 from base.backends import ConfiguredEmailBackend
 from base.forms import MailTemplateForm
@@ -28,7 +29,7 @@ from base.models import SkylinxMailTemplate
 from employee.filters import EmployeeFilter
 from employee.models import Employee
 from skylinx import settings
-from skylinx.decorators import login_required, manager_can_enter
+from skylinx.decorators import hx_request_required, login_required, manager_can_enter
 from skylinx.http.response import SkylinxRedirect
 
 
@@ -82,6 +83,7 @@ def not_out_yet(request):
 
 
 @login_required
+@hx_request_required
 @manager_can_enter("employee.change_employee")
 def send_mail(request, emp_id=None):
     """
@@ -89,7 +91,12 @@ def send_mail(request, emp_id=None):
     """
     employee = None
     if emp_id:
-        employee = Employee.objects.get(id=emp_id)
+        try:
+            employee = Employee.objects.get(id=emp_id)
+        except Employee.DoesNotExist:
+            return SkylinxRedirect(
+                request, message=_("No Employee found matching the query.")
+            )
     employees = Employee.objects.all()
     templates = SkylinxMailTemplate.objects.all()
     return render(
@@ -119,7 +126,12 @@ def employee_data_export(request, emp_id=None):
     ):
         employee = None
         if emp_id:
-            employee = Employee.objects.get(id=emp_id)
+            try:
+                employee = Employee.objects.get(id=emp_id)
+            except Employee.DoesNotExist:
+                return SkylinxRedirect(
+                    request, message=_("No Employee found matching the query.")
+                )
 
         context = {"employee": employee}
 
@@ -179,7 +191,11 @@ def get_template(request, emp_id):
     """
     This method is used to return the mail template
     """
-    body = SkylinxMailTemplate.objects.get(id=emp_id).body
+    body = (
+        SkylinxMailTemplate.find(emp_id).body
+        if SkylinxMailTemplate.find(emp_id)
+        else ""
+    )
     return JsonResponse({"body": body})
 
 
@@ -245,7 +261,7 @@ def send_mail_to_employee(request):
     """
     This method is used to send acknowledgement mail to the employee
     """
-    employee_id = request.POST["id"]
+    employee_id = request.POST.get("id")
     subject = request.POST.get("subject")
     bdy = request.POST.get("body")
 

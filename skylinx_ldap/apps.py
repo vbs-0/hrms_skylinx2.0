@@ -1,8 +1,6 @@
 from django.apps import AppConfig
 from django.conf import settings
 
-import skylinx.skylinx_settings
-
 
 class SkylinxLdapConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
@@ -11,16 +9,16 @@ class SkylinxLdapConfig(AppConfig):
     def ready(self):
         from django.urls import include, path
 
-        from skylinx.skylinx_settings import APPS
+        from skylinx import config
         from skylinx.urls import urlpatterns
 
-        APPS.append("skylinx_ldap")
+        settings.APPS.append("skylinx_ldap")
         urlpatterns.append(
             path("", include("skylinx_ldap.urls")),
         )
         super().ready()
 
-        ldap_config = skylinx.skylinx_settings.load_ldap_settings()
+        ldap_config = config.load_ldap_settings()
 
         # Apply settings dynamically
         settings.LDAP_SERVER = ldap_config["LDAP_SERVER"]

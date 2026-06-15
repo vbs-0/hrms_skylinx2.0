@@ -5,9 +5,10 @@ This module is used write custom methods
 """
 
 import calendar
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 
 import pandas as pd
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import models
@@ -18,7 +19,6 @@ from django.utils.translation import gettext_lazy as _
 from base.methods import get_pagination
 from base.models import WEEK_DAYS, CompanyLeaves, Holidays
 from employee.models import Employee
-from skylinx.skylinx_settings import SKYLINX_DATE_FORMATS, SKYLINX_TIME_FORMATS
 
 MONTH_MAPPING = {
     "january": 1,
@@ -303,7 +303,7 @@ def get_week_start_end_dates(week):
     year, week_number = map(int, week.split("-W"))
 
     # Get the date of the first day of the week
-    start_date = datetime.strptime(f"{year}-W{week_number}-1", "%Y-W%W-%w").date()
+    start_date = date.fromisocalendar(year, week_number, 1)
 
     # Calculate the end date by adding 6 days to the start date
     end_date = start_date + timedelta(days=6)
@@ -494,6 +494,20 @@ def validate_time_in_minutes(value):
         raise ValidationError(_("Invalid format,  excepted MM:SS")) from e
 
 
+class Session(dict):
+    """
+    Fake session object that mimics Django's session for biometric requests.
+    Provides session_key attribute and dict-like access for context processors.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Generate a unique session key for this fake session
+        import uuid
+
+        self.session_key = str(uuid.uuid4())
+
+
 class Request:
     """
     Represents a request for clock-in or clock-out.
@@ -503,7 +517,7 @@ class Request:
     - date: The date of the request.
     - time: The time of the request.
     - path: The path associated with the request (default: "/").
-    - session: The session data associated with the request (default: {"title": None}).
+    - session: The session data associated with the request (default: Session with title=None).
     """
 
     def __init__(
@@ -515,16 +529,44 @@ class Request:
     ) -> None:
         self.user = user
         self.path = "/"
-        self.session = {"title": None}
+        self.session = Session({"title": None})
         self.date = date
         self.time = time
         self.datetime = datetime
         self.META = META()
 
+    def build_absolute_uri(self, location=None):
+        """
+        Build an absolute URI from the location and the variables available in
+        this request. Mimics Django's HttpRequest.build_absolute_uri() for
+        context processors that need it (e.g. breadcrumbs).
+        """
+        if location is None:
+            location = "/"
+        # For fake requests from biometric devices, return a simple default URL
+        # The actual URL doesn't matter since this is just for template rendering
+        return f"http://localhost{location}"
+
+    def is_secure(self):
+        """
+        Returns True if the request was made over HTTPS, False otherwise.
+        For fake requests from biometric devices, always returns False.
+        """
+        return False
+
+    def get_host(self):
+        """
+        Returns the host from the request. Mimics Django's HttpRequest.get_host()
+        for context processors that need it.
+        """
+        return "localhost"
+
 
 class META:
     """
     Provides access to HTTP metadata keys.
+    Dict-like interface so Django context processors (e.g. debug) work when
+    this fake request is used (e.g. from ZK biometric punch processing).
     """
 
     @classmethod
@@ -537,18 +579,33 @@ class META:
         """
         return ["HTTP_HX_REQUEST"]
 
+    def get(self, key, default=None):
+        """
+        Return the value for key if key is in the metadata, else default.
+        Required for Django context processors that call request.META.get().
+        """
+        return default
+
 
 def parse_time(time_str):
     if isinstance(time_str, time):  # Check if it's already a time object
         return time_str
 
     if isinstance(time_str, str):
-        for format_str in SKYLINX_TIME_FORMATS.values():
+        for format_str in settings.SKYLINX_TIME_FORMATS.values():
             try:
                 return datetime.strptime(time_str, format_str).time()
             except ValueError:
                 continue
     return None
+
+
+def parse_datetime(date_str, time_str):
+    return (
+        datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+        if date_str and time_str
+        else None
+    )
 
 
 def parse_date(date_str, error_key, activity):
@@ -571,7 +628,7 @@ def get_date(date):
     if isinstance(date, datetime):
         return date
     elif isinstance(date, str):
-        for format_name, format_str in SKYLINX_DATE_FORMATS.items():
+        for format_name, format_str in settings.SKYLINX_DATE_FORMATS.items():
             try:
                 return datetime.strptime(date, format_str)
             except ValueError:

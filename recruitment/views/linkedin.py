@@ -1,24 +1,17 @@
 import json
-import logging
-import os
-import re
-
-import requests
-from django.contrib import messages
-from django.shortcuts import redirect, render
-from django.urls import reverse
-
-logger = logging.getLogger(__name__)
-import json
 
 import requests
 from bs4 import BeautifulSoup
-from django.conf import settings
-from django.http import HttpResponse, JsonResponse
+from django.contrib import messages
+from django.http import HttpResponse
+from django.shortcuts import redirect
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from skylinx_views.cbv_methods import login_required, permission_required
-from recruitment.models import LinkedInAccount, Recruitment
+from skylinx.config import logger
+from skylinx.decorators import login_required, permission_required
+from skylinx.http.response import SkylinxRedirect
+from recruitment.models import LinkedInAccount
 
 
 @login_required
@@ -30,8 +23,13 @@ def update_isactive_linkedin(request, obj_id):
     - is_active: Boolean value representing the state of LinkedInAccount,
     - obj_id: Id of LinkedInAccount object.
     """
+    linkedin_account = LinkedInAccount.find(obj_id)
+    if not linkedin_account:
+        return SkylinxRedirect(
+            request, message=_("No LinkedIn Account found matching the query.")
+        )
+
     is_active = request.POST.get("is_active")
-    linkedin_account = LinkedInAccount.objects.get(id=obj_id)
     if is_active == "on":
         linkedin_account.is_active = True
         messages.success(request, _("LinkedIn Account activated successfully."))
@@ -55,13 +53,19 @@ def delete_linkedin_account(request, pk, return_redirect=True):
             messages.success(request, "Linkedin data deleted")
             return redirect(reverse("linkedin-setting-list"))
     except Exception as e:
-        logger(e)
+        logger.error(e)
         messages.error(request, "Something went wrong")
+    return SkylinxRedirect(request)
 
 
 @login_required
 def validate_linkedin_token(request, pk):
-    linkedin_account = LinkedInAccount.objects.filter(id=pk).first()
+    linkedin_account = LinkedInAccount.find(pk)
+    if not linkedin_account:
+        return SkylinxRedirect(
+            request, message=_("No LinkedIn Account found matching the query.")
+        )
+
     access_token = linkedin_account.api_token
     url = "https://api.linkedin.com/v2/userinfo"
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -82,7 +86,6 @@ def html_to_text(html):
     )
 
 
-@login_required
 def post_recruitment_in_linkedin(
     request, recruitment, linkedin_acc, feed_type="feed", group_id=None
 ):
@@ -135,7 +138,6 @@ def post_recruitment_in_linkedin(
         recruitment.save()
 
 
-@login_required
 def delete_post(recruitment):
     """Delete recruitment post from LinkedIn"""
     linkedin_post_id = recruitment.linkedin_post_id

@@ -6,7 +6,6 @@
         const navElement = $(`#${id}`);
         const activeNavElement = navElement.after();
     }
-
     function preloadData(item, candId, preloadedData, callback) {
         $.ajax({
             type: "get",
@@ -171,7 +170,8 @@
                         <ul class="oh-sidebar__submenu-items">
                             {% if "leave"|app_installed and perms.base.view_multipleapprovalcondition %}
                                 <li class="oh-sidebar__submenu-item">
-                                    <a href="{% url 'multiple-approval-condition' %}" class="oh-sidebar__submenu-link">{% trans "Multiple Approvals" %}</a>
+                                    <a href="{% url 'multiple-approval-condition' %}" class="oh-sidebar__submenu-link">
+                                        {% trans "Multiple Approvals" %}</a>
                                 </li>
                             {% endif %}
                             {% if perms.base.view_skylinxmailtemplate %}

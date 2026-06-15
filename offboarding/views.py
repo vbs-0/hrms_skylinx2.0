@@ -1,10 +1,9 @@
 import json
 from datetime import datetime, timedelta
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlparse
 
 from django.apps import apps
 from django.contrib import messages
-from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
@@ -21,11 +20,14 @@ from skylinx.decorators import (
     hx_request_required,
     login_required,
     manager_can_enter,
+    owner_can_enter,
     permission_required,
 )
 from skylinx.group_by import group_by_queryset as group_by
 from skylinx.http.response import SkylinxRedirect
 from skylinx.methods import get_skylinx_model_class
+from skylinx_auth.models import SkylinxUser
+from skylinx_views.generic.cbv.views import SkylinxFormView
 from notifications.signals import notify
 from offboarding.decorators import (
     any_manager_can_enter,
@@ -310,7 +312,43 @@ def create_stage(request):
                 redirect=reverse("offboarding-pipeline"),
             )
             return SkylinxRedirect(request)
+
     return render(request, "offboarding/stage/form.html", {"form": form})
+
+
+@login_required
+@offboarding_manager_can_enter("offboarding.change_offboardingstage")
+def update_stage_order(request, pk):
+    """
+    This method is used to update the stage sequence of the offboarding
+    """
+    offboarding = Offboarding.find(pk)
+    if not offboarding:
+        return SkylinxRedirect(request, message=_("Offboarding not found"))
+
+    if request.method == "POST":
+        try:
+            order = json.loads(request.POST.get("order", "[]"))
+            for index, stage_id in enumerate(order):
+                stage = offboarding.offboardingstage_set.get(id=stage_id)
+                stage.sequence = index + 1
+                stage.save()
+            messages.success(request, "Sequence Updated Successfully")
+            return JsonResponse({"status": "success"})
+        except Exception as e:
+            messages.error(request, "Error Updating Sequence..")
+            return JsonResponse({"status": "error", "message": str(e)}, status=400)
+
+    stages = offboarding.offboardingstage_set.order_by("sequence")
+
+    return render(
+        request,
+        "cbv/exit_process/stage_order.html",
+        {
+            "stages": stages,
+            "offboarding": offboarding,
+        },
+    )
 
 
 @login_required
@@ -355,6 +393,7 @@ def add_employee(request):
                     icon="information",
                 )
             return SkylinxRedirect(request)
+
     return render(request, "offboarding/employee/form.html", {"form": form})
 
 
@@ -371,7 +410,7 @@ def delete_employee(request):
         messages.success(request, _("Offboarding employee deleted"))
         notify.send(
             request.user.employee_get,
-            recipient=User.objects.filter(
+            recipient=SkylinxUser.objects.filter(
                 id__in=instances.values_list("employee_id__employee_user_id", flat=True)
             ),
             verb=f"You have been removed from the offboarding",
@@ -436,7 +475,7 @@ def change_stage(request):
     )
     notify.send(
         request.user.employee_get,
-        recipient=User.objects.filter(
+        recipient=SkylinxUser.objects.filter(
             id__in=employees.values_list("employee_id__employee_user_id", flat=True)
         ),
         verb=f"Offboarding stage has been changed",
@@ -464,6 +503,51 @@ def change_stage(request):
 
 @login_required
 @hx_request_required
+@any_manager_can_enter("offboarding.change_offboarding")
+def change_offboarding_stage(request):
+    """
+    This method is used to update the stages of the employee
+    """
+    employee_ids = request.GET.getlist("employee_ids")
+    stage_id = request.GET["stage_id"]
+    employees = OffboardingEmployee.objects.filter(id__in=employee_ids)
+    stage = OffboardingStage.objects.get(id=stage_id)
+    # This wont trigger the save method inside the offboarding employee
+    # employees.update(stage_id=stage)
+    for employee in employees:
+        employee.stage_id = stage
+        employee.save()
+    if stage.type == "archived":
+        Employee.objects.filter(
+            id__in=employees.values_list("employee_id__id", flat=True)
+        ).update(is_active=False)
+    stage_forms = {}
+    stage_forms[str(stage.offboarding_id.id)] = StageSelectForm(
+        offboarding=stage.offboarding_id
+    )
+    notify.send(
+        request.user.employee_get,
+        recipient=SkylinxUser.objects.filter(
+            id__in=employees.values_list("employee_id__employee_user_id", flat=True)
+        ),
+        verb=f"Offboarding stage has been changed",
+        verb_ar=f"تم تغيير مرحلة إنهاء الخدمة",
+        verb_de=f"Die Offboarding-Stufe wurde geändert",
+        verb_es=f"Se ha cambiado la etapa de offboarding",
+        verb_fr=f"L'étape d'offboarding a été changée",
+        redirect=reverse("offboarding-pipeline"),
+        icon="information",
+    )
+    groups = pipeline_grouper({}, [stage.offboarding_id])
+    for item in groups:
+        setattr(item["offboarding"], "stages", item["stages"])
+
+    return SkylinxFormView.HttpResponse()
+
+
+@login_required
+@hx_request_required
+@owner_can_enter("view_offboardingnote", OffboardingNote)
 @any_manager_can_enter(
     "offboarding.view_offboardingnote", offboarding_employee_can_enter=True
 )
@@ -495,13 +579,18 @@ def view_notes(request, employee_id=None):
 
 
 @login_required
+@owner_can_enter("add_offboardingnote", OffboardingNote)
 # @any_manager_can_enter("offboarding.add_offboardingnote")
 def add_note(request):
     """
     This method is used to create note for the offboarding employee
     """
-    employee_id = request.GET["employee_id"]
-    employee = OffboardingEmployee.objects.get(id=employee_id)
+    employee_id = request.GET.get("employee_id")
+    if not employee_id:
+        return SkylinxRedirect(request, message=_("Missing required parameter."))
+    employee = OffboardingEmployee.find(employee_id)
+    if not employee:
+        return SkylinxRedirect(request, message=_("Employee not found."))
     form = NoteForm()
     if request.method == "POST":
         form = NoteForm(request.POST, request.FILES)
@@ -532,13 +621,12 @@ def offboarding_note_delete(request, note_id):
         note.delete()
         messages.success(request, _("The note has been successfully deleted."))
     except OffboardingNote.DoesNotExist:
-        messages.error(request, _("Note not found."))
-        script = "<script>window.location.reload()</script>"
-
+        return SkylinxRedirect(request, message=_("Note not found."))
     return HttpResponse(script)
 
 
 @login_required
+@hx_request_required
 @permission_required("offboarding.delete_offboardingnote")
 def delete_attachment(request):
     """
@@ -598,17 +686,20 @@ def update_task_status(request, *args, **kwargs):
     """
     This method is used to update the assigned tasks status
     """
-    stage_id = request.GET["stage_id"]
+    stage_id = request.GET.get("stage_id")
     employee_ids = request.GET.getlist("employee_ids")
-    task_id = request.GET["task_id"]
-    status = request.GET["task_status"]
+    task_id = request.GET.get("task_id")
+    status = request.GET.get("task_status")
+    if not task_id or not status or not stage_id or not employee_ids:
+        return SkylinxRedirect(request, message=_("Missing required parameters."))
     employee_task = EmployeeTask.objects.filter(
         employee_id__id__in=employee_ids, task_id__id=task_id
     )
     employee_task.update(status=status)
+    messages.success(request, _("Task status updated successfully..."))
     notify.send(
         request.user.employee_get,
-        recipient=User.objects.filter(
+        recipient=SkylinxUser.objects.filter(
             id__in=employee_task.values_list(
                 "task_id__managers__employee_user_id", flat=True
             )
@@ -621,7 +712,9 @@ def update_task_status(request, *args, **kwargs):
         redirect=reverse("offboarding-pipeline"),
         icon="information",
     )
-    stage = OffboardingStage.objects.get(id=stage_id)
+    stage = OffboardingStage.find(stage_id)
+    if not stage:
+        return SkylinxRedirect(request, message=_("Stage not found"))
     stage_forms = {}
     stage_forms[str(stage.offboarding_id.id)] = StageSelectForm(
         offboarding=stage.offboarding_id
@@ -647,9 +740,11 @@ def task_assign(request):
     This method is used to assign task to employees
     """
     employee_ids = request.GET.getlist("employee_ids")
-    task_id = request.GET["task_id"]
+    task_id = request.GET.get("task_id")
     employees = OffboardingEmployee.objects.filter(id__in=employee_ids)
-    task = OffboardingTask.objects.get(id=task_id)
+    task = OffboardingTask.find(task_id)
+    if not task:
+        return SkylinxRedirect(request, message=_("Task not found"))
     for employee in employees:
         try:
             assigned_task = EmployeeTask()
@@ -694,6 +789,7 @@ def delete_task(request):
 
 @login_required
 @hx_request_required
+@owner_can_enter("view_employeetask", EmployeeTask)
 def offboarding_individual_view(request, emp_id):
     """
     This method is used to get the individual view of the offboarding employees
@@ -734,8 +830,8 @@ def request_view(request):
     """
     This method is used to view the resignation request
     """
-    defatul_filter = {"status": "requested"}
-    filter_instance = LetterFilter()
+    default_filter = {"status": "requested"}
+    filter_instance = LetterFilter(default_filter)
     letters = ResignationLetter.objects.all()
     offboardings = Offboarding.objects.all()
 
@@ -753,9 +849,12 @@ def request_view(request):
 
 
 @login_required
+@owner_can_enter("view_resignationletter", ResignationLetter)
 @permission_required("offboarding.view_resignationletter")
 def request_single_view(request, id):
-    letter = ResignationLetter.objects.get(id=id)
+    letter = ResignationLetter.find(id)
+    if not letter:
+        return SkylinxRedirect(request, message=_("Resignation letter not found"))
     context = {
         "letter": letter,
     }
@@ -834,6 +933,56 @@ def search_resignation_request(request):
 
 
 @login_required
+@hx_request_required
+@check_feature_enabled("resignation_request")
+def resignation_tab(request, pk):
+
+    letters = ResignationLetter.objects.filter(employee_id=pk)
+    employee = Employee.objects.get(id=pk)
+    return render(
+        request,
+        "cbv/resignation/resignation_tab.html",
+        {"letters": letters, "employee": employee},
+    )
+
+
+def resignation_list_swap_response(original_request):
+    """
+    Render the resignation list CBV fragment for hx-target=\"#listContainer\" swaps.
+    Subrequest keeps session (Skylinx CACHE filters) without relying on client-side JS reload.
+    """
+    from django.test import RequestFactory
+
+    from offboarding.cbv.resignation import ResignationListView
+
+    list_path = reverse("list-resignation-request")
+    qs = ""
+    hx_cur = original_request.headers.get("HX-Current-URL", "")
+    if hx_cur:
+        p = urlparse(hx_cur)
+        if "list-resignation-requests" in (p.path or ""):
+            qs = p.query or ""
+
+    try:
+        rf = RequestFactory()
+        path = f"{list_path}?{qs}" if qs else list_path
+        sub = rf.get(
+            path,
+            HTTP_HX_REQUEST="true",
+            HTTP_COOKIE=original_request.META.get("HTTP_COOKIE", ""),
+            HTTP_HOST=original_request.META.get("HTTP_HOST", ""),
+        )
+        sub.user = getattr(original_request, "user", None)
+        sub.session = original_request.session
+        resp = ResignationListView.as_view()(sub)
+        if hasattr(resp, "render") and callable(resp.render):
+            resp = resp.render()
+        return resp
+    except Exception:
+        return HttpResponse(" ", content_type="text/html")
+
+
+@login_required
 @check_feature_enabled("resignation_request")
 def delete_resignation_request(request):
     """
@@ -846,8 +995,9 @@ def delete_resignation_request(request):
         "employee-profile/"
     ):
         return redirect("/employee/employee-profile/")
-    else:
-        return redirect(request_view)
+    if request.headers.get("HX-Request"):
+        return resignation_list_swap_response(request)
+    return redirect("resignation-request-view")
 
 
 @login_required
@@ -868,6 +1018,7 @@ def create_resignation_request(request):
             form.save()
             messages.success(request, _("Resignation letter saved"))
             return SkylinxRedirect(request)
+
     return render(request, "offboarding/resignation/form.html", {"form": form})
 
 
@@ -938,7 +1089,9 @@ def update_status(request):
                 redirect="#",
                 icon="information",
             )
-    return redirect(request_view)
+    if request.headers.get("HX-Request"):
+        return resignation_list_swap_response(request)
+    return redirect(reverse("resignation-request-view"))
 
 
 @login_required
@@ -948,12 +1101,21 @@ def enable_resignation_request(request):
     """
     Enable disable resignation letter feature
     """
-    resignation_request_feature = OffboardingGeneralSetting.objects.first()
-    resignation_request_feature = (
-        resignation_request_feature
-        if resignation_request_feature
-        else OffboardingGeneralSetting()
-    )
+    selected_company = request.session.get("selected_company")
+
+    if selected_company and selected_company != "all":
+        resignation_request_feature = OffboardingGeneralSetting.objects.filter(
+            company_id=selected_company
+        ).first()
+        if not resignation_request_feature:
+            resignation_request_feature = OffboardingGeneralSetting(
+                company_id_id=selected_company
+            )
+    else:
+        resignation_request_feature = OffboardingGeneralSetting.objects.first()
+        if not resignation_request_feature:
+            resignation_request_feature = OffboardingGeneralSetting()
+
     resignation_request_feature.resignation_request = (
         "resignation_request" in request.GET.keys()
     )
@@ -980,12 +1142,13 @@ def enable_resignation_request(request):
 
 
 @login_required
+@hx_request_required
 @permission_required("offboarding.add_offboardingemployee")
 def get_notice_period(request):
     """
     This method is used to get initial details for notice period
     """
-    employee_id = request.GET["employee_id"]
+    employee_id = request.GET.get("employee_id")
     if apps.is_installed("payroll"):
         Contract = get_skylinx_model_class(app_label="payroll", model="contract")
         employee_contract = (
@@ -1014,12 +1177,17 @@ def get_notice_period(request):
     return JsonResponse(response)
 
 
+@login_required
+@hx_request_required
 def get_notice_period_end_date(request):
     """
     Calculates and returns the end date of the notice period based on the provided start date.
     """
     start_date = request.GET.get("start_date")
-    start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+    try:
+        start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        start_date = datetime.today().date()
     notice_period = intial_notice_period(request)["get_initial_notice_period"]
     end_date = start_date + timedelta(days=notice_period)
     response = {
@@ -1070,6 +1238,7 @@ def offboarding_dashboard(request):
 
 
 @login_required
+@hx_request_required
 @any_manager_can_enter(
     ["offboarding.view_offboarding", "offboarding.view_offboardingtask"]
 )
@@ -1091,6 +1260,7 @@ def dashboard_task_table(request):
 if apps.is_installed("asset"):
 
     @login_required
+    @hx_request_required
     @any_manager_can_enter(["offboarding.view_offboarding"])
     def dashboard_asset_table(request):
         """
@@ -1117,6 +1287,7 @@ if apps.is_installed("asset"):
 if apps.is_installed("pms"):
 
     @login_required
+    @hx_request_required
     @any_manager_can_enter("offboarding.view_offboarding")
     def dashboard_feedback_table(request):
         """

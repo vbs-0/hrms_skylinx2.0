@@ -7,8 +7,10 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils.translation import gettext as _
 
-from skylinx.decorators import login_required, permission_required
+from skylinx.decorators import hx_request_required, login_required, permission_required
+from skylinx.http.response import SkylinxRedirect
 from skylinx_automations.methods.methods import generate_choices
 from skylinx_automations.methods.serialize import serialize_form
 from skylinx_automations.models import MailAutomation
@@ -21,7 +23,14 @@ def get_to_field(request):
     """
     This method is to render `mail to` fields
     """
-    model_path = request.GET["model"]
+    model_path = request.GET.get("model")
+
+    if not model_path:
+        return SkylinxRedirect(
+            request,
+            message=_("No matching query found."),
+        )
+
     to_fields, mail_details_choice, model_class = generate_choices(model_path)
 
     class InstantModelForm(forms.ModelForm):
@@ -60,12 +69,14 @@ def delete_automation(request, pk):
 
 
 @login_required
+@hx_request_required
 @permission_required("skylinx_automations.add_mailautomation")
 def refresh_automations(request):
     """
     Method to  refresh automation signals
     """
     refreshed = False
+
     if REFRESH_METHODS.get("clear_connection"):
         REFRESH_METHODS["clear_connection"]()
         refreshed = True

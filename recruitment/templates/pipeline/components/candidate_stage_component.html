@@ -1,5 +1,5 @@
+{% include "generic/components.html" %}
 {% load i18n recruitmentfilters skylinxfilters %}
-
 <!-- start of messages -->
 {% if messages %}
 <div class="oh-wrapper">
@@ -36,7 +36,7 @@
                             $(this).closest('.oh-sticky-table').find('.candidate-checkbox').prop('checked',false).change();
                         }"
                         class="oh-input oh-input__checkbox stage-candidates"
-                            data-stage-id="{{stage.id}}" title="Select All" id="tick">
+                            data-stage-id="{{stage.id}}" title="{% trans 'Select All' %}" id="tick">
                     </div>
                 </div>
                 <div class="oh-sticky-table__th oh-table-config__th" style="width: 200px;z-index: 11;">
@@ -99,7 +99,12 @@
             data-container="candidate" data-container-list="candidate" data-stage-id="{{stage.id}}"
             data-recruitment-id="{{rec.id}}" id="candidateContainer{{stage.id}}">
             {% for cand in candidates %}
-            <div onclick="window.location.href = '{% url 'candidate-view-individual' cand.id %}'"
+            <div onclick="
+                try {
+                    sessionStorage.setItem('candidateProfileBackUrl', window.location.pathname + window.location.search);
+                } catch (e) {}
+                window.location.href = `{% url 'candidate-view-individual' cand.id %}?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+            "
                 class="oh-sticky-table__tr oh-table-config__tr candidate ui-droppable ui-sortable-handle cand change-cand "
                 data-candidate-id="{{cand.id}}"
                 data-drop="candidate"
@@ -180,7 +185,7 @@
                     {% if candidate_ratings|has_candidate_rating:cand %}
                     <form hx-swap="none" hx-post='{% url "update-candidate-rating" cand.id %}' method="post">
                         {% csrf_token %}
-                        <div class="d-block mb-0">
+                        <div class="d-block mb-0" style="width: max-content;">
                             <div class="oh-rate" onclick="$(this).parents().closest('form').find('button').click()">
                                 {% for i in "54321" %}
                                 <input type="radio" id="star{{i}}{{cand.id}}" name="rating" class="rating-radio"
@@ -237,9 +242,9 @@
                         <div class="oh-btn-group">
                             {% if perms.recruitment.add_interviewschedule or request.user.employee_get in stage.stage_managers.all %}
                                 <button type="button" hx-get='{% url "interview-schedule" cand.id %}' title="{% trans "Schedule Interview" %}"
-                                        hx-target="#createTarget"
+                                        hx-target="#genericModalBody"
                                         hx-swap="innerHTML"
-                                        data-target="#createModal" class="oh-btn oh-btn--light"
+                                        data-target="#genericModal" class="oh-btn oh-btn--light"
                                         data-toggle="oh-modal-toggle"
                                         style="flex: 1 0 auto; width:20px;height: 40.68px; padding: 0;">
                                     <ion-icon name="time-outline"></ion-icon>
@@ -258,9 +263,9 @@
                                 <button type="button" class="oh-btn oh-btn--light-bkg w-100" title="{% trans 'To Skill zone' %}"
                                     data-toggle="oh-modal-toggle"
                                     hx-get="{% url 'to-skill-zone' cand.id %}"
-                                    hx-target="#createTarget"
+                                    hx-target="#genericModalBody"
                                     hx-swap="innerHTML"
-                                    data-target="#createModal"
+                                    data-target="#genericModal"
                                     style="flex: 1 0 auto; width:25px !important;height: 40.68px; padding: 0;color: orangered;">
                                     <ion-icon name="heart-circle-outline"></ion-icon>
                                 </button>

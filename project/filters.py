@@ -1,7 +1,9 @@
+from datetime import date as _date
+
 import django_filters
 from django import forms
 from django.db.models import Q
-from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _
 
 from skylinx.filters import FilterSet, SkylinxFilterSet, filter_by_name
 
@@ -36,11 +38,19 @@ class ProjectFilter(SkylinxFilterSet):
         widget=forms.DateInput(attrs={"type": "date"}),
         label=_("End Till"),
     )
+    overdue = django_filters.CharFilter(method="filter_overdue", label=_("Overdue"))
 
     def filter_by_project(self, queryset, _, value):
         if self.data.get("search_field"):
             return queryset
         queryset = queryset.filter(title__icontains=value)
+        return queryset
+
+    def filter_overdue(self, queryset, name, value):
+        if value == "True":
+            return queryset.filter(end_date__lt=_date.today()).exclude(
+                status__in=["completed", "cancelled", "expired"]
+            )
         return queryset
 
 
@@ -77,7 +87,7 @@ class TaskAllFilter(SkylinxFilterSet):
         field_name="end_date",
         lookup_expr="lte",
         widget=forms.DateInput(attrs={"type": "date"}),
-        label=_("End Till"),
+        label=_("End Date Till"),
     )
 
     class Meta:
@@ -90,13 +100,8 @@ class TaskAllFilter(SkylinxFilterSet):
             "task_members",
             "end_date",
             "status",
+            "is_active",
         ]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.form.fields["end_till"].label = (
-            f"{self.Meta.model()._meta.get_field('end_date').verbose_name} Till"
-        )
 
     def filter_by_task(self, queryset, _, value):
         queryset = queryset.filter(title__icontains=value)
@@ -115,11 +120,13 @@ class TimeSheetFilter(SkylinxFilterSet):
         field_name="date",
         lookup_expr="gte",
         widget=forms.DateInput(attrs={"type": "date"}),
+        label=_("Start Date From"),
     )
     end_till = django_filters.DateFilter(
         field_name="date",
         lookup_expr="lte",
         widget=forms.DateInput(attrs={"type": "date"}),
+        label=_("End Date Till"),
     )
 
     project = (
@@ -146,11 +153,6 @@ class TimeSheetFilter(SkylinxFilterSet):
             "date",
             "status",
         ]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.form.fields["start_from"].label = _("Start Date From")
-        self.form.fields["end_till"].label = _("End Date Till")
 
     def filter_by_employee(self, queryset, _, value):
         """

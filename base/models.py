@@ -1,26 +1,29 @@
 """
-models.py
-
 This module is used to register django models
 """
 
 import ipaddress
-from datetime import date, datetime, timedelta
-from typing import Iterable
+from datetime import date, datetime
 
-import django
 from django.apps import apps
 from django.contrib import messages
-from django.contrib.auth.models import AbstractUser, User
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
+from django.db.models import Case, When
+from django.urls import reverse, reverse_lazy
+from django.utils import timezone
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 from base.skylinx_company_manager import SkylinxCompanyManager
 from skylinx import skylinx_middlewares
 from skylinx.skylinx_middlewares import _thread_locals
-from skylinx.models import SkylinxModel, upload_path
+from skylinx.methods import get_skylinx_model_class
+from skylinx.models import SkylinxModel, NoPermissionModel, upload_path
 from skylinx_audit.models import SkylinxAuditInfo, SkylinxAuditLog
+from skylinx_auth.models import SkylinxUser
+from skylinx_views.cbv_methods import render_template
 
 # Create your models here.
 WEEKS = [
@@ -31,7 +34,6 @@ WEEKS = [
     ("4", _("Fifth Week")),
 ]
 
-
 WEEK_DAYS = [
     ("0", _("Monday")),
     ("1", _("Tuesday")),
@@ -40,6 +42,25 @@ WEEK_DAYS = [
     ("4", _("Friday")),
     ("5", _("Saturday")),
     ("6", _("Sunday")),
+]
+
+DAY_DATE = [(str(i), str(i)) for i in range(1, 32)]
+DAY_DATE.append(("last", _("Last Day")))
+
+DAY = [
+    ("monday", _("Monday")),
+    ("tuesday", _("Tuesday")),
+    ("wednesday", _("Wednesday")),
+    ("thursday", _("Thursday")),
+    ("friday", _("Friday")),
+    ("saturday", _("Saturday")),
+    ("sunday", _("Sunday")),
+]
+
+BASED_ON = [
+    ("after", _("After")),
+    ("weekly", _("Weekend")),
+    ("monthly", _("Monthly")),
 ]
 
 
@@ -60,6 +81,9 @@ def validate_time_format(value):
 
 
 def clear_messages(request):
+    """
+    clear messages
+    """
     storage = messages.get_messages(request)
     for message in storage:
         pass
@@ -98,6 +122,35 @@ class Company(SkylinxModel):
     def __str__(self) -> str:
         return str(self.company)
 
+    def company_icon_with_name(self):
+
+        return format_html(
+            '<img src="{}" style="width: 30px; border-radius: 100%; display:inline;" class="oh-profile__image" alt="" /> {}',
+            self.icon.url,
+            self.company,
+        )
+
+    def get_update_url(self):
+        """
+        This method to get update url
+        """
+        url = reverse_lazy("company-update-form", kwargs={"pk": self.pk})
+        return url
+
+    def get_delete_url(self):
+        """
+        This method to get delete url
+        """
+        url = reverse_lazy("generic-delete")
+        return url
+
+    def get_delete_instance(self):
+        """
+        to get instance for delete
+        """
+
+        return self.pk
+
 
 class Department(SkylinxModel):
     """
@@ -112,6 +165,10 @@ class Department(SkylinxModel):
     objects = SkylinxCompanyManager()
 
     class Meta:
+        """
+        meta
+        """
+
         verbose_name = _("Department")
         verbose_name_plural = _("Departments")
 
@@ -128,8 +185,54 @@ class Department(SkylinxModel):
                 .exclude(id=self.id)
                 .exists()
             ):
-                raise ValidationError("This department already exists in this company")
+                raise ValidationError(
+                    _("This department already exists in this company")
+                )
         return
+
+    def toggle_count(self):
+        return self.job_position.all().count()
+
+    def get_department_col(self):
+        """
+        this method is to get custom department col in job position
+        """
+
+        return render_template(
+            path="cbv/settings/job_position_dpt.html",
+            context={"instance": self},
+        )
+
+    def get_update_url(self):
+        """
+        This method to get update url
+        """
+        url = reverse_lazy("settings-department-update", kwargs={"pk": self.pk})
+        return url
+
+    def get_delete_url(self):
+        """
+        This method to get delete url
+        """
+        url = reverse_lazy("generic-delete")
+        return url
+
+    def get_delete_instance(self):
+        """
+        to get instance for delete
+        """
+
+        return self.pk
+
+    def get_job_position_col(self):
+        """
+        this method is to get custom job position col in job position
+        """
+
+        return render_template(
+            path="cbv/settings/position_in_job_position.html",
+            context={"instance": self},
+        )
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
@@ -168,6 +271,29 @@ class JobPosition(SkylinxModel):
 
     def __str__(self):
         return str(self.job_position + " - (" + self.department_id.department) + ")"
+
+    def job_position_col(self):
+        """
+        This method for get custom column.
+        """
+
+        return render_template(
+            path="cbv/settings/job_position_col_in_job_role.html",
+            context={"instance": self},
+        )
+
+    def get_data_count(self):
+        return self.jobrole_set.all().count()
+
+    def job_role_col(self):
+        """
+        This method for get custom column.
+        """
+
+        return render_template(
+            path="cbv/settings/job_role.html",
+            context={"instance": self},
+        )
 
 
 class JobRole(SkylinxModel):
@@ -231,6 +357,37 @@ class WorkType(SkylinxModel):
                 raise ValidationError("This work type already exists in this company")
         return
 
+    def get_company_name(self):
+        """
+        Returns comma-separated company names for display in list views.
+        Returns 'All Company' when no company is assigned.
+        """
+        companies = self.company_id.all()
+        if companies.exists():
+            return ", ".join(c.company for c in companies)
+        return _("All Company")
+
+    def get_update_url(self):
+        """
+        This method to get update url
+        """
+        url = reverse_lazy("work-type-update-form", kwargs={"pk": self.pk})
+        return url
+
+    def get_delete_url(self):
+        """
+        This method to get delete url
+        """
+        url = reverse_lazy("generic-delete")
+        return url
+
+    def get_delete_instance(self):
+        """
+        to get instance for delete
+        """
+
+        return self.pk
+
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         self.clean(*args, **kwargs)
@@ -278,6 +435,38 @@ class RotatingWorkType(SkylinxModel):
     def __str__(self) -> str:
         return str(self.name)
 
+    def get_update_url(self):
+        """
+        This method to get update url
+        """
+        url = reverse_lazy("rotating-work-type-update-form", kwargs={"pk": self.pk})
+        return url
+
+    def get_delete_url(self):
+        """
+        This method to get delete url
+        """
+        url = reverse_lazy("generic-delete")
+        return url
+
+    def get_delete_instance(self):
+        """
+        to get instance for delete
+        """
+
+        return self.pk
+
+    def get_additional_worktytpes(self):
+        """
+        this method is to get additional work types if exists
+        """
+
+        additional_work = self.additional_work_types()
+        if additional_work:
+            additional = "<br>".join([str(work) for work in additional_work])
+            return additional
+        return "None"
+
     def clean(self):
         if self.work_type1 == self.work_type2:
             raise ValidationError(_("Select different work type continuously"))
@@ -321,24 +510,6 @@ class RotatingWorkType(SkylinxModel):
         return additional_work_types
 
 
-DAY_DATE = [(str(i), str(i)) for i in range(1, 32)]
-DAY_DATE.append(("last", _("Last Day")))
-DAY = [
-    ("monday", _("Monday")),
-    ("tuesday", _("Tuesday")),
-    ("wednesday", _("Wednesday")),
-    ("thursday", _("Thursday")),
-    ("friday", _("Friday")),
-    ("saturday", _("Saturday")),
-    ("sunday", _("Sunday")),
-]
-BASED_ON = [
-    ("after", _("After")),
-    ("weekly", _("Weekend")),
-    ("monthly", _("Monthly")),
-]
-
-
 class RotatingWorkTypeAssign(SkylinxModel):
     """
     RotatingWorkTypeAssign model
@@ -353,9 +524,7 @@ class RotatingWorkTypeAssign(SkylinxModel):
     rotating_work_type_id = models.ForeignKey(
         RotatingWorkType, on_delete=models.PROTECT, verbose_name=_("Rotating Work Type")
     )
-    start_date = models.DateField(
-        default=django.utils.timezone.now, verbose_name=_("Start Date")
-    )
+    start_date = models.DateField(default=timezone.now, verbose_name=_("Start Date"))
     next_change_date = models.DateField(null=True, verbose_name=_("Next Switch"))
     current_work_type = models.ForeignKey(
         WorkType,
@@ -418,6 +587,9 @@ class RotatingWorkTypeAssign(SkylinxModel):
         ordering = ["-next_change_date", "-employee_id__employee_first_name"]
 
     def clean(self):
+        if self.start_date < timezone.now().date():
+            raise ValidationError(_("Date must be greater than or equal to today"))
+
         if self.is_active and self.employee_id is not None:
             # Check if any other active record with the same parent already exists
             siblings = RotatingWorkTypeAssign.objects.filter(
@@ -425,8 +597,73 @@ class RotatingWorkTypeAssign(SkylinxModel):
             )
             if siblings.exists() and siblings.first().id != self.id:
                 raise ValidationError(_("Only one active record allowed per employee"))
-        if self.start_date < django.utils.timezone.now().date():
-            raise ValidationError(_("Date must be greater than or equal to today"))
+
+    def rotate_data(self):
+        """
+        method for rotate col
+        """
+
+        return render_template(
+            path="cbv/rotating_work_type/rotation_col.html",
+            context={"instance": self},
+        )
+
+    def get_based_on_display(self):
+        """
+        Display work type
+        """
+        return dict(BASED_ON).get(self.based_on)
+
+    def get_actions(self):
+        """
+        get different actions
+        """
+
+        return render_template(
+            path="cbv/rotating_work_type/work_rotate_actions.html",
+            context={"instance": self},
+        )
+
+    def work_rotate_detail_subtitle(self):
+        """
+        Return subtitle containing both department and job position information.
+        """
+
+        return f"{self.employee_id.get_department()} / {self.employee_id.get_job_position()}"
+
+    def work_rotate_detail_view(self):
+        """
+        for detail view of page
+        """
+        url = reverse("work-rotating-detail-view", kwargs={"pk": self.pk})
+        return url
+
+    def individual_tab_work_rotate_detail_view(self):
+        """
+        for detail view of page in employee profile
+        """
+        url = reverse("individual-work-rotating-detail-view", kwargs={"pk": self.pk})
+        return url
+
+    def detail_is_active(self):
+        """
+        return active or not
+        """
+
+        if self.is_active:
+            return "Is Active"
+        else:
+            return "Archived"
+
+    def get_detail_view_actions(self):
+        """
+        get detail view actions
+        """
+
+        return render_template(
+            path="cbv/rotating_work_type/rotate_detail_view_actions.html",
+            context={"instance": self},
+        )
 
 
 class EmployeeType(SkylinxModel):
@@ -434,10 +671,10 @@ class EmployeeType(SkylinxModel):
     EmployeeType model
     """
 
-    employee_type = models.CharField(max_length=50)
+    employee_type = models.CharField(max_length=50, verbose_name=_("Employee Type"))
     company_id = models.ManyToManyField(Company, blank=True, verbose_name=_("Company"))
 
-    objects = SkylinxCompanyManager("employee_id__employee_work_info__company_id")
+    objects = SkylinxCompanyManager()
 
     class Meta:
         """
@@ -449,6 +686,23 @@ class EmployeeType(SkylinxModel):
 
     def __str__(self) -> str:
         return str(self.employee_type)
+
+    def get_update_url(self):
+        """
+        This method to get update url
+        """
+        url = reverse_lazy("employee-type-update-view", kwargs={"pk": self.pk})
+        return url
+
+    def get_delete_url(self):
+        """
+        This method to get delete url
+        """
+        url = reverse_lazy("generic-delete")
+        return url
+
+    def get_instance_id(self):
+        return self.id
 
     def clean(self, *args, **kwargs):
         super().clean(*args, **kwargs)
@@ -505,6 +759,7 @@ class EmployeeShift(SkylinxModel):
         max_length=50,
         null=False,
         blank=False,
+        verbose_name=_("Employee Shift"),
     )
     days = models.ManyToManyField(EmployeeShiftDay, through="EmployeeShiftSchedule")
     weekly_full_time = models.CharField(
@@ -528,7 +783,7 @@ class EmployeeShift(SkylinxModel):
             verbose_name=_("Grace Time"),
         )
 
-    objects = SkylinxCompanyManager("employee_shift__company_id")
+    objects = SkylinxCompanyManager()
 
     class Meta:
         """
@@ -540,6 +795,29 @@ class EmployeeShift(SkylinxModel):
 
     def __str__(self) -> str:
         return str(self.employee_shift)
+
+    def get_grace_time(self):
+        if self.grace_time_id:
+            return self.grace_time_id
+        else:
+            return _("Nil")
+
+    def get_instance_id(self):
+        return self.id
+
+    def get_update_url(self):
+        """
+        This method to get update url
+        """
+        url = reverse_lazy("employee-shift-update-view", kwargs={"pk": self.pk})
+        return url
+
+    def get_delete_url(self):
+        """
+        This method to get delete  url
+        """
+        url = reverse_lazy("generic-delete")
+        return url
 
     def clean(self, *args, **kwargs):
         super().clean(*args, **kwargs)
@@ -565,19 +843,13 @@ class EmployeeShift(SkylinxModel):
         return self
 
 
-from django.db.models import Case, When
-
-
 class EmployeeShiftSchedule(SkylinxModel):
     """
     EmployeeShiftSchedule model
     """
 
     day = models.ForeignKey(
-        EmployeeShiftDay,
-        on_delete=models.PROTECT,
-        related_name="day_schedule",
-        verbose_name=_("Shift Day"),
+        EmployeeShiftDay, on_delete=models.PROTECT, related_name="day_schedule"
     )
     shift_id = models.ForeignKey(
         EmployeeShift, on_delete=models.PROTECT, verbose_name=_("Shift")
@@ -604,9 +876,10 @@ class EmployeeShiftSchedule(SkylinxModel):
             "Time at which the skylinx will automatically check out the employee attendance if they forget."
         ),
     )
+
     company_id = models.ManyToManyField(Company, blank=True, verbose_name=_("Company"))
 
-    objects = SkylinxCompanyManager("shift_id__employee_shift__company_id")
+    objects = SkylinxCompanyManager()
 
     class Meta:
         """
@@ -632,10 +905,65 @@ class EmployeeShiftSchedule(SkylinxModel):
     def __str__(self) -> str:
         return f"{self.shift_id.employee_shift} {self.day}"
 
+    def get_detail_url(self):
+        """
+        Detail view url
+        """
+        url = reverse_lazy("employee-shift-shedule-detail-view", kwargs={"pk": self.pk})
+        return url
+
+    def get_instance_id(self):
+        return self.id
+
+    def get_automatic_check_out_time(self):
+        """
+        Custom column for automatic checkout time
+        """
+        return (
+            f"<div class='oh-timeoff-modal__stat-title'>Automatic Check Out Time</div><div>{self.auto_punch_out_time}</div>"
+            if self.is_auto_punch_out_enabled
+            else ""
+        )
+
+    def get_avatar(self):
+        """
+        Method will retun the api to the avatar or path to the profile image
+        """
+        url = f"https://ui-avatars.com/api/?name={self.day.day}&background=random"
+        return url
+
+    def actions_col(self):
+        """
+        This for actions column in employee shift schedule
+        """
+        return render_template(
+            path="cbv/settings/employee_shift_schedule_action.html",
+            context={"instance": self},
+        )
+
+    def detail_actions_col(self):
+        """
+        This for detail actions column in employee shift schedule
+        """
+        return render_template(
+            path="cbv/settings/employee_shift_schedule_detail_action.html",
+            context={"instance": self},
+        )
+
+    def auto_punch_out_col(self):
+        return _("Yes") if self.is_auto_punch_out_enabled else _("No")
+
     def save(self, *args, **kwargs):
         if self.start_time and self.end_time:
             self.is_night_shift = self.start_time > self.end_time
         super().save(*args, **kwargs)
+
+    def day_col(self):
+        """
+        Custom column for day in employee shift schedule
+        """
+
+        return dict(DAY).get(self.day.day)
 
 
 class RotatingShift(SkylinxModel):
@@ -680,6 +1008,33 @@ class RotatingShift(SkylinxModel):
 
     def __str__(self) -> str:
         return str(self.name)
+
+    def get_additional_shifts(self):
+        """
+        Returns a list of additional shifts or a message if no additional shifts are available.
+        """
+        additional_shifts = self.additional_shifts()
+        if additional_shifts:
+            additional_shift = "<br>".join([str(shift) for shift in additional_shifts])
+            return additional_shift
+        return "None"
+
+    def get_update_url(self):
+        """
+        This method to get update url
+        """
+        url = reverse_lazy("rotating-shift-update", kwargs={"pk": self.pk})
+        return url
+
+    def get_delete_url(self):
+        """
+        This method to get delete  url
+        """
+        url = reverse_lazy("generic-delete")
+        return url
+
+    def get_instance_id(self):
+        return self.id
 
     def clean(self):
 
@@ -747,9 +1102,7 @@ class RotatingShiftAssign(SkylinxModel):
     rotating_shift_id = models.ForeignKey(
         RotatingShift, on_delete=models.PROTECT, verbose_name=_("Rotating Shift")
     )
-    start_date = models.DateField(
-        default=django.utils.timezone.now, verbose_name=_("Start Date")
-    )
+    start_date = models.DateField(default=timezone.now, verbose_name=_("Start Date"))
     next_change_date = models.DateField(null=True, verbose_name=_("Next Switch"))
     current_shift = models.ForeignKey(
         EmployeeShift,
@@ -804,6 +1157,95 @@ class RotatingShiftAssign(SkylinxModel):
     )
     objects = SkylinxCompanyManager("employee_id__employee_work_info__company_id")
 
+    def rotating_column(self):
+        """
+        This method for get custom column.
+        """
+
+        return render_template(
+            path="cbv/rotating_shift/rotating_column.html",
+            context={"instance": self},
+        )
+
+    def actions(self):
+        """
+        This method for get custom column.
+        """
+
+        return render_template(
+            path="cbv/rotating_shift/actions_rotaing_shift.html",
+            context={"instance": self},
+        )
+
+    def rotating_detail_actions(self):
+        """
+        This method for get custom column.
+        """
+
+        return render_template(
+            path="cbv/rotating_shift/rotating_shift_detail_actions.html",
+            context={"instance": self},
+        )
+
+    def get_based_on_display(self):
+        """
+        Display work type
+        """
+        return dict(BASED_ON).get(self.based_on)
+
+    def rotating_shift_detail(self):
+        """
+        detail view
+        """
+
+        url = reverse("rotating-shift-detail-view", kwargs={"pk": self.pk})
+
+        return url
+
+    def rotating_shift_individual_detail(self):
+        """
+        individual detail view
+        """
+
+        url = reverse("rotating-shift-individual-detail-view", kwargs={"pk": self.pk})
+
+        return url
+
+    def rotating_subtitle(self):
+        """
+        Detail view subtitle
+        """
+
+        return f"{self.employee_id.get_department()} / {self.employee_id.get_job_position()}"
+
+    def check_active(self):
+        """
+        Check active
+        """
+
+        if self.is_active:
+            return "Is Active"
+        else:
+            return "Archived"
+
+    def detail_edit_url(self):
+        """
+        Detail view edit
+        """
+
+        url = reverse("rotating-shift-assign-update", kwargs={"id": self.pk})
+
+        return url
+
+    def detail_archive_url(self):
+        """
+        Detail view edit
+        """
+
+        url = reverse("rotating-shift-assign-archive", kwargs={"obj_id": self.pk})
+
+        return url
+
     class Meta:
         """
         Meta class to add additional options
@@ -821,8 +1263,117 @@ class RotatingShiftAssign(SkylinxModel):
             )
             if siblings.exists() and siblings.first().id != self.id:
                 raise ValidationError(_("Only one active record allowed per employee"))
-        if self.start_date < django.utils.timezone.now().date():
+
+        if self.start_date < timezone.now().date():
             raise ValidationError(_("Date must be greater than or equal to today"))
+
+
+# ---------------------------------------------------------------------------
+# Roster
+# ---------------------------------------------------------------------------
+
+
+class Roster(SkylinxModel):
+    """
+    Forward-planning shift roster entry: one employee, one date, one shift.
+    Planners assign shifts in advance; employees see published entries via My Roster.
+    """
+
+    employee = models.ForeignKey(
+        "employee.Employee",
+        on_delete=models.CASCADE,
+        related_name="roster_entries",
+        verbose_name=_("Employee"),
+    )
+    date = models.DateField(verbose_name=_("Date"))
+    shift = models.ForeignKey(
+        "base.EmployeeShift",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="roster_entries",
+        verbose_name=_("Shift"),
+    )
+    department = models.ForeignKey(
+        "base.Department",
+        on_delete=models.CASCADE,
+        related_name="roster_entries",
+        verbose_name=_("Department"),
+    )
+    is_published = models.BooleanField(
+        default=False,
+        verbose_name=_("Published"),
+        help_text=_("Visible to the employee once published."),
+    )
+    is_off = models.BooleanField(
+        default=False,
+        verbose_name=_("Day Off"),
+        help_text=_("Planned weekly rest day."),
+    )
+    notes = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name=_("Notes"),
+    )
+    created_by = models.ForeignKey(
+        "employee.Employee",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_roster_entries",
+        verbose_name=_("Created By"),
+    )
+
+    objects = SkylinxCompanyManager("employee__employee_work_info__company_id")
+
+    class Meta:
+        verbose_name = _("Roster Entry")
+        verbose_name_plural = _("Roster Entries")
+        unique_together = [("employee", "date")]
+
+    def __str__(self):
+        shift_label = "OFF" if self.is_off else self.shift or "-"
+        return f"{self.employee} — {self.date} — {shift_label}"
+
+
+class RosterPublishLog(models.Model):
+    """
+    Audit trail for each roster publish action.
+    """
+
+    department = models.ForeignKey(
+        "base.Department",
+        on_delete=models.CASCADE,
+        related_name="roster_publish_logs",
+        verbose_name=_("Department"),
+    )
+    from_date = models.DateField(verbose_name=_("From Date"))
+    to_date = models.DateField(verbose_name=_("To Date"))
+    published_by = models.ForeignKey(
+        "employee.Employee",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="roster_publishes",
+        verbose_name=_("Published By"),
+    )
+    published_on = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_("Published On"),
+    )
+    total_employees = models.IntegerField(
+        default=0,
+        verbose_name=_("Total Employees"),
+    )
+
+    objects = models.Manager()
+
+    class Meta:
+        verbose_name = _("Roster Publish Log")
+        verbose_name_plural = _("Roster Publish Logs")
+        ordering = ["-published_on"]
+
+    def __str__(self):
+        return f"{self.department} — {self.from_date} to {self.to_date}"
 
 
 class BaserequestFile(models.Model):
@@ -857,7 +1408,7 @@ class WorkTypeRequest(SkylinxModel):
         verbose_name=_("Previous Work Type"),
     )
     requested_date = models.DateField(
-        null=True, default=django.utils.timezone.now, verbose_name=_("Requested Date")
+        null=True, default=timezone.now, verbose_name=_("Requested Date")
     )
     requested_till = models.DateField(
         null=True, blank=True, verbose_name=_("Requested Till")
@@ -891,6 +1442,76 @@ class WorkTypeRequest(SkylinxModel):
         ordering = [
             "-id",
         ]
+
+    def comment_note(self):
+        """
+        method used for comment note col in the page
+        """
+
+        return render_template(
+            path="cbv/work_type_request/note.html",
+            context={"instance": self},
+        )
+
+    def work_actions(self):
+        """
+        method for rendering actions(edit,duplicate,delete)
+        """
+
+        return render_template(
+            path="cbv/work_type_request/actions.html",
+            context={"instance": self},
+        )
+
+    def confirmation(self):
+        """
+        method for rendering options(approve,reject)
+        """
+
+        return render_template(
+            path="cbv/work_type_request/confirmation.html",
+            context={"instance": self},
+        )
+
+    def detail_confirmation(self):
+        """
+        method for rendering options(approve,reject)
+        """
+
+        return render_template(
+            path="cbv/work_type_request/detail_confirmation.html",
+            context={"instance": self},
+        )
+
+    def detail_view(self):
+        """
+        for detail view of page
+        """
+        url = reverse("work-detail-view", kwargs={"pk": self.pk})
+        return url
+
+    def is_permanent_work_type_display(self):
+        """
+        Method to display "Yes" or "No" based on is_permanent_work_type value
+        """
+        return _("Yes") if self.is_permanent_work_type else _("No")
+
+    def detail_view_actions(self):
+        """
+        method for rendering different options
+        convert,skillzone,reject,mail
+        """
+
+        return render_template(
+            path="cbv/work_type_request/detail_view_actions.html",
+            context={"instance": self},
+        )
+
+    def detail_subtitle(self):
+        """
+        Return subtitle containing both department and job position information.
+        """
+        return f"{self.employee_id.get_department()} / {self.employee_id.get_job_position()}"
 
     def delete(self, *args, **kwargs):
         request = getattr(_thread_locals, "request", None)
@@ -943,7 +1564,7 @@ class WorkTypeRequest(SkylinxModel):
     def clean(self):
         request = getattr(skylinx_middlewares._thread_locals, "request", None)
         if not request.user.is_superuser:
-            if self.requested_date < django.utils.timezone.now().date():
+            if self.requested_date < timezone.now().date():
                 raise ValidationError(_("Date must be greater than or equal to today"))
         if self.requested_till and self.requested_till < self.requested_date:
             raise ValidationError(
@@ -1013,7 +1634,7 @@ class ShiftRequest(SkylinxModel):
         verbose_name=_("Previous Shift"),
     )
     requested_date = models.DateField(
-        null=True, default=django.utils.timezone.now, verbose_name=_("Requested Date")
+        null=True, default=timezone.now, verbose_name=_("Requested Date")
     )
     reallocate_to = models.ForeignKey(
         "employee.Employee",
@@ -1058,11 +1679,136 @@ class ShiftRequest(SkylinxModel):
             "-id",
         ]
 
+    def comment(self):
+        """
+        This method for get custom column for comment.
+        """
+
+        return render_template(
+            path="cbv/shift_request/comment.html",
+            context={"instance": self},
+        )
+
+    # def shift_allocate_actions(self):
+    #     """
+    #     This method for get custom column for allocated actions.
+    #     """
+
+    #     return render_template(
+    #         path="cbv/shift_request/allocated_shift_actions.html",
+    #         context={"instance": self},
+    #     )
+
+    def allocated_confirm_action_col(self):
+        """
+        This method for get custom column for allocated actions.
+        """
+
+        return render_template(
+            path="cbv/shift_request/allocated_confirm_action.html",
+            context={"instance": self},
+        )
+
+    def user_availability(self):
+        """
+        This method for get custom column for SkylinxUser availability.
+        """
+
+        return render_template(
+            path="cbv/shift_request/user_availability.html",
+            context={"instance": self},
+        )
+
+    def shift_details(self):
+        """
+        Detail view
+        """
+
+        url = reverse("shift-detail-view", kwargs={"pk": self.pk})
+
+        return url
+
+    def allocate_shift_details(self):
+        """
+        Allocate detail view
+        """
+
+        url = reverse("allocate-detail-view", kwargs={"pk": self.pk})
+
+        return url
+
+    def is_permanent(self):
+        """
+        Permanent shift
+        """
+        return _("Yes") if self.is_permanent_shift else _("No")
+
+    def shift_actions(self):
+        """
+        This method for get custom column for actions.
+        """
+
+        return render_template(
+            path="cbv/shift_request/actions_shift_requst.html",
+            context={"instance": self},
+        )
+
+    def confirmations(self):
+        """
+        This method for get custom column for confirmations.
+        """
+
+        return render_template(
+            path="cbv/shift_request/confirmations.html",
+            context={"instance": self},
+        )
+
+    def detail_confirmations(self):
+
+        return render_template(
+            path="cbv/shift_request/detail_confirmations.html",
+            context={"instance": self},
+        )
+
+    def allocate_confirmations(self):
+        """
+        This method for get custom column for confirmations.
+        """
+
+        return render_template(
+            path="cbv/shift_request/confirm_allocated.html",
+            context={"instance": self},
+        )
+
+    def detail_actions(self):
+        """
+        This method for get custom column for comment.
+        """
+
+        return render_template(
+            path="cbv/shift_request/shift_detail_actions.html",
+            context={"instance": self},
+        )
+
+    def request_status(self):
+        return (
+            _("Rejected")
+            if self.canceled
+            else (_("Approved") if self.approved else _("Requested"))
+        )
+
+    def details_subtitle(self):
+        """
+        Detail view subtitle
+        """
+
+        return f"{self.employee_id.get_department()} / {self.employee_id.get_job_position()}"
+
     def clean(self):
 
         request = getattr(skylinx_middlewares._thread_locals, "request", None)
         if not request.user.is_superuser:
-            if not self.pk and self.requested_date < django.utils.timezone.now().date():
+            if not self.pk and self.requested_date < timezone.now().date():
                 raise ValidationError(_("Date must be greater than or equal to today"))
         if self.requested_till and self.requested_till < self.requested_date:
             raise ValidationError(
@@ -1164,6 +1910,41 @@ class Tags(SkylinxModel):
     def __str__(self):
         return self.title
 
+    def get_color(self):
+        """
+        This method returns the style string with the tag's color
+        """
+        color = (
+            f"<span style='height: 25px; "
+            f"width: 25px; "
+            f"background-color: {self.color}; "
+            f"border-radius: 50%; "
+            f"display: inline-block;'></span>"
+        )
+        return color
+
+    def get_instance_id(self):
+        """
+        To get instance
+        """
+        return self.id
+
+    def get_update_url(self):
+        """
+        This method to get update url
+        """
+        url = reverse_lazy("update-helpdesk-tag", kwargs={"pk": self.pk})
+        return url
+
+    def get_delete_url(self):
+        """
+        This method to get delete url
+        """
+        url = reverse_lazy("tag-delete", kwargs={"obj_id": self.pk})
+        # message = "Are you sure you want to delete this tag ?"
+        # return f"'{url}'" + "," + f"'{message}'"
+        return url
+
 
 class SkylinxMailTemplate(SkylinxModel):
     title = models.CharField(max_length=100, unique=True)
@@ -1226,14 +2007,33 @@ class DynamicEmailConfiguration(SkylinxModel):
         help_text=_(
             "By enabling this the display name will take from who triggered the mail"
         ),
+        verbose_name=_("Use dynamic display name"),
     )
 
     timeout = models.SmallIntegerField(
         null=True, verbose_name=_("Email Send Timeout (seconds)")
     )
     company_id = models.OneToOneField(
-        Company, on_delete=models.CASCADE, null=True, blank=True
+        Company,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        verbose_name=_("Company"),
     )
+
+    def highlight_cell(self):
+        if self.is_primary:
+            return f'style="background-color: rgba(255, 68, 0, 0.134);" '
+
+    def action_col(self):
+        """
+        This method for get custom column.
+        """
+
+        return render_template(
+            path="cbv/settings/mail_server_action.html",
+            context={"instance": self},
+        )
 
     def clean(self):
         if self.use_ssl and self.use_tls:
@@ -1286,13 +2086,22 @@ CONDITION_CHOICE = [
 
 
 class MultipleApprovalCondition(SkylinxModel):
+    """
+    Multiple approve conditions
+    """
+
     department = models.ForeignKey(Department, on_delete=models.CASCADE)
     condition_field = models.CharField(
         max_length=255,
         choices=FIELD_CHOICE,
+        verbose_name=_("Condition Field"),
     )
     condition_operator = models.CharField(
-        max_length=255, choices=CONDITION_CHOICE, null=True, blank=True
+        max_length=255,
+        choices=CONDITION_CHOICE,
+        null=True,
+        blank=True,
+        verbose_name=_("Condition Operator"),
     )
     condition_value = models.CharField(
         max_length=100,
@@ -1312,7 +2121,6 @@ class MultipleApprovalCondition(SkylinxModel):
         blank=True,
         verbose_name=_("Ending Value"),
     )
-    objects = models.Manager()
     company_id = models.ForeignKey(
         Company,
         null=True,
@@ -1320,9 +2128,77 @@ class MultipleApprovalCondition(SkylinxModel):
         on_delete=models.CASCADE,
         verbose_name=_("Company"),
     )
+    objects = SkylinxCompanyManager()
 
     def __str__(self) -> str:
         return f"{self.condition_field} {self.condition_operator}"
+
+    def get_condition_field(self):
+        """
+        Display condition field
+        """
+        return dict(FIELD_CHOICE).get(self.condition_field)
+
+    def get_condition_operator(self):
+        """
+        Display condition operator
+        """
+        return dict(CONDITION_CHOICE).get(self.condition_operator)
+
+    def get_condition_value(self):
+        """
+        Condition value column
+        """
+        if self.condition_operator == "range":
+            start_value = self.condition_start_value
+            end_value = self.condition_end_value
+            return start_value + " - " + end_value
+        else:
+            return self.condition_value
+
+    def approval_managers_col(self):
+        """
+        For approval managers column
+        """
+
+        return render_template(
+            path="cbv/multiple_approval_condition/approval_managers.html",
+            context={"instance": self},
+        )
+
+    def detail_actions(self):
+        """
+        For detail action column
+        """
+
+        return render_template(
+            path="cbv/multiple_approval_condition/detail_action.html",
+            context={"instance": self},
+        )
+
+    def actions_col(self):
+        """
+        For actions column
+        """
+
+        return render_template(
+            path="cbv/multiple_approval_condition/actions.html",
+            context={"instance": self},
+        )
+
+    def get_avatar(self):
+        """
+        Method will retun the api to the avatar or path to the profile image
+        """
+        url = f"https://ui-avatars.com/api/?name={self.department}&background=random"
+        return url
+
+    def detail_view(self):
+        """
+        detail view
+        """
+        url = reverse("detail-view-multiple-approval-condition", kwargs={"pk": self.pk})
+        return url
 
     def clean(self, *args, **kwargs):
         if self.condition_value:
@@ -1414,6 +2290,9 @@ class MultipleApprovalCondition(SkylinxModel):
         super().save(*args, **kwargs)
 
     def approval_managers(self, *args, **kwargs):
+        """
+        approved managers
+        """
         managers = []
         from employee.models import Employee
 
@@ -1433,13 +2312,17 @@ class MultipleApprovalCondition(SkylinxModel):
 
 
 class MultipleApprovalManagers(models.Model):
+    """
+    Multiple approve
+    """
+
     condition_id = models.ForeignKey(
         MultipleApprovalCondition, on_delete=models.CASCADE
     )
     sequence = models.IntegerField(null=False, blank=False)
     employee_id = models.IntegerField(null=True, blank=True)
     reporting_manager = models.CharField(max_length=100, null=True, blank=True)
-    objects = models.Manager()
+    objects = SkylinxCompanyManager(related_company_field="condition_id__company_id")
 
     class Meta:
         verbose_name = _("Multiple Approval Managers")
@@ -1457,11 +2340,8 @@ class DynamicPagination(models.Model):
     model for storing pagination for employees
     """
 
-    from django.contrib.auth.models import User
-    from django.core.validators import MinValueValidator
-
     user_id = models.OneToOneField(
-        User,
+        SkylinxUser,
         on_delete=models.CASCADE,
         blank=True,
         null=True,
@@ -1517,7 +2397,12 @@ class Announcement(SkylinxModel):
     )
     expire_date = models.DateField(null=True, blank=True)
     employees = models.ManyToManyField(
-        Employee, related_name="announcement_employees", blank=True
+        Employee,
+        related_name="announcement_employees",
+        blank=True,
+        help_text=_(
+            "If no employee, department or job position is selected, the announcement will be visible to all employees in the selected company."
+        ),
     )
     department = models.ManyToManyField(Department, blank=True)
     job_position = models.ManyToManyField(
@@ -1551,6 +2436,9 @@ class Announcement(SkylinxModel):
         return self.announcementview_set.filter(viewed=True)
 
     def viewed_by(self):
+        """
+        Announcement view
+        """
 
         viewed_by = AnnouncementView.objects.filter(
             announcement_id__id=self.id, viewed=True
@@ -1571,6 +2459,18 @@ class Announcement(SkylinxModel):
     def __str__(self):
         return self.title
 
+    def announcement_custom_col(self):
+        """
+        custom col for announcement list col
+        """
+
+        current_date = datetime.now().strftime("%Y-%m-%d")
+
+        return render_template(
+            path="cbv/dashboard/announcement_title.html",
+            context={"instance": self, "current_date": current_date},
+        )
+
 
 class AnnouncementComment(SkylinxModel):
     """
@@ -1590,11 +2490,24 @@ class AnnouncementView(models.Model):
     Announcement View Model
     """
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(SkylinxUser, on_delete=models.CASCADE)
     announcement = models.ForeignKey(Announcement, on_delete=models.CASCADE)
     viewed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
+
     objects = models.Manager()
+
+    def announcement_viewed_by_col(self):
+        """
+        custom col for announcement list col
+        """
+
+        return render_template(
+            path="cbv/dashboard/announcement_viewed_by.html",
+            context={
+                "instance": self,
+            },
+        )
 
 
 class EmailLog(models.Model):
@@ -1614,6 +2527,33 @@ class EmailLog(models.Model):
         Company, on_delete=models.CASCADE, null=True, editable=False
     )
 
+    def __str__(self) -> str:
+        return f"{self.subject} {self.to}"
+
+    def status_display(self):
+        status = dict(self.statuses).get(self.status)
+        if self.status == "sent":
+            color_class = "oh-dot--success"
+            link_class = "link-success"
+
+        elif self.status == "failed":
+            color_class = "oh-dot--danger"
+            link_class = "link-danger"
+        return format_html(
+            '<span class="oh-dot oh-dot--small me-1 oh-dot--color {color_class}"></span>'
+            '<span class="{link_class}">{status}</span>',
+            color_class=color_class,
+            status=status,
+            link_class=link_class,
+        )
+
+    def mail_log_detail_view(self):
+        """
+        for detail view of page
+        """
+        url = reverse("individual-mail-log-detail", kwargs={"pk": self.pk})
+        return url
+
 
 class DriverViewed(models.Model):
     """
@@ -1625,7 +2565,7 @@ class DriverViewed(models.Model):
         ("pipeline", "pipeline"),
         ("settings", "settings"),
     ]
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(SkylinxUser, on_delete=models.CASCADE)
     viewed = models.CharField(max_length=10, choices=choices)
 
     def user_viewed(self):
@@ -1636,6 +2576,10 @@ class DriverViewed(models.Model):
 
 
 class DashboardEmployeeCharts(SkylinxModel):
+    """
+    dashboard employee chart
+    """
+
     from employee.models import Employee
 
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
@@ -1652,6 +2596,10 @@ class DashboardEmployeeCharts(SkylinxModel):
 
 
 class BiometricAttendance(models.Model):
+    """
+    Biometric attendance
+    """
+
     is_installed = models.BooleanField(default=False)
     company_id = models.ForeignKey(
         Company,
@@ -1659,11 +2607,22 @@ class BiometricAttendance(models.Model):
         editable=False,
         on_delete=models.PROTECT,
         related_name="biometric_enabled_company",
+        verbose_name=_("Company"),
     )
-    objects = models.Manager()
+    objects = SkylinxCompanyManager()
 
     def __str__(self):
         return f"{self.is_installed}"
+
+    def save(self, *args, **kwargs):
+        if (
+            not self.pk
+            and BiometricAttendance.objects.filter(company_id=self.company_id).exists()
+        ):
+            raise ValidationError(
+                _("Only one BiometricAttendance instance is allowed per company.")
+            )
+        return super().save(*args, **kwargs)
 
 
 def default_additional_data():
@@ -1706,6 +2665,13 @@ class TrackLateComeEarlyOut(SkylinxModel):
             "By enabling this, you track the late comes and early outs of employees in their attendance."
         ),
     )
+    company_id = models.ForeignKey(
+        Company,
+        null=True,
+        on_delete=models.CASCADE,
+        verbose_name=_("Company"),
+    )
+    objects = SkylinxCompanyManager()
 
     class Meta:
         verbose_name = _("Track Late Come Early Out")
@@ -1716,9 +2682,14 @@ class TrackLateComeEarlyOut(SkylinxModel):
         return f"Tracking late come early out {tracking}"
 
     def save(self, *args, **kwargs):
-        if not self.pk and TrackLateComeEarlyOut.objects.exists():
+        if (
+            not self.pk
+            and TrackLateComeEarlyOut.objects.filter(
+                company_id=self.company_id
+            ).exists()
+        ):
             raise ValidationError(
-                _("Only one TrackLateComeEarlyOut instance is allowed.")
+                _("Only one TrackLateComeEarlyOut instance is allowed per company.")
             )
         return super().save(*args, **kwargs)
 
@@ -1742,6 +2713,46 @@ class Holidays(SkylinxModel):
 
     def __str__(self):
         return self.name
+
+    def detail_view(self):
+        """
+        detail view
+        """
+
+        url = reverse("holiday-detail-view", kwargs={"pk": self.pk})
+        return url
+
+    def detail_view_actions(self):
+        """
+        detail view actions
+        """
+        return render_template(
+            path="cbv/holidays/detail_view_actions.html",
+            context={"instance": self},
+        )
+
+    def get_recurring_status(self):
+        """
+        recurring data
+        """
+        return _("Yes") if self.recurring else _("No")
+
+    def holidays_actions(self):
+        """
+        method for rendering actions(edit,delete)
+        """
+
+        return render_template(
+            path="cbv/holidays/holidays_actions.html",
+            context={"instance": self},
+        )
+
+    def get_avatar(self):
+        """
+        Method will retun the api to the avatar or path to the profile image
+        """
+        url = f"https://ui-avatars.com/api/?name={self.name}&background=random"
+        return url
 
     def today_holidays(today=None) -> models.QuerySet:
         """
@@ -1782,6 +2793,72 @@ class CompanyLeaves(SkylinxModel):
     def __str__(self):
         return f"{dict(WEEK_DAYS).get(self.based_on_week_day)} | {dict(WEEKS).get(self.based_on_week)}"
 
+    def custom_based_on_week(self):
+        """
+        custom based on col
+        """
+
+        return render_template(
+            path="cbv/company_leaves/on_week.html",
+            context={"instance": self, "weeks": WEEKS},
+        )
+
+    def get_detail_title(self):
+        """
+        for return title
+        """
+
+        title = "Company Leaves"
+        return title
+
+    def detail_view_actions(self):
+        """
+        detail view actions
+        """
+        return render_template(
+            path="cbv/company_leaves/detail_view_actions.html",
+            context={"instance": self},
+        )
+
+    def based_on_week_day_col(self):
+        """
+        custom based on week day col
+        """
+
+        return render_template(
+            path="cbv/company_leaves/on_week_day.html",
+            context={"instance": self, "week_days": WEEK_DAYS},
+        )
+
+    def company_leave_actions(self):
+        """
+        custom actions col
+        """
+
+        return render_template(
+            path="cbv/company_leaves/company_leave_actions.html",
+            context={"instance": self, "weeks": WEEKS},
+        )
+
+    def detail_view(self):
+        """
+        detail view
+        """
+
+        url = reverse("company-leave-detail-view", kwargs={"pk": self.pk})
+        return url
+
+    def get_avatar(self):
+        """
+        Method will retun the api to the avatar or path to the profile image
+        """
+        if self.based_on_week is not None:
+            url = f"https://ui-avatars.com/api/?name={dict(WEEKS).get(self.based_on_week)}&background=random"
+        else:
+            data = "All"
+            url = f"https://ui-avatars.com/api/?name={data}&background=random"
+        return url
+
 
 class PenaltyAccounts(SkylinxModel):
     """
@@ -1793,7 +2870,7 @@ class PenaltyAccounts(SkylinxModel):
         on_delete=models.PROTECT,
         related_name="penalty_accounts",
         editable=False,
-        verbose_name="Employee",
+        verbose_name=_("Employee"),
         null=True,
     )
     if apps.is_installed("attendance"):
@@ -1812,11 +2889,42 @@ class PenaltyAccounts(SkylinxModel):
             on_delete=models.DO_NOTHING,
             blank=True,
             null=True,
-            verbose_name="Leave type",
+            verbose_name=_("Leave type"),
         )
-        minus_leaves = models.FloatField(default=0.0, null=True)
-        deduct_from_carry_forward = models.BooleanField(default=False)
-    penalty_amount = models.FloatField(default=0.0, null=True)
+        minus_leaves = models.FloatField(
+            default=0.0, null=True, verbose_name=_("Minus Leaves")
+        )
+        deduct_from_carry_forward = models.BooleanField(
+            default=False, verbose_name=_("Deduct from Carry Forward")
+        )
+
+        def get_deduct_from_carry_forward(self):
+            if self.deduct_from_carry_forward:
+                return _("Yes")
+            return _("No")
+
+    penalty_amount = models.FloatField(
+        default=0.0, null=True, verbose_name=_("Penalty Amount")
+    )
+
+    def get_delete_url(self):
+        """
+        To get delete url
+        """
+        url = reverse("delete-penalties", kwargs={"penalty_id": self.pk})
+        return url
+
+    def get_delete_instance(self):
+        """
+        To get instance for delete
+        """
+        return self.pk
+
+    def penalty_type_col(self):
+        if apps.is_installed("attendance"):
+            if self.late_early_id:
+                return "Late come or Early out Penalty"
+            return "Leave Penalty"
 
     def clean(self) -> None:
         super().clean()
@@ -1832,7 +2940,11 @@ class PenaltyAccounts(SkylinxModel):
                     )
                 }
             )
-        if not self.minus_leaves and not self.penalty_amount:
+        if (
+            apps.is_installed("leave")
+            and not self.minus_leaves
+            and not self.penalty_amount
+        ):
             raise ValidationError(
                 {
                     "leave_type_id": _(
@@ -1842,8 +2954,10 @@ class PenaltyAccounts(SkylinxModel):
             )
 
         if (
-            self.minus_leaves or self.deduct_from_carry_forward
-        ) and not self.leave_type_id:
+            apps.is_installed("leave")
+            and (self.minus_leaves or self.deduct_from_carry_forward)
+            and not self.leave_type_id
+        ):
             raise ValidationError({"leave_type_id": _("Leave type is required")})
         return
 
@@ -1862,4 +2976,9 @@ class NotificationSound(models.Model):
     sound_enabled = models.BooleanField(default=False)
 
 
-User.add_to_class("is_new_employee", models.BooleanField(default=False))
+class IntegrationApps(SkylinxModel, NoPermissionModel):
+    app_label = models.CharField(max_length=255, unique=True)
+    is_enabled = models.BooleanField(default=False)
+
+
+# User.add_to_class("is_new_employee", models.BooleanField(default=False))

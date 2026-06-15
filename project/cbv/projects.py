@@ -14,9 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views.generic import ListView
 
 from employee.models import Employee
-from skylinx.skylinx_middlewares import _thread_locals
-from skylinx.http import SkylinxRedirect
-from skylinx_views.cbv_methods import login_required, permission_required
+from skylinx_views.cbv_methods import login_required
 from skylinx_views.generic.cbv.views import (
     SkylinxCardView,
     SkylinxFormView,
@@ -75,14 +73,14 @@ class ProjectsNavView(SkylinxNavView):
                         data-toggle="oh-modal-toggle"
                         data-target="#projectImport"
                         style="cursor: pointer;"
-                        """,
+                    """,
                 },
                 {
                     "action": _("Export"),
                     "attrs": """
                         id="exportProject"
                         style="cursor: pointer;"
-                        """,
+                    """,
                 },
                 {
                     "action": _("Archive"),
@@ -91,7 +89,7 @@ class ProjectsNavView(SkylinxNavView):
                         style="cursor: pointer;"
                         onclick="validateProjectIds(event);"
                         data-action="archive"
-                        """,
+                    """,
                 },
                 {
                     "action": _("Un-archive"),
@@ -100,7 +98,7 @@ class ProjectsNavView(SkylinxNavView):
                         style="cursor: pointer;"
                         onclick="validateProjectIds(event);"
                         data-action="unarchive"
-                        """,
+                    """,
                 },
                 {
                     "action": _("Delete"),
@@ -110,7 +108,7 @@ class ProjectsNavView(SkylinxNavView):
                         id="deleteProject"
                         onclick="validateProjectIds(event);"
                         style="cursor: pointer; color:red !important"
-                        """,
+                    """,
                 },
             ]
         self.view_types = [
@@ -118,27 +116,27 @@ class ProjectsNavView(SkylinxNavView):
                 "type": "list",
                 "icon": "list-outline",
                 "url": reverse("project-list-view"),
-                "attrs": """
-                        title ='List'
-                        """,
+                "attrs": f"""
+                    title ='{_("List")}'
+                """,
             },
             {
                 "type": "card",
                 "icon": "grid-outline",
                 "url": reverse("project-card-view"),
-                "attrs": """
-                          title ='Card'
-                          """,
+                "attrs": f"""
+                    title ='{_("Card")}'
+                """,
             },
         ]
         if self.request.user.has_perm("project.add_project"):
             self.create_attrs = f"""
-                                onclick = "event.stopPropagation();"
-                                data-toggle="oh-modal-toggle"
-                                data-target="#genericModal"
-                                hx-target="#genericModalBody"
-                                hx-get="{reverse('create-project')}"
-                                """
+                onclick = "event.stopPropagation();"
+                data-toggle="oh-modal-toggle"
+                data-target="#genericModal"
+                hx-target="#genericModalBody"
+                hx-get="{reverse('create-project')}"
+            """
 
 
 @method_decorator(login_required, name="dispatch")
@@ -155,6 +153,13 @@ class ProjectsList(SkylinxListView):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        active = (
+            True
+            if self.request.GET.get("is_active", True)
+            in ["unknown", "True", "true", True]
+            else False
+        )
+        queryset = queryset.filter(is_active=active)
         if not self.request.user.has_perm("project.view_project"):
             employee = self.request.user.employee_get
             task_filter = queryset.filter(
@@ -211,7 +216,6 @@ class ProjectsList(SkylinxListView):
             onclick="
                 $('#applyFilter').closest('form').find('[name=status]').val('in_progress');
                 $('#applyFilter').click();
-
             "
             """,
         ),
@@ -222,7 +226,6 @@ class ProjectsList(SkylinxListView):
             onclick="
                 $('#applyFilter').closest('form').find('[name=status]').val('completed');
                 $('#applyFilter').click();
-
             "
             """,
         ),
@@ -233,7 +236,6 @@ class ProjectsList(SkylinxListView):
             onclick="
                 $('#applyFilter').closest('form').find('[name=status]').val('on_hold');
                 $('#applyFilter').click();
-
             "
             """,
         ),
@@ -244,7 +246,6 @@ class ProjectsList(SkylinxListView):
             onclick="
                 $('#applyFilter').closest('form').find('[name=status]').val('cancelled');
                 $('#applyFilter').click();
-
             "
             """,
         ),
@@ -255,7 +256,6 @@ class ProjectsList(SkylinxListView):
             onclick="
                 $('#applyFilter').closest('form').find('[name=status]').val('expired');
                 $('#applyFilter').click();
-
             "
             """,
         ),
@@ -263,9 +263,7 @@ class ProjectsList(SkylinxListView):
 
     row_status_class = "status-{status}"
 
-    row_attrs = """
-                {redirect}
-                """
+    row_attrs = """ {redirect} """
 
 
 @method_decorator(login_required, name="dispatch")
@@ -302,8 +300,9 @@ class ProjectFormView(SkylinxFormView):
                 if HTTP_REFERER and "task-view/" in HTTP_REFERER:
                     form.save()
                     messages.success(self.request, message)
-                    return SkylinxRedirect(self.request)
-
+                    return self.HttpResponse(
+                        "<script>window.location.reload()</script>"
+                    )
             else:
                 message = _("New project created")
             form.save()
@@ -331,6 +330,13 @@ class ProjectCardView(SkylinxCardView):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        active = (
+            True
+            if self.request.GET.get("is_active", True)
+            in ["unknown", "True", "true", True]
+            else False
+        )
+        queryset = queryset.filter(is_active=active)
         if not self.request.user.has_perm("project.view_project"):
             employee = self.request.user.employee_get
             task_filter = queryset.filter(
@@ -340,9 +346,12 @@ class ProjectCardView(SkylinxCardView):
             queryset = task_filter | project_filter
         return queryset.distinct()
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.search_url = reverse("project-card-view")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
         if (
             self.request.user.has_perm("project.change_project")
             or self.request.user.has_perm("project.delete_project")
@@ -351,43 +360,50 @@ class ProjectCardView(SkylinxCardView):
         ):
             self.actions = [
                 {
-                    "action": "Edit",
+                    "action": _("Edit"),
                     "accessibility": "project.cbv.accessibility.project_manager_accessibility",
                     "attrs": """
-                            hx-get='{get_update_url}'
-                            hx-target='#genericModalBody'
-                            data-toggle="oh-modal-toggle"
-                            data-target="#genericModal"
-                            class="oh-dropdown__link"
-                            """,
+                        hx-get='{get_update_url}'
+                        hx-target='#genericModalBody'
+                        data-toggle="oh-modal-toggle"
+                        data-target="#genericModal"
+                        class="oh-dropdown__link"
+                    """,
                 },
                 {
                     "action": "archive_status",
                     "accessibility": "project.cbv.accessibility.project_manager_accessibility",
                     "attrs": """
-                    href="{get_archive_url}"
-                    onclick="return confirm('Do you want to {archive_status} this project?')"
-                    class="oh-dropdown__link"
+                        hx-get="{get_archive_url}"
+                        hx-target="#listContainer"
+                        hx-swap="innerHTML"
+                        hx-confirm="Do you want to {archive_status} this project?"
+                        onclick="event.stopPropagation()"
+                        class="oh-dropdown__link"
                     """,
                 },
                 {
-                    "action": "Delete",
+                    "action": _("Delete"),
                     "accessibility": "project.cbv.accessibility.project_manager_accessibility",
                     "attrs": """
-                    onclick="
-                                event.stopPropagation()
-                                deleteItem({get_delete_url});
-                                "
-                    class="oh-dropdown__link oh-dropdown__link--danger"
+                        hx-get="{get_delete_url}?view=card"
+                        hx-target="#listContainer"
+                        hx-swap="innerHTML"
+                        hx-confirm="Do you want to delete this project?"
+                        onclick="event.stopPropagation()"
+                        class="oh-dropdown__link oh-dropdown__link--danger"
                     """,
                 },
             ]
+        context["actions"] = self.actions
+        return context
 
     details = {
         "image_src": "get_avatar",
         "title": "{get_task_badge_html}",
-        "subtitle": "Status : {get_status_display} <br> Start date : {start_date} <br>End date : {end_date}",
+        "subtitle": "{get_card_view_subtitle}",
     }
+
     card_status_class = "status-{status}"
 
     card_status_indications = [
@@ -408,7 +424,6 @@ class ProjectCardView(SkylinxCardView):
             onclick="
                 $('#applyFilter').closest('form').find('[name=status]').val('in_progress');
                 $('#applyFilter').click();
-
             "
             """,
         ),
@@ -419,7 +434,6 @@ class ProjectCardView(SkylinxCardView):
             onclick="
                 $('#applyFilter').closest('form').find('[name=status]').val('completed');
                 $('#applyFilter').click();
-
             "
             """,
         ),
@@ -430,7 +444,6 @@ class ProjectCardView(SkylinxCardView):
             onclick="
                 $('#applyFilter').closest('form').find('[name=status]').val('on_hold');
                 $('#applyFilter').click();
-
             "
             """,
         ),
@@ -441,7 +454,6 @@ class ProjectCardView(SkylinxCardView):
             onclick="
                 $('#applyFilter').closest('form').find('[name=status]').val('cancelled');
                 $('#applyFilter').click();
-
             "
             """,
         ),
@@ -452,7 +464,6 @@ class ProjectCardView(SkylinxCardView):
             onclick="
                 $('#applyFilter').closest('form').find('[name=status]').val('expired');
                 $('#applyFilter').click();
-
             "
             """,
         ),
@@ -486,6 +497,7 @@ class ProjectCardView(SkylinxCardView):
 #     )
 
 
+@method_decorator(login_required, name="dispatch")
 class ProjectsTabView(ListView):
     model = Project
     template_name = "cbv/projects/project_tab.html"
@@ -494,10 +506,10 @@ class ProjectsTabView(ListView):
     def get_queryset(self):
         pk = self.kwargs.get("pk")
         queryset = Project.objects.filter(
-            Q(manager=pk)
+            Q(managers=pk)
             | Q(members=pk)
             | Q(task__task_members=pk)
-            | Q(task__task_manager=pk)
+            | Q(task__task_managers=pk)
         )
         return queryset.distinct()
 
@@ -511,15 +523,15 @@ class ProjectsTabView(ListView):
         return context
 
 
-# Remove the command lines after skylinx converted into CBV
-# from employee.cbv.employee_profile import EmployeeProfileView
-# EmployeeProfileView.add_tab(
-#     tabs=[
-#         {
-#             "title": "Projects",
-#             # "view": projects_tab,
-#             "view": ProjectsTabView.as_view(),
-#             "accessibility": "employee.cbv.accessibility.workshift_accessibility",
-#         },
-#     ]
-# )
+from employee.cbv.employee_profile import EmployeeProfileView
+
+EmployeeProfileView.add_tab(
+    tabs=[
+        {
+            "title": _("Projects"),
+            # "view": projects_tab,
+            "view": ProjectsTabView.as_view(),
+            "accessibility": "employee.cbv.accessibility.project_accessibility",
+        },
+    ]
+)

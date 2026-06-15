@@ -3,48 +3,51 @@ payroll/sidebar.py
 
 """
 
-from django.urls import reverse
-from django.utils.translation import gettext_lazy as trans
+from django.apps import apps
+from django.urls import reverse, reverse_lazy
+from django.utils.translation import gettext_lazy as _
 
-MENU = trans("Payroll")
+from skylinx.menu import settings_menu
+
+MENU = _("Payroll")
 IMG_SRC = "images/ui/wallet-outline.svg"
 
 SUBMENUS = [
     {
-        "menu": trans("Dashboard"),
+        "menu": _("Dashboard"),
         "redirect": reverse("view-payroll-dashboard"),
         "accessibility": "payroll.sidebar.dasbhoard_accessibility",
     },
     {
-        "menu": trans("Contract"),
+        "menu": _("Contract"),
         "redirect": reverse("view-contract"),
         "accessibility": "payroll.sidebar.dasbhoard_accessibility",
     },
     {
-        "menu": trans("Allowances"),
+        "menu": _("Allowances"),
         "redirect": reverse("view-allowance"),
         "accessibility": "payroll.sidebar.allowance_accessibility",
     },
     {
-        "menu": trans("Deductions"),
+        "menu": _("Deductions"),
         "redirect": reverse("view-deduction"),
         "accessibility": "payroll.sidebar.deduction_accessibility",
     },
     {
-        "menu": trans("Payslips"),
+        "menu": _("Payslips"),
         "redirect": reverse("view-payslip"),
     },
     {
-        "menu": trans("Loan / Advanced Salary"),
+        "menu": _("Loan / Advanced Salary"),
         "redirect": reverse("view-loan"),
         "accessibility": "payroll.sidebar.loan_accessibility",
     },
     {
-        "menu": trans("Encashments & Reimbursements"),
+        "menu": _("Encashments & Reimbursements"),
         "redirect": reverse("view-reimbursement"),
     },
     {
-        "menu": trans("Federal Tax"),
+        "menu": _("Federal Tax"),
         "redirect": reverse("filing-status-view"),
         "accessibility": "payroll.sidebar.federal_tax_accessibility",
     },
@@ -69,3 +72,28 @@ def loan_accessibility(request, submenu, user_perms, *args, **kwargs):
 
 def federal_tax_accessibility(request, submenu, user_perms, *args, **kwargs):
     return request.user.has_perm("payroll.view_filingstatus")
+
+
+# ---------------------------------------------------------------------------
+# Settings menu registrations
+# ---------------------------------------------------------------------------
+
+
+def payslip_auto_generation_accessibility(
+    request, submenu, user_perms, *args, **kwargs
+):
+    return request.user.has_perm("payroll.view_payslipautogenerate")
+
+
+@settings_menu.register
+class PayrollSettings:
+    title = _("Payroll")
+    order = 7
+    condition = lambda self, request: apps.is_installed("payroll")
+    items = [
+        {
+            "label": _("Payslip Auto Generation"),
+            "url": reverse_lazy("auto-payslip-settings-view"),
+            "accessibility": payslip_auto_generation_accessibility,
+        },
+    ]

@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from django.conf import settings
 
 
 class OnboardingConfig(AppConfig):
@@ -8,10 +9,9 @@ class OnboardingConfig(AppConfig):
     def ready(self):
         from django.urls import include, path
 
-        from skylinx.skylinx_settings import APPS
         from skylinx.urls import urlpatterns
 
-        APPS.append("onboarding")
+        settings.APPS.append("onboarding")
         urlpatterns.append(
             path("onboarding/", include("onboarding.urls")),
         )

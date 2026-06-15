@@ -20,6 +20,7 @@ from base.methods import reload_queryset
 from employee.filters import EmployeeFilter
 from employee.models import BonusPoint, Employee
 from skylinx import skylinx_middlewares
+from skylinx.skylinx_middlewares import _thread_locals
 from skylinx.methods import get_skylinx_model_class
 from skylinx_widgets.forms import SkylinxForm, default_select_option_template
 from skylinx_widgets.widgets.skylinx_multi_select_field import SkylinxMultiSelectField
@@ -80,7 +81,7 @@ class AllowanceForm(ModelForm):
             widget=SkylinxMultiSelectWidget(
                 filter_route_name="employee-widget-filter",
                 filter_class=EmployeeFilter,
-                filter_instance_contex_name="f",
+                filter_instance_context_name="f",
                 filter_template_path="employee_filters.html",
                 instance=self.instance,
             ),
@@ -214,13 +215,12 @@ class DeductionForm(ModelForm):
                 }
             kwargs["initial"] = initial
         super().__init__(*args, **kwargs)
-
         self.fields["specific_employees"] = SkylinxMultiSelectField(
             queryset=Employee.objects.all(),
             widget=SkylinxMultiSelectWidget(
                 filter_route_name="employee-widget-filter",
                 filter_class=EmployeeFilter,
-                filter_instance_contex_name="f",
+                filter_instance_context_name="f",
                 filter_template_path="employee_filters.html",
                 instance=self.instance,
             ),
@@ -354,6 +354,12 @@ class PayslipForm(ModelForm):
     Form for Payslip
     """
 
+    cols = {
+        "employee_id": 12,
+        "start_date": 12,
+        "end_date": 12,
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         active_contracts = Contract.objects.filter(contract_status="active")
@@ -368,6 +374,7 @@ class PayslipForm(ModelForm):
                 "hx-target": "#contractStartDateDiv",
                 "hx-include": "#payslipCreateForm",
                 "hx-trigger": "change delay:300ms",
+                "hx-swap": "innerHTML",
             }
         )
         if self.instance.pk is None:
@@ -394,6 +401,7 @@ class PayslipForm(ModelForm):
                     "hx-target": "#contractStartDateDiv",
                     "hx-include": "#payslipCreateForm",
                     "hx-trigger": "change delay:300ms",
+                    "hx-swap": "innerHTML",
                 }
             ),
             "end_date": forms.DateInput(
@@ -419,7 +427,7 @@ class GeneratePayslipForm(SkylinxForm):
         widget=SkylinxMultiSelectWidget(
             filter_route_name="employee-widget-filter",
             filter_class=EmployeeFilter,
-            filter_instance_contex_name="f",
+            filter_instance_context_name="f",
             filter_template_path="employee_filters.html",
         ),
         label="Employee",
@@ -676,6 +684,9 @@ class LoanAccountForm(ModelForm):
     """
 
     verbose_name = "Loan / Advanced Sarlary"
+    cols = {
+        "description": 12,
+    }
 
     class Meta:
         model = LoanAccount
@@ -788,6 +799,8 @@ class ReimbursementForm(ModelForm):
     Optimized Reimbursement / Encashment Form
     """
 
+    cols = {"description": 12}
+
     verbose_name = "Reimbursement / Encashment"
 
     class Meta:
@@ -848,10 +861,14 @@ class ReimbursementForm(ModelForm):
             "onchange"
         ] = "getAssignedLeave($(this))"
 
+        self.fields["allowance_on"].widget = forms.DateInput(
+            attrs={"type": "date", "class": "oh-input w-100"}
+        )
+
         self.fields["attachment"] = MultipleFileField(label="Attachments")
         self.fields["attachment"].widget.attrs["accept"] = ".jpg, .jpeg, .png, .pdf"
 
-        # self.exclude_fields_by_type(exclude_fields)
+        self.exclude_fields_by_type(exclude_fields)
 
         for field in exclude_fields:
             self.fields.pop(field, None)
@@ -882,7 +899,7 @@ class ReimbursementForm(ModelForm):
         )
         is_edit = self.instance and self.instance.pk
 
-        if type == "reimbursement" and is_edit:
+        if type == "reimbursement" and (is_edit or self.data):
             exclude_fields += [
                 "leave_type_id",
                 "cfd_to_encash",

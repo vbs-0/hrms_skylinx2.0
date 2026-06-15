@@ -39,9 +39,14 @@ def attendance_post_save(sender, instance, **kwargs):
         work_records = WorkRecords.objects.filter(
             date=instance.attendance_date,
             employee_id=instance.employee_id,
-        )
+        ).order_by("id")
+
         work_record = work_records.first()
-        work_records.exclude(id=work_record.id).delete()
+
+        if work_records.count() > 1:
+            ids = work_records.exclude(id=work_record.id).values_list("id", flat=True)
+            WorkRecords._base_manager.filter(id__in=ids).delete()
+
     except Exception as e:
         print(e)
 

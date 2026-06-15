@@ -11,7 +11,6 @@ from django.views.generic import View
 from dynamic_fields import forms, models
 from dynamic_fields.methods import structured
 from skylinx.decorators import login_required, permission_required
-from skylinx.http.response import SkylinxRedirect
 from skylinx_views.generic.cbv.views import SkylinxFormView
 
 
@@ -58,7 +57,7 @@ class DynamicFieldFormView(SkylinxFormView):
             form.save()
 
             messages.success(self.request, message)
-            return SkylinxRedirect(self.request)
+            return self.HttpResponse("<script>window.location.reload()</script>")
         return super().form_valid(form)
 
 

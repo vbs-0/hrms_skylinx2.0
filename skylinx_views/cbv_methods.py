@@ -8,14 +8,22 @@ import uuid
 from io import BytesIO
 from typing import Any
 from urllib.parse import urlencode
-from venv import logger
 
 from django import forms, template
+from django.apps import apps
+from django.conf import settings
 from django.contrib import messages
 from django.core.cache import cache as CACHE
+from django.core.exceptions import FieldDoesNotExist
 from django.core.paginator import Paginator
 from django.db import models
-from django.db.models.fields.related import ForeignKey
+from django.db.models.fields.related import (
+    ForeignKey,
+    ManyToManyRel,
+    ManyToOneRel,
+    OneToOneField,
+    OneToOneRel,
+)
 from django.db.models.fields.related_descriptors import (
     ForwardManyToOneDescriptor,
     ReverseOneToOneDescriptor,
@@ -27,15 +35,17 @@ from django.template import loader
 from django.template.defaultfilters import register
 from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.functional import lazy
 from django.utils.html import format_html
 from django.utils.safestring import SafeString
 from django.utils.translation import gettext_lazy as _
 from openpyxl import Workbook
+from openpyxl.drawing.image import Image
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from skylinx import settings
+from skylinx.config import logger
 from skylinx.skylinx_middlewares import _thread_locals
 from skylinx.methods import handle_no_permission
 from skylinx_views.templatetags.generic_template_filters import getattribute
@@ -170,11 +180,14 @@ def login_required(view_func):
             return redirect(url)
         try:
             func = view_func(self, request, *args, **kwargs)
+        except KeyError:
+            raise
         except Exception as e:
             logger.exception(e)
             if not settings.DEBUG:
-                return render(request, "went_wrong.html")
-            return view_func(self, *args, **kwargs)
+                messages.error(request, str(e))
+                return render(request, "went_wrong.html", status=404)
+            raise e
         return func
 
     return wrapped_view
@@ -194,6 +207,63 @@ def permission_required(function, perm):
         if request.user.has_perm(perm):
             return function(self, *args, **kwargs)
         return handle_no_permission(request)
+
+    return _function
+
+
+@decorator_with_arguments
+def owner_can_enter(
+    function,
+    perm: str,
+    model: object,
+    manager_access=False,
+    employee_field: str = "employee_id",
+):
+    """
+    CBV version of owner_can_enter.
+    Only the users with permission, or the owner, or employees manager can enter.
+    If manager_access:True then all the managers can enter.
+    """
+    from employee.models import Employee, EmployeeWorkInformation
+    from skylinx.decorators import check_manager
+    from skylinx.http import SkylinxRedirect
+
+    def _function(self, *args, **kwargs):
+        request = getattr(_thread_locals, "request")
+        if not getattr(self, "request", None):
+            self.request = request
+
+        instance_id = None
+        if kwargs:
+            instance_id = kwargs[list(kwargs.keys())[0]]
+        elif hasattr(self, "kwargs") and self.kwargs:
+            instance_id = self.kwargs[list(self.kwargs.keys())[0]]
+
+        if model == Employee:
+            employee = Employee.objects.filter(id=instance_id).first()
+        else:
+            try:
+                obj = model.objects.filter(id=instance_id).first()
+                employee = getattr(obj, employee_field, None) if obj else None
+            except Exception as e:
+                messages.error(request, _("Sorry, something went wrong!"))
+                return SkylinxRedirect(request)
+
+        can_enter = (
+            request.user.employee_get == employee
+            or request.user.has_perm(perm)
+            or check_manager(request.user.employee_get, employee)
+            or (
+                EmployeeWorkInformation.objects.filter(
+                    reporting_manager_id__employee_user_id=request.user
+                ).exists()
+                if manager_access
+                else False
+            )
+        )
+        if can_enter or not employee:
+            return function(self, *args, **kwargs)
+        return SkylinxRedirect(request, message=_("You don't have permission."))
 
     return _function
 
@@ -224,7 +294,7 @@ def hx_request_required(function):
     def _function(request, *args, **kwargs):
         key = "HTTP_HX_REQUEST"
         if key not in request.META.keys():
-            return render(request, "405.html")
+            return render(request, "405.html", status=405)
         return function(request, *args, **kwargs)
 
     return _function
@@ -456,7 +526,7 @@ def get_field_class_map(model_class: models.Model, bulk_update_fields: list) -> 
     field_class_map = {}
     for field_name in bulk_update_fields:
         field = get_nested_field(model_class, field_name)
-        field_class_map[field_name] = field.field
+        field_class_map[field_name] = field
     return field_class_map
 
 
@@ -543,17 +613,21 @@ def flatten_dict(d, parent_key=""):
     return dict(items)
 
 
-def export_xlsx(json_data, columns, file_name="quick_export"):
+def export_xlsx(json_data, columns, file_name="quick_export", extra_info=None):
     """
-    Quick export method
+    Quick export method with company info, logo, and date range header
     """
-    top_fields = [col[0] for col in columns if len(col) == 2]
+    company_name = extra_info.get("company_name", "") if extra_info else ""
+    date_range = extra_info.get("date_range", "") if extra_info else ""
+    report_title = extra_info.get("report_title", "Export") if extra_info else "Export"
+    logo_path = extra_info.get("logo_path", "") if extra_info else ""  # 👈 company logo
 
+    top_fields = [col[0] for col in columns if len(col) == 2]
     nested_fields = [
         col for col in columns if len(col) == 3 and isinstance(col[2], dict)
     ]
 
-    # Discover dynamic keys for each nested column
+    # --- Discover dynamic keys ---
     dynamic_columns = {}
     for title, key, mappings in nested_fields:
         dyn_keys = set()
@@ -561,8 +635,7 @@ def export_xlsx(json_data, columns, file_name="quick_export"):
             try:
                 nested_data = json.loads(entry.get(key, "[]").replace("'", '"'))
                 for item in nested_data:
-                    flat = flatten_dict(item)
-                    dyn_keys.update(flat.keys())
+                    dyn_keys.update(item.keys())
             except Exception:
                 continue
         dynamic_columns[key] = {
@@ -571,20 +644,61 @@ def export_xlsx(json_data, columns, file_name="quick_export"):
             "display_names": mappings,
         }
 
-    # Create workbook
+    # --- Workbook setup ---
     wb = Workbook()
     ws = wb.active
     ws.title = "Quick Export"
 
-    # Header row
+    total_columns = len(top_fields)
+    for nested_info in dynamic_columns.values():
+        total_columns += len(nested_info["keys"])
+
+    # --- Styles ---
+    header_font_big = Font(size=14, bold=True)
+    title_font = Font(size=14, bold=True, color="FF0000")
+    center_align = Alignment(horizontal="center", vertical="center")
+
+    # --- 1️⃣ Company Name Row ---
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_columns)
+    company_cell = ws.cell(row=1, column=1)
+    company_cell.value = company_name
+    company_cell.font = header_font_big
+    company_cell.alignment = center_align
+
+    # --- 2️⃣ Logo ---
+    if logo_path:
+        try:
+            logo = Image(logo_path)
+            logo.width = 120
+            logo.height = 60
+            ws.add_image(logo, "A1")  # top-left corner
+        except Exception as e:
+            print(f"Logo load failed: {e}")
+
+    # --- 3️⃣ Report Title (merged & centered) ---
+    ws.merge_cells(start_row=2, start_column=1, end_row=3, end_column=total_columns)
+    title_cell = ws.cell(row=2, column=1)
+    title_cell.value = report_title
+    title_cell.font = title_font
+    title_cell.alignment = center_align
+
+    ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=total_columns)
+    date_cell = ws.cell(row=4, column=1)
+    date_cell.value = date_range
+    date_cell.alignment = center_align
+
+    start_data_row = 6
+
     header = top_fields[:]
     for nested_info in dynamic_columns.values():
         for dyn_key in nested_info["keys"]:
             display_name = nested_info["display_names"].get(dyn_key, dyn_key)
             header.append(display_name)
-    ws.append(list(str(title) for title in header))
 
-    # Style definitions
+    ws.append([])
+    ws.append([str(title) for title in header])
+    header_row_index = start_data_row
+
     header_fill = PatternFill(
         start_color="FFD700", end_color="FFD700", fill_type="solid"
     )
@@ -596,16 +710,14 @@ def export_xlsx(json_data, columns, file_name="quick_export"):
         bottom=Side(style="thin"),
     )
 
-    # Apply styles to header
     for col_idx, title in enumerate(header, 1):
-        cell = ws.cell(row=1, column=col_idx)
+        cell = ws.cell(row=header_row_index, column=col_idx)
         cell.font = bold_font
         cell.fill = header_fill
         cell.border = thin_border
-        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.alignment = center_align
 
-    row_index = 2
-
+    row_index = header_row_index + 1
     for entry in json_data:
         all_nested_records = []
         max_nested_rows = 1
@@ -622,28 +734,20 @@ def export_xlsx(json_data, columns, file_name="quick_export"):
 
         for i in range(max_nested_rows):
             row = []
-
-            # Top fields
             for tf in top_fields:
                 row.append(entry.get(tf, "") if i == 0 else "")
-
-            # Nested fields
             for idx, (key, nested_info) in enumerate(dynamic_columns.items()):
                 nested_data = all_nested_records[idx]
-                flat_ans = flatten_dict(nested_data[i]) if i < len(nested_data) else {}
+                nested_item = nested_data[i] if i < len(nested_data) else {}
                 for dyn_key in nested_info["keys"]:
-                    row.append(flat_ans.get(dyn_key, ""))
-
+                    row.append(nested_item.get(dyn_key, ""))
             ws.append(row)
 
-            # Apply border to row
             for col_idx in range(1, len(row) + 1):
-                cell = ws.cell(row=row_index, column=col_idx)
-                cell.border = thin_border
-
+                ws.cell(row=row_index, column=col_idx).border = thin_border
             row_index += 1
 
-        # Merge top fields if needed
+        # Merge top-level fields when multiple nested rows exist
         if max_nested_rows > 1:
             for col_idx in range(1, len(top_fields) + 1):
                 ws.merge_cells(
@@ -652,40 +756,24 @@ def export_xlsx(json_data, columns, file_name="quick_export"):
                     end_row=row_index - 1,
                     end_column=col_idx,
                 )
-                top_cell = ws.cell(row=row_index - max_nested_rows, column=col_idx)
-                top_cell.alignment = Alignment(vertical="center")
-                top_cell.border = thin_border  # Re-apply border
+                ws.cell(row=row_index - max_nested_rows, column=col_idx).alignment = (
+                    Alignment(vertical="center")
+                )
 
-    # Auto-fit column widths
     for col in ws.columns:
         max_len = max(len(str(cell.value or "")) for cell in col)
         col_letter = get_column_letter(col[0].column)
         ws.column_dimensions[col_letter].width = min(max_len + 2, 50)
 
-    # Output file
     output = BytesIO()
     wb.save(output)
     output.seek(0)
-
     response = HttpResponse(
         output.read(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
     response["Content-Disposition"] = f'attachment; filename="{file_name}.xlsx"'
     return response
-
-
-from django.apps import apps
-from django.core.exceptions import FieldDoesNotExist
-from django.db.models import Model
-from django.db.models.fields.related import (
-    ForeignKey,
-    ManyToManyRel,
-    ManyToOneRel,
-    OneToOneField,
-    OneToOneRel,
-)
-from openpyxl import Workbook
 
 
 def get_verbose_name_from_field_path(model, field_path, import_mapping):
@@ -914,3 +1002,40 @@ def assign_related(
                 instance = instances[0]
                 reverse_obj_dict.update({reverse_field: instance})
     return reverse_obj_dict
+
+
+def get_nested_field(model, lookup):
+    """
+    Get field from model by lookup
+    """
+
+    field = None
+    attrs = lookup.split("__")
+    try:
+        for attr in attrs:
+            field = model._meta.get_field(attr)
+
+            if isinstance(field, (OneToOneRel, ManyToOneRel, ManyToManyRel)):
+                model = field.related_model
+            elif hasattr(field, "related_model"):
+                model = field.related_model
+            else:
+                break
+
+    except Exception as e:
+        field = None
+
+    return field
+
+
+def set_nested_attr(obj, attr_path, value):
+    """
+    Set attribute on nested related model using __ lookup notation.
+    """
+
+    parts = attr_path.split("__")
+    for part in parts[:-1]:
+        obj = getattr(obj, part)
+
+    setattr(obj, parts[-1], value)
+    obj.save()

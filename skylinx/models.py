@@ -13,16 +13,20 @@ import re
 from uuid import uuid4
 
 from auditlog.models import AuditlogHistoryField
-from auditlog.registry import auditlog
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.fields.files import FieldFile
 from django.urls import reverse
 from django.utils.text import slugify
-from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _
 
 from skylinx.skylinx_middlewares import _thread_locals
+from skylinx.inherit.model_inherit import (  # noqa: F401
+    EXTENSION_REGISTRY,
+    SkylinxModelBase,
+)
+from skylinx_auth.models import SkylinxUser
 
 
 @property
@@ -89,7 +93,7 @@ def upload_path(instance, filename):
     return f"{app_label}/{model_name}/{unique_name}"
 
 
-class SkylinxModel(models.Model):
+class SkylinxModel(models.Model, metaclass=SkylinxModelBase):
     """
     An abstract base model that includes common fields and functionalities
     for models within the Skylinx application.
@@ -102,7 +106,7 @@ class SkylinxModel(models.Model):
         verbose_name=_("Created At"),
     )
     created_by = models.ForeignKey(
-        User,
+        SkylinxUser,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -111,7 +115,7 @@ class SkylinxModel(models.Model):
     )
 
     modified_by = models.ForeignKey(
-        User,
+        SkylinxUser,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -152,7 +156,7 @@ class SkylinxModel(models.Model):
             if (
                 hasattr(self, "created_by")
                 and hasattr(self._meta.get_field("created_by"), "related_model")
-                and self._meta.get_field("created_by").related_model == User
+                and self._meta.get_field("created_by").related_model == SkylinxUser
             ):
                 if request and not self.pk:
                     if user.is_authenticated:
@@ -228,4 +232,5 @@ class SkylinxModel(models.Model):
         return final_field.verbose_name
 
 
-auditlog.register(SkylinxModel, serialize_data=True)
+class NoPermissionModel:
+    _no_permission_model = True

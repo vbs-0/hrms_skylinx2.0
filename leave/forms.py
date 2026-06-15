@@ -10,7 +10,6 @@ from typing import Any
 
 from django import forms
 from django.apps import apps
-from django.contrib.admin.widgets import RelatedFieldWidgetWrapper
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.forms.widgets import TextInput
@@ -19,10 +18,13 @@ from django.utils.translation import gettext_lazy as _
 
 from base.forms import ModelForm as BaseModelForm
 from base.methods import filtersubordinatesemployeemodel, reload_queryset
+from base.models import CompanyLeaves, Holidays
 from employee.filters import EmployeeFilter
 from employee.forms import MultipleFileField
 from employee.models import Employee
 from skylinx import skylinx_middlewares
+from skylinx.skylinx_middlewares import _thread_locals
+from skylinx_views.generic.cbv.views import SkylinxFormView
 from skylinx_widgets.forms import SkylinxForm, SkylinxModelForm
 from skylinx_widgets.widgets.skylinx_multi_select_field import SkylinxMultiSelectField
 from skylinx_widgets.widgets.select_widgets import SkylinxMultiSelectWidget
@@ -35,11 +37,69 @@ from leave.models import (
     LeaverequestComment,
     LeaverequestFile,
     LeaveType,
+    LeaveTypeCondition,
     RestrictLeave,
 )
 
 CHOICES = [("yes", _("Yes")), ("no", _("No"))]
 LEAVE_MAX_LIMIT = 1e5
+
+
+class LeaveTypeConditionForm(forms.ModelForm):
+    """
+    Form for creating/updating a single LeaveTypeCondition.
+    Following the same style as payroll ConditionForm.
+    """
+
+    class Meta:
+        model = LeaveTypeCondition
+        fields = ["condition_type", "value"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            widget = field.widget
+            if isinstance(widget, forms.Select):
+                field.widget.attrs["style"] = (
+                    "width:100%; height:50px;"
+                    "border: 1px solid hsl(213deg,22%,84%);"
+                    "border-radius: 0rem;"
+                    "padding: 0.8rem 1.25rem;"
+                )
+            elif isinstance(
+                widget, (forms.NumberInput, forms.EmailInput, forms.TextInput)
+            ):
+                field.widget.attrs.update(
+                    {"class": "oh-input w-100", "placeholder": field.label or ""}
+                )
+            elif isinstance(widget, forms.Textarea):
+                field.widget.attrs.update(
+                    {
+                        "class": "oh-input w-100",
+                        "placeholder": field.label or "",
+                        "rows": 2,
+                    }
+                )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        condition_type = cleaned_data.get("condition_type")
+        value = cleaned_data.get("value")
+        value_required_types = {
+            "gender",
+            "marital_status",
+            "nationality",
+            "department",
+            "employment_type",
+            "grade",
+            "service_duration",
+        }
+        if condition_type in value_required_types and not value:
+            self.add_error(
+                "value",
+                _("A value is required for the selected condition type."),
+            )
+        return cleaned_data
 
 
 class ConditionForm(forms.ModelForm):
@@ -53,11 +113,9 @@ class ConditionForm(forms.ModelForm):
                 field.widget.attrs["style"] = (
                     "width:100%; height:50px;border: 1px solid hsl(213deg,22%,84%);border-radius: 0rem;padding: 0.8rem 1.25rem;"
                 )
-            elif isinstance(widget, forms.DateInput):
-                field.initial = date.today
-                widget.input_type = "date"
-                widget.format = "%Y-%m-%d"
-                field.input_formats = ["%Y-%m-%d"]
+            elif isinstance(widget, (forms.DateInput)):
+                field.widget.attrs.update({"class": "oh-input w-100"})
+                field.initial = date.today()
 
             elif isinstance(
                 widget, (forms.NumberInput, forms.EmailInput, forms.TextInput)
@@ -116,7 +174,7 @@ class LeaveTypeForm(ConditionForm):
         widget=SkylinxMultiSelectWidget(
             filter_route_name="employee-widget-filter",
             filter_class=EmployeeFilter,
-            filter_instance_contex_name="f",
+            filter_instance_context_name="f",
             filter_template_path="employee_filters.html",
             required=False,
         ),
@@ -126,7 +184,7 @@ class LeaveTypeForm(ConditionForm):
     class Meta:
         model = LeaveType
         fields = "__all__"
-        exclude = ["is_active"]
+        exclude = ["is_active", "conditions"]
         labels = {
             "name": _("Name"),
         }
@@ -134,117 +192,182 @@ class LeaveTypeForm(ConditionForm):
             "color": TextInput(attrs={"type": "color", "style": "height:40px;"}),
             "period_in": forms.HiddenInput(),
             "total_days": forms.HiddenInput(),
+            "carryforward_expire_date": forms.DateInput(attrs={"type": "date"}),
         }
 
     def clean(self):
         cleaned_data = super().clean()
-        if "employee_id" in self.errors:
-            del self.errors["employee_id"]
-        if "exceed_days" in self.errors:
-            del self.errors["exceed_days"]
-        if not cleaned_data["limit_leave"]:
+        for key in ["employee_id", "exceed_days"]:
+            if key in self.errors:
+                del self.errors[key]
+        if not cleaned_data.get("limit_leave"):
             cleaned_data["total_days"] = LEAVE_MAX_LIMIT
             cleaned_data["reset"] = True
             cleaned_data["reset_based"] = "yearly"
             cleaned_data["reset_month"] = "1"
             cleaned_data["reset_day"] = "1"
 
+        payment_type = cleaned_data.get("payment_type")
+        payment_percentage = cleaned_data.get("payment_percentage")
+        if payment_type == "custom":
+            if payment_percentage is None:
+                self.add_error(
+                    "payment_percentage",
+                    _("Payment percentage is required for Custom payment type."),
+                )
+            elif not (0 <= payment_percentage <= 100):
+                self.add_error(
+                    "payment_percentage",
+                    _("Payment percentage must be between 0 and 100."),
+                )
+        elif payment_type and payment_type != "custom":
+            cleaned_data["payment_percentage"] = None
+
         return cleaned_data
 
     def save(self, *args, **kwargs):
+        from leave.services import evaluate_leave_type_conditions
+
         leave_type = super().save(*args, **kwargs)
         if employees := self.data.getlist("employee_id"):
             for employee_id in employees:
-                employee = Employee.objects.get(id=employee_id)
-                AvailableLeave(
-                    leave_type_id=leave_type,
-                    employee_id=employee,
-                    available_days=leave_type.total_days,
-                ).save()
+                try:
+                    employee = Employee.objects.get(id=employee_id)
+                except Employee.DoesNotExist:
+                    continue
+                is_eligible, _ = evaluate_leave_type_conditions(leave_type, employee)
+                if is_eligible:
+                    if not AvailableLeave.objects.filter(
+                        leave_type_id=leave_type, employee_id=employee
+                    ).exists():
+                        AvailableLeave(
+                            leave_type_id=leave_type,
+                            employee_id=employee,
+                            available_days=leave_type.total_days,
+                        ).save()
+        return leave_type
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["payment_percentage"].required = False
 
 
 class UpdateLeaveTypeForm(ConditionForm):
 
-    def __init__(self, *args, **kwargs):
-        super(UpdateLeaveTypeForm, self).__init__(*args, **kwargs)
-
-        empty_fields = []
-        for field_name, field_value in self.instance.__dict__.items():
-            if field_value is None or field_value == "":
-                if field_name.endswith("_id"):
-                    foreign_key_field_name = re.sub("_id$", "", field_name)
-                    empty_fields.append(foreign_key_field_name)
-                empty_fields.append(field_name)
-
-        for index, visible in enumerate(self.visible_fields()):
-            if list(self.fields.keys())[index] in empty_fields:
-                visible.field.widget.attrs["style"] = (
-                    "display:none;width:100%; height:50px;border: 1px solid hsl(213deg,22%,84%);border-radius: 0rem;padding: 0.8rem 1.25rem;"
-                )
-                visible.field.widget.attrs["data-hidden"] = True
-
-        if expire_date := self.instance.carryforward_expire_date:
-            self.fields["carryforward_expire_date"] = expire_date
-
     class Meta:
         model = LeaveType
         fields = "__all__"
-        exclude = ["is_active"]
+        exclude = ["is_active", "conditions"]
         widgets = {
             "color": TextInput(attrs={"type": "color", "style": "height:40px;"}),
             "period_in": forms.HiddenInput(),
             "total_days": forms.HiddenInput(),
+            "carryforward_expire_date": forms.DateInput(attrs={"type": "date"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["payment_percentage"].required = False
+
+        # Fields that must always be visible regardless of current value
+        js_managed = {"payment_type", "payment_percentage", "icon", "color", "name"}
+
+        for field_name, field in self.fields.items():
+            if field_name in js_managed:
+                continue
+            if isinstance(field.widget, forms.HiddenInput):
+                continue
+            instance_value = self.instance.__dict__.get(field_name)
+            # For FK fields Django stores the id with _id suffix
+            if instance_value is None:
+                instance_value = self.instance.__dict__.get(f"{field_name}_id")
+            if instance_value is None or instance_value == "":
+                field.widget.attrs["style"] = (
+                    "display:none;width:100%; height:50px;"
+                    "border: 1px solid hsl(213deg,22%,84%);"
+                    "border-radius: 0rem;padding: 0.8rem 1.25rem;"
+                )
+                field.widget.attrs["data-hidden"] = True
+
+        if expire_date := self.instance.carryforward_expire_date:
+            self.fields["carryforward_expire_date"].initial = expire_date
 
     def clean(self):
         cleaned_data = super().clean()
         if "exceed_days" in self.errors:
             del self.errors["exceed_days"]
-        if not cleaned_data["limit_leave"]:
+        if not cleaned_data.get("limit_leave"):
             cleaned_data["total_days"] = LEAVE_MAX_LIMIT
             cleaned_data["reset"] = True
             cleaned_data["reset_based"] = "yearly"
             cleaned_data["reset_month"] = "1"
             cleaned_data["reset_day"] = "1"
 
+        payment_type = cleaned_data.get("payment_type")
+        payment_percentage = cleaned_data.get("payment_percentage")
+        if payment_type == "custom":
+            if payment_percentage is None:
+                self.add_error(
+                    "payment_percentage",
+                    _("Payment percentage is required for Custom payment type."),
+                )
+            elif not (0 <= payment_percentage <= 100):
+                self.add_error(
+                    "payment_percentage",
+                    _("Payment percentage must be between 0 and 100."),
+                )
+        elif payment_type and payment_type != "custom":
+            cleaned_data["payment_percentage"] = None
+
         return cleaned_data
 
     def save(self, *args, **kwargs):
-        leave_type = super().save(*args, **kwargs)
+        return super().save(*args, **kwargs)
 
 
 class LeaveRequestCreationForm(BaseModelForm):
+    cols = {"description": 12}
+    start_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    end_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
 
     def __init__(self, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.fields["attachment"].widget.attrs["accept"] = ".jpg, .jpeg, .png, .pdf"
+        request = getattr(_thread_locals, "request")
+
+        # self.fields["start_date"].widget.attrs.update(
+        #     {
+        #         "onchange": "dateChange($(this))",
+        #     }
+        # )
+
         self.fields["leave_type_id"].widget.attrs.update(
             {
-                "hx-include": "#leaveRequestCreateForm",
-                "hx-target": "#availableLeaveCount",
-                "hx-swap": "outerHTML",
+                "hx-include": "#leaverequestForm",
+                "hx-target": "#createTitle",
+                "hx-swap": "afterend",
                 "hx-trigger": "change",
-                "hx-get": "/leave/employee-available-leave-count",
+                "hx-get": f"/leave/employee-available-leave-count/",
             }
         )
+
         self.fields["employee_id"].widget.attrs.update(
             {
                 "hx-target": "#id_leave_type_id_parent_div",
                 "hx-trigger": "change",
-                "hx-get": "/leave/get-employee-leave-types?form=LeaveRequestCreationForm",
+                "hx-swap": "innerHTML",
+                "hx-get": "/leave/get-employee-leave-types/?form=LeaveRequestCreationForm",
             }
         )
+
         self.fields["start_date"].widget.attrs.update(
             {
-                "hx-include": "#leaveRequestCreateForm",
-                "hx-target": "#availableLeaveCount",
-                "hx-swap": "outerHTML",
+                "hx-include": "#leaverequestForm",
+                "hx-target": "#createTitle",
+                "hx-swap": "afterend",
                 "hx-trigger": "change",
-                "hx-get": "/leave/employee-available-leave-count",
+                "hx-get": f"/leave/employee-available-leave-count/",
             }
         )
 
@@ -271,6 +394,8 @@ class LeaveRequestCreationForm(BaseModelForm):
 
 
 class LeaveRequestUpdationForm(BaseModelForm):
+    start_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    end_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
 
     def __init__(self, *args, **kwargs):
 
@@ -298,14 +423,14 @@ class LeaveRequestUpdationForm(BaseModelForm):
                 "hx-target": "#assinedLeaveAvailableCount",
                 "hx-swap": "outerHTML",
                 "hx-trigger": "change",
-                "hx-get": "/leave/employee-available-leave-count",
+                "hx-get": "/leave/employee-available-leave-count/",
             }
         )
         self.fields["employee_id"].widget.attrs.update(
             {
                 "hx-target": "#id_leave_type_id_parent_div",
                 "hx-trigger": "change",
-                "hx-get": "/leave/get-employee-leave-types?form=LeaveRequestUpdationForm",
+                "hx-get": "/leave/get-employee-leave-types/?form=LeaveRequestUpdationForm",
             }
         )
         self.fields["attachment"].widget.attrs["accept"] = ".jpg, .jpeg, .png, .pdf"
@@ -316,7 +441,7 @@ class LeaveRequestUpdationForm(BaseModelForm):
                 "hx-target": "#assinedLeaveAvailableCount",
                 "hx-swap": "outerHTML",
                 "hx-trigger": "change",
-                "hx-get": "/leave/employee-available-leave-count",
+                "hx-get": "/leave/employee-available-leave-count/",
             }
         )
 
@@ -381,12 +506,14 @@ class LeaveOneAssignForm(SkylinxModelForm):
         - employee_id: A SkylinxMultiSelectField representing the employee to assign leave to.
     """
 
+    cols = {"employee_id": 12}
+
     employee_id = SkylinxMultiSelectField(
         queryset=Employee.objects.all(),
         widget=SkylinxMultiSelectWidget(
             filter_route_name="employee-widget-filter",
             filter_class=EmployeeFilter,
-            filter_instance_contex_name="f",
+            filter_instance_context_name="f",
             filter_template_path="employee_filters.html",
             required=True,
         ),
@@ -428,7 +555,35 @@ class AvailableLeaveUpdateForm(BaseModelForm):
         fields = ["available_days", "carryforward_days", "is_active"]
 
 
+class CompanyLeaveForm(BaseModelForm):
+    """
+    Form for managing company leave data.
+
+    This form allows users to manage company leave data by including all fields from
+    the CompanyLeaves model except for is_active.
+
+    Attributes:
+        - Meta: Inner class defining metadata options.
+            - model: The model associated with the form (CompanyLeaves).
+            - fields: A special value indicating all fields should be included in the form.
+            - exclude: A list of fields to exclude from the form (is_active).
+    """
+
+    cols = {"based_on_week": 12, "based_on_week_day": 12}
+
+    class Meta:
+        """
+        Meta class for additional options
+        """
+
+        model = CompanyLeaves
+        fields = "__all__"
+        exclude = ["is_active"]
+
+
 class UserLeaveRequestForm(BaseModelForm):
+    start_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    end_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
     description = forms.CharField(label=_("Description"), widget=forms.Textarea)
 
     def __init__(self, *args, **kwargs):
@@ -548,6 +703,9 @@ class RejectForm(forms.Form):
 
 
 class UserLeaveRequestCreationForm(BaseModelForm):
+    cols = {"description": 12}
+    start_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    end_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
 
     def as_p(self, *args, **kwargs):
         """
@@ -567,13 +725,14 @@ class UserLeaveRequestCreationForm(BaseModelForm):
                 id__in=available_leaves.values_list("leave_type_id", flat=True)
             )
             self.fields["leave_type_id"].queryset = assigned_leave_types
+
         self.fields["leave_type_id"].widget.attrs.update(
             {
-                "hx-include": "#userLeaveForm",
-                "hx-target": "#availableLeaveCount",
-                "hx-swap": "outerHTML",
+                "hx-include": "#myleaverequestForm",
+                "hx-target": "#createTitle",
+                "hx-swap": "afterend",
                 "hx-trigger": "change",
-                "hx-get": f"/leave/employee-available-leave-count",
+                "hx-get": f"/leave/employee-available-leave-count/",
             }
         )
         self.fields["employee_id"].initial = employee
@@ -612,6 +771,8 @@ class LeaveAllocationRequestForm(BaseModelForm):
         - as_p: Render the form fields as HTML table rows with Bootstrap styling.
     """
 
+    cols = {"description": 12}
+
     def as_p(self, *args, **kwargs):
         """
         Render the form fields as HTML table rows with Bootstrap styling.
@@ -630,8 +791,8 @@ class LeaveAllocationRequestForm(BaseModelForm):
             "leave_type_id",
             "employee_id",
             "requested_days",
-            "description",
             "attachment",
+            "description",
         ]
 
 
@@ -707,7 +868,7 @@ class AssignLeaveForm(SkylinxForm):
             attrs={"class": "oh-select oh-select-2 mb-2", "required": True}
         ),
         empty_label=None,
-        label=_("Leave Type"),
+        label="Leave Type",
         required=False,
     )
     employee_id = SkylinxMultiSelectField(
@@ -715,11 +876,11 @@ class AssignLeaveForm(SkylinxForm):
         widget=SkylinxMultiSelectWidget(
             filter_route_name="employee-widget-filter",
             filter_class=EmployeeFilter,
-            filter_instance_contex_name="f",
+            filter_instance_context_name="f",
             filter_template_path="employee_filters.html",
             required=True,
         ),
-        label=_("Employee"),
+        label="Employee",
     )
 
     def clean(self):
@@ -865,6 +1026,15 @@ class LeaveAllocationCommentForm(BaseModelForm):
 
 
 class RestrictLeaveForm(BaseModelForm):
+
+    cols = {"title": 12, "description": 12}
+    start_date = forms.DateField(
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    end_date = forms.DateField(
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+
     def clean_end_date(self):
         start_date = self.cleaned_data.get("start_date")
         end_date = self.cleaned_data.get("end_date")
@@ -884,12 +1054,18 @@ class RestrictLeaveForm(BaseModelForm):
     def __init__(self, *args, **kwargs):
         super(RestrictLeaveForm, self).__init__(*args, **kwargs)
         self.fields["title"].widget.attrs["autocomplete"] = "title"
+        self.fields["start_date"].widget = forms.DateInput(
+            attrs={"type": "date", "class": "oh-input w-100"}
+        )
+        self.fields["end_date"].widget = forms.DateInput(
+            attrs={"type": "date", "class": "oh-input w-100"}
+        )
         self.fields["department"].widget.attrs.update(
             {
                 "hx-include": "#leaveRestrictForm",
                 "hx-target": "#restrictLeaveJobPosition",
                 "hx-trigger": "change",
-                "hx-get": "/leave/get-restrict-job-positions",
+                "hx-get": "/leave/get-restrict-job-positions/",
             }
         )
 
@@ -907,6 +1083,12 @@ if apps.is_installed("attendance"):
         Methods:
             - as_p: Render the form fields as HTML table rows with Bootstrap styling.
         """
+
+        cols = {
+            "attendance_id": 12,
+            "description": 12,
+            "employee_id": 12,
+        }
 
         class Meta:
             """
@@ -954,9 +1136,10 @@ if apps.is_installed("attendance"):
             self.fields["employee_id"].queryset = queryset
             self.fields["employee_id"].widget.attrs.update(
                 {
-                    "hx-target": "#id_attendance_id_parent_div",
+                    "hx-target": "#dynamic_field_attendance_id",
                     "hx-trigger": "change",
-                    "hx-get": "/leave/get-leave-attendance-dates",
+                    "hx-swap": "innerHTML",
+                    "hx-get": "/leave/get-leave-attendance-dates/",
                 }
             )
 

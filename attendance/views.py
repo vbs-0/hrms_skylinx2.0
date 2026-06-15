@@ -65,7 +65,7 @@ from skylinx.decorators import (
     manager_can_enter,
     permission_required,
 )
-from skylinx.http import SkylinxRedirect
+from skylinx.http.response import SkylinxRedirect
 from notifications.signals import notify
 
 # Create your views here.

@@ -2,15 +2,18 @@ import calendar
 import logging
 import math
 import operator
+import threading
 from datetime import date, datetime, timedelta
 
 from dateutil.relativedelta import relativedelta
 from django.apps import apps
+from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.db import models
 from django.db.models import Q, Sum
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -26,14 +29,19 @@ from base.models import (
 )
 from employee.models import Employee, EmployeeWorkInformation
 from skylinx import skylinx_middlewares
+from skylinx.skylinx_middlewares import _thread_locals
+from skylinx.methods import get_skylinx_model_class
 from skylinx.models import SkylinxModel, upload_path
 from skylinx_audit.methods import get_diff
 from skylinx_audit.models import SkylinxAuditInfo, SkylinxAuditLog
+from skylinx_views.cbv_methods import render_template
 from leave.methods import (
     calculate_requested_days,
     company_leave_dates_list,
+    filter_conditional_leave_request,
     holiday_dates_list,
 )
+from leave.threading import LeaveClashThread
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +122,23 @@ TIME_PERIOD = [("day", _("Day")), ("month", _("Month")), ("year", _("Year"))]
 
 PAYMENT = [("paid", _("Paid")), ("unpaid", _("Unpaid"))]
 
+PAYMENT_TYPE = [
+    ("paid", _("Paid")),
+    ("unpaid", _("Unpaid")),
+    ("custom", _("Custom")),
+]
+
+LEAVE_CONDITION_TYPE = [
+    ("gender", _("Gender")),
+    ("once_per_employment", _("Once Per Employment")),
+    ("marital_status", _("Marital Status")),
+    ("nationality", _("Nationality")),
+    ("department", _("Department")),
+    ("employment_type", _("Employment Type")),
+    ("grade", _("Grade")),
+    ("service_duration", _("Service Duration")),
+]
+
 CARRYFORWARD_TYPE = [
     ("no carryforward", _("No Carry Forward")),
     ("carryforward", _("Carry Forward")),
@@ -154,6 +179,55 @@ WEEK_DAYS = [
     ("5", _("Saturday")),
     ("6", _("Sunday")),
 ]
+
+
+class LeaveTypeCondition(SkylinxModel):
+    """
+    Configurable conditions that restrict leave type assignment to eligible employees.
+    Mirrors the allowance condition pattern for consistency.
+    """
+
+    condition_type = models.CharField(
+        max_length=50,
+        choices=LEAVE_CONDITION_TYPE,
+        verbose_name=_("Condition Type"),
+    )
+    value = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        verbose_name=_("Value"),
+        help_text=_("Required for value-based conditions such as gender"),
+    )
+
+    objects = models.Manager()
+
+    class Meta:
+        ordering = ["-id"]
+        verbose_name = _("Leave Type Condition")
+        verbose_name_plural = _("Leave Type Conditions")
+
+    def __str__(self):
+        label = dict(LEAVE_CONDITION_TYPE).get(self.condition_type, self.condition_type)
+        if self.value:
+            return f"{label}: {self.value}"
+        return str(label)
+
+    def clean(self):
+        super().clean()
+        value_required_types = {
+            "gender",
+            "marital_status",
+            "nationality",
+            "department",
+            "employment_type",
+            "grade",
+            "service_duration",
+        }
+        if self.condition_type in value_required_types and not self.value:
+            raise ValidationError(
+                {"value": _("A value is required for the selected condition type.")}
+            )
 
 
 class LeaveType(SkylinxModel):
@@ -242,6 +316,34 @@ class LeaveType(SkylinxModel):
     company_id = models.ForeignKey(
         Company, null=True, blank=True, on_delete=models.PROTECT
     )
+    payment_type = models.CharField(
+        max_length=20,
+        choices=PAYMENT_TYPE,
+        null=True,
+        blank=True,
+        verbose_name=_("Payment Type"),
+        help_text=_(
+            "Specifies how leave days are paid: fully, half, unpaid, or custom percentage"
+        ),
+    )
+    payment_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=_("Payment Percentage"),
+        help_text=_(
+            "Percentage of salary paid during leave (0–100). Used only when Payment Type is Custom."
+        ),
+    )
+    conditions = models.ManyToManyField(
+        LeaveTypeCondition,
+        blank=True,
+        verbose_name=_("Conditions"),
+        help_text=_(
+            "Eligibility conditions evaluated before assigning this leave type to an employee"
+        ),
+    )
     objects = SkylinxCompanyManager(related_company_field="company_id")
 
     class Meta:
@@ -262,7 +364,7 @@ class LeaveType(SkylinxModel):
     def leave_type_next_reset_date(self):
         today = datetime.now().date()
 
-        if not self.reset:
+        if not self.reset or not self.reset_day:
             return None
 
         def get_reset_day(month, day):
@@ -315,17 +417,6 @@ class LeaveType(SkylinxModel):
 
         return expired_date
 
-    def clean(self, *args, **kwargs):
-        if self.is_compensatory_leave:
-            if (
-                LeaveType.objects.filter(is_compensatory_leave=True)
-                .exclude(pk=self.pk)
-                .exists()
-            ):
-                raise ValidationError(
-                    {"name": _("Compensatory Leave Request already exists.")}
-                )
-
     def save(self, *args, **kwargs):
         request = getattr(skylinx_middlewares._thread_locals, "request", None)
         selected_company = request.session.get("selected_company")
@@ -360,6 +451,166 @@ class LeaveType(SkylinxModel):
     def __str__(self):
         return self.name
 
+    def leave_list_actions(self):
+        """
+        actions for list view
+        """
+
+        return render_template(
+            path="cbv/leave_types/leave_type_list_actions.html",
+            context={"instance": self},
+        )
+
+    def leave_detail_reset(self):
+        """
+        reset col in detail view
+        """
+        return render_template(
+            path="cbv/leave_types/leave_detail_reset.html", context={"instance": self}
+        )
+
+    def leave_detail_carryforward(self):
+        """
+        carryforward col in detail view
+        """
+        return render_template(
+            path="cbv/leave_types/leave_detail_carryforward.html",
+            context={"instance": self},
+        )
+
+    def get_create_url(self):
+        """
+        This method to get create url
+        """
+
+        url = reverse_lazy("type-creation")
+        return url
+
+    def get_assign_url(self):
+        """
+        This method to get assign url
+        """
+
+        url = reverse_lazy("assign-one", kwargs={"pk": self.pk})
+        return url
+
+    def get_update_url(self):
+        """
+        for to get update url
+        """
+
+        url = reverse_lazy("type-update", kwargs={"id": self.pk})
+        return url
+
+    def get_delete_url(self):
+        """
+        This method to get delete url
+        """
+        url = reverse_lazy("generic-delete")
+
+        return url
+
+    # def get_delete_url(self):
+    #     """
+    #     for to get delete url
+    #     """
+
+    #     url = reverse_lazy("type-delete", kwargs={"obj_id": self.pk})
+    #     message = "Are you sure you want to delete this leave type?"
+    #     return f"'{url}'" + "," + f"'{message}'"
+
+    def leave_detail_view(self):
+        """
+        detail view
+        """
+
+        url = reverse("leave-type-detail-view", kwargs={"pk": self.pk})
+        return url
+
+    def encashable(self):
+        return _("Yes") if self.is_encashable else _("No")
+
+    def approval_display(self):
+        yes = str(_("Yes"))
+        no = str(_("No"))
+        if self.require_approval == "yes":
+            return f'<span class="oh-badge oh-badge--info">{yes}</span>'
+        return f'<span class="oh-badge oh-badge--secondary">{no}</span>'
+
+    def carryforward_display(self):
+        return dict(CARRYFORWARD_TYPE).get(self.carryforward_type, "—")
+
+    def detail_view_actions(self):
+        """
+        detail view actions
+        """
+        return render_template(
+            path="cbv/leave_types/detail_actions.html", context={"instance": self}
+        )
+
+    def get_payment_percentage(self):
+        """
+        Returns the effective payment percentage (0–100) based on payment_type.
+        Falls back to legacy payment field for backward compatibility.
+        """
+        if self.payment_type:
+            mapping = {"paid": 100.0, "unpaid": 0.0}
+            if self.payment_type == "custom":
+                return float(self.payment_percentage or 0)
+            return mapping.get(self.payment_type, 0.0)
+        # backward-compat: legacy paid/unpaid values
+        return 100.0 if self.payment == "paid" else 0.0
+
+    def payment_type_display(self):
+        """
+        Human-readable payment description including percentage.
+        """
+        if self.payment_type:
+            label = dict(PAYMENT_TYPE).get(self.payment_type, self.payment_type)
+            pct = self.get_payment_percentage()
+            return f"{label} ({pct:.0f}%)"
+        return dict(PAYMENT).get(self.payment, self.payment)
+
+    def conditions_display(self):
+        """
+        Renders configured conditions as a template column for the detail view.
+        """
+        return render_template(
+            path="cbv/leave_types/conditions_display.html",
+            context={"instance": self},
+        )
+
+    def clean(self, *args, **kwargs):
+        super().clean(self)
+        if self.is_compensatory_leave:
+            if (
+                LeaveType.objects.filter(is_compensatory_leave=True)
+                .exclude(pk=self.pk)
+                .exists()
+            ):
+                raise ValidationError(
+                    {"name": _("Compensatory Leave Request already exists.")}
+                )
+        if self.payment_type == "custom":
+            if self.payment_percentage is None:
+                raise ValidationError(
+                    {
+                        "payment_percentage": _(
+                            "Payment percentage is required for Custom payment type."
+                        )
+                    }
+                )
+            if not (0 <= self.payment_percentage <= 100):
+                raise ValidationError(
+                    {
+                        "payment_percentage": _(
+                            "Payment percentage must be between 0 and 100."
+                        )
+                    }
+                )
+        elif self.payment_type and self.payment_type != "custom":
+            self.payment_percentage = None
+
 
 class Holiday(SkylinxModel):
     name = models.CharField(max_length=30, null=False, verbose_name=_("Name"))
@@ -373,6 +624,39 @@ class Holiday(SkylinxModel):
 
     def __str__(self):
         return self.name
+
+    def detail_view(self):
+        """
+        detail view
+        """
+
+        url = reverse("holiday-detail-view", kwargs={"pk": self.pk})
+        return url
+
+    def detail_view_actions(self):
+        """
+        detail view actions
+        """
+        return render_template(
+            path="cbv/holidays/detail_view_actions.html",
+            context={"instance": self},
+        )
+
+    def get_recurring_status(self):
+        """
+        recurring data
+        """
+        return _("Yes") if self.recurring else _("No")
+
+    def holidays_actions(self):
+        """
+        method for rendering actions(edit,delete)
+        """
+
+        return render_template(
+            path="cbv/holidays/holidays_actions.html",
+            context={"instance": self},
+        )
 
 
 class CompanyLeave(SkylinxModel):
@@ -390,6 +674,76 @@ class CompanyLeave(SkylinxModel):
 
     def __str__(self):
         return f"{dict(WEEK_DAYS).get(self.based_on_week_day)} | {dict(WEEKS).get(self.based_on_week)}"
+
+    def custom_based_on_week(self):
+        """
+        custom based on col
+        """
+
+        return render_template(
+            path="cbv/company_leaves/on_week.html",
+            context={"instance": self, "weeks": WEEKS},
+        )
+
+    def get_detail_title(self):
+        """
+        for return title
+        """
+
+        title = "Company Leaves"
+        return title
+
+    def detail_view_actions(self):
+        """
+        detail view actions
+        """
+        return render_template(
+            path="cbv/company_leaves/detail_view_actions.html",
+            context={"instance": self},
+        )
+
+    def based_on_week_day_col(self):
+        """
+        custom based on week day col
+        """
+
+        return render_template(
+            path="cbv/company_leaves/on_week_day.html",
+            context={"instance": self, "week_days": WEEK_DAYS},
+        )
+
+    def company_leave_actions(self):
+        """
+        custom actions col
+        """
+
+        return render_template(
+            path="cbv/company_leaves/company_leave_actions.html",
+            context={"instance": self, "weeks": WEEKS},
+        )
+
+    def detail_view(self):
+        """
+        detail view
+        """
+
+        url = reverse("company-leave-detail-view", kwargs={"pk": self.pk})
+        return url
+
+    def get_avatar(self):
+        """
+        Method will rerun the api to the avatar or path to the profile image
+        """
+        url = (
+            f"https://ui-avatars.com/api/?name={self.get_full_name()}&background=random"
+        )
+        if self.profile:
+            full_filename = settings.MEDIA_ROOT + self.profile.name
+
+            if default_storage.exists(full_filename):
+                url = self.profile.url
+
+        return url
 
 
 class AvailableLeave(SkylinxModel):
@@ -437,35 +791,71 @@ class AvailableLeave(SkylinxModel):
     def __str__(self):
         return f"{self.employee_id} | {self.leave_type_id}"
 
+    def assigned_leave_actions(self):
+        """
+        method for edit and delete actions coloumn
+        """
+        return render_template(
+            path="cbv/assigned_leave/assigned_leave_actions.html",
+            context={"instance": self},
+        )
+
+    def assigned_leave_detail_actions(self):
+        """
+        method for detail view edit and delete actions
+        """
+        return render_template(
+            path="cbv/assigned_leave/assigned_leave_detail_actions.html",
+            context={"instance": self},
+        )
+
+    def assigned_leave_detail_view(self):
+        """
+        detail view
+        """
+        url = reverse("available-leave-single-view", kwargs={"pk": self.pk})
+        return url
+
+    def assigned_leave_detail_name_subtitle(self):
+        """
+        Return subtitle containing both name and emp id.
+        """
+        return f"{self.employee_id}"
+
+    def assigned_leave_detail_postion_subtitle(self):
+        """
+        Return subtitle containing both department and job position information.
+        """
+        return f"{self.employee_id.get_department()} / {self.employee_id.get_job_position()}"
+
+    def forcasted_leaves(self):
+        forecasted_leave = {}
+        if self.leave_type_id.reset_based == "monthly":
+            today = datetime.now()
+            for i in range(1, 7):  # Calculate for the next 6 months
+                next_month = today + relativedelta(months=i)
+                if self.leave_type_id.carryforward_max:
+                    forecasted_leave[next_month.strftime("%Y-%m")] = (
+                        self.available_days
+                        + min(
+                            self.leave_type_id.carryforward_max,
+                            (self.leave_type_id.total_days * i),
+                        )
+                    )
+                else:
+                    forecasted_leave[next_month.strftime("%Y-%m")] = (
+                        self.available_days + (self.leave_type_id.total_days * i)
+                    )
+        return forecasted_leave
+
     def forcasted_leaves(self, date):
         if isinstance(date, str):
             date = datetime.strptime(date, "%Y-%m-%d").date()
-
-        if self.leave_type_id.reset_based != "monthly":
-            # For non-monthly resets, use original logic
-            next_reset_date = self.leave_type_id.leave_type_next_reset_date()
-            if next_reset_date and next_reset_date <= date:
-                return self.leave_type_id.total_days
-            return 0
-
-        # For monthly resets, count how many resets occur up to the given date,
-        # starting from the next scheduled reset date (not from today).
-
         next_reset_date = self.leave_type_id.leave_type_next_reset_date()
+        if next_reset_date and next_reset_date <= date:
+            return self.leave_type_id.total_days
 
-        if not next_reset_date:
-            return 0
-
-        reset_count = 0
-        for i in range(13):  # Check up to 12 months of resets
-            reset_date = next_reset_date + relativedelta(months=i)
-            if reset_date <= date:
-                reset_count += 1
-            else:
-                break
-
-        # Return total forecasted days from all resets
-        return self.leave_type_id.total_days * reset_count
+        return 0
 
     # Resetting carryforward days
 
@@ -700,7 +1090,6 @@ class LeaveRequest(SkylinxModel):
     created_by = models.ForeignKey(
         Employee,
         on_delete=models.PROTECT,
-        blank=True,
         null=True,
         related_name="leave_request_created",
         verbose_name=_("Created By"),
@@ -711,8 +1100,310 @@ class LeaveRequest(SkylinxModel):
 
     class Meta:
         ordering = ["-id"]
-        verbose_name = "Leave Request"
-        verbose_name_plural = "Leave Requests"
+        verbose_name = _("Leave Request")
+        verbose_name_plural = _("Leave Requests")
+        permissions = (("can_view_on_leave", "Can View On Leave"),)
+
+    def comment_action(self):
+        """
+        method for rendering comment action
+        """
+
+        return render_template(
+            path="cbv/my_leave_request/comment.html",
+            context={"instance": self},
+        )
+
+    def cancel_confirmation_action(self):
+        """
+        method for rendering cancel action
+        """
+
+        current_date = date.today()
+        return render_template(
+            path="cbv/my_leave_request/confirm_cancel.html",
+            context={"instance": self, "current_date": current_date},
+        )
+
+    def leave_actions(self):
+        """
+        method for rendering cancel action
+        """
+
+        return render_template(
+            path="cbv/my_leave_request/leave_actions.html",
+            context={"instance": self},
+        )
+
+    def detail_leave_actions(self):
+        """
+        method for rendering detail view action
+        """
+
+        return render_template(
+            path="cbv/my_leave_request/detail_leave_actions.html",
+            context={"instance": self},
+        )
+
+    def get_period(self):
+
+        return f"{self.start_date} to {self.end_date}"
+
+    def clashed_due_to(self):
+        """
+        method for rendering clashed_due_to col in clashes
+        """
+        overlapping_requests = LeaveRequest.objects.filter(
+            Q(
+                employee_id__employee_work_info__department_id=self.employee_id.get_department()
+            )
+            | Q(
+                employee_id__employee_work_info__job_position_id=self.employee_id.get_job_position()
+            ),
+            start_date__lte=self.end_date,
+            end_date__gte=self.start_date,
+        )
+
+        clashed_due_to_department = overlapping_requests.filter(
+            employee_id__employee_work_info__department_id=self.employee_id.get_department()
+        )
+        clashed_due_to_job_position = overlapping_requests.filter(
+            employee_id__employee_work_info__job_position_id=self.employee_id.get_job_position()
+        )
+
+        return render_template(
+            path="cbv/leave_requests/clashed_due_to.html",
+            context={
+                "instance": self,
+                "clashed_due_to_department": clashed_due_to_department,
+                "clashed_due_to_job_position": clashed_due_to_job_position,
+            },
+        )
+
+    def leave_type_custom(self):
+        """
+        leave type custom col
+        """
+        leave_requests_with_interview = []
+        context = {"instance": self}
+        if apps.is_installed("recruitment"):
+            Schedule = get_skylinx_model_class(
+                app_label="recruitment", model="interviewschedule"
+            )
+            interviews = Schedule.objects.filter(
+                employee_id=self.employee_id,
+                interview_date__range=[
+                    self.start_date,
+                    self.end_date,
+                ],
+            )
+            if interviews:
+                leave_requests_with_interview.append(interviews)
+
+            context = {
+                "instance": self,
+                "leave_requests_with_interview": leave_requests_with_interview,
+            }
+        return render_template(
+            path="cbv/my_leave_request/leave_type_col.html", context=context
+        )
+
+    def is_rejected(self):
+        """
+        method to change background if they are rejected
+        """
+
+        if self.status == "rejected":
+            return 'style="background-color: rgba(255, 166, 0, 0.158);"'
+
+    def my_leave_request_detail_subtitle(self):
+        """
+        Return subtitle containing both department and job position information.
+        """
+        return f"{self.employee_id.get_department()} / {self.employee_id.get_job_position()}"
+
+    def my_leave_request_detail_view(self):
+        """
+        detail view
+        """
+        url = reverse("my-leave-request-detail-view", kwargs={"pk": self.pk})
+        return url
+
+    def rejected_action(self):
+        """
+        method for rendering rejected action
+        """
+
+        return render_template(
+            path="cbv/my_leave_request/rejected_action.html",
+            context={"instance": self},
+        )
+
+    def cancelled_action(self):
+        """
+        method for rendering cancelled action
+        """
+
+        return render_template(
+            path="cbv/my_leave_request/cancelled_action.html",
+            context={"instance": self},
+        )
+
+    def attachment_action(self):
+        """
+        method for rendering attachment action
+        """
+
+        return render_template(
+            path="cbv/my_leave_request/attachment_action.html",
+            context={"instance": self},
+        )
+
+    def multiple_approval_action(self):
+        """
+        method for rendering multiple approval action
+        """
+
+        return render_template(
+            path="cbv/leave_requests/multiple_approval_action.html",
+            context={"instance": self},
+        )
+
+    def custom_status_col(self):
+        """
+        method for rendering custom status col
+        """
+        request = getattr(_thread_locals, "request")
+        multiple_approvals = filter_conditional_leave_request(request).distinct()
+
+        return render_template(
+            path="cbv/leave_requests/custom_status_col.html",
+            context={"instance": self, "multiple_approvals": multiple_approvals},
+        )
+
+    def leave_request_detail_action(self):
+        """
+        method for rendering detail view action
+        """
+
+        return render_template(
+            path="cbv/leave_requests/leave_request_detail_actions.html",
+            context={"instance": self},
+        )
+
+    def comment_sidebar(self):
+        """
+        method for comment sidebar
+        """
+        return render_template(
+            path="cbv/leave_requests/comment_action.html",
+            context={"instance": self},
+        )
+
+    def leave_clash_col(self):
+        """
+        method for leave clash coloumn
+        """
+        return render_template(
+            path="cbv/leave_requests/leave_clash.html",
+            context={"instance": self},
+        )
+
+    def penality_col(self):
+        """
+        method for penality coloumn
+        """
+        return render_template(
+            path="cbv/leave_requests/penality.html",
+            context={"instance": self},
+        )
+
+    def actions_col(self):
+        """
+        method for actions coloumn
+        """
+        current_date = date.today()
+        return render_template(
+            path="cbv/leave_requests/actions_col.html",
+            context={
+                "instance": self,
+                "current_date": current_date,
+            },
+        )
+
+    def confirmation_col(self):
+        """
+        method for confirmation button coloumn
+        """
+        current_date = date.today()
+
+        return render_template(
+            path="cbv/leave_requests/confirmation.html",
+            context={
+                "instance": self,
+                "current_date": current_date,
+                "end_date": self.end_date,
+            },
+        )
+
+    def is_attendance_request_cancelled(self):
+        """
+        method to change background if they are cancelled
+        """
+
+        if self.status == "cancelled":
+            return 'style="background-color: lightgrey"'
+
+    def leave_requests_detail_view(self):
+        """
+        detail view
+        """
+        url = reverse("leave-requests-detail-view", kwargs={"pk": self.pk})
+        return url
+
+    def leave_requests_detail_view_actions(self):
+        """
+        method for detail view actions coloumn
+        """
+        current_date = date.today()
+        return render_template(
+            path="cbv/leave_requests/leave_request_detail_actions.html",
+            context={"instance": self, "current_date": current_date},
+        )
+
+    def leave_requests_custom_emp_col(self):
+        """
+        custom emp col in leave requests
+        """
+        leave_requests_with_interview = []
+        context = {"instance": self}
+        if apps.is_installed("recruitment"):
+            Schedule = get_skylinx_model_class(
+                app_label="recruitment", model="interviewschedule"
+            )
+            interviews = Schedule.objects.filter(
+                employee_id=self.employee_id,
+                interview_date__range=[
+                    self.start_date,
+                    self.end_date,
+                ],
+            )
+            if interviews:
+                leave_requests_with_interview.append(interviews)
+            context = {
+                "instance": self,
+                "leave_requests_with_interview": leave_requests_with_interview,
+            }
+
+        return render_template(
+            path="cbv/leave_requests/leave_request_emp_col.html", context=context
+        )
+
+    def leave_requests_detail_subtitle(self):
+        """
+        Return subtitle containing both name and emp id.
+        """
+        return f"{self.employee_id}"
 
     def tracking(self):
         return get_diff(self)
@@ -734,7 +1425,7 @@ class LeaveRequest(SkylinxModel):
         """
         today = date.today() if today is None else today
         queryset = LeaveRequest.objects.filter(
-            start_date__lte=today, end_date__gte=today
+            start_date__lte=today, end_date__gte=today, is_active=True
         )
 
         if status is not None:
@@ -853,7 +1544,6 @@ class LeaveRequest(SkylinxModel):
         return overlapping_requests
 
     def save(self, *args, **kwargs):
-
         self.requested_days = calculate_requested_days(
             self.start_date,
             self.end_date,
@@ -1074,6 +1764,7 @@ class LeaveRequest(SkylinxModel):
         total_leave_count = sum(
             requested_date in total_leaves for requested_date in requested_dates
         )
+
         if (self.start_date in total_leaves or self.end_date in total_leaves) and (
             self.start_date_breakdown == "second_half"
             or self.end_date_breakdown == "first_half"
@@ -1173,6 +1864,9 @@ class LeaveRequest(SkylinxModel):
         """
         leave_requests_to_update = LeaveRequest.objects.exclude(
             Q(id=self.id) | Q(status="cancelled") | Q(status="rejected")
+        ).filter(
+            Q(start_date__lte=self.end_date)
+            & (Q(end_date__gte=self.start_date) | Q(end_date__isnull=True))
         )
 
         for leave_request in leave_requests_to_update:
@@ -1195,14 +1889,14 @@ class LeaveRequest(SkylinxModel):
                 .filter(
                     (
                         Q(
-                            employee_id__employee_work_info__department_id=self.employee_id.employee_work_info.department_id
+                            employee_id__employee_work_info__department_id=self.employee_id.get_department()
                         )
                         | Q(
-                            employee_id__employee_work_info__job_position_id=self.employee_id.employee_work_info.job_position_id
+                            employee_id__employee_work_info__job_position_id=self.employee_id.get_job_position()
                         )
                     )
                     & Q(
-                        employee_id__employee_work_info__company_id=self.employee_id.employee_work_info.company_id
+                        employee_id__employee_work_info__company_id=self.employee_id.get_company()
                     ),
                     start_date__lte=self.end_date,
                     end_date__gte=self.start_date,
@@ -1243,17 +1937,17 @@ class LeaveAllocationRequest(SkylinxModel):
         blank=True, null=True, verbose_name=_("Requested days")
     )
     requested_date = models.DateField(default=timezone.now)
-    description = models.TextField(max_length=255, verbose_name=_("Description"))
     attachment = models.FileField(
         null=True,
         blank=True,
         upload_to=upload_path,
         verbose_name=_("Attachment"),
     )
+    description = models.TextField(verbose_name=_("Description"))
     status = models.CharField(
         max_length=30, choices=LEAVE_ALLOCATION_STATUS, default="requested"
     )
-    reject_reason = models.TextField(blank=True, max_length=255)
+    reject_reason = models.TextField(blank=True)
     history = SkylinxAuditLog(
         related_name="history_set",
         bases=[
@@ -1274,6 +1968,14 @@ class LeaveAllocationRequest(SkylinxModel):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
+
+    def clean(self, *args, **kwargs):
+        if self.status != "requested":
+            raise ValidationError(
+                _(
+                    "This form cannot be edited because the status is Requested / Rejected."
+                )
+            )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1296,6 +1998,116 @@ class LeaveAllocationRequest(SkylinxModel):
                             return update
         except:
             return None
+
+    def get_status(self):
+        """
+        Display status
+        """
+        return dict(LEAVE_ALLOCATION_STATUS).get(self.status)
+
+    def comment(self):
+        """
+        For comment column
+        """
+
+        return render_template(
+            path="cbv/leave_allocation_request/comment.html",
+            context={"instance": self},
+        )
+
+    def action_col(self):
+        """
+        For action column
+        """
+
+        return render_template(
+            path="cbv/leave_allocation_request/action_column.html",
+            context={"instance": self},
+        )
+
+    def detail_action(self):
+        """
+        For action column
+        """
+
+        return render_template(
+            path="cbv/leave_allocation_request/detail_action.html",
+            context={"instance": self},
+        )
+
+    def leave_detail_action(self):
+        """
+        For action column
+        """
+
+        return render_template(
+            path="cbv/leave_allocation_request/leave_detail_action.html",
+            context={"instance": self},
+        )
+
+    def attachment_col(self):
+        """
+        For attachment column
+        """
+
+        return render_template(
+            path="cbv/leave_allocation_request/attachment.html",
+            context={"instance": self},
+        )
+
+    def history_col(self):
+        """
+        For history column
+        """
+
+        return render_template(
+            path="cbv/leave_allocation_request/history.html",
+            context={"instance": self},
+        )
+
+    def reject_col(self):
+        """
+        For rejeect column
+        """
+
+        return render_template(
+            path="cbv/leave_allocation_request/reject.html",
+            context={"instance": self},
+        )
+
+    def confirm_col(self):
+        """
+        For action column
+        """
+
+        return render_template(
+            path="cbv/leave_allocation_request/confirmations.html",
+            context={"instance": self},
+        )
+
+    def diff_cell(self):
+        if self.status == "rejected":
+            return 'style="background-color: rgba(255, 166, 0, 0.158);"'
+
+    def leave_request_allocation_detail_subtitle(self):
+        """
+        Return subtitle containing both department and job position information.
+        """
+        return f"{self.employee_id.get_department()} / {self.employee_id.get_job_position()}"
+
+    def leave_request_allocation_detail_view(self):
+        """
+        detail view
+        """
+        url = reverse("detail-leave-allocation-request", kwargs={"pk": self.pk})
+        return url
+
+    def detail_view_leave_request_allocation(self):
+        """
+        detail view
+        """
+        url = reverse("leave-allocation-request-detail-view", kwargs={"pk": self.pk})
+        return url
 
 
 class LeaveallocationrequestComment(SkylinxModel):
@@ -1355,9 +2167,7 @@ class RestrictLeave(SkylinxModel):
         help_text=_("Choose leave types to exclude from restriction."),
     )
 
-    description = models.TextField(
-        null=True, verbose_name=_("Description"), max_length=255
-    )
+    description = models.TextField(null=True, verbose_name=_("Description"))
     company_id = models.ForeignKey(
         Company,
         null=True,
@@ -1369,6 +2179,50 @@ class RestrictLeave(SkylinxModel):
 
     def __str__(self) -> str:
         return f"{self.title}"
+
+    def job_position_col(self):
+        """
+        For job position column
+        """
+
+        return render_template(
+            path="cbv/restricted_days/job_position.html",
+            context={"instance": self},
+        )
+
+    def actions_col(self):
+        """
+        For action column
+        """
+
+        return render_template(
+            path="cbv/restricted_days/actions.html",
+            context={"instance": self},
+        )
+
+    def detail_action(self):
+        """
+        For action column
+        """
+
+        return render_template(
+            path="cbv/restricted_days/detail_action.html",
+            context={"instance": self},
+        )
+
+    def get_avatar(self):
+        """
+        Method will retun the api to the avatar or path to the profile image
+        """
+        url = f"https://ui-avatars.com/api/?name={self.title}&background=random"
+        return url
+
+    def restricted_days_detail_view(self):
+        """
+        detail view
+        """
+        url = reverse("restricted-days-detail-view", kwargs={"pk": self.pk})
+        return url
 
 
 if apps.is_installed("attendance"):
@@ -1403,6 +2257,121 @@ if apps.is_installed("attendance"):
 
         class Meta:
             ordering = ["-id"]
+
+        def status_display(self):
+            """
+            status
+            """
+            return dict(LEAVE_ALLOCATION_STATUS).get(self.status)
+
+        def compensatory_comment(self):
+            """
+            comment sidebar col
+            """
+            return render_template(
+                path="cbv/compensatory_leave/compensatory_comment.html",
+                context={"instance": self},
+            )
+
+        def compensatory_date(self):
+            """
+            date col
+            """
+            return render_template(
+                path="cbv/compensatory_leave/custom_date.html",
+                context={"instance": self},
+            )
+
+        def compensatory_options(self):
+            """
+            edit and delete options
+            """
+            return render_template(
+                path="cbv/compensatory_leave/compensatory_actions.html",
+                context={"instance": self},
+            )
+
+        def compensatory_confirm_actions(self):
+            """
+            approve and reject options
+            """
+            return render_template(
+                path="cbv/compensatory_leave/compensatory_confirmation.html",
+                context={"instance": self},
+            )
+
+        def compensatory_detail_name_subtitle(self):
+            """
+            Return subtitle containing both name and emp id.
+            """
+            return f"{self.employee_id}"
+
+        def compensatory_detail_subtitle(self):
+            """
+            Return subtitle containing both department and job position information.
+            """
+            return f"{self.employee_id.get_department()} / {self.employee_id.get_job_position()}"
+
+        def my_compensatory_detail_actions(self):
+            """
+            my compensatory detail view actions
+            """
+            return render_template(
+                path="cbv/compensatory_leave/my_compensatory_detail_action.html",
+                context={"instance": self},
+            )
+
+        def compensatory_detail_actions(self):
+            """
+            compensatory detail view actions
+            """
+            return render_template(
+                path="cbv/compensatory_leave/compensatory_detail_actions.html",
+                context={"instance": self},
+            )
+
+        def compensatory_detail_reject_reason(self):
+            """
+            compensatory reject reason in detail view
+            """
+            return render_template(
+                path="cbv/compensatory_leave/detail_reject_reason.html",
+                context={"instance": self},
+            )
+
+        def my_compensatory_detail_view(self):
+            """
+            detail view of my compensatory tab
+            """
+            url = reverse("my-compensatory-detail-view", kwargs={"pk": self.pk})
+            return url
+
+        def compensatory_detail_view(self):
+            """
+            detail view of compensatory tab
+            """
+            url = reverse("compensatory-detail-view", kwargs={"pk": self.pk})
+            return url
+
+        def is_compensatory_request_rejected(self):
+            """
+            method to change background if they are rejected
+            """
+            hovering = "lightgrey"
+            if self.status == "rejected":
+                return (
+                    f'style="background-color: rgba(255, 166, 0, 0.158);"'
+                    f"onmouseover=\"this.style.backgroundColor='{hovering}';\" "
+                    f"onmouseout=\"this.style.backgroundColor='rgba(255, 166, 0, 0.158)';\""
+                )
+
+        def assign_compensatory_leave_type(self):
+            available_leave, created = AvailableLeave.objects.get_or_create(
+                employee_id=self.employee_id,
+                leave_type_id=self.leave_type_id,
+            )
+            available_leave.available_days += self.requested_days
+            available_leave.save()
 
         def __str__(self):
             return f"{self.employee_id}| {self.leave_type_id}| {self.id}"
@@ -1448,7 +2417,7 @@ class LeaveGeneralSetting(SkylinxModel):
     """
 
     compensatory_leave = models.BooleanField(default=True)
-    objects = models.Manager()
+    objects = SkylinxCompanyManager(related_company_field="company_id")
     company_id = models.ForeignKey(Company, on_delete=models.CASCADE, null=True)
 
 

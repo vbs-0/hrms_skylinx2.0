@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Skylinx Community Support
-    url: https://github.com/skylinx/skylinx-hrms/discussions
+    url: https://github.com/skylinx-opensource/skylinx/discussions
     about: Ask questions or discuss features here
   - name: Documentation
-    url: https://skylinx.github.io/skylinx-docs/
+    url: https://skylinx-opensource.github.io/skylinx-docs/
     about: Check the official Skylinx documentation

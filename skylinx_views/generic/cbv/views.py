@@ -7,7 +7,7 @@ import json
 import logging
 import traceback
 from typing import Any
-from urllib.parse import parse_qs, urlencode
+from urllib.parse import parse_qs, parse_qsl, urlencode, urlparse, urlunparse
 
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -28,7 +28,14 @@ from django.utils.translation import gettext_lazy as _
 from django.views.generic import DetailView, FormView, ListView, TemplateView
 from xhtml2pdf import pisa
 
-from base.methods import closest_numbers, eval_validate, get_key_instances
+from base.methods import (
+    closest_numbers,
+    eval_validate,
+    get_key_instances,
+    get_pagination,
+)
+
+# from skylinx.http import SkylinxRedirect
 from skylinx.filters import FilterSet
 from skylinx.group_by import group_by_queryset
 from skylinx.skylinx_middlewares import _thread_locals
@@ -42,6 +49,7 @@ from skylinx_views.cbv_methods import (  # update_initial_cache,
     get_short_uuid,
     get_verbose_name_from_field_path,
     hx_request_required,
+    login_required,
     paginator_qry,
     sortby,
     split_by_import_reference,
@@ -67,7 +75,6 @@ class SkylinxListView(ListView):
     export_file_name: str = "quick_export"
     export_formats: list = [
         ("xlsx", "Excel"),
-        ("json", "Json"),
         ("csv", "CSV"),
         ("pdf", "PDF"),
     ]
@@ -76,6 +83,7 @@ class SkylinxListView(ListView):
     context_object_name = "queryset"
     # column = [("Verbose Name","field_name","avatar_mapping")], opt: avatar_mapping
     columns: list = []
+    export_columns = []
     default_columns: list = []
     search_url: str = ""
     bulk_select_option: bool = True
@@ -132,7 +140,7 @@ class SkylinxListView(ListView):
     show_toggle_form: bool = True
     filter_keys_to_remove: list = []
 
-    records_per_page: int = 50
+    records_per_page: int = 0
     export_fields: list = []
     verbose_name: str = ""
     bulk_update_fields: list = []
@@ -154,12 +162,6 @@ class SkylinxListView(ListView):
 
         return view
 
-    def post(self, *args, **kwargs):
-        """
-        POST method to handle post submissions
-        """
-        return self.get(self, *args, **kwargs)
-
     def __init__(self, **kwargs: Any) -> None:
         if not self.view_id:
             self.view_id = get_short_uuid(4)
@@ -169,13 +171,166 @@ class SkylinxListView(ListView):
         request = getattr(_thread_locals, "request", None)
         self.request = request
 
+    def post(self, *args, **kwargs):
+        """
+        POST method to handle post submissions
+        """
+        return self.get(self, *args, **kwargs)
+
+    def get_queryset(self, queryset=None, filtered=False, *args, **kwargs):
+        if not self.queryset:
+            self.queryset = super().get_queryset() if not queryset else queryset
+            self._saved_filters = QueryDict("", mutable=True)
+            if self.filter_class:
+                query_dict = self.request.GET
+                selected_ids = eval_validate(
+                    self.request.POST.get("selected_ids", "[]")
+                )
+
+                if (
+                    self.request.session.get("prev_path")
+                    and self.request.session.get("prev_path") != self.request.path
+                ):
+                    selected_ids = []
+                    self.request.session["hlv_selected_ids"] = selected_ids
+                    self.request.session["prev_path"] = self.request.path
+
+                if selected_ids and selected_ids != self.request.session.get(
+                    "hlv_selected_ids", []
+                ):
+                    self.request.session["hlv_selected_ids"] = selected_ids
+                    self.request.session["prev_path"] = self.request.path
+
+                if "filter_applied" in query_dict.keys():
+                    update_saved_filter_cache(self.request, CACHE)
+                elif CACHE.get(
+                    str(self.request.session.session_key) + self.request.path + "cbv"
+                ):
+                    query_dict = CACHE.get(
+                        str(self.request.session.session_key)
+                        + self.request.path
+                        + "cbv"
+                    )["query_dict"]
+
+                default_filter = models.SavedFilter.objects.filter(
+                    path=self.request.path,
+                    created_by=self.request.user,
+                    is_default=True,
+                ).first()
+                if not bool(query_dict) and default_filter:
+                    data = eval_validate(default_filter.filter)
+                    query_dict = QueryDict("", mutable=True)
+                    for key, value in data.items():
+                        query_dict[key] = value
+
+                    query_dict._mutable = False
+                self._saved_filters = query_dict
+                self.request.exclude_filter_form = True
+                if not filtered:
+                    self.queryset = self.filter_class(
+                        data=query_dict, queryset=self.queryset, request=self.request
+                    ).qs
+                else:
+                    self.queryset = queryset
+                if self.request.GET.get(
+                    "show_all"
+                ) == "true" and self.request.session.get("hlv_selected_ids"):
+                    del self.request.session["hlv_selected_ids"]
+                if self.request.session.get("hlv_selected_ids"):
+                    self.request.actual_ids = list(
+                        self.queryset.values_list("id", flat=True)
+                    )
+                    self.queryset = self.queryset.filter(
+                        id__in=self.request.session["hlv_selected_ids"]
+                    )
+        return self.queryset
+
+    def get_context_data(self, **kwargs: Any):
+        context = super().get_context_data(**kwargs)
+        if not self.search_url:
+            self.search_url = self.request.path
+        context["view_id"] = self.view_id
+        context["search_url"] = self.search_url
+
+        context["action_method"] = self.action_method
+        context["actions"] = self.actions
+
+        context["option_method"] = self.option_method
+        context["options"] = self.options
+        context["row_attrs"] = self.row_attrs
+
+        context["header_attrs"] = self.header_attrs
+
+        context["show_filter_tags"] = self.show_filter_tags
+        context["bulk_select_option"] = self.bulk_select_option
+        context["row_status_class"] = self.row_status_class
+        context["sortby_key"] = self.sortby_key
+        context["sortby_mapping"] = self.sortby_mapping
+        context["selected_instances_key_id"] = self.selected_instances_key_id
+        context["row_status_indications"] = self.row_status_indications
+        context["saved_filters"] = self._saved_filters
+        context["quick_export"] = self.quick_export
+        context["filter_selected"] = self.filter_selected
+        context["bulk_update"] = self.bulk_update
+        context["model_name"] = self.verbose_name
+        context["export_fields"] = self.export_fields
+        context["custom_empty_template"] = self.custom_empty_template
+        context["records_count_in_tab"] = self.records_count_in_tab
+        referrer = self.request.GET.get("referrer", "")
+        if not self.verbose_name:
+            self.verbose_name = self.model.__class__
+        if referrer:
+            # Remove the protocol and domain part
+            referrer = "/" + "/".join(referrer.split("/")[3:])
+        context["stored_filters"] = (
+            models.SavedFilter.objects.filter(
+                path=self.request.path, created_by=self.request.user
+            )
+            | models.SavedFilter.objects.filter(
+                referrer=referrer, created_by=self.request.user
+            )
+        ).distinct()
+
+        # Set default pagination if not set
+        if not self.records_per_page:
+            self.records_per_page = get_pagination()
+
+        # Updating the column_order
+        if self.request:
+            col_order = models.ColumnOrder.objects.filter(
+                employee=self.request.user.employee_get, path=self.request.path_info
+            ).first()
+            if col_order:
+                order = col_order.column_order
+                order_set = set(order)
+
+                col_dict = {col[1]: col for col in self.columns}
+
+                self.columns = [
+                    col_dict[name] for name in order if name in col_dict
+                ] + [col for col in self.columns if col[1] not in order_set]
+
+        # Add verbose names to fields if possible
+        updated_column = []
+        get_field = self.model()._meta.get_field
+        for col in self.columns:
+            if isinstance(col, str):
+                try:
+                    updated_column.append((get_field(col).verbose_name, col))
+                except FieldDoesNotExist:
+                    updated_column.append(col)
+            else:
+                updated_column.append(col)
+
+        self.columns = updated_column
+
         self.visible_column = list(self.columns)
 
         hidden_fields = []
         existing_instance = None
-        if request:
+        if self.request:
             existing_instance = models.ToggleColumn.objects.filter(
-                user_id=request.user, path=request.path_info
+                user_id=self.request.user, path=self.request.path_info
             ).first()
             if existing_instance:
                 hidden_fields = existing_instance.excluded_columns
@@ -203,19 +358,159 @@ class SkylinxListView(ListView):
             if (col[1] if isinstance(col, tuple) else col) not in hidden_field_names
         ]
 
-        # Add verbose names to fields if possible
-        updated_column = []
-        get_field = self.model()._meta.get_field
-        for col in self.visible_column:
-            if isinstance(col, str):
-                try:
-                    updated_column.append((get_field(col).verbose_name, col))
-                except FieldDoesNotExist:
-                    updated_column.append(col)
-            else:
-                updated_column.append(col)
+        context["columns"] = self.visible_column
+        context["export_columns"] = (
+            self.visible_column if not self.export_columns else self.export_columns
+        )
+        context["hidden_columns"] = list(set(self.columns) - set(self.visible_column))
+        context["toggle_form"] = self.toggle_form
+        context["show_toggle_form"] = self.show_toggle_form
 
-        self.visible_column = updated_column
+        if self.bulk_select_option:
+            context["select_all_ids"] = self.select_all
+        if self._saved_filters.get("field"):
+            active_group = models.ActiveGroup.objects.filter(
+                created_by=self.request.user,
+                path=self.request.path,
+                group_by_field=self._saved_filters["field"],
+            ).first()
+            if active_group:
+                context["active_target"] = active_group.group_target
+
+        queryset = self.get_queryset()
+
+        if self.show_filter_tags:
+            data_dict = parse_qs(self._saved_filters.urlencode())
+            data_dict = {
+                key: list(dict.fromkeys(values)) for key, values in data_dict.items()
+            }
+            data_dict = get_key_instances(self.model, data_dict)
+            remove_keys = set(
+                ["filter_applied", "nav_url", "referrer"] + self.filter_keys_to_remove
+            )
+
+            keys_to_remove = [key for key in data_dict if key in remove_keys]
+
+            for key in remove_keys:
+                data_dict.pop(key, None)
+
+            context["filter_dict"] = data_dict
+            context["keys_to_remove"] = keys_to_remove
+
+        request = self.request
+        is_first_sort = False
+        query_dict = self.request.GET
+        if (
+            not request.GET.get(self.sortby_key)
+            and not self._saved_filters.get(self.sortby_key)
+        ) or (
+            not request.GET.get(self.sortby_key)
+            and self._saved_filters.get(self.sortby_key)
+        ):
+            is_first_sort = True
+            query_dict = self._saved_filters
+
+        if query_dict.get(self.sortby_key):
+            queryset = sortby(
+                query_dict, queryset, self.sortby_key, is_first_sort=is_first_sort
+            )
+
+        ordered_ids = []
+        try:
+            if not self._saved_filters.get("field"):
+                for instance in queryset:
+                    ordered_ids.append(str(instance.pk))
+        except:
+            pass
+
+        self.request.session[self.ordered_ids_key] = ordered_ids
+        context["queryset"] = paginator_qry(
+            queryset, self._saved_filters.get("page"), self.records_per_page
+        )
+
+        if request and self._saved_filters.get("field"):
+            field = self._saved_filters.get("field")
+            self.template_name = "generic/group_by_table.html"
+            if isinstance(queryset, Page):
+                queryset = self.filter_class(
+                    request.GET, queryset=queryset.object_list.model.objects.all()
+                ).qs
+
+            try:
+                groups = group_by_queryset(
+                    queryset, field, self._saved_filters.get("page"), "page"
+                )
+                context["groups"] = paginator_qry(
+                    groups, self._saved_filters.get("page"), 10
+                )
+            except:
+                self.template_name = "generic/skylinx_list_table.html"
+
+            # for group in context["groups"]:
+            #     for instance in group["list"]:
+            #         instance.ordered_ids = ordered_ids
+            #         ordered_ids.append(str(instance.pk))
+
+        # CACHE.get(self.request.session.session_key + "cbv")[SkylinxListView] = context
+        from skylinx.urls import path, urlpatterns
+
+        self.export_path = (
+            reverse("export-list", kwargs={"short_id": self.view_id})
+            + f"?model={self.model.__module__}.{self.model.__name__}"
+        )
+        context["export_path"] = self.export_path
+
+        if self.import_fields:
+            get_import_sheet_path = (
+                f"get-import-sheet-{self.view_id}-{self.request.session.session_key}/"
+            )
+            post_import_sheet_path = (
+                f"post-import-sheet-{self.view_id}-{self.request.session.session_key}/"
+            )
+            urlpatterns.append(
+                path(
+                    get_import_sheet_path,
+                    self.serve_import_sheet,
+                )
+            )
+            urlpatterns.append(
+                path(
+                    post_import_sheet_path,
+                    self.import_records,
+                )
+            )
+
+            session_key = self.request.session.session_key
+
+            context["get_import_sheet_path"] = get_import_sheet_path
+            context["post_import_sheet_path"] = post_import_sheet_path
+        context["import_fields"] = self.import_fields
+        if self.bulk_update_fields and self.bulk_update_accessibility():
+            get_bulk_path = (
+                f"get-bulk-update-{self.view_id}-{self.request.session.session_key}/"
+            )
+            post_bulk_path = (
+                f"post-bulk-update-{self.view_id}-{self.request.session.session_key}/"
+            )
+            self.post_bulk_path = post_bulk_path
+            urlpatterns.append(
+                path(
+                    get_bulk_path,
+                    self.serve_bulk_form,
+                )
+            )
+            urlpatterns.append(
+                path(
+                    post_bulk_path,
+                    self.handle_bulk_submission,
+                )
+            )
+            context["bulk_update_fields"] = self.bulk_update_fields
+            context["bulk_path"] = get_bulk_path
+        context["export_formats"] = self.export_formats
+        context["import_help"] = self.import_help
+        context["import_accessibility"] = self.import_accessibility()
+        return context
 
     def bulk_update_accessibility(self) -> bool:
         """
@@ -973,442 +1268,192 @@ class SkylinxListView(ListView):
             },
         )
 
-    def get_queryset(self, queryset=None, filtered=False, *args, **kwargs):
-        if not self.queryset:
-            self.queryset = super().get_queryset() if not queryset else queryset
-            self._saved_filters = QueryDict("", mutable=True)
-            if self.filter_class:
-                query_dict = self.request.GET
-                selected_ids = eval_validate(
-                    self.request.POST.get("selected_ids", "[]")
-                )
-
-                if (
-                    self.request.session.get("prev_path")
-                    and self.request.session.get("prev_path") != self.request.path
-                ):
-                    selected_ids = []
-                    self.request.session["hlv_selected_ids"] = selected_ids
-                    self.request.session["prev_path"] = self.request.path
-
-                if selected_ids and selected_ids != self.request.session.get(
-                    "hlv_selected_ids", []
-                ):
-                    self.request.session["hlv_selected_ids"] = selected_ids
-                    self.request.session["prev_path"] = self.request.path
-
-                if "filter_applied" in query_dict.keys():
-                    update_saved_filter_cache(self.request, CACHE)
-                elif CACHE.get(
-                    str(self.request.session.session_key) + self.request.path + "cbv"
-                ):
-                    query_dict = CACHE.get(
-                        str(self.request.session.session_key)
-                        + self.request.path
-                        + "cbv"
-                    )["query_dict"]
-
-                default_filter = models.SavedFilter.objects.filter(
-                    path=self.request.path,
-                    created_by=self.request.user,
-                    is_default=True,
-                ).first()
-                if not bool(query_dict) and default_filter:
-                    data = eval_validate(default_filter.filter)
-                    query_dict = QueryDict("", mutable=True)
-                    for key, value in data.items():
-                        query_dict[key] = value
-
-                    query_dict._mutable = False
-                self._saved_filters = query_dict
-                self.request.exclude_filter_form = True
-                if not filtered:
-                    self.queryset = self.filter_class(
-                        data=query_dict, queryset=self.queryset, request=self.request
-                    ).qs
-                else:
-                    self.queryset = queryset
-                if self.request.GET.get(
-                    "show_all"
-                ) == "true" and self.request.session.get("hlv_selected_ids"):
-                    del self.request.session["hlv_selected_ids"]
-                if self.request.session.get("hlv_selected_ids"):
-                    self.request.actual_ids = list(
-                        self.queryset.values_list("id", flat=True)
-                    )
-                    self.queryset = self.queryset.filter(
-                        id__in=self.request.session["hlv_selected_ids"]
-                    )
-        return self.queryset
-
-    def get_context_data(self, **kwargs: Any):
-        context = super().get_context_data(**kwargs)
-        if not self.search_url:
-            self.search_url = self.request.path
-        context["view_id"] = self.view_id
-        context["columns"] = self.visible_column
-        context["hidden_columns"] = list(set(self.columns) - set(self.visible_column))
-        context["toggle_form"] = self.toggle_form
-        context["show_toggle_form"] = self.show_toggle_form
-        context["search_url"] = self.search_url
-
-        context["action_method"] = self.action_method
-        context["actions"] = self.actions
-
-        context["option_method"] = self.option_method
-        context["options"] = self.options
-        context["row_attrs"] = self.row_attrs
-
-        context["header_attrs"] = self.header_attrs
-
-        context["show_filter_tags"] = self.show_filter_tags
-        context["bulk_select_option"] = self.bulk_select_option
-        context["row_status_class"] = self.row_status_class
-        context["sortby_key"] = self.sortby_key
-        context["sortby_mapping"] = self.sortby_mapping
-        context["selected_instances_key_id"] = self.selected_instances_key_id
-        context["row_status_indications"] = self.row_status_indications
-        context["saved_filters"] = self._saved_filters
-        context["quick_export"] = self.quick_export
-        context["filter_selected"] = self.filter_selected
-        context["bulk_update"] = self.bulk_update
-        if not self.verbose_name:
-            self.verbose_name = self.model.__class__
-        context["model_name"] = self.verbose_name
-        context["export_fields"] = self.export_fields
-        context["custom_empty_template"] = self.custom_empty_template
-        context["records_count_in_tab"] = self.records_count_in_tab
-        referrer = self.request.GET.get("referrer", "")
-        if referrer:
-            # Remove the protocol and domain part
-            referrer = "/" + "/".join(referrer.split("/")[3:])
-        context["stored_filters"] = (
-            models.SavedFilter.objects.filter(
-                path=self.request.path, created_by=self.request.user
-            )
-            | models.SavedFilter.objects.filter(
-                referrer=referrer, created_by=self.request.user
-            )
-        ).distinct()
-
-        context["select_all_ids"] = self.select_all
-        if self._saved_filters.get("field"):
-            active_group = models.ActiveGroup.objects.filter(
-                created_by=self.request.user,
-                path=self.request.path,
-                group_by_field=self._saved_filters["field"],
-            ).first()
-            if active_group:
-                context["active_target"] = active_group.group_target
-
-        queryset = self.get_queryset()
-
-        if self.show_filter_tags:
-            data_dict = parse_qs(self._saved_filters.urlencode())
-            data_dict = get_key_instances(self.model, data_dict)
-            keys_to_remove = [
-                key
-                for key, value in data_dict.items()
-                if key in ["filter_applied", "nav_url"] + self.filter_keys_to_remove
-            ]
-
-            for key in (
-                keys_to_remove + ["referrer", "nav_url"] + self.filter_keys_to_remove
-            ):
-                if key in data_dict.keys():
-                    data_dict.pop(key)
-            context["filter_dict"] = data_dict
-            context["keys_to_remove"] = keys_to_remove
-
-        request = self.request
-        is_first_sort = False
-        query_dict = self.request.GET
-        if (
-            not request.GET.get(self.sortby_key)
-            and not self._saved_filters.get(self.sortby_key)
-        ) or (
-            not request.GET.get(self.sortby_key)
-            and self._saved_filters.get(self.sortby_key)
-        ):
-            is_first_sort = True
-            query_dict = self._saved_filters
-
-        if query_dict.get(self.sortby_key):
-            queryset = sortby(
-                query_dict, queryset, self.sortby_key, is_first_sort=is_first_sort
-            )
-
-        ordered_ids = []
-        if not self._saved_filters.get("field"):
-            for instance in queryset:
-                ordered_ids.append(instance.pk)
-        self.request.session[self.ordered_ids_key] = ordered_ids
-        context["queryset"] = paginator_qry(
-            queryset, self._saved_filters.get("page"), self.records_per_page
-        )
-
-        if request and self._saved_filters.get("field"):
-            field = self._saved_filters.get("field")
-            self.template_name = "generic/group_by_table.html"
-            if isinstance(queryset, Page):
-                queryset = self.filter_class(
-                    request.GET, queryset=queryset.object_list.model.objects.all()
-                ).qs
-            groups = group_by_queryset(
-                queryset, field, self._saved_filters.get("page"), "page"
-            )
-            context["groups"] = paginator_qry(
-                groups, self._saved_filters.get("page"), 10
-            )
-
-            # for group in context["groups"]:
-            #     for instance in group["list"]:
-            #         instance.ordered_ids = ordered_ids
-            #         ordered_ids.append(instance.pk)
-
-        # CACHE.get(self.request.session.session_key + "cbv")[SkylinxListView] = context
-        from skylinx.urls import path, urlpatterns
-
-        self.export_path = f"export-list-view-{get_short_uuid(4)}/"
-
-        urlpatterns.append(path(self.export_path, self.export_data))
-        context["export_path"] = self.export_path
-
-        if self.import_fields:
-            get_import_sheet_path = (
-                f"get-import-sheet-{self.view_id}-{self.request.session.session_key}/"
-            )
-            post_import_sheet_path = (
-                f"post-import-sheet-{self.view_id}-{self.request.session.session_key}/"
-            )
-            urlpatterns.append(
-                path(
-                    get_import_sheet_path,
-                    self.serve_import_sheet,
-                )
-            )
-            urlpatterns.append(
-                path(
-                    post_import_sheet_path,
-                    self.import_records,
-                )
-            )
-            context["get_import_sheet_path"] = get_import_sheet_path
-            context["post_import_sheet_path"] = post_import_sheet_path
-        context["import_fields"] = self.import_fields
-        if self.bulk_update_fields and self.bulk_update_accessibility():
-            get_bulk_path = (
-                f"get-bulk-update-{self.view_id}-{self.request.session.session_key}/"
-            )
-            post_bulk_path = (
-                f"post-bulk-update-{self.view_id}-{self.request.session.session_key}/"
-            )
-            self.post_bulk_path = post_bulk_path
-            urlpatterns.append(
-                path(
-                    get_bulk_path,
-                    self.serve_bulk_form,
-                )
-            )
-            urlpatterns.append(
-                path(
-                    post_bulk_path,
-                    self.handle_bulk_submission,
-                )
-            )
-            context["bulk_update_fields"] = self.bulk_update_fields
-            context["bulk_path"] = get_bulk_path
-        context["export_formats"] = self.export_formats
-        context["import_help"] = self.import_help
-        context["import_accessibility"] = self.import_accessibility()
-        return context
-
     def select_all(self, *args, **kwargs):
         """
         Select all method
         """
         return json.dumps(list(self.get_queryset().values_list("id", flat=True)))
 
-    def export_data(self, *args, **kwargs):
-        """
-        Export list view visible columns
-        """
-        from import_export import fields, resources
+    # def export_data(self, *args, **kwargs):
+    #     """
+    #     Export list view visible columns
+    #     """
+    #     from import_export import fields, resources
 
-        request = getattr(_thread_locals, "request", None)
-        ids = eval_validate(request.POST["ids"])
-        _columns = eval_validate(request.POST["columns"])
-        export_format = request.POST.get("format", "xlsx")
-        queryset = self.model.objects.filter(id__in=ids)
+    #     request = getattr(_thread_locals, "request", None)
+    #     ids = eval_validate(request.POST["ids"])
+    #     _columns = eval_validate(request.POST["columns"])
+    #     export_format = request.POST.get("format", "xlsx")
+    #     queryset = self.model.objects.filter(id__in=ids)
 
-        _model = self.model
+    #     _model = self.model
 
-        class SkylinxListViewResorce(resources.ModelResource):
-            """
-            Instant Resource class
-            """
+    #     class SkylinxListViewResorce(resources.ModelResource):
+    #         """
+    #         Instant Resource class
+    #         """
 
-            id = fields.Field(column_name="ID")
+    #         id = fields.Field(column_name="ID")
 
-            class Meta:
-                """
-                Meta class for additional option
-                """
+    #         class Meta:
+    #             """
+    #             Meta class for additional option
+    #             """
 
-                model = _model
-                fields = [field[1] for field in _columns]  # 773
+    #             model = _model
+    #             fields = [field[1] for field in _columns]  # 773
 
-            def dehydrate_id(self, instance):
-                """
-                Dehydrate method for id field
-                """
-                return instance.pk
+    #         def dehydrate_id(self, instance):
+    #             """
+    #             Dehydrate method for id field
+    #             """
+    #             return instance.pk
 
-            for field_tuple in _columns:
-                dynamic_fn_str = f"def dehydrate_{field_tuple[1]}(self, instance):return self.remove_extra_spaces(getattribute(instance, '{field_tuple[1]}'),{field_tuple})"
-                exec(dynamic_fn_str)
-                dynamic_fn = locals()[f"dehydrate_{field_tuple[1]}"]
-                locals()[field_tuple[1]] = fields.Field(column_name=field_tuple[0])
+    #         for field_tuple in _columns:
+    #             dynamic_fn_str = f"def dehydrate_{field_tuple[1]}(self, instance):return self.remove_extra_spaces(getattribute(instance, '{field_tuple[1]}'),{field_tuple})"
+    #             exec(dynamic_fn_str)
+    #             dynamic_fn = locals()[f"dehydrate_{field_tuple[1]}"]
+    #             locals()[field_tuple[1]] = fields.Field(column_name=field_tuple[0])
 
-            def remove_extra_spaces(self, text, field_tuple):
-                """
-                Clean the text:
-                - If it's a <select> element, extract the selected option's value.
-                - If it's an <input> or <textarea>, extract its 'value'.
-                - Otherwise, remove blank spaces, keep line breaks, and handle <li> tags.
-                """
-                soup = BeautifulSoup(str(text), "html.parser")
+    #         def remove_extra_spaces(self, text, field_tuple):
+    #             """
+    #             Clean the text:
+    #             - If it's a <select> element, extract the selected option's value.
+    #             - If it's an <input> or <textarea>, extract its 'value'.
+    #             - Otherwise, remove blank spaces, keep line breaks, and handle <li> tags.
+    #             """
+    #             soup = BeautifulSoup(str(text), "html.parser")
 
-                # Handle <select> tag
-                select_tag = soup.find("select")
-                if select_tag:
-                    selected_option = select_tag.find("option", selected=True)
-                    if selected_option:
-                        return selected_option["value"]
-                    else:
-                        first_option = select_tag.find("option")
-                        return first_option["value"] if first_option else ""
+    #             # Handle <select> tag
+    #             select_tag = soup.find("select")
+    #             if select_tag:
+    #                 selected_option = select_tag.find("option", selected=True)
+    #                 if selected_option:
+    #                     return selected_option["value"]
+    #                 else:
+    #                     first_option = select_tag.find("option")
+    #                     return first_option["value"] if first_option else ""
 
-                # Handle <input> tag
-                input_tag = soup.find("input")
-                if input_tag:
-                    return input_tag.get("value", "")
+    #             # Handle <input> tag
+    #             input_tag = soup.find("input")
+    #             if input_tag:
+    #                 return input_tag.get("value", "")
 
-                # Handle <textarea> tag
-                textarea_tag = soup.find("textarea")
-                if textarea_tag:
-                    return textarea_tag.text.strip()
+    #             # Handle <textarea> tag
+    #             textarea_tag = soup.find("textarea")
+    #             if textarea_tag:
+    #                 return textarea_tag.text.strip()
 
-                # Default: clean normal text and <li> handling
-                for li in soup.find_all("li"):
-                    li.insert_before("\n")
-                    li.unwrap()
+    #             # Default: clean normal text and <li> handling
+    #             for li in soup.find_all("li"):
+    #                 li.insert_before("\n")
+    #                 li.unwrap()
 
-                text = soup.get_text()
-                lines = text.splitlines()
-                non_blank_lines = [line.strip() for line in lines if line.strip()]
-                cleaned_text = "\n".join(non_blank_lines)
-                return cleaned_text
+    #             text = soup.get_text()
+    #             lines = text.splitlines()
+    #             non_blank_lines = [line.strip() for line in lines if line.strip()]
+    #             cleaned_text = "\n".join(non_blank_lines)
+    #             return cleaned_text
 
-        book_resource = SkylinxListViewResorce()
+    #     book_resource = SkylinxListViewResorce()
 
-        # Export the data using the resource
-        dataset = book_resource.export(queryset)
+    #     # Export the data using the resource
+    #     dataset = book_resource.export(queryset)
 
-        # excel_data = dataset.export("xls")
+    #     # excel_data = dataset.export("xls")
 
-        # Set the response headers
-        # file_name = self.export_file_name
-        # if not file_name:
-        #     file_name = "quick_export"
-        # response = HttpResponse(excel_data, content_type="application/vnd.ms-excel")
-        # response["Content-Disposition"] = f'attachment; filename="{file_name}.xls"'
-        # return response
-        json_data = json.loads(dataset.export("json"))
-        merged = []
+    #     # Set the response headers
+    #     # file_name = self.export_file_name
+    #     # if not file_name:
+    #     #     file_name = "quick_export"
+    #     # response = HttpResponse(excel_data, content_type="application/vnd.ms-excel")
+    #     # response["Content-Disposition"] = f'attachment; filename="{file_name}.xls"'
+    #     # return response
+    #     json_data = json.loads(dataset.export("json"))
+    #     merged = []
 
-        for item in _columns:
-            # Check if item has exactly 2 elements
-            if len(item) == 2:
-                # Check if there's a matching (type, key) in export_fields (t, k, _)
-                match_found = any(
-                    export_item[0] == item[0] and export_item[1] == item[1]
-                    for export_item in self.export_fields
-                )
+    #     for item in _columns:
+    #         # Check if item has exactly 2 elements
+    #         if len(item) == 2:
+    #             # Check if there's a matching (type, key) in export_fields (t, k, _)
+    #             match_found = any(
+    #                 export_item[0] == item[0] and export_item[1] == item[1]
+    #                 for export_item in self.export_fields
+    #             )
 
-                if match_found:
-                    # Find the first matching metadata or use {} as fallback
-                    try:
-                        metadata = next(
-                            (
-                                export_item[2]
-                                for export_item in self.export_fields
-                                if export_item[0] == item[0]
-                                and export_item[1] == item[1]
-                            ),
-                            {},
-                        )
-                    except Exception as e:
-                        merged.append(item)
-                        continue
+    #             if match_found:
+    #                 # Find the first matching metadata or use {} as fallback
+    #                 try:
+    #                     metadata = next(
+    #                         (
+    #                             export_item[2]
+    #                             for export_item in self.export_fields
+    #                             if export_item[0] == item[0]
+    #                             and export_item[1] == item[1]
+    #                         ),
+    #                         {},
+    #                     )
+    #                 except Exception as e:
+    #                     merged.append(item)
+    #                     continue
 
-                    merged.append([*item, metadata])
-                else:
-                    merged.append(item)
-            else:
-                merged.append(item)
-        columns = []
-        for column in merged:
-            if len(column) >= 3 and isinstance(column[2], dict):
-                column = (column[0], column[0], column[2])
-            elif len(column) >= 3:
-                column = (column[0], column[1])
-            columns.append(column)
+    #                 merged.append([*item, metadata])
+    #             else:
+    #                 merged.append(item)
+    #         else:
+    #             merged.append(item)
+    #     columns = []
+    #     for column in merged:
+    #         if len(column) >= 3 and isinstance(column[2], dict):
+    #             column = (column[0], column[0], column[2])
+    #         elif len(column) >= 3:
+    #             column = (column[0], column[1])
+    #         columns.append(column)
 
-        if export_format == "json":
-            response = HttpResponse(
-                json.dumps(json_data, indent=4), content_type="application/json"
-            )
-            response["Content-Disposition"] = (
-                f'attachment; filename="{self.export_file_name}.json"'
-            )
-            return response
-        # CSV
-        elif export_format == "csv":
-            csv_data = dataset.export("csv")
-            response = HttpResponse(csv_data, content_type="text/csv")
-            response["Content-Disposition"] = (
-                f'attachment; filename="{self.export_file_name}.csv"'
-            )
-            return response
-        elif export_format == "pdf":
+    #     if export_format == "json":
+    #         response = HttpResponse(
+    #             json.dumps(json_data, indent=4), content_type="application/json"
+    #         )
+    #         response["Content-Disposition"] = (
+    #             f'attachment; filename="{self.export_file_name}.json"'
+    #         )
+    #         return response
+    #     # CSV
+    #     elif export_format == "csv":
+    #         csv_data = dataset.export("csv")
+    #         response = HttpResponse(csv_data, content_type="text/csv")
+    #         response["Content-Disposition"] = (
+    #             f'attachment; filename="{self.export_file_name}.csv"'
+    #         )
+    #         return response
+    #     elif export_format == "pdf":
 
-            headers = dataset.headers
-            rows = dataset.dict
+    #         headers = dataset.headers
+    #         rows = dataset.dict
 
-            # Render to HTML using a template
-            html_string = render_to_string(
-                "generic/export_pdf.html",
-                {
-                    "headers": headers,
-                    "rows": rows,
-                },
-            )
+    #         # Render to HTML using a template
+    #         html_string = render_to_string(
+    #             "generic/export_pdf.html",
+    #             {
+    #                 "headers": headers,
+    #                 "rows": rows,
+    #             },
+    #         )
 
-            # Convert HTML to PDF using xhtml2pdf
-            result = io.BytesIO()
-            pisa_status = pisa.CreatePDF(html_string, dest=result)
+    #         # Convert HTML to PDF using xhtml2pdf
+    #         result = io.BytesIO()
+    #         pisa_status = pisa.CreatePDF(html_string, dest=result)
 
-            if pisa_status.err:
-                return HttpResponse("PDF generation failed", status=500)
+    #         if pisa_status.err:
+    #             return HttpResponse("PDF generation failed", status=500)
 
-            # Return response
-            response = HttpResponse(result.getvalue(), content_type="application/pdf")
-            response["Content-Disposition"] = (
-                f'attachment; filename="{self.export_file_name}.pdf"'
-            )
-            return response
-        return export_xlsx(json_data, columns, file_name=self.export_file_name)
+    #         # Return response
+    #         response = HttpResponse(result.getvalue(), content_type="application/pdf")
+    #         response["Content-Disposition"] = (
+    #             f'attachment; filename="{self.export_file_name}.pdf"'
+    #         )
+    #         return response
+    #     return export_xlsx(json_data, columns, file_name=self.export_file_name)
 
 
 class SkylinxSectionView(TemplateView):
@@ -1462,7 +1507,7 @@ class SkylinxDetailedView(DetailView):
     HorillDetailedView
     """
 
-    title = "Detailed View"
+    title = _("Detailed View")
     template_name = "generic/skylinx_detailed_view.html"
     header: dict = {
         "title": "Skylinx",
@@ -1492,7 +1537,7 @@ class SkylinxDetailedView(DetailView):
             return render(request, self.empty_template, context=self.get_context_data())
         elif not self.instance:
             messages.info(request, "No record found...")
-            return SkylinxRedirect(self.request)
+            return SkylinxRedirect(request)
         return response
 
     def __init__(self, **kwargs: Any) -> None:
@@ -1501,6 +1546,20 @@ class SkylinxDetailedView(DetailView):
         request = getattr(_thread_locals, "request", None)
         self.request = request
         # update_initial_cache(request, CACHE, SkylinxDetailedView)
+
+        # Add verbose names to fields if possible
+        updated_body = []
+        get_field = self.model()._meta.get_field
+        for body in self.body:
+            if isinstance(body, str):
+                try:
+                    updated_body.append((get_field(body).verbose_name, body))
+                except FieldDoesNotExist:
+                    updated_body.append(body)
+            else:
+                updated_body.append(body)
+
+        self.body = updated_body
 
     def get_context_data(self, **kwargs: Any):
         context = super().get_context_data(**kwargs)
@@ -1585,12 +1644,19 @@ class SkylinxTabView(TemplateView):
             if active_tab:
                 context["active_target"] = active_tab.tab_target
 
-        for tab in self.tabs:
-            base_url = tab.get("url")
-            query_params = {**self.request.GET.dict()}
-            query_params.update(self.query_params)
+        extra_params = {}
 
-            tab["url"] = f"{base_url}?{urlencode(query_params)}"
+        for key, val in self.request.GET.items():
+            extra_params[key] = val
+
+        extra_params["referrer"] = self.request.META.get("HTTP_REFERER", "")
+
+        for tab in self.tabs:
+            parsed = urlparse(tab.get("url", ""))
+            combined_query = dict(parse_qsl(parsed.query))
+            combined_query.update(extra_params)
+
+            tab["url"] = urlunparse(parsed._replace(query=urlencode(combined_query)))
 
         context["tabs"] = self.tabs
         context["view_id"] = self.view_id
@@ -1608,7 +1674,7 @@ class SkylinxCardView(ListView):
 
     filter_class: FilterSet = None
 
-    view_id: str = get_short_uuid(4, prefix="hcv")
+    view_id: str = None
 
     template_name = "generic/skylinx_card.html"
     context_object_name = "queryset"
@@ -1643,6 +1709,8 @@ class SkylinxCardView(ListView):
     records_per_page: int = 50
     card_status_class: str = """"""
     card_status_indications: list = []
+    custom_body_template: str = ""
+    custom_empty_template: str = ""
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -1652,9 +1720,12 @@ class SkylinxCardView(ListView):
         self._saved_filters = QueryDict()
         self.ordered_ids_key = f"ordered_ids_{self.model.__name__.lower()}"
 
+        if not self.view_id:
+            self.view_id = get_short_uuid(4, prefix="hcv")
+
     def get_queryset(self):
         if not self.queryset:
-            queryset = super().get_queryset()
+            self.queryset = super().get_queryset()
             if self.filter_class:
                 query_dict = self.request.GET
                 if "filter_applied" in query_dict.keys():
@@ -1671,7 +1742,7 @@ class SkylinxCardView(ListView):
                 self._saved_filters = query_dict
                 self.request.exclude_filter_form = True
                 self.queryset = self.filter_class(
-                    query_dict, queryset, request=self.request
+                    query_dict, queryset=self.queryset, request=self.request
                 ).qs
                 default_filter = models.SavedFilter.objects.filter(
                     path=self.request.path,
@@ -1701,29 +1772,32 @@ class SkylinxCardView(ListView):
         context["show_filter_tags"] = self.show_filter_tags
         context["card_status_class"] = self.card_status_class
         context["card_status_indications"] = self.card_status_indications
+        context["custom_body_template"] = self.custom_body_template
+        context["custom_empty_template"] = self.custom_empty_template
 
         if self.show_filter_tags:
             data_dict = parse_qs(self._saved_filters.urlencode())
+            data_dict = {
+                key: list(dict.fromkeys(values)) for key, values in data_dict.items()
+            }
             data_dict = get_key_instances(self.model, data_dict)
-            keys_to_remove = [
-                key
-                for key, value in data_dict.items()
-                if value[0] in ["unknown", "on"] + self.filter_keys_to_remove
-            ]
+            remove_keys = set(
+                ["filter_applied", "nav_url", "referrer"] + self.filter_keys_to_remove
+            )
 
-            for key in (
-                keys_to_remove + ["referrer", "nav_url"] + self.filter_keys_to_remove
-            ):
-                if key in data_dict.keys():
-                    data_dict.pop(key)
+            keys_to_remove = [key for key in data_dict if key in remove_keys]
+
+            for key in remove_keys:
+                data_dict.pop(key, None)
 
             context["filter_dict"] = data_dict
+            context["keys_to_remove"] = keys_to_remove
 
         ordered_ids = list(queryset.values_list("id", flat=True))
         ordered_ids = []
         if not self._saved_filters.get("field"):
             for instance in queryset:
-                ordered_ids.append(instance.pk)
+                ordered_ids.append(str(instance.pk))
         self.request.session[self.ordered_ids_key] = ordered_ids
 
         # CACHE.get(self.request.session.session_key + "cbv")[SkylinxCardView] = context
@@ -1758,6 +1832,7 @@ class SkylinxCardView(ListView):
         return view
 
 
+@method_decorator(login_required, name="dispatch")
 @method_decorator(hx_request_required, name="dispatch")
 class ReloadMessages(TemplateView):
     """
@@ -1813,12 +1888,37 @@ class SkylinxFormView(FormView):
             targets_to_reload = list(set(targets_to_reload))
             targets_to_reload.append("#reloadMessagesButton")
             script_id = get_short_uuid(4)
+            request = getattr(_thread_locals, "request", None)
+            save_and_add_another = (
+                request
+                and request.method == "POST"
+                and request.POST.get("save_and_add_another") == "true"
+            )
+            if save_and_add_another:
+                query_string = request.META.get("QUERY_STRING", "")
+                reopen_url = request.path
+                if query_string:
+                    reopen_url = f"{reopen_url}?{query_string}"
+                reopen_url = json.dumps(reopen_url)
+                target_id = request.META.get("HTTP_HX_TARGET", "genericModalBody")
+                target_selector = json.dumps(f"#{target_id}")
+                script += (
+                    f"setTimeout(function(){{"
+                    f"var targetSelector = {target_selector};"
+                    f"if (window.htmx) {{"
+                    f"htmx.ajax('GET', {reopen_url}, {{target: targetSelector, swap: 'innerHTML'}});"
+                    f"}}"
+                    f"}}, 50);"
+                )
+            close_modal_script = ""
+            if not save_and_add_another:
+                close_modal_script = f"$('#scriptTarget{script_id}').closest('.oh-modal--show').first().removeClass('oh-modal--show');"
             script = (
                 f"<script id='scriptTarget{script_id}'>"
                 + "{}".format(
                     "".join([f"$(`{target}`).click();" for target in targets_to_reload])
                 )
-                + f"$('#scriptTarget{script_id}').closest('.oh-modal--show').first().removeClass('oh-modal--show');"
+                + close_modal_script
                 + "$('.reload-record').click();"
                 + "$('.reload-field').click();"
                 + script
@@ -1865,6 +1965,10 @@ class SkylinxFormView(FormView):
         self, request: HttpRequest, *args: str, pk=None, **kwargs: Any
     ) -> HttpResponse:
         _pk = pk
+        form = self.get_form()
+        if pk and not form.instance:
+            messages.error(request, "Matching query does not exists.")
+            return SkylinxRedirect(request)
         response = super().get(request, *args, **kwargs)
         return response
 
@@ -1899,8 +2003,11 @@ class SkylinxFormView(FormView):
         context["hx_confirm"] = self.hx_confirm
         context["hx_target"] = self.request.META.get("HTTP_HX_TARGET", "this")
         pk = None
-        if self.form.instance:
-            pk = self.form.instance.pk
+        # Some custom form views may temporarily set `self.form` to a form class.
+        # Guard against that so context-building never crashes on `.instance`.
+        form_instance = getattr(self.form, "instance", None)
+        if form_instance:
+            pk = form_instance.pk
         # next/previous option in the forms
         if pk and self.request.GET.get(self.ids_key):
             instance_ids = self.request.session.get(self.ordered_ids_key, [])
@@ -1930,7 +2037,10 @@ class SkylinxFormView(FormView):
     def get_form(self, form_class=None):
 
         pk = self.kwargs.get("pk")
-        if not hasattr(self, "form"):
+        # Some URL patterns pass `form` as a class in kwargs; that should not
+        # be treated as an initialized form instance.
+        existing_form = getattr(self, "form", None)
+        if not isinstance(existing_form, forms.BaseForm):
             instance = self.get_queryset()
             data = None
             files = None
@@ -2157,7 +2267,6 @@ class SkylinxNavView(TemplateView):
         context["group_by_fields"] = self.group_by_fields
         context["actions"] = self.actions
         context["filter_body_template"] = self.filter_body_template
-        context["view_types"] = self.view_types
         context["create_attrs"] = self.create_attrs
         context["search_in"] = self.search_in
         context["apply_first_filter"] = self.apply_first_filter
@@ -2171,10 +2280,47 @@ class SkylinxNavView(TemplateView):
         context["empty_inputs"] = self.empty_inputs + ["nav_url"]
         context["last_filter"] = dict(last_filter)
         if self.filter_instance:
-            context[self.filter_form_context_name] = self.filter_instance.form
+            FilterClass = self.filter_instance.__class__
+            filterset = FilterClass(self.request.GET or None)
+            context[self.filter_form_context_name] = filterset.form
+            context[self.filter_instance_context_name] = filterset
+
         context["active_view"] = models.ActiveView.objects.filter(
             path=self.request.path
         ).first()
+
+        extra_params = {}
+
+        for key, val in self.request.GET.items():
+            extra_params[key] = val
+
+        extra_params["referrer"] = urlparse(
+            self.request.META.get("HTTP_REFERER", "")
+        ).path
+
+        # Update each view's URL with query parameters
+        for view in self.view_types:
+            parsed = urlparse(view.get("url", ""))
+
+            combined_query = dict(parse_qsl(parsed.query))
+            # combined_query.update(self.request.GET)
+            combined_query.update(extra_params)
+
+            view["url"] = urlunparse(parsed._replace(query=urlencode(combined_query)))
+
+        context["view_types"] = self.view_types
+
+        if self.search_url:
+            # Update search URL with query parameters
+            parsed_search = urlparse(str(self.search_url))
+            parsed_search_url = dict(parse_qsl(parsed_search.query))
+            # parsed_search_url.update(self.request.GET)
+            parsed_search_url.update(extra_params)
+
+            context["search_url"] = urlunparse(
+                parsed_search._replace(query=urlencode(parsed_search_url))
+            )
+
         # CACHE.get(self.request.session.session_key + "cbv")[SkylinxNavView] = context
         return context
 
@@ -2236,30 +2382,6 @@ class SkylinxProfileView(DetailView):
                 )
                 tab["url"] = "/" + url + "/{pk}/"
 
-        # hidden columns configuration
-
-        existing_instance = models.ToggleColumn.objects.filter(
-            user_id=request.user, path=request.path_info
-        ).first()
-
-        self.visible_tabs = self.tabs.copy()
-
-        self.tabs_list = [(tab["title"], tab["title"]) for tab in self.visible_tabs]
-
-        hidden_tabs = (
-            [] if not existing_instance else existing_instance.excluded_columns
-        )
-        self.toggle_form = ToggleColumnForm(
-            self.tabs_list,
-            hidden_tabs,
-            hidden_fields=[],
-        )
-        for column in self.tabs_list:
-            if column[1] in hidden_tabs:
-                for tab in self.visible_tabs:
-                    if tab["title"] == column[1]:
-                        self.visible_tabs.remove(tab)
-
     @classmethod
     def add_tab(cls, tab: dict = None, index: int = None, tabs: list = None) -> None:
         """
@@ -2300,8 +2422,6 @@ class SkylinxProfileView(DetailView):
         context = super().get_context_data(**kwargs)
         context["instance"] = context["object"]
         context["tabs"] = self.tabs
-        context["visible_tabs"] = self.visible_tabs
-        context["toggle_form"] = self.toggle_form
         context["view_id"] = self.view_id
         active_tab = models.ActiveTab.objects.filter(
             created_by=self.request.user, path=self.request.path
@@ -2334,6 +2454,30 @@ class SkylinxProfileView(DetailView):
         url = resolve(self.request.path)
         key = list(url.kwargs.keys())[0]
 
+        # hidden columns configuration
+
+        existing_instance = models.ToggleColumn.objects.filter(
+            user_id=self.request.user, path=self.request.path_info
+        ).first()
+
+        self.visible_tabs = self.tabs.copy()
+
+        self.tabs_list = [(tab["title"], tab["title"]) for tab in self.visible_tabs]
+
+        hidden_tabs = (
+            [] if not existing_instance else existing_instance.excluded_columns
+        )
+        self.toggle_form = ToggleColumnForm(
+            self.tabs_list,
+            hidden_tabs,
+            hidden_fields=[],
+        )
+        for column in self.tabs_list:
+            if column[1] in hidden_tabs:
+                for tab in self.visible_tabs:
+                    if tab["title"] == column[1]:
+                        self.visible_tabs.remove(tab)
+
         url_name = url.url_name
         next_url = reverse(url_name, kwargs={key: next_id})
         previous_url = reverse(url_name, kwargs={key: previous_id})
@@ -2345,10 +2489,13 @@ class SkylinxProfileView(DetailView):
             context["previous_url"] = previous_url
             context["push_url_next"] = push_url_next
             context["push_url_prev"] = push_url_prev
+            context["push_url"] = self.push_url
 
         context["display_count"] = display_count
         context["actions"] = self.actions
         context["filter_class"] = self.filter_class
+        context["visible_tabs"] = self.visible_tabs
+        context["toggle_form"] = self.toggle_form
         cache = {
             "instances": context["instances"],
             "instance_ids": context["instance_ids"],

@@ -18,7 +18,6 @@
 <div class="oh-modal__dialog-header">
   <button type="button" class="oh-modal__close--custom"
       onclick = "$(this).closest('.oh-modal--show').removeClass('oh-modal--show')"
-      hx-target="#leaveRequest" hx-get="{% url 'request-filter' %}?{{pd}}"
       aria-label="Close">
     <ion-icon name="close-outline"></ion-icon>
   </button>
@@ -31,7 +30,7 @@
     </div>
     <div class="oh-timeoff-modal__profile-info">
       <span class="oh-timeoff-modal__user fw-bold">{{ instance.employee_id.get_full_name }}</span>
-      <span class="oh-timeoff-modal__user m-0" style="font-size: 18px; color: #4d4a4a">
+      <span class="oh-timeoff-modal__user m-0" style="font-size: 15px; color: #4d4a4a">
         {{ instance.employee_id.get_department }} /
         {{ instance.employee_id.get_job_position }}
       </span>

@@ -4,12 +4,14 @@ methods.py
 This module is used to write methods related to the history
 """
 
-from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.db import models
 from django.shortcuts import render
+from django.utils.translation import gettext as _
 
 from skylinx.decorators import apply_decorators
+from skylinx.http.response import SkylinxRedirect
+from skylinx_auth.models import SkylinxUser
 
 
 class Bot:
@@ -117,7 +119,7 @@ def get_diff(instance):
                 }
             )
         updated_by = (
-            User.objects.get(id=pair[0].history_user.id).employee_get
+            SkylinxUser.objects.get(id=pair[0].history_user.id).employee_get
             if pair[0].history_user
             else Bot()
         )
@@ -158,7 +160,9 @@ def history_tracking(request, obj_id, **kwargs):
 
     @apply_decorators(decorator_strings)
     def _history_tracking(request, obj_id, model):
-        instance = model.objects.get(pk=obj_id)
+        instance = model.objects.filter(pk=obj_id).first()
+        if not instance:
+            return SkylinxRedirect(request, message=_("Object not found"))
         histories = instance.skylinx_history.all()
         page_number = request.GET.get("page", 1)
         paginator = Paginator(histories, 4)

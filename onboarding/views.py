@@ -22,7 +22,7 @@ from urllib.parse import parse_qs
 from django import template
 from django.contrib import messages
 from django.contrib.auth import login
-from django.contrib.auth.models import User
+from django.contrib.staticfiles import finders
 from django.core.files.base import ContentFile
 from django.core.mail import EmailMessage, send_mail
 from django.core.paginator import Paginator
@@ -33,7 +33,6 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.translation import gettext as __
 from django.utils.translation import gettext_lazy as _
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods, require_POST
 
 from base.backends import ConfiguredEmailBackend
@@ -55,6 +54,7 @@ from skylinx.decorators import (
 )
 from skylinx.group_by import group_by_queryset as general_group_by
 from skylinx.http.response import SkylinxRedirect
+from skylinx_auth.models import SkylinxUser
 from skylinx_documents.models import Document
 from notifications.signals import notify
 from onboarding.decorators import (
@@ -189,11 +189,66 @@ def stage_update(request, stage_id, recruitment_id):
                 icon="people-circle",
                 redirect=reverse("onboarding-view"),
             )
+            if request.META.get("HTTP_HX_REQUEST") == "true":
+                return HttpResponse(
+                    """
+                    <script>
+                      (function () {
+                        const activeTab = document.querySelector(".oh-tabs__tab--active");
+                        const target = activeTab ? activeTab.getAttribute("data-target") : null;
+                        if (target && window.htmx) {
+                          htmx.ajax("GET", window.location.href, {
+                            target: target,
+                            swap: "outerHTML",
+                            select: target
+                          });
+                        }
+                        $("#reloadMessagesButton").click();
+                        $("#genericModal").removeClass("oh-modal--show");
+                      })();
+                    </script>
+                    """
+                )
             return SkylinxRedirect(request)
     return render(
         request,
         "onboarding/stage_update.html",
         {"form": form, "stage_id": stage_id, "recruitment_id": recruitment_id},
+    )
+
+
+@login_required
+@recruitment_manager_can_enter("onboarding.change_onboardingstage")
+def update_stage_order(request, pk):
+    """
+    This method is used to update the stage sequence of the onboarding
+    """
+    recruitment = Recruitment.find(pk)
+    if not recruitment:
+        return SkylinxRedirect(request, message=_("Recruitment not found."))
+
+    if request.method == "POST":
+        try:
+            order = json.loads(request.POST.get("order", "[]"))
+            for index, stage_id in enumerate(order):
+                stage = recruitment.onboarding_stage.get(id=stage_id)
+                stage.sequence = index + 1
+                stage.save()
+            messages.success(request, "Sequence Updated Successfully")
+            return JsonResponse({"status": "success"})
+        except Exception as e:
+            messages.error(request, "Error Updating Sequence..")
+            return JsonResponse({"status": "error", "message": str(e)}, status=400)
+
+    stages = recruitment.onboarding_stage.order_by("sequence")
+
+    return render(
+        request,
+        "cbv/pipeline/onboarding/stage_order.html",
+        {
+            "stages": stages,
+            "recruitment": recruitment,
+        },
     )
 
 
@@ -406,7 +461,9 @@ def candidate_update(request, obj_id):
     GET : return candidate update form template
     POST : return candidate view
     """
-    candidate = Candidate.objects.get(id=obj_id)
+    candidate = Candidate.find(obj_id)
+    if not candidate:
+        return SkylinxRedirect(request, message=_("Candidate not found."))
     form = OnboardingCandidateForm(instance=candidate)
     if request.method == "POST":
         form = OnboardingCandidateForm(request.POST, request.FILES, instance=candidate)
@@ -448,7 +505,9 @@ def candidate_delete(request, obj_id):
                 )
             ),
         )
-    return redirect(candidates_view)
+    if request.META.get("HTTP_HX_REQUEST"):
+        return HttpResponse(status=204)
+    return redirect(reverse("candidates-view"))
 
 
 @login_required
@@ -556,6 +615,7 @@ def candidates_view(request):
 
 
 @login_required
+@hx_request_required
 @permission_required(perm="recruitment.view_candidate")
 def hired_candidate_view(request):
     previous_data = request.GET.urlencode()
@@ -615,108 +675,263 @@ def candidate_filter(request):
     )
 
 
+# @login_required
+# @all_manager_can_enter("recruitment.view_recruitment")
+# def email_send(request):
+#     """
+#     function used to send onboarding portal for hired candidates .
+
+#     Parameters:
+#     request (HttpRequest): The HTTP request object.
+
+#     Returns:
+#     GET : return json response
+#     """
+#     host = request.get_host()
+#     protocol = "https" if request.is_secure() else "http"
+#     candidates = request.POST.getlist("ids")
+#     other_attachments = request.FILES.getlist("other_attachments")
+#     template_attachment_ids = request.POST.getlist("template_attachment_ids")
+#     email_backend = ConfiguredEmailBackend()
+#     if not candidates:
+#         messages.info(request, "Please choose candidates")
+#         return HttpResponse("<script>window.location.reload()</script>")
+
+#     bodys = list(
+#         SkylinxMailTemplate.objects.filter(id__in=template_attachment_ids).values_list(
+#             "body", flat=True
+#         )
+#     )
+
+#     attachments_other = []
+#     for file in other_attachments:
+#         attachments_other.append((file.name, file.read(), file.content_type))
+#         file.close()
+#     for cand_id in candidates:
+#         attachments = list(set(attachments_other) | set([]))
+#         candidate = Candidate.objects.get(id=cand_id)
+#         if not request.GET.get("no_portal"):
+#             if candidate.converted_employee_id:
+#                 messages.info(
+#                     request, _(f"{candidate} has already been converted to employee.")
+#                 )
+#                 continue
+#             for html in bodys:
+#                 # due to not having solid template we first need to pass the context
+#                 template_bdy = template.Template(html)
+#                 context = template.Context(
+#                     {"instance": candidate, "self": request.user.employee_get}
+#                 )
+#                 render_bdy = template_bdy.render(context)
+#                 attachments.append(
+#                     (
+#                         "Document",
+#                         generate_pdf(
+#                             render_bdy, {}, path=False, title="Document"
+#                         ).content,
+#                         "application/pdf",
+#                     )
+#                 )
+#             token = secrets.token_hex(15)
+#             existing_portal = OnboardingPortal.objects.filter(candidate_id=candidate)
+#             if existing_portal.exists():
+#                 new_portal = existing_portal.first()
+#                 new_portal.token = token
+#                 new_portal.used = False
+#                 new_portal.count = 0
+#                 new_portal.profile = None
+#                 new_portal.save()
+#             else:
+#                 OnboardingPortal(candidate_id=candidate, token=token).save()
+#             html_message = render_to_string(
+#                 "onboarding/mail_templates/default.html",
+#                 {
+#                     "portal": f"{protocol}://{host}/onboarding/user-creation/{token}",
+#                     "instance": candidate,
+#                     "host": host,
+#                     "protocol": protocol,
+#                 },
+#                 request=request,
+#             )
+#             email = EmailMessage(
+#                 subject=f"Hello {candidate.name}, Congratulations on your selection!",
+#                 body=html_message,
+#                 to=[candidate.email],
+#             )
+#             email.content_subtype = "html"
+#             email.attachments = attachments
+#             try:
+#                 email.send()
+#                 # to check ajax or not
+#                 messages.success(request, "Portal link sent to the candidate")
+#             except Exception as e:
+#                 logger.error(e)
+#                 messages.error(request, f"Mail not send to {candidate.name}")
+#             candidate.start_onboard = True
+#             candidate.save()
+#         try:
+#             onboarding_candidate = CandidateStage()
+#             onboarding_candidate.onboarding_stage_id = (
+#                 candidate.recruitment_id.onboarding_stage.first()
+#             )
+#             onboarding_candidate.candidate_id = candidate
+#             onboarding_candidate.save()
+#             messages.success(request, "Candidate Added to Onboarding Stage")
+#         except Exception as e:
+#             logger.error(e)
+
+#     return HttpResponse("<script>window.location.reload()</script>")
+
+
+import logging
+import os
+import secrets
+from email.mime.image import MIMEImage
+
+from django.contrib import messages
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+
+logger = logging.getLogger(__name__)
+
+
 @login_required
 @all_manager_can_enter("recruitment.view_recruitment")
 def email_send(request):
-    """
-    function used to send onboarding portal for hired candidates .
-
-    Parameters:
-    request (HttpRequest): The HTTP request object.
-
-    Returns:
-    GET : return json response
-    """
     host = request.get_host()
     protocol = "https" if request.is_secure() else "http"
+
     candidates = request.POST.getlist("ids")
     other_attachments = request.FILES.getlist("other_attachments")
     template_attachment_ids = request.POST.getlist("template_attachment_ids")
+
     email_backend = ConfiguredEmailBackend()
+    display_email_name = email_backend.dynamic_from_email_with_display_name
+
     if not candidates:
         messages.info(request, "Please choose candidates")
         return SkylinxRedirect(request)
 
+    # Fetch PDF templates
     bodys = list(
         SkylinxMailTemplate.objects.filter(id__in=template_attachment_ids).values_list(
             "body", flat=True
         )
     )
 
+    # Collect uploaded attachments
     attachments_other = []
     for file in other_attachments:
         attachments_other.append((file.name, file.read(), file.content_type))
         file.close()
+
     for cand_id in candidates:
-        attachments = list(set(attachments_other) | set([]))
         candidate = Candidate.objects.get(id=cand_id)
-        if not request.GET.get("no_portal"):
-            if candidate.converted_employee_id:
-                messages.info(
-                    request, _(f"{candidate} has already been converted to employee.")
-                )
-                continue
-            for html in bodys:
-                # due to not having solid template we first need to pass the context
-                template_bdy = template.Template(html)
-                context = template.Context(
-                    {"instance": candidate, "self": request.user.employee_get}
-                )
-                render_bdy = template_bdy.render(context)
-                attachments.append(
-                    (
-                        "Document",
-                        generate_pdf(
-                            render_bdy, {}, path=False, title="Document"
-                        ).content,
-                        "application/pdf",
-                    )
-                )
-            token = secrets.token_hex(15)
-            existing_portal = OnboardingPortal.objects.filter(candidate_id=candidate)
-            if existing_portal.exists():
-                new_portal = existing_portal.first()
-                new_portal.token = token
-                new_portal.used = False
-                new_portal.count = 0
-                new_portal.profile = None
-                new_portal.save()
-            else:
-                OnboardingPortal(candidate_id=candidate, token=token).save()
-            html_message = render_to_string(
-                "onboarding/mail_templates/default.html",
-                {
-                    "portal": f"{protocol}://{host}/onboarding/user-creation/{token}",
-                    "instance": candidate,
-                    "host": host,
-                    "protocol": protocol,
-                },
-                request=request,
+        attachments = list(attachments_other)
+
+        # Prevent duplicate onboarding
+        if candidate.converted_employee_id:
+            messages.info(
+                request, f"{candidate} has already been converted to employee."
             )
-            email = EmailMessage(
-                subject=f"Hello {candidate.name}, Congratulations on your selection!",
-                body=html_message,
-                to=[candidate.email],
+            continue
+
+        # Generate PDFs
+        for html in bodys:
+            template_bdy = template.Template(html)
+            context = template.Context(
+                {"instance": candidate, "self": request.user.employee_get}
             )
-            email.content_subtype = "html"
-            email.attachments = attachments
-            try:
-                email.send()
-                # to check ajax or not
-                messages.success(request, "Portal link sent to the candidate")
-            except Exception as e:
-                logger.error(e)
-                messages.error(request, f"Mail not send to {candidate.name}")
-            candidate.start_onboard = True
-            candidate.save()
+            render_bdy = template_bdy.render(context)
+
+            attachments.append(
+                (
+                    "Document.pdf",
+                    generate_pdf(render_bdy, {}, path=False, title="Document").content,
+                    "application/pdf",
+                )
+            )
+
+        # Create / reset portal
+        token = secrets.token_hex(15)
+        portal, _ = OnboardingPortal.objects.get_or_create(candidate_id=candidate)
+        portal.token = token
+        portal.used = False
+        portal.count = 0
+        portal.profile = None
+        portal.save()
+
+        # Render email HTML
+        html_message = render_to_string(
+            "onboarding/mail_templates/default.html",
+            {
+                "portal": f"{protocol}://{host}/onboarding/user-creation/{token}",
+                "instance": candidate,
+                "host": host,
+                "protocol": protocol,
+                "use_cid_logo": True,
+            },
+            request=request,
+        )
+
+        # ✅ Use EmailMultiAlternatives (IMPORTANT)
+        email = EmailMultiAlternatives(
+            subject=f"Hello {candidate.name}, Congratulations on your selection!",
+            body=html_message,
+            from_email=display_email_name,
+            to=[candidate.email],
+            reply_to=[display_email_name],
+        )
+
+        email.attach_alternative(html_message, "text/html")
+
+        # Attach files
+        for attachment in attachments:
+            email.attach(*attachment)
+
+        # ✅ Attach company logo INLINE
         try:
-            onboarding_candidate = CandidateStage()
-            onboarding_candidate.onboarding_stage_id = (
-                candidate.recruitment_id.onboarding_stage.first()
+            company = candidate.recruitment_id.company_id
+            if company and company.icon and os.path.exists(company.icon.path):
+                image_path = company.icon.path
+            else:
+                image_path = finders.find("images/ui/skylinx-sticker-round.png")
+
+            if image_path:
+                with open(image_path, "rb") as f:
+                    logo = MIMEImage(f.read())
+                    logo.add_header("Content-ID", "<company_logo>")
+                    logo.add_header(
+                        "Content-Disposition",
+                        "inline",
+                        filename=os.path.basename(image_path),
+                    )
+                    email.attach(logo)
+        except Exception as e:
+            logger.error(f"Company logo attach failed: {e}")
+
+        # Send mail
+        try:
+            email.send()
+            messages.success(request, "Portal link sent to the candidate")
+        except Exception as e:
+            logger.error(e)
+            messages.error(request, f"Mail not sent to {candidate.name}")
+            # continue
+
+        # Mark onboarding started without triggering Candidate.save() validation
+        # (which can fail with "Choose valid choice" on job_position_id when the
+        # candidate's job position has been removed from recruitment.open_positions).
+        Candidate.objects.filter(pk=candidate.pk).update(start_onboard=True)
+        candidate.start_onboard = True
+
+        # ✅ SAFE onboarding stage insert
+        try:
+            stage = candidate.recruitment_id.onboarding_stage.first()
+            CandidateStage.objects.get_or_create(
+                candidate_id=candidate,
+                defaults={"onboarding_stage_id": stage},
             )
-            onboarding_candidate.candidate_id = candidate
-            onboarding_candidate.save()
-            messages.success(request, "Candidate Added to Onboarding Stage")
         except Exception as e:
             logger.error(e)
 
@@ -923,7 +1138,7 @@ def user_creation(request, token):
         if onboarding_portal.count == 3:
             return redirect("employee-bank-details", token)
         candidate = onboarding_portal.candidate_id
-        user = User.objects.filter(username=candidate.email).first()
+        user = SkylinxUser.objects.filter(username=candidate.email).first()
         form = UserCreationForm(instance=user)
         try:
             if request.method == "POST":
@@ -986,6 +1201,7 @@ def profile_view(request, token):
         profile = request.FILES.get("profile")
         if profile is not None:
             candidate.profile = profile
+            candidate.save()
             onboarding_portal.profile = profile
             onboarding_portal.count = 2
             onboarding_portal.save()
@@ -1025,34 +1241,65 @@ def employee_creation(request, token):
         "dob": candidate.dob,
     }
     session_key = request.session.session_key
-    user = portal_user[session_key]
-    if Employee.objects.filter(email=user).exists():
+    user = portal_user.get(session_key)
+    if user is None:
+        # Fallback for direct/opened links where in-memory portal state is absent.
+        user = SkylinxUser.objects.filter(username=candidate.email).first()
+    elif not getattr(user, "pk", None):
+        # Related filters require a saved instance; resolve persisted user by email/username.
+        user = SkylinxUser.objects.filter(username=candidate.email).first() or user
+
+    if user is None:
+        messages.error(
+            request,
+            _("Please create your account first before continuing employee creation."),
+        )
+        return redirect("user-creation", token)
+
+    user_email = getattr(user, "email", None) or candidate.email
+    if Employee.objects.filter(email=user_email).exists():
         messages.success(request, _("Employee with email id already exists."))
-        return redirect("login")
-    if Employee.objects.filter(employee_user_id=user).first() is not None:
-        employee = Employee.objects.filter(employee_user_id=user).first()
+        return redirect("login/")
+    employee_qs = (
+        Employee.objects.filter(employee_user_id=user)
+        if getattr(user, "pk", None)
+        else Employee.objects.none()
+    )
+    if employee_qs.first() is not None:
+        employee = employee_qs.first()
         if employee.employee_bank_details:
             messages.success(request, _("Employee already exists.."))
-            return redirect("login")
-        initial = Employee.objects.filter(employee_user_id=user).first().__dict__
+            return redirect("login/")
+        initial = employee.__dict__
 
     form = EmployeeCreationForm(
         initial=initial,
     )
     # form.errors.clear()
     if request.method == "POST":
-        instance = Employee.objects.filter(employee_user_id=user).first()
+        instance = employee_qs.first() if getattr(user, "pk", None) else None
         form = EmployeeCreationForm(
             request.POST,
             instance=instance,
         )
         if form.is_valid():
-            user.save()
+            if user is None:
+                messages.error(
+                    request,
+                    _(
+                        "User account was not found. Please complete account creation and try again."
+                    ),
+                )
+                return redirect("user-creation", token)
+            if not getattr(user, "pk", None):
+                user.save()
             login(request, user)
             employee_personal_info = form.save(commit=False)
             employee_personal_info.employee_user_id = user
             employee_personal_info.email = candidate.email
-            if candidate.profile:  # 896
+            if candidate.profile and candidate.profile.storage.exists(
+                candidate.profile.name
+            ):  # 896
                 filename = os.path.basename(candidate.profile.name)
                 employee_personal_info.employee_profile.save(
                     filename, ContentFile(candidate.profile.read()), save=False
@@ -1110,8 +1357,13 @@ def employee_bank_details(request, token):
     GET : return bank details creation template
     POST : return employee_bank_details_save function
     """
-    onboarding_portal = OnboardingPortal.objects.get(token=token)
-    user = User.objects.filter(username=onboarding_portal.candidate_id.email).first()
+    onboarding_portal = OnboardingPortal.objects.filter(token=token).first()
+    if not onboarding_portal:
+        return SkylinxRedirect(request, message=_("Onboarding portal not found."))
+
+    user = SkylinxUser.objects.filter(
+        username=onboarding_portal.candidate_id.email
+    ).first()
     employee = Employee.objects.filter(employee_user_id=user).first()
     bank_info = EmployeeBankDetails.objects.filter(employee_id=employee).first()
     form = BankDetailsCreationForm(instance=bank_info)
@@ -1234,12 +1486,16 @@ def get_status(request, task_id):
     """
     cand_id = request.GET.get("cand_id")
     cand_stage = request.GET.get("cand_stage")
-    cand_stage_obj = CandidateStage.objects.get(id=cand_stage)
-    onboarding_task = OnboardingTask.objects.get(id=task_id)
-    candidate = Candidate.objects.get(id=cand_id)
+    if not cand_id or not cand_stage:
+        return SkylinxRedirect(request, message=_("Missing required parameters."))
+    cand_stage_obj = CandidateStage.find(cand_stage)
+    onboarding_task = OnboardingTask.find(task_id)
+    candidate = Candidate.find(cand_id)
     candidate_task = CandidateTask.objects.filter(
         candidate_id=candidate, onboarding_task_id=onboarding_task
     ).first()
+    if not cand_stage_obj or not onboarding_task or not candidate or not candidate_task:
+        return SkylinxRedirect(request, message=_("Object not found."))
     status = candidate_task.status
 
     return render(
@@ -1271,10 +1527,20 @@ def assign_task(request, task_id):
     stage_id = request.GET.get("stage_id")
     cand_id = request.GET.get("cand_id")
     cand_stage = request.GET.get("cand_stage")
-    cand_stage_obj = CandidateStage.objects.get(id=cand_stage)
-    onboarding_task = OnboardingTask.objects.get(id=task_id)
-    candidate = Candidate.objects.get(id=cand_id)
-    onboarding_stage = OnboardingStage.objects.get(id=stage_id)
+    if not stage_id or not cand_id or not cand_stage:
+        return SkylinxRedirect(request, message=_("Missing required parameters."))
+    cand_stage_obj = CandidateStage.find(cand_stage)
+    onboarding_task = OnboardingTask.find(task_id)
+    candidate = Candidate.find(cand_id)
+    onboarding_stage = OnboardingStage.find(stage_id)
+    if (
+        not cand_stage_obj
+        or not onboarding_task
+        or not candidate
+        or not onboarding_stage
+    ):
+        return SkylinxRedirect(request, message=_("Object not found."))
+
     cand_task, created = CandidateTask.objects.get_or_create(
         candidate_id=candidate,
         stage_id=onboarding_stage,
@@ -1450,7 +1716,6 @@ def onboard_candidate_chart(request):
 
 @login_required
 @permission_required("candidate.change_candidate")
-@csrf_exempt
 @require_POST
 def update_joining(request):
     """
@@ -1508,6 +1773,7 @@ def view_dashboard(request):
 
 
 @login_required
+@hx_request_required
 @permission_required(perm="recruitment.view_candidate")
 def dashboard_stage_chart(request):
     recruitment = request.GET.get("recruitment")
@@ -1547,10 +1813,18 @@ def candidate_sequence_update(request):
     """
     This method is used to update the sequence of candidate
     """
-    sequence_data = json.loads(request.POST["sequenceData"])
+    seq_data = request.POST.get("sequenceData")
+    if not seq_data:
+        messages.error(request, _("Missing required parameter: sequenceData."))
+        return JsonResponse(
+            {"error": "Missing required parameter: sequenceData"}, status=400
+        )
+    sequence_data = json.loads(request.POST.get("sequenceData"))
     updated = False
     for cand_id, seq in sequence_data.items():
-        cand = CandidateStage.objects.get(id=cand_id)
+        cand = CandidateStage.find(cand_id)
+        if not cand:
+            continue
         if cand.sequence != seq:
             cand.sequence = seq
             cand.save()
@@ -1568,11 +1842,19 @@ def stage_sequence_update(request):
     """
     This method is used to update the sequence of the stages
     """
-    sequence_data = json.loads(request.POST["sequenceData"])
+    seq_data = request.POST.get("sequenceData")
+    if not seq_data:
+        messages.error(request, _("Missing required parameter: sequenceData."))
+        return JsonResponse(
+            {"error": "Missing required parameter: sequenceData"}, status=400
+        )
+    sequence_data = json.loads(request.POST.get("sequenceData"))
     updated = False
 
     for stage_id, seq in sequence_data.items():
-        stage = OnboardingStage.objects.get(id=stage_id)
+        stage = OnboardingStage.find(stage_id)
+        if not stage:
+            continue
         if stage.sequence != seq:
             stage.sequence = seq
             stage.save()
@@ -1643,7 +1925,6 @@ def onboarding_send_mail(request, candidate_id):
 
 @login_required
 @stage_manager_can_enter("recruitment.change_stage")
-@csrf_exempt
 @require_POST
 def update_probation_end(request):
     """
@@ -1723,9 +2004,13 @@ def change_task_status(request):
     """
     This method is to update the candidate task
     """
-    task_id = request.GET["task_id"]
-    candidate_task = CandidateTask.objects.get(id=task_id)
-    status = request.GET["status"]
+    task_id = request.GET.get("task_id")
+    status = request.GET.get("status")
+    if not task_id or not status:
+        return SkylinxRedirect(request, message=_("Task ID or status is missing"))
+    candidate_task = CandidateTask.find(task_id)
+    if not candidate_task:
+        return SkylinxRedirect(request, message=_("Candidate task not found"))
     if status in [
         "todo",
         "scheduled",
@@ -1735,7 +2020,11 @@ def change_task_status(request):
     ]:
         candidate_task.status = status
         candidate_task.save()
-    return HttpResponse("Success")
+        messages.success(request, _("Task status updated successfully."))
+
+    return HttpResponse(
+        "<script>$('#reloadMessagesButton').click(); $('#myOnboardingReload').click(); </script>"
+    )
 
 
 @login_required
@@ -1797,25 +2086,36 @@ def add_to_rejected_candidates(request):
 
 
 @login_required
-@hx_request_required
-@permission_required("recruitment.delete_rejectedcandidate")
-def delete_candidate_rejection(request, rej_id):
+@permission_required("recruitment.change_candidate")
+@require_http_methods(["POST"])
+def undo_rejected_candidate(request, candidate_id):
     """
-    This method is used to delete candidate rejection
+    Remove candidate from rejected list.
     """
-    try:
-        instance = RejectedCandidate.objects.filter(id=rej_id).first()
-        if instance:
-            instance.delete()
-            messages.success(request, "Candidate rejection deleted successfully")
-        else:
-            messages.error(request, "Candidate rejection not found")
-    except Exception as e:
-        messages.error(request, "Error occurred while deleting candidate rejection")
+    deleted_count, __ = RejectedCandidate.objects.filter(
+        candidate_id=candidate_id
+    ).delete()
+    if deleted_count:
+        messages.success(request, _("Candidate removed from rejected list"))
+    else:
+        messages.info(request, _("Candidate is not in rejected list"))
+
+    if request.META.get("HTTP_HX_REQUEST") == "true":
+        response = HttpResponse(
+            "<script>"
+            "$('#applyFilter').click();"
+            "$('#reloadMessagesButton').click();"
+            "</script>"
+        )
+        # Also trigger via HX-Trigger header so listeners (#applyFilter / #reloadMessagesButton)
+        # fire even when the button uses hx-swap="none" (which discards the response body).
+        response["HX-Trigger"] = "reloadCandidatesList"
+        return response
     return SkylinxRedirect(request)
 
 
 @login_required
+@hx_request_required
 def candidate_select(request):
     """
     This method is used for select all in candidate
@@ -1865,6 +2165,11 @@ def candidate_select_filter(request):
         context = {"employee_ids": employee_ids, "total_count": total_count}
 
         return JsonResponse(context)
+    else:
+        messages.error(request, _("Invalid page number"))
+        return JsonResponse(
+            {"message": _("Invalid page number")}, status=400, safe=False
+        )
 
 
 @login_required
@@ -1873,7 +2178,13 @@ def offer_letter_bulk_status_update(request):
     """
     This function is used to bulk update the offerletter status
     """
-    ids = json.loads(request.GET.get("ids", []))
+    letter_ids = request.GET.get("ids")
+
+    if not letter_ids:
+        messages.error(request, "No offer letters selected for status update.")
+        return JsonResponse("Missing required parameter: ids", safe=False, status=400)
+
+    ids = json.loads(letter_ids)
     status = request.GET.get("status")
     for id in ids:
         try:
@@ -1897,8 +2208,12 @@ def onboarding_candidate_bulk_delete(request):
     This function is used to bulk delete onboarding candidates
     """
 
-    ids = json.loads(request.GET.get("ids", []))
-    status = request.GET.get("status")
+    cand_ids = request.GET.get("ids")
+    if not cand_ids:
+        messages.error(request, "No candidates selected for deletion.")
+        return JsonResponse("Missing required parameter: ids", safe=False, status=400)
+
+    ids = json.loads(cand_ids)
     for id in ids:
         try:
             candidate = Candidate.objects.filter(id=int(id)).first()

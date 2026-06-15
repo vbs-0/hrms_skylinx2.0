@@ -19,22 +19,26 @@ def is_valid_uuid(uuid_string):
 
 
 def _split_path(self, path=None):
-    """Returns a list of the path components between slashes"""
-    if not path:
-        path = self.path
-    if path.endswith("/"):
-        path = path[:-1]
-    if path.startswith("/"):
-        path = path[1:]
-    if path == "":
-        return list()
 
-    result = path.split("/")
-    return result
+    path = path or self.path
+    path = path.strip("/")
+    parts = path.split("/") if path else []
 
+    if parts and parts[0] in ("static", "media"):
+        return []
+
+    return parts
+
+
+BREADCRUMB_URL_NAMES = {
+    "ess": "Employee",
+    "offboarding": "Offboarding",
+    "helpdesk": "Helpdesk",
+}
 
 sidebar_urls = [
     "dashboard",
+    "ess",
     "pipeline",
     "recruitment-survey-question-template-view",
     "candidate-view",
@@ -74,6 +78,7 @@ sidebar_urls = [
     "company-leave-view",
     "dashboard-view",
     "objective-list-view",
+    "objective-template-list-view",
     "feedback-view",
     "period-view",
     "question-template-view",
@@ -81,6 +86,7 @@ sidebar_urls = [
     "asset-request-allocation-view",
     "settings",
     "attendance-settings",
+    "geo-face-config",
     "employee-permission-assign",
     "user-group-assign",
     "currency",
@@ -113,6 +119,7 @@ sidebar_urls = [
     "pagination-settings-view",
     "organisation-chart",
     "disciplinary-actions",
+    "roster",
     "view-policies",
     "resignation-requests-view",
     "action-type",
@@ -147,6 +154,7 @@ sidebar_urls = [
     "skills-view",
     "employee-bonus-point",
     "mail-automations",
+    "task-all",
     "check-in-check-out-setting",
     "user-accessibility",
     "asset-batch-view",
@@ -167,6 +175,14 @@ sidebar_urls = [
     "asset-pivot",
     "pms-report",
     "pms-pivot",
+    "linkedin-integration-setting",
+    "ldap-settings",
+    "gmeet-setting",
+    "whatsapp-credential-view",
+    "cbv-pipeline",
+    "gmeet-view",
+    "color-theme-view",
+    "survey-template-preview",
 ]
 remove_urls = [
     "feedback-detailed-view",
@@ -176,6 +192,8 @@ remove_urls = [
     "ticket-detail",
     "faq-view",
     "get-job-positions",
+    "task-view",
+    "dashboard",
 ]
 
 user_breadcrumbs = {}
@@ -253,6 +271,11 @@ def breadcrumbs(request):
             request.session["breadcrumbs"].clear()
             breadcrumbs.append({"url": base_url, "name": company, "found": True})
 
+        if len(parts) == 1 and parts[0] in sidebar_urls:
+            first_path = breadcrumbs[0]
+            request.session["breadcrumbs"].clear()
+            request.session["breadcrumbs"].append(first_path)
+
         if len(parts) > 1:
             last_path = parts[-1]
             if (
@@ -274,7 +297,11 @@ def breadcrumbs(request):
             except Resolver404:
                 found = False
 
-            new_dict = {"url": path, "name": item, "found": found}
+            new_dict = {
+                "url": path,
+                "name": BREADCRUMB_URL_NAMES.get(item, item),
+                "found": found,
+            }
 
             if item.isdigit() or is_valid_uuid(item):
                 # Handle the case when item is a digit (e.g., an ID)
@@ -290,11 +317,15 @@ def breadcrumbs(request):
                         pass
 
             key = "HTTP_HX_REQUEST"
+            sidebar_nav_key = "HTTP_HX_SIDEBAR_NAV"
             names = [d["name"] for d in breadcrumbs]
             if (
                 new_dict not in breadcrumbs
                 and new_dict["name"] not in remove_urls + names
-                and key not in request.META.keys()
+                and (
+                    key not in request.META.keys()
+                    or request.META.get(sidebar_nav_key) == "true"
+                )
                 and not new_dict["name"].isdigit()
             ):
                 if new_dict["name"] in ["employee-view", "candidate-view"]:
@@ -325,9 +356,9 @@ urlpatterns.append(
     path("recruitment/", lambda request: redirect("recruitment-dashboard"))
 )
 urlpatterns.append(
-    path("onboarding/", lambda request: redirect("view-onboarding-dashboard"))
+    path("onboarding/", lambda request: redirect("onboarding-modern-dashboard"))
 )
-urlpatterns.append(path("employee/", lambda request: redirect("employee-view")))
+urlpatterns.append(path("employee/", lambda request: redirect("ess-dashboard")))
 urlpatterns.append(
     path("attendance/", lambda request: redirect("attendance-dashboard"))
 )
@@ -343,3 +374,4 @@ urlpatterns.append(path("payroll/", lambda request: redirect("view-payroll-dashb
 urlpatterns.append(path("pms/", lambda request: redirect("dashboard-view")))
 urlpatterns.append(path("asset/", lambda request: redirect("asset-dashboard")))
 urlpatterns.append(path("project/", lambda request: redirect("project-dashboard-view")))
+urlpatterns.append(path("helpdesk/", lambda request: redirect("helpdesk-dashboard")))

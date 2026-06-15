@@ -1,9 +1,9 @@
+from django.contrib import messages
 from django.shortcuts import render
-from pyexpat.errors import messages
 
 from base.methods import check_manager
 from helpdesk.models import Ticket
-from skylinx.http import SkylinxRedirect
+from skylinx.http.response import SkylinxRedirect
 
 decorator_with_arguments = (
     lambda decorator: lambda *args, **kwargs: lambda func: decorator(

@@ -1,11 +1,11 @@
 import random
 
 from django.core.paginator import Paginator
-from django.shortcuts import render
+from django.utils.translation import gettext_lazy as _
 
 from base.methods import get_pagination, get_subordinates
 from employee.models import Employee
-from skylinx.methods import handle_no_permission
+from skylinx.http import SkylinxRedirect
 from project.models import Project, Task, TimeSheet
 
 decorator_with_arguments = (
@@ -115,7 +115,7 @@ def is_projectmanager_or_member_or_perms(function, perm):
             or any_task_member(user)
         ):
             return function(request, *args, **kwargs)
-        return handle_no_permission(request)
+        return SkylinxRedirect(request, message=_("You don't have permission."))
 
     return _function
 
@@ -124,10 +124,13 @@ def is_task_member(request, task_id):
     """
     This method is used to check the employee is task member or not
     """
+    task = Task.find(task_id)
+    if not task:
+        return False  # Task not found, treat as not a member
     if (
         request.user.has_perm("project.change_task")
-        or request.user.employee_get in Task.objects.get(id=task_id).task_managers.all()
-        or request.user.employee_get in Task.objects.get(id=task_id).task_members.all()
+        or request.user.employee_get in task.task_managers.all()
+        or request.user.employee_get in task.task_members.all()
     ):
         return True
     return False
@@ -137,20 +140,25 @@ def is_task_manager(request, task_id):
     """
     This method is used to check the employee is task member or not
     """
+    task = Task.find(task_id)
+    if not task:
+        return False  # Task not found, treat as not a manager
     if (
         request.user.has_perm("project.delete_task")
-        or request.user.employee_get in Task.objects.get(id=task_id).task_managers.all()
+        or request.user.employee_get in task.task_managers.all()
     ):
         return True
     return False
 
 
 def time_sheet_update_permissions(request, time_sheet_id):
+    timesheet = TimeSheet.find(time_sheet_id)
+    if not timesheet:
+        return False  # Timesheet not found, treat as no permission
     if (
         request.user.has_perm("project.change_timesheet")
-        or request.user.employee_get
-        == TimeSheet.objects.get(id=time_sheet_id).employee_id
-        or TimeSheet.objects.get(id=time_sheet_id).employee_id
+        or request.user.employee_get == timesheet.employee_id
+        or timesheet.employee_id
         in Employee.objects.filter(
             employee_work_info__reporting_manager_id=request.user.employee_get
         )

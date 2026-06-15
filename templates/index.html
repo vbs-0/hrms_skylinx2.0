@@ -1,6 +1,8 @@
 {% load static %}
 {% load i18n %}
 {% load skylinxfilters %}
+{% load basefilters %}
+{% show_section as show_section %}
 <!DOCTYPE html>
 <html>
 {% get_current_language_bidi as LANGUAGE_BIDI %}
@@ -12,6 +14,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <script>
+        window.CURRENT_LANGUAGE = "{{ LANGUAGE_CODE }}";
         var at_work_seconds = {{ request.user.employee_get.get_forecasted_at_work.forecasted_at_work_seconds }}
         var run = 0
     </script>
@@ -42,6 +45,7 @@
     <script src="{% static '/build/js/orgChart.js' %}"></script>
     <script src="{% static 'build/js/driver.js' %}"></script>
     <script src="{% static 'build/js/clearFilter.js' %}"></script>
+    <script src="{% static 'src/js/customHeaderScripts.js' %}"></script>
 
 
 
@@ -75,6 +79,7 @@
         </div>
     {% endif %}
     <button id="reloadMessagesButton" hx-get="{% url 'reload-messages' %}" hx-swap="afterend" hidden hx-target="#reloadMessages"></button>
+    {% include "generic/components.html" %}
 
     <div class="oh-wrapper-main">
 
@@ -148,7 +153,7 @@
                             <!-- End of check in/out button in nav bar -->
                         {% endif %}
 
-                        {% if request.user|any_permission:'base' or perms.attendance.view_attendancevalidationcondition %}
+                        {% if show_section %}
                             <!-- Start of settings button in nav bar -->
                             <div class="oh-navbar__action-icons" title="{% trans 'Settings' %}">
                                 <a href="{% url 'general-settings' %}" id="settingsMenu" class="oh-navbar__action-icons-link">
@@ -220,6 +225,7 @@
         </div>
     </div>
 
+    <script src="{% url 'javascript-catalog' %}"></script>
     <!--htmx script -->
     <script src="{% static 'build/js/web.frontend.min.js' %}"></script>
     <script src="{% static 'htmx/htmx.min.js' %}"></script>
@@ -255,6 +261,7 @@
     <script type="module" src="{% static 'images/ionicons/ui_icons/ionicons/ionicons.esm.js' %}"></script>
     <script src="{% static '/build/js/sweetAlert.js' %}"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{% static 'src/js/customFooterScripts.js' %}"></script>
     <script>
         // Clear all query parameters from the URL
         function clearQueryParameters() {

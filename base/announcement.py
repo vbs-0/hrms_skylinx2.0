@@ -3,11 +3,9 @@ Module for managing announcements, including creation, updates, comments, and vi
 """
 
 import json
-import os
 from datetime import datetime, timedelta
 
 from django.contrib import messages
-from django.contrib.auth.models import User
 from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -25,6 +23,8 @@ from base.models import (
 )
 from employee.models import Employee
 from skylinx.decorators import hx_request_required, login_required, permission_required
+from skylinx.http.response import SkylinxRedirect
+from skylinx_auth.models import SkylinxUser
 from notifications.signals import notify
 
 
@@ -79,19 +79,6 @@ def announcement_list(request):
     return render(request, "announcement/announcements_list.html", context)
 
 
-BLOCKED_EXTENSIONS = {
-    ".html",
-    ".htm",
-    ".js",
-    ".svg",
-    ".xml",
-    ".php",
-    ".py",
-    ".sh",
-    ".exe",
-}
-
-
 @login_required
 @hx_request_required
 def create_announcement(request):
@@ -99,31 +86,12 @@ def create_announcement(request):
     Create a new announcement and notify relevant users.
     """
     form = AnnouncementForm()
-
     if request.method == "POST":
         form = AnnouncementForm(request.POST, request.FILES)
-
         if form.is_valid():
-            announcement, unused_attachment_ids = form.save(commit=False)
+            announcement, attachment_ids = form.save(commit=False)
             announcement.save()
-
-            # Attachment validation (same as CBV)
-            files = request.FILES.getlist("attachments")
-            safe_attachment_ids = []
-
-            for file in files:
-                ext = os.path.splitext(file.name)[1].lower()
-
-                if ext in BLOCKED_EXTENSIONS:
-                    messages.error(
-                        request, f"File type {ext} is not allowed for security reasons."
-                    )
-                    continue
-
-                attachment = Attachment.objects.create(file=file)
-                safe_attachment_ids.append(attachment.id)
-
-            announcement.attachments.set(safe_attachment_ids)
+            announcement.attachments.set(attachment_ids)
 
             employees = form.cleaned_data["employees"]
             departments = form.cleaned_data["department"]
@@ -150,7 +118,7 @@ def create_announcement(request):
             announcement.employees.add(*all_employees)
 
             all_emps = employees_from_dept | employees_from_job | employees
-            user_map = User.objects.filter(employee_get__in=all_emps).distinct()
+            user_map = SkylinxUser.objects.filter(employee_get__in=all_emps).distinct()
 
             dept_emp_ids = set(employees_from_dept.values_list("id", flat=True))
             job_emp_ids = set(employees_from_job.values_list("id", flat=True))
@@ -189,13 +157,48 @@ def create_announcement(request):
             )
 
             messages.success(request, _("Announcement created successfully."))
-            form = AnnouncementForm()  # Reset form
+            form = AnnouncementForm()  # Reset the form
 
-    return render(
-        request,
-        "announcement/announcement_form.html",
-        {"form": form},
-    )
+            emp_dep = SkylinxUser.objects.filter(
+                employee_get__employee_work_info__department_id__in=departments
+            )
+            emp_jobs = SkylinxUser.objects.filter(
+                employee_get__employee_work_info__job_position_id__in=job_positions
+            )
+            employees = employees | Employee.objects.filter(
+                employee_work_info__department_id__in=departments
+            )
+            employees = employees | Employee.objects.filter(
+                employee_work_info__job_position_id__in=job_positions
+            )
+            announcement.employees.add(*employees)
+            announcement.save()
+
+            notify.send(
+                request.user.employee_get,
+                recipient=emp_dep,
+                verb="Your department was mentioned in a post.",
+                verb_ar="تم ذكر قسمك في منشور.",
+                verb_de="Ihr Abteilung wurde in einem Beitrag erwähnt.",
+                verb_es="Tu departamento fue mencionado en una publicación.",
+                verb_fr="Votre département a été mentionné dans un post.",
+                redirect="/",
+                icon="chatbox-ellipses",
+            )
+
+            notify.send(
+                request.user.employee_get,
+                recipient=emp_jobs,
+                verb="Your job position was mentioned in a post.",
+                verb_ar="تم ذكر وظيفتك في منشور.",
+                verb_de="Ihre Arbeitsposition wurde in einem Beitrag erwähnt.",
+                verb_es="Tu puesto de trabajo fue mencionado en una publicación.",
+                verb_fr="Votre poste de travail a été mentionné dans un post.",
+                redirect="/",
+                icon="chatbox-ellipses",
+            )
+            form = AnnouncementForm()
+    return render(request, "announcement/announcement_form.html", {"form": form})
 
 
 @login_required
@@ -204,26 +207,32 @@ def delete_announcement(request, anoun_id):
     """
     This method is used to delete announcements.
     """
+    from skylinx.skylinx_middlewares import _thread_locals
+
     announcement = Announcement.find(anoun_id)
     if announcement:
         announcement.delete()
         messages.success(request, _("Announcement deleted successfully."))
 
-    instance_ids = request.GET.get("instance_ids")
-    instance_ids_list = json.loads(instance_ids)
-    __, next_instance_id = (
-        closest_numbers(instance_ids_list, anoun_id)
-        if instance_ids_list
-        else (None, None)
-    )
+    instance_ids = request.GET.get("instance_ids", "[]")
+    try:
+        instance_ids_list = json.loads(instance_ids) if instance_ids else []
+    except (json.JSONDecodeError, TypeError):
+        instance_ids_list = []
 
+    __, next_instance_id = closest_numbers(instance_ids_list, anoun_id)
     if anoun_id in instance_ids_list:
         instance_ids_list.remove(anoun_id)
 
+    if not instance_ids_list:
+        # Last announcement deleted — refresh the page to show empty state
+        return SkylinxRedirect(request)
+
     if next_instance_id and next_instance_id != anoun_id:
-        url = reverse("announcement-single-view", kwargs={"anoun_id": next_instance_id})
+        url = reverse("announcement-single-view", kwargs={"pk": next_instance_id})
         return redirect(f"{url}?instance_ids={json.dumps(instance_ids_list)}")
-    return redirect(announcement_single_view)
+
+    return SkylinxRedirect(request)
 
 
 @login_required
@@ -232,6 +241,7 @@ def update_announcement(request, anoun_id):
     """
     This method renders form and template to update Announcement
     """
+
     announcement = Announcement.objects.get(id=anoun_id)
     form = AnnouncementForm(instance=announcement)
     existing_attachments = list(announcement.attachments.all())
@@ -240,56 +250,38 @@ def update_announcement(request, anoun_id):
 
     if request.method == "POST":
         form = AnnouncementForm(request.POST, request.FILES, instance=announcement)
-
         if form.is_valid():
             anou, attachment_ids = form.save(commit=False)
             anou.save()
-
-            # 🔒 Attachment validation (NEW + SAFE)
-            files = request.FILES.getlist("attachments")
-            safe_new_attachments = []
-
-            for file in files:
-                ext = os.path.splitext(file.name)[1].lower()
-
-                if ext in BLOCKED_EXTENSIONS:
-                    messages.error(
-                        request, f"File type {ext} is not allowed for security reasons."
-                    )
-                    continue
-
-                attachment = Attachment.objects.create(file=file)
-                safe_new_attachments.append(attachment)
-
-            # ✅ Merge existing + safe new attachments
-            all_attachments = set(existing_attachments) | set(safe_new_attachments)
-            anou.attachments.set(all_attachments)
+            if attachment_ids:
+                all_attachments = set(existing_attachments) | set(
+                    Attachment.objects.filter(id__in=attachment_ids)
+                )
+                anou.attachments.set(all_attachments)
+            else:
+                anou.attachments.set(existing_attachments)
 
             employees = form.cleaned_data["employees"]
             departments = form.cleaned_data["department"]
             job_positions = form.cleaned_data["job_position"]
             company = form.cleaned_data["company_id"]
-
             anou.department.set(departments)
             anou.job_position.set(job_positions)
             anou.company_id.set(company)
-
             messages.success(request, _("Announcement updated successfully."))
 
-            emp_dep = User.objects.filter(
+            emp_dep = SkylinxUser.objects.filter(
                 employee_get__employee_work_info__department_id__in=departments
             )
-            emp_jobs = User.objects.filter(
+            emp_jobs = SkylinxUser.objects.filter(
                 employee_get__employee_work_info__job_position_id__in=job_positions
             )
-
             employees = employees | Employee.objects.filter(
                 employee_work_info__department_id__in=departments
             )
             employees = employees | Employee.objects.filter(
                 employee_work_info__job_position_id__in=job_positions
             )
-
             anou.employees.add(*employees)
 
             notify.send(
@@ -315,7 +307,6 @@ def update_announcement(request, anoun_id):
                 redirect="/",
                 icon="chatbox-ellipses",
             )
-
     return render(
         request,
         "announcement/announcement_update_form.html",
@@ -397,9 +388,7 @@ def comment_view(request, anoun_id):
         "-created_at"
     )
     if not announcement.public_comments:
-        comments = filter_own_records(
-            request, comments, "base.view_announcementcomment"
-        )
+        comments = filter_own_records(request, comments, "base.view_announcement")
     no_comments = not comments.exists()
 
     return render(

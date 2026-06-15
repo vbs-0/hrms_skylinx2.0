@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from django.conf import settings
 
 
 class OffboardingConfig(AppConfig):
@@ -8,10 +9,9 @@ class OffboardingConfig(AppConfig):
     def ready(self):
         from django.urls import include, path
 
-        from skylinx.skylinx_settings import APPS
         from skylinx.urls import urlpatterns
 
-        APPS.append("offboarding")
+        settings.APPS.append("offboarding")
         urlpatterns.append(
             path("offboarding/", include("offboarding.urls")),
         )

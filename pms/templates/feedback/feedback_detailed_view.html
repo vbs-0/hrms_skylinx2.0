@@ -1,10 +1,11 @@
 {% extends 'index.html' %}
 {% block content %}
+{% include 'generic/components.html' %}
 {% load static i18n %}
-{% load i18n %}
 {% load basefilters %}
 {% load mathfilters %}
 
+<div id="feedbackDetailContainer">
 <style>
   .oh-profile__avatar-limit-height {
     height: 30px !important;
@@ -82,7 +83,7 @@
       </div>
 
         <div class="align-items-center d-flex justify-content-between">
-          <div class="oh-profile oh-profile--md" title="Owner">
+          <div class="oh-profile oh-profile--md" title="{% trans 'Owner' %}">
             <span class="oh-profile__info-label ">
               <span>{% trans "Owner: " %}</span>
             </span>
@@ -94,8 +95,18 @@
               >{{feedback.employee_id}}</span>
           </div>
             <div class="oh-main__titlebar oh-main__titlebar--right justify-content-end">
+              <button
+                type="button"
+                class="oh-btn oh-btn--secondary-outline"
+                hx-get="{% url 'feedback-generic-tab' %}"
+                hx-target="#listContainer"
+                hx-swap="innerHTML"
+                hx-push-url="{% url 'feedback-view' %}"
+              >
+                {% trans "Back" %}
+              </button>
               {% if  perms.pms.change_feedback or request.user|is_reportingmanager %}
-                <select id="status" class="oh-select oh-select--sm ms-3" name="feedback_status" title="Status"
+                <select id="status" class="oh-select oh-select--sm ms-3" name="feedback_status" title="{% trans 'Status' %}"
                     hx-post="{%url 'feedback-detailed-view-status'  id=feedback.id %}"
                     hx-trigger="change" hx-swap="afterend" >
                       <option value="{{feedback.status}}" selected>
@@ -108,7 +119,7 @@
                     {% endfor %}
                 </select>
               {% else %}
-                <label id="status" class="oh-select oh-select--sm ms-3" name="feedback_status" title="Status">
+                <label id="status" class="oh-select oh-select--sm ms-3" name="feedback_status" title="{% trans 'Status' %}">
                    {% trans feedback.get_status_display %}
                 </label>
               {% endif %}
@@ -121,7 +132,7 @@
                           data-toggle="oh-modal-toggle"
                           class="oh-btn oh-btn--light-bkg w-100"
                           data-target="#feedbackModalPopup"
-                          hx-get="{% url 'feedback-update' id=feedback.id %}"
+                          hx-get="{% url 'feedback-update' feedback.id %}"
                           hx-target="#feedbackModalTarget"
                           title = {% trans "Edit" %}>
                           <ion-icon name="create-outline" class="me-1" ></ion-icon>
@@ -134,7 +145,7 @@
                       data-toggle="oh-modal-toggle"
                       data-target="#objectCreateModal"
                       hx-target="#objectCreateModalTarget"
-                      class="oh-btn oh-btn--light-bkg w-100" title="{% trans "Request feedback" %}">
+                      class="oh-btn oh-btn--light-bkg w-100" title="{% trans 'Request feedback' %}">
                       <ion-icon name="add-outline" class="m-0 md hydrated" role="img" aria-label="add outline"></ion-icon>
                     </a>
                   {% endif %}
@@ -301,6 +312,7 @@
           <div class="row">
             <div class="col-12 col-sm-12 col-md-12 col-lg-12">
               <div class="m-2">
+                {% if feedback.manager_id %}
                 <div class="oh-card__body">
                   <div class="oh-sticky-table">
                     <div class="oh-sticky-table__table">
@@ -359,6 +371,8 @@
                     </div>
                   </div>
                 </div>
+                {% endif %}
+              </div>
               </div>
             </div>
           </div>
@@ -517,17 +531,16 @@
           <!-- end of other employees section -->
         </div>
         </div>
-
-      </div>
       <div class="oh-tabs__content" id="feedback-overview">
         <div id="feedback_overview_div">
-          <button hx-get="{% url 'get-feedback-overview' feedback.id %}"
-              hx-target="#feedback-overview" id="feedback-overview-button" hidden>
-          </button>
-      </div>
+        </div>
       </div>
     </div>
 </div>
+<button
+  hx-get="{% url 'get-feedback-overview' feedback.id %}"
+  hx-target="#feedback-overview" id="feedback-overview-button" hidden>
+</button>
 </main>
 
   <!-- answer off canvas -->
@@ -552,12 +565,6 @@
   <!-- update modal  -->
   <div class="oh-modal" id="feedbackModalPopup" role="dialog" aria-labelledby="" aria-hidden="true">
     <div class="oh-modal__dialog" style="max-width:885px;" id="">
-      <div class="oh-modal__dialog-header">
-        <span class="oh-modal__dialog-title" id="addEmployeeObjectiveModalLabel">{% trans "Update Feedback" %}</span>
-        <button type="button" class="oh-modal__close reloadButton" aria-label="Close">
-            <ion-icon name="close-outline"></ion-icon>
-        </button>
-      </div>
       <div class="oh-modal__dialog-body" id="feedbackModalTarget">
       </div>
     </div>
@@ -578,7 +585,15 @@
   });
 
   function get_collegues(element) {
-      var employee_id = $(element).val();
+
+        if (typeof element === 'object')
+        {
+            var employee_id = $(element).val();
+        }
+        else {
+          var employee_id = element
+        }
+
 
       // Check if the employee_id is valid
       if (employee_id) {
@@ -622,4 +637,5 @@
   }
 </script>
 
+ </div>
 {% endblock %}

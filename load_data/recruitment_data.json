@@ -7,7 +7,7 @@
       "created_by": 1,
       "modified_by": 1,
       "title": "Recruitment Drive",
-      "description": "<p><b><u><span style=\"font-size: 18px;\">Position: Django Developer &amp; ODOO dev</span></u></b></p><p><b>Job Description:</b></p><p>We are seeking a skilled Django Developers and ODOO developers to join our dynamic team. The ideal candidate will have a strong background in web development with a focus on the Django framework. You will be responsible for designing, building, and maintaining high-performance web applications that are scalable and secure.</p><p><b>Key Responsibilities:</b></p><p>Develop and maintain web applications using Django.</p><p>Write clean, maintainable, and efficient code.</p><p>Design and implement robust APIs.</p><p>Collaborate with front-end developers to integrate user-facing elements.</p><p>Optimize applications for maximum speed and scalability.</p><p>Participate in code reviews to maintain code quality and share knowledge.</p><p>Stay updated with the latest industry trends and technologies.</p><p><b>Requirements:</b></p><p>Proven experience as a Django Developer.</p><p>Proficient in Python and Django framework.</p><p>Familiarity with front-end technologies (JavaScript, HTML5, CSS3).</p><p>Experience with relational databases (PostgreSQL, MySQL).</p><p>Knowledge of version control systems (Git).</p><p>Understanding of RESTful APIs and web services.</p><p>Strong problem-solving skills and attention to detail.</p><p>Excellent communication and teamwork skills.</p><p>BachelorÆs degree in Computer Science, Engineering, or a related field.</p><p><b>Preferred Qualifications:</b></p><p>Experience with cloud platforms (AWS, Azure, GCP).</p><p>Knowledge of containerization and orchestration (Docker, Kubernetes).</p><p>Familiarity with Agile development methodologies.</p>",
+      "description": "<p><b><u><span style=\"font-size: 18px;\">Position: Django Developer &amp; ODOO dev</span></u></b></p><p><b>Job Description:</b></p><p>We are seeking a skilled Django Developers and ODOO developers to join our dynamic team. The ideal candidate will have a strong background in web development with a focus on the Django framework. You will be responsible for designing, building, and maintaining high-performance web applications that are scalable and secure.</p><p><b>Key Responsibilities:</b></p><p>Develop and maintain web applications using Django.</p><p>Write clean, maintainable, and efficient code.</p><p>Design and implement robust APIs.</p><p>Collaborate with front-end developers to integrate user-facing elements.</p><p>Optimize applications for maximum speed and scalability.</p><p>Participate in code reviews to maintain code quality and share knowledge.</p><p>Stay updated with the latest industry trends and technologies.</p><p><b>Requirements:</b></p><p>Proven experience as a Django Developer.</p><p>Proficient in Python and Django framework.</p><p>Familiarity with front-end technologies (JavaScript, HTML5, CSS3).</p><p>Experience with relational databases (PostgreSQL, MySQL).</p><p>Knowledge of version control systems (Git).</p><p>Understanding of RESTful APIs and web services.</p><p>Strong problem-solving skills and attention to detail.</p><p>Excellent communication and teamwork skills.</p><p>Bachelor\u00c6s degree in Computer Science, Engineering, or a related field.</p><p><b>Preferred Qualifications:</b></p><p>Experience with cloud platforms (AWS, Azure, GCP).</p><p>Knowledge of containerization and orchestration (Docker, Kubernetes).</p><p>Familiarity with Agile development methodologies.</p>",
       "is_event_based": false,
       "closed": false,
       "is_published": true,
@@ -19,8 +19,14 @@
       "end_date": "2025-07-30",
       "optional_profile_image": false,
       "optional_resume": false,
-      "open_positions": [1, 2],
-      "recruitment_managers": [12, 1],
+      "open_positions": [
+        1,
+        2
+      ],
+      "recruitment_managers": [
+        12,
+        1
+      ],
       "survey_templates": [],
       "skills": []
     }
@@ -45,8 +51,12 @@
       "end_date": "2025-07-30",
       "optional_profile_image": false,
       "optional_resume": false,
-      "open_positions": [3],
-      "recruitment_managers": [68],
+      "open_positions": [
+        3
+      ],
+      "recruitment_managers": [
+        68
+      ],
       "survey_templates": [],
       "skills": []
     }
@@ -71,8 +81,14 @@
       "end_date": "2025-07-30",
       "optional_profile_image": false,
       "optional_resume": false,
-      "open_positions": [1, 2, 4],
-      "recruitment_managers": [1],
+      "open_positions": [
+        1,
+        2,
+        4
+      ],
+      "recruitment_managers": [
+        1
+      ],
       "survey_templates": [],
       "skills": []
     }
@@ -89,7 +105,9 @@
       "stage": "Interview",
       "stage_type": "interview",
       "sequence": 1,
-      "stage_managers": [1]
+      "stage_managers": [
+        1
+      ]
     }
   },
   {
@@ -104,7 +122,9 @@
       "stage": "Hired",
       "stage_type": "hired",
       "sequence": 2,
-      "stage_managers": [12]
+      "stage_managers": [
+        12
+      ]
     }
   },
   {
@@ -119,7 +139,9 @@
       "stage": "Cancelled",
       "stage_type": "cancelled",
       "sequence": 3,
-      "stage_managers": [12]
+      "stage_managers": [
+        12
+      ]
     }
   },
   {
@@ -134,7 +156,9 @@
       "stage": "Hired",
       "stage_type": "hired",
       "sequence": 1,
-      "stage_managers": [37]
+      "stage_managers": [
+        37
+      ]
     }
   },
   {
@@ -153,7 +177,7 @@
       "stage_id": 5,
       "converted_employee_id": null,
       "schedule_date": null,
-      "email": "liam.bennett@skylinxhrms.com",
+      "email": "liam.bennett@skylinx.com",
       "mobile": "9876540101",
       "resume": "recruitment/resume/resume.pdf",
       "referral": null,
@@ -191,7 +215,7 @@
       "stage_id": 1,
       "converted_employee_id": null,
       "schedule_date": null,
-      "email": "ava.mitchell@skylinxhrms.com",
+      "email": "ava.mitchell@skylinx.com",
       "mobile": "9876540102",
       "resume": "recruitment/resume/resume_HjTNWZS.pdf",
       "referral": null,
@@ -229,7 +253,7 @@
       "stage_id": 6,
       "converted_employee_id": null,
       "schedule_date": null,
-      "email": "noah.anderson@skylinxhrms.com",
+      "email": "noah.anderson@skylinx.com",
       "mobile": "9876540103",
       "resume": "recruitment/resume/resume_CJGP0i7.pdf",
       "referral": null,
@@ -267,7 +291,7 @@
       "stage_id": 2,
       "converted_employee_id": null,
       "schedule_date": null,
-      "email": "sophia.carter@skylinxhrms.com",
+      "email": "sophia.carter@skylinx.com",
       "mobile": "9876540104",
       "resume": "recruitment/resume/resume_isLsD8M.pdf",
       "referral": null,
@@ -305,7 +329,7 @@
       "stage_id": 1,
       "converted_employee_id": null,
       "schedule_date": null,
-      "email": "isabella.morris@skylinxhrms.com",
+      "email": "isabella.morris@skylinx.com",
       "mobile": "9876540106",
       "resume": "recruitment/resume/resume_Mr8M3VL.pdf",
       "referral": null,
@@ -343,7 +367,7 @@
       "stage_id": 7,
       "converted_employee_id": null,
       "schedule_date": null,
-      "email": "lucas.rogers@skylinxhrms.com",
+      "email": "lucas.rogers@skylinx.com",
       "mobile": "9876540107",
       "resume": "recruitment/resume/resume_SjCrKeM.pdf",
       "referral": null,
@@ -381,7 +405,7 @@
       "stage_id": 4,
       "converted_employee_id": null,
       "schedule_date": null,
-      "email": "mia.reed@skylinxhrms.com",
+      "email": "mia.reed@skylinx.com",
       "mobile": "9876540108",
       "resume": "recruitment/resume/resume_ZGFTZr3.pdf",
       "referral": null,
@@ -419,7 +443,7 @@
       "stage_id": 5,
       "converted_employee_id": null,
       "schedule_date": null,
-      "email": "william.peterson@skylinxhrms.com",
+      "email": "william.peterson@skylinx.com",
       "mobile": "9876540109",
       "resume": "recruitment/resume/resume_W98xQYe.pdf",
       "referral": null,
@@ -457,7 +481,7 @@
       "stage_id": 5,
       "converted_employee_id": null,
       "schedule_date": null,
-      "email": "emily.turner@skylinxhrms.com",
+      "email": "emily.turner@skylinx.com",
       "mobile": "9876540110",
       "resume": "recruitment/resume/resume_6x1QM7Z.pdf",
       "referral": null,
@@ -495,7 +519,7 @@
       "stage_id": 6,
       "converted_employee_id": null,
       "schedule_date": null,
-      "email": "james.perry@skylinxhrms.com",
+      "email": "james.perry@skylinx.com",
       "mobile": "9876540111",
       "resume": "recruitment/resume/resume_k4pB5mo.pdf",
       "referral": null,
@@ -533,7 +557,7 @@
       "stage_id": 5,
       "converted_employee_id": null,
       "schedule_date": null,
-      "email": "olivia.coleman@skylinxhrms.com",
+      "email": "olivia.coleman@skylinx.com",
       "mobile": "9876540112",
       "resume": "recruitment/resume/resume_Toa3pyH.pdf",
       "referral": null,
@@ -571,7 +595,7 @@
       "stage_id": 1,
       "converted_employee_id": null,
       "schedule_date": null,
-      "email": "benjamin.foster@skylinxhrms.com",
+      "email": "benjamin.foster@skylinx.com",
       "mobile": "9876540113",
       "resume": "recruitment/resume/resume_uIv7EBy.pdf",
       "referral": null,
@@ -609,7 +633,7 @@
       "stage_id": 2,
       "converted_employee_id": null,
       "schedule_date": null,
-      "email": "charlotte.brooks@skylinxhrms.com",
+      "email": "charlotte.brooks@skylinx.com",
       "mobile": "9876540114",
       "resume": "recruitment/resume/resume_8LRlV56.pdf",
       "referral": null,
@@ -647,7 +671,7 @@
       "stage_id": 1,
       "converted_employee_id": null,
       "schedule_date": null,
-      "email": "henry.jenkins@skylinxhrms.com",
+      "email": "henry.jenkins@skylinx.com",
       "mobile": "9876540115",
       "resume": "recruitment/resume/resume_0Nvfipm.pdf",
       "referral": null,
@@ -685,7 +709,7 @@
       "stage_id": 1,
       "converted_employee_id": null,
       "schedule_date": null,
-      "email": "amelia.hayes@skylinxhrms.com",
+      "email": "amelia.hayes@skylinx.com",
       "mobile": "9876540116",
       "resume": "recruitment/resume/resume_gPOC7cN.pdf",
       "referral": null,
@@ -723,7 +747,7 @@
       "stage_id": 1,
       "converted_employee_id": null,
       "schedule_date": null,
-      "email": "grace.price@skylinxhrms.com",
+      "email": "grace.price@skylinx.com",
       "mobile": "9876540118",
       "resume": "recruitment/resume/resume_ru3PeM7.pdf",
       "referral": null,
@@ -761,7 +785,7 @@
       "stage_id": 1,
       "converted_employee_id": null,
       "schedule_date": null,
-      "email": "sebastian.howard@skylinxhrms.com",
+      "email": "sebastian.howard@skylinx.com",
       "mobile": "9876540117",
       "resume": "recruitment/resume/resume_AQzECPu.pdf",
       "referral": null,
@@ -875,7 +899,9 @@
       "interview_time": "10:30:00",
       "description": "",
       "completed": false,
-      "employee_id": [1]
+      "employee_id": [
+        1
+      ]
     }
   },
   {
@@ -933,8 +959,12 @@
       "sequence": 0,
       "type": "text",
       "options": "",
-      "template_id": [1],
-      "recruitment_ids": [1],
+      "template_id": [
+        1
+      ],
+      "recruitment_ids": [
+        1
+      ],
       "job_position_ids": []
     }
   },
@@ -951,8 +981,12 @@
       "sequence": 0,
       "type": "text",
       "options": "",
-      "template_id": [1],
-      "recruitment_ids": [1],
+      "template_id": [
+        1
+      ],
+      "recruitment_ids": [
+        1
+      ],
       "job_position_ids": []
     }
   },
@@ -969,8 +1003,12 @@
       "sequence": 0,
       "type": "checkbox",
       "options": "",
-      "template_id": [2],
-      "recruitment_ids": [1],
+      "template_id": [
+        2
+      ],
+      "recruitment_ids": [
+        1
+      ],
       "job_position_ids": []
     }
   },
@@ -987,8 +1025,12 @@
       "sequence": 0,
       "type": "options",
       "options": "Sales, Inventory, Accounting, Human Resources",
-      "template_id": [2],
-      "recruitment_ids": [1],
+      "template_id": [
+        2
+      ],
+      "recruitment_ids": [
+        1
+      ],
       "job_position_ids": []
     }
   },
@@ -1001,12 +1043,16 @@
       "modified_by": 1,
       "is_active": true,
       "is_mandatory": true,
-      "question": "Which of the following are key features of OdooÆs ORM?",
+      "question": "Which of the following are key features of Odoo\u00c6s ORM?",
       "sequence": 0,
       "type": "multiple",
       "options": "Data modeling, SQL query generation, Form building, Workflow automation",
-      "template_id": [2],
-      "recruitment_ids": [1],
+      "template_id": [
+        2
+      ],
+      "recruitment_ids": [
+        1
+      ],
       "job_position_ids": []
     }
   },
@@ -1023,8 +1069,12 @@
       "sequence": 0,
       "type": "text",
       "options": "",
-      "template_id": [2],
-      "recruitment_ids": [1],
+      "template_id": [
+        2
+      ],
+      "recruitment_ids": [
+        1
+      ],
       "job_position_ids": []
     }
   },
@@ -1041,8 +1091,12 @@
       "sequence": 0,
       "type": "number",
       "options": "",
-      "template_id": [2],
-      "recruitment_ids": [1],
+      "template_id": [
+        2
+      ],
+      "recruitment_ids": [
+        1
+      ],
       "job_position_ids": []
     }
   },
@@ -1059,8 +1113,12 @@
       "sequence": 0,
       "type": "percentage",
       "options": "",
-      "template_id": [2],
-      "recruitment_ids": [1],
+      "template_id": [
+        2
+      ],
+      "recruitment_ids": [
+        1
+      ],
       "job_position_ids": []
     }
   },
@@ -1077,8 +1135,12 @@
       "sequence": 0,
       "type": "rating",
       "options": "",
-      "template_id": [2],
-      "recruitment_ids": [1],
+      "template_id": [
+        2
+      ],
+      "recruitment_ids": [
+        1
+      ],
       "job_position_ids": []
     }
   },
@@ -1095,8 +1157,12 @@
       "sequence": 0,
       "type": "checkbox",
       "options": "",
-      "template_id": [3],
-      "recruitment_ids": [2],
+      "template_id": [
+        3
+      ],
+      "recruitment_ids": [
+        2
+      ],
       "job_position_ids": []
     }
   },
@@ -1113,8 +1179,12 @@
       "sequence": 0,
       "type": "options",
       "options": "Writing custom queries, Query optimization, Database migrations, Managing relations between models",
-      "template_id": [3],
-      "recruitment_ids": [2],
+      "template_id": [
+        3
+      ],
+      "recruitment_ids": [
+        2
+      ],
       "job_position_ids": []
     }
   },
@@ -1131,8 +1201,12 @@
       "sequence": 0,
       "type": "options",
       "options": "Views, Models, Controllers, Templates",
-      "template_id": [3],
-      "recruitment_ids": [2],
+      "template_id": [
+        3
+      ],
+      "recruitment_ids": [
+        2
+      ],
       "job_position_ids": []
     }
   },
@@ -1149,9 +1223,164 @@
       "sequence": 0,
       "type": "text",
       "options": "",
-      "template_id": [3],
-      "recruitment_ids": [2],
+      "template_id": [
+        3
+      ],
+      "recruitment_ids": [
+        2
+      ],
       "job_position_ids": []
+    }
+  },
+  {
+    "model": "recruitment.candidate",
+    "pk": 118,
+    "fields": {
+      "created_at": "2025-06-28T09:10:00.000Z",
+      "created_by": 1,
+      "modified_by": 1,
+      "is_active": true,
+      "name": "Daniel Okafor",
+      "email": "daniel.okafor@example.com",
+      "mobile": "9876540201",
+      "address": null,
+      "city": null,
+      "state": null,
+      "country": null,
+      "zip": null,
+      "dob": null,
+      "gender": "male",
+      "profile": "recruitment/profile/profile-pic-boy.jpg",
+      "resume": "recruitment/resume/resume.pdf",
+      "portfolio": "",
+      "source": null,
+      "referral": null,
+      "recruitment_id": 1,
+      "stage_id": 1,
+      "job_position_id": 1,
+      "last_updated": "2025-06-28",
+      "canceled": false,
+      "hired": false,
+      "converted_employee_id": null,
+      "joining_date": null,
+      "probation_end": null,
+      "start_onboard": false,
+      "offer_letter_status": "not_sent",
+      "schedule_date": null,
+      "sequence": 0
+    }
+  },
+  {
+    "model": "recruitment.candidate",
+    "pk": 119,
+    "fields": {
+      "created_at": "2025-06-30T11:25:00.000Z",
+      "created_by": 1,
+      "modified_by": 1,
+      "is_active": true,
+      "name": "Priya Sharma",
+      "email": "priya.sharma@example.com",
+      "mobile": "9876540202",
+      "address": null,
+      "city": null,
+      "state": null,
+      "country": null,
+      "zip": null,
+      "dob": null,
+      "gender": "female",
+      "profile": "recruitment/profile/profile-pic-girl.jpg",
+      "resume": "recruitment/resume/resume.pdf",
+      "portfolio": "",
+      "source": null,
+      "referral": null,
+      "recruitment_id": 2,
+      "stage_id": 1,
+      "job_position_id": 3,
+      "last_updated": "2025-06-30",
+      "canceled": false,
+      "hired": false,
+      "converted_employee_id": null,
+      "joining_date": null,
+      "probation_end": null,
+      "start_onboard": false,
+      "offer_letter_status": "not_sent",
+      "schedule_date": null,
+      "sequence": 0
+    }
+  },
+  {
+    "model": "recruitment.candidate",
+    "pk": 120,
+    "fields": {
+      "created_at": "2025-07-01T08:45:00.000Z",
+      "created_by": 1,
+      "modified_by": 1,
+      "is_active": true,
+      "name": "Marcus Webb",
+      "email": "marcus.webb@example.com",
+      "mobile": "9876540203",
+      "address": null,
+      "city": null,
+      "state": null,
+      "country": null,
+      "zip": null,
+      "dob": null,
+      "gender": "male",
+      "profile": "recruitment/profile/profile-pic-boy.jpg",
+      "resume": "recruitment/resume/resume.pdf",
+      "portfolio": "",
+      "source": null,
+      "referral": null,
+      "recruitment_id": 1,
+      "stage_id": 1,
+      "job_position_id": 1,
+      "last_updated": "2025-07-01",
+      "canceled": false,
+      "hired": false,
+      "converted_employee_id": null,
+      "joining_date": null,
+      "probation_end": null,
+      "start_onboard": false,
+      "offer_letter_status": "not_sent",
+      "schedule_date": null,
+      "sequence": 0
+    }
+  },
+  {
+    "model": "recruitment.interviewschedule",
+    "pk": 102,
+    "fields": {
+      "created_at": "2025-06-30T10:00:00.000Z",
+      "created_by": 1,
+      "modified_by": 1,
+      "is_active": true,
+      "candidate_id": 5,
+      "employee_id": [
+        1,
+        12
+      ],
+      "interview_date": "2025-07-07",
+      "interview_time": "10:00:00",
+      "description": "Technical round interview for Django Developer position",
+      "completed": false
+    }
+  },
+  {
+    "model": "recruitment.interviewschedule",
+    "pk": 103,
+    "fields": {
+      "created_at": "2025-07-01T09:30:00.000Z",
+      "created_by": 1,
+      "modified_by": 1,
+      "is_active": true,
+      "candidate_id": 4,
+      "employee_id": [
+        68
+      ],
+      "interview_date": "2025-07-10",
+      "interview_time": "14:00:00",
+      "description": "Final interview round for Sales position",
+      "completed": false
     }
   }
 ]

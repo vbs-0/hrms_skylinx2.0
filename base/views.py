@@ -21,11 +21,14 @@ from django.apps import apps
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.models import Group, Permission, User
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.models import Group, Permission
 from django.contrib.auth.views import PasswordResetConfirmView, PasswordResetView
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.mail import EmailMessage, EmailMultiAlternatives
 from django.core.management import call_command
+from django.core.validators import validate_ipv46_address
 from django.db.models import ProtectedError, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -33,11 +36,16 @@ from django.template.loader import render_to_string
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils._os import safe_join
-from django.utils.html import strip_tags
+from django.utils.decorators import method_decorator
+from django.utils.html import format_html, strip_tags
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext as _
-from django.views.decorators.csrf import csrf_exempt
+from django.views import View
 from django.views.decorators.http import require_http_methods
+from django.views.generic import TemplateView
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.tokens import UntypedToken
 
 from accessibility.accessibility import ACCESSBILITY_FEATURE
 from accessibility.models import DefaultAccessibility
@@ -107,6 +115,7 @@ from base.forms import (
     WorkTypeRequestForm,
 )
 from base.methods import (
+    check_chart_permission,
     choosesubordinates,
     closest_numbers,
     export_data,
@@ -137,10 +146,13 @@ from base.models import (
     EmployeeType,
     Holidays,
     SkylinxMailTemplate,
+    IntegrationApps,
     JobPosition,
     JobRole,
     MultipleApprovalCondition,
     MultipleApprovalManagers,
+    NotificationSound,
+    PenaltyAccounts,
     RotatingShift,
     RotatingWorkType,
     RotatingWorkTypeAssign,
@@ -161,7 +173,6 @@ from employee.models import (
     EmployeeWorkInformation,
     ProfileEditFeature,
 )
-from skylinx import skylinx_apps
 from skylinx.decorators import (
     delete_permission,
     duplicate_permission,
@@ -171,19 +182,40 @@ from skylinx.decorators import (
     permission_required,
 )
 from skylinx.group_by import group_by_queryset
-from skylinx.skylinx_settings import (
-    APPS,
-    DB_INIT_PASSWORD,
-    DYNAMIC_URL_PATTERNS,
-    FILE_STORAGE,
-    NO_PERMISSION_MODALS,
-)
 from skylinx.http.response import SkylinxRedirect
+from skylinx.menu import get_settings_menu
 from skylinx.methods import get_skylinx_model_class, remove_dynamic_url
 from skylinx_audit.forms import HistoryTrackingFieldsForm
 from skylinx_audit.models import AccountBlockUnblock, AuditTag, HistoryTrackingFields
+from skylinx_auth.models import SkylinxUser
 from notifications.models import Notification
 from notifications.signals import notify
+
+CHARTS = [
+    ("employee_work_info", _("Employee Work Info")),
+    ("offline_employees", _("Offline Employees")),
+    ("online_employees", _("Online Employees")),
+    ("overall_leave_chart", _("Overall Leave Chart")),
+    ("hired_candidates", _("Hired Candidates")),
+    ("onboarding_candidates", _("Onboarding Candidates")),
+    ("recruitment_analytics", _("Recruitment Analytics")),
+    ("attendance_analytic", _("Attendance analytics")),
+    ("hours_chart", _("Hours Chart")),
+    ("employees_chart", _("Employees Chart")),
+    ("department_chart", _("Department Chart")),
+    ("gender_chart", _("Gender Chart")),
+    ("shift_request_approve", _("Shift Request to Approve")),
+    ("work_type_request_approve", _("Work Type Request to Approve")),
+    ("overtime_approve", _("Overtime to Approve")),
+    ("attendance_validate", _("Attendance to Validate")),
+    ("leave_request_approve", _("Leave Request to Approve")),
+    ("leave_allocation_approve", _("Leave Allocation to Approve")),
+    ("feedback_answer", _("Feedbacks to Answer")),
+    ("asset_request_approve", _("Asset Request to Approve")),
+    ("objective_status", _("Objective Status")),
+    ("key_result_status", _("Key Result Status")),
+    ("feedback_status", _("Feedback Status")),
+]
 
 
 def custom404(request):
@@ -220,10 +252,10 @@ def initialize_database_condition():
     Returns:
         bool: True if the database needs to be initialized, False otherwise.
     """
-    init_database = not User.objects.exists()
+    init_database = not SkylinxUser.objects.exists()
     if not init_database:
         init_database = True
-        superusers = User.objects.filter(is_superuser=True)
+        superusers = SkylinxUser.objects.filter(is_superuser=True)
         for user in superusers:
             if hasattr(user, "employee_get"):
                 init_database = False
@@ -231,10 +263,50 @@ def initialize_database_condition():
     return init_database
 
 
+def _shift_fixture_dates(file_path):
+    """
+    Return a date-shifted version of a JSON fixture as a string.
+
+    All dates between 2020-01-01 and 2030-12-31 are shifted so that the
+    fixture's anchor date (2025-07-01) maps to today. Static dates outside
+    that window (e.g. DOBs in the 1960s) are left untouched. Returns None
+    if no shift is needed (delta == 0).
+    """
+    import re
+
+    ANCHOR = datetime(2025, 7, 1).date()
+    today = datetime.today().date()
+    target = today
+    delta = (target - ANCHOR).days
+
+    if delta == 0:
+        return None
+
+    DATE_RE = re.compile(r"(?<!\d)(\d{4}-\d{2}-\d{2})(?!\d)")
+    SHIFT_MIN = datetime(2020, 1, 1).date()
+    SHIFT_MAX = datetime(2030, 12, 31).date()
+
+    def _shift(match):
+        try:
+            d = datetime.strptime(match.group(1), "%Y-%m-%d").date()
+            if SHIFT_MIN <= d <= SHIFT_MAX:
+                return (d + timedelta(days=delta)).strftime("%Y-%m-%d")
+        except ValueError:
+            pass
+        return match.group(1)
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    return DATE_RE.sub(_shift, content)
+
+
 def load_demo_database(request):
     if initialize_database_condition():
         if request.method == "POST":
-            if request.POST.get("load_data_password") == DB_INIT_PASSWORD:
+            if request.POST.get("load_data_password") == settings.DB_INIT_PASSWORD:
+                import tempfile
+
                 data_files = [
                     "user_data.json",
                     "employee_info_data.json",
@@ -259,13 +331,30 @@ def load_demo_database(request):
                     file for app, file in optional_apps if apps.is_installed(app)
                 ]
 
-                # Load all data files
+                # Load all data files, shifting dates relative to today
                 for file in data_files:
                     file_path = path.join(settings.BASE_DIR, "load_data", file)
+                    tmp = None
                     try:
-                        call_command("loaddata", file_path)
+                        shifted = _shift_fixture_dates(file_path)
+                        if shifted is not None:
+                            suffix = path.splitext(file)[1]
+                            with tempfile.NamedTemporaryFile(
+                                mode="w",
+                                suffix=suffix,
+                                delete=False,
+                                encoding="utf-8",
+                            ) as tmp_f:
+                                tmp_f.write(shifted)
+                                tmp = tmp_f.name
+                            call_command("loaddata", tmp)
+                        else:
+                            call_command("loaddata", file_path)
                     except Exception as e:
                         messages.error(request, f"An error occured : {e}")
+                    finally:
+                        if tmp and path.exists(tmp):
+                            os.remove(tmp)
 
                 messages.success(request, _("Database loaded successfully."))
             else:
@@ -284,10 +373,12 @@ def initialize_database(request):
     Returns:
         HttpResponse: The rendered HTML template or a redirect response.
     """
+    if not settings.DEBUG:
+        raise Http404
     if initialize_database_condition():
         if request.method == "POST":
             password = request._post.get("password")
-            if DB_INIT_PASSWORD == password:
+            if settings.DB_INIT_PASSWORD == password:
                 return redirect(initialize_database_user)
             else:
                 messages.warning(
@@ -323,10 +414,10 @@ def initialize_database_user(request):
         badge_id = form_data.get("badge_id")
         email = form_data.get("email")
         phone = form_data.get("phone")
-        user = User.objects.filter(username=username).first()
+        user = SkylinxUser.objects.filter(username=username).first()
         if user and not hasattr(user, "employee_get"):
             user.delete()
-        user = User.objects.create_superuser(
+        user = SkylinxUser.objects.create_superuser(
             username=username, email=email, password=password
         )
         employee = Employee()
@@ -575,7 +666,7 @@ def login_user(request):
         user = authenticate(request, username=username, password=password)
 
         if not user:
-            user_object = User.objects.filter(username=username).first()
+            user_object = SkylinxUser.objects.filter(username=username).first()
             if user_object and not user_object.is_active:
                 messages.warning(request, _("Access Denied: Your account is blocked."))
             else:
@@ -658,7 +749,7 @@ class SkylinxPasswordResetView(PasswordResetView):
             return redirect("forgot-password")
 
         username = form.cleaned_data["email"]
-        user = User.objects.filter(username=username).first()
+        user = SkylinxUser.objects.filter(username=username).first()
         if user:
             opts = {
                 "use_https": self.request.is_secure(),
@@ -677,10 +768,7 @@ class SkylinxPasswordResetView(PasswordResetView):
                 )
                 return SkylinxRedirect(self.request)
 
-            return redirect(reverse_lazy("reset-send-success"))
-
-        messages.info(self.request, _("No user found with the username"))
-        return redirect("forgot-password")
+        return redirect(reverse_lazy("reset-send-success"))
 
 
 class EmployeePasswordResetView(PasswordResetView):
@@ -704,7 +792,7 @@ class EmployeePasswordResetView(PasswordResetView):
                 return SkylinxRedirect(self.request)
 
             username = form.cleaned_data["email"]
-            user = User.objects.filter(username=username).first()
+            user = SkylinxUser.objects.filter(username=username).first()
             if user:
                 opts = {
                     "use_https": self.request.is_secure(),
@@ -717,11 +805,10 @@ class EmployeePasswordResetView(PasswordResetView):
                     "extra_email_context": self.extra_email_context,
                 }
                 form.save(**opts)
-                messages.success(
-                    self.request, _("Password reset link sent successfully")
-                )
-            else:
-                messages.error(self.request, _("No user with the given username"))
+            messages.success(
+                self.request,
+                _("If your account exists, a password reset link has been sent"),
+            )
             return SkylinxRedirect(self.request)
 
         except Exception as e:
@@ -826,7 +913,7 @@ def two_factor_auth(request):
             messages.error(request, "Invalid OTP.")
             return render(request, "base/auth/two_factor_auth.html")
 
-    if not skylinx_apps.TWO_FACTORS_AUTHENTICATION:
+    if not settings.TWO_FACTORS_AUTHENTICATION:
         return redirect("/")
 
     if otp is None:
@@ -839,9 +926,11 @@ def send_otp(request):
     Function to send OTP to the user's email address.
     It generates a new OTP code, stores it in the session, and sends it via email.
     """
-    employee = request.user.employee_get
-    email = employee.get_mail()
+    employee = getattr(getattr(request, "user", None), "employee_get", None)
+    if not employee:
+        return redirect("/login/")
 
+    email = employee.get_mail()
     email_backend = ConfiguredEmailBackend()
     display_email_name = email_backend.dynamic_from_email_with_display_name
 
@@ -900,10 +989,22 @@ def logout_user(request):
         <script>
             localStorage.clear();
         </script>
-        <meta http-equiv="refresh" content="0;url=/login">
+        <meta http-equiv="refresh" content="0;url=/login/">
     """
 
     return response
+
+
+@login_required
+def toggle_theme(request):
+    if request.method == "POST":
+        current = request.session.get("theme")
+
+        request.session["theme"] = "light" if current == "dark" else "dark"
+
+        return HttpResponse(status=204)
+
+    return HttpResponse(status=400)
 
 
 class Workinfo:
@@ -917,36 +1018,9 @@ class Workinfo:
 @login_required
 def home(request):
     """
-    This method is used to render index page
+    This method is used to render index page — redirects to the modern dashboard.
     """
-
-    today = datetime.today()
-    today_weekday = today.weekday()
-    first_day_of_week = today - timedelta(days=today_weekday)
-    last_day_of_week = first_day_of_week + timedelta(days=6)
-
-    employee_charts = DashboardEmployeeCharts.objects.get_or_create(
-        employee=request.user.employee_get
-    )[0]
-
-    user = request.user
-    today = timezone.now().date()  # Get today's date
-    is_birthday = None
-
-    if user.employee_get.dob != None:
-        is_birthday = (
-            user.employee_get.dob.month == today.month
-            and user.employee_get.dob.day == today.day
-        )
-
-    context = {
-        "first_day_of_week": first_day_of_week.strftime("%Y-%m-%d"),
-        "last_day_of_week": last_day_of_week.strftime("%Y-%m-%d"),
-        "charts": employee_charts.charts,
-        "is_birthday": is_birthday,
-    }
-
-    return render(request, "index.html", context)
+    return redirect("dashboard")
 
 
 @login_required
@@ -1034,6 +1108,15 @@ def common_settings(request):
     return render(request, "settings.html")
 
 
+class SettingsView(LoginRequiredMixin, TemplateView):
+    """
+    Settings page — builds the sidebar menu from registered app menu.py
+    entries and passes it directly into the template context.
+    """
+
+    template_name = "settings.html"
+
+
 @login_required
 @hx_request_required
 @permission_required("auth.add_group")
@@ -1042,8 +1125,8 @@ def user_group_table(request):
     Group assign htmx view
     """
     permissions = []
-    apps = APPS
-    no_permission_models = NO_PERMISSION_MODALS
+    apps = settings.APPS
+    no_permission_models = settings.NO_PERMISSION_MODALS
     form = UserGroupForm()
     for app_name in apps:
         app_models = []
@@ -1081,25 +1164,31 @@ def update_group_permission(
     """
     This method is used to remove user permission.
     """
-    group_id = request.POST["id"]
-    instance = Group.objects.get(id=group_id)
+    group_id = request.POST.get("id")
+    instance = Group.objects.filter(id=group_id).first()
+    if not instance:
+        messages.error(request, _("Group not found"))
+        return JsonResponse({"message": "Group not found", "type": "danger"})
     form = UserGroupForm(request.POST, instance=instance)
     if form.is_valid():
         form.save()
-        return JsonResponse({"message": "Updated the permissions", "type": "success"})
+        messages.success(request, _("Updated the permissions"))
+        return JsonResponse({})
     if request.POST.get("name_update"):
         name = request.POST["name"]
         if len(name) > 3:
             instance.name = name
             instance.save()
+            messages.success(request, _("Name updated"))
             return JsonResponse({"message": "Name updated", "type": "success"})
-        return JsonResponse(
-            {"message": "At least 4 characters required", "type": "success"}
-        )
+        messages.info(request, _("At least 4 characters required"))
+        return JsonResponse({})
     perms = form.cleaned_data.get("permissions")
     if not perms:
         instance.permissions.clear()
-        return JsonResponse({"message": "All permission cleared", "type": "info"})
+        messages.info(request, _("All permission cleared"))
+        return JsonResponse({})
+    messages.error(request, _("Something went wrong"))
     return JsonResponse({"message": "Something went wrong", "type": "danger"})
 
 
@@ -1111,8 +1200,8 @@ def user_group(request):
     """
     permissions = []
 
-    apps = APPS
-    no_permission_models = NO_PERMISSION_MODALS
+    apps = settings.APPS
+    no_permission_models = settings.NO_PERMISSION_MODALS
     form = UserGroupForm()
     for app_name in apps:
         app_models = []
@@ -1140,6 +1229,7 @@ def user_group(request):
 
 
 @login_required
+@hx_request_required
 @permission_required("auth.view_group")
 def user_group_search(request):
     """
@@ -1147,8 +1237,8 @@ def user_group_search(request):
     """
     permissions = []
 
-    apps = APPS
-    no_permission_models = NO_PERMISSION_MODALS
+    apps = settings.APPS
+    no_permission_models = settings.NO_PERMISSION_MODALS
     form = UserGroupForm()
     for app_name in apps:
         app_models = []
@@ -1184,6 +1274,8 @@ def group_assign(request):
     This method is used to assign user group to the users.
     """
     group_id = request.GET.get("group")
+    if not group_id:
+        return SkylinxRedirect(request, message=_("Required parameters are missing"))
     form = AssignUserGroup(
         initial={
             "group": group_id,
@@ -1193,7 +1285,11 @@ def group_assign(request):
         }
     )
     if request.POST:
-        group_id = request.POST["group"]
+        group_id = request.POST.get("group")
+        if not group_id:
+            return SkylinxRedirect(
+                request, message=_("Required parameters are missing")
+            )
         form = AssignUserGroup(
             {"group": group_id, "employee": request.POST.getlist("employee")}
         )
@@ -1209,6 +1305,7 @@ def group_assign(request):
 
 
 @login_required
+@hx_request_required
 @permission_required("auth.view_group")
 def group_assign_view(request):
     """
@@ -1266,7 +1363,7 @@ def group_remove_user(request, uid, gid):
         gid: group instance id
     """
     group = Group.objects.get(id=gid)
-    user = User.objects.get(id=uid)
+    user = SkylinxUser.objects.get(id=uid)
     group.user_set.remove(user)
     return SkylinxRedirect(request)
 
@@ -1286,7 +1383,7 @@ def object_delete(request, obj_id, **kwargs):
             - model (Model): The Django model class to which the object belongs.
             - redirect_path (str): The URL path to redirect to after deletion.
     Returns:
-        HttpResponse: Redirects to the specified `redirect_path` or reloads the
+        HttpResponse: Redirects to the specified redirect_path or reloads the
                       previous page. In case of a ProtectedError, it shows an error
                       message indicating that the object is in use.
     """
@@ -1323,6 +1420,32 @@ def object_delete(request, obj_id, **kwargs):
             return redirect(redirect_path)
         else:
             return SkylinxRedirect(request)
+
+    if (
+        redirect_path
+        and request.headers.get("HX-Request") == "true"
+        and redirect_path.startswith("/employee/document-request-view")
+    ):
+        referer = request.META.get("HTTP_REFERER", "")
+        if "/employee/document-request-view" in referer:
+            qs = urlparse(referer).query
+            filter_url = reverse("document-request-filter-view")
+            if qs:
+                filter_url = f"{filter_url}?{qs}"
+            inner = format_html(
+                '<span hx-get="{}" hx-target="#view-container" hx-swap="innerHTML" '
+                'hx-trigger="load"></span>',
+                filter_url,
+            )
+            script = (
+                "<script>"
+                "document.querySelectorAll('.oh-modal--show').forEach(function (m) {"
+                "m.classList.remove('oh-modal--show');"
+                "});"
+                "document.getElementById('reloadMessagesButton')?.click();"
+                "</script>"
+            )
+            return HttpResponse(str(inner) + script)
 
     if redirect_path:
         previous_data = request.GET.urlencode()
@@ -1368,8 +1491,6 @@ def object_duplicate(request, obj_id, **kwargs):
         original_object = model.objects.get(id=obj_id)
     except model.DoesNotExist:
         messages.error(request, f"{model._meta.verbose_name} object does not exist.")
-        if request.headers.get("HX-Request"):
-            return HttpResponse(status=204, headers={"HX-Refresh": "true"})
         return SkylinxRedirect(request)
 
     form = form_class(instance=original_object)
@@ -1406,7 +1527,6 @@ def object_duplicate(request, obj_id, **kwargs):
 
 @login_required
 @hx_request_required
-@duplicate_permission()
 def add_remove_dynamic_fields(request, **kwargs):
     """
     Handles the dynamic addition and removal of form fields in a Django form.
@@ -1437,6 +1557,7 @@ def add_remove_dynamic_fields(request, **kwargs):
         field_name_pre = kwargs["field_name_pre"]
         field_type = kwargs.get("field_type")
         hx_target = request.META.get("HTTP_HX_TARGET")
+
         if hx_target:
             field_counts = int(hx_target.split("_")[-1]) + 1
             next_hx_target = f"{hx_target.rsplit('_', 1)[0]}_{field_counts}"
@@ -1458,7 +1579,7 @@ def add_remove_dynamic_fields(request, **kwargs):
                     queryset=model.objects.all(),
                     widget=forms.Select(
                         attrs={
-                            "class": "oh-select oh-select-2 mb-3",
+                            "class": "oh-select oh-select-2 mb-3 w-100",
                             "name": field_name,
                             "id": f"id_{field_name}",
                         }
@@ -1466,12 +1587,14 @@ def add_remove_dynamic_fields(request, **kwargs):
                     required=False,
                     empty_label=empty_label,
                 )
+
             context = {
                 "field_counts": field_counts,
                 "field_html": form[field_name].as_widget(),
                 "current_hx_target": hx_target,
                 "next_hx_target": next_hx_target,
             }
+
             field_html = render_to_string(template, context)
             return HttpResponse(field_html)
     return HttpResponse()
@@ -1495,10 +1618,11 @@ def mail_server_conf(request):
 
 
 @login_required
+@hx_request_required
 @permission_required("base.view_dynamicemailconfiguration")
 def mail_server_test_email(request):
     instance_id = request.GET.get("instance_id")
-    white_labelling = getattr(skylinx_apps, "WHITE_LABELLING", False)
+    white_labelling = getattr(settings, "WHITE_LABELLING", False)
     image_path = path.join(settings.STATIC_ROOT, "images/ui/skylinx-logo.png")
     company_name = "Skylinx"
 
@@ -1577,7 +1701,6 @@ def mail_server_test_email(request):
                     msg.attach(msg_img)
 
                 msg.send()
-
             except Exception as e:
                 messages.error(request, " ".join([_("Something went wrong :"), str(e)]))
                 return SkylinxRedirect(request)
@@ -1597,47 +1720,59 @@ def mail_server_delete(request):
     """
     This method is used to delete mail server
     """
-    ids = request.GET.getlist("ids")
-    # primary_mail_check
-    delete = True
-    for id in ids:
-        emailconfig = DynamicEmailConfiguration.objects.filter(id=id).first()
-        if emailconfig.is_primary:
-            delete = False
-    if delete:
-        DynamicEmailConfiguration.objects.filter(id__in=ids).delete()
-        messages.success(request, "Mail server configuration deleted")
+    id = request.GET.get("ids")
+
+    if not id:
+        return SkylinxRedirect(request, message=_("Missing required parameter"))
+
+    emailconfig = DynamicEmailConfiguration.objects.filter(id=id).first()
+    if not emailconfig:
+        return SkylinxRedirect(
+            request, message=_("Mail server configuration not found")
+        )
+
+    # Prevent deleting last remaining config
+    total_count = DynamicEmailConfiguration.objects.count()
+    if total_count <= 1:
+        messages.warning(
+            request,
+            _("You have only 1 Mail server configuration that can't be deleted"),
+        )
         return SkylinxRedirect(request)
-    else:
-        if DynamicEmailConfiguration.objects.all().count() == 1:
-            messages.warning(
-                request,
-                "You have only 1 Mail server configuration that can't be deleted",
-            )
-            return SkylinxRedirect(request)
-        else:
-            mails = DynamicEmailConfiguration.objects.all().exclude(is_primary=True)
-            return render(
-                request,
-                "base/mail_server/replace_mail.html",
-                {
-                    "mails": mails,
-                    "title": _("Can't Delete"),
-                },
-            )
+
+    # Prevent deleting primary
+    if emailconfig.is_primary:
+        mails = DynamicEmailConfiguration.objects.all().exclude(is_primary=True)
+        return render(
+            request,
+            "base/mail_server/replace_mail.html",
+            {
+                "mails": mails,
+                "title": _("Can't Delete"),
+            },
+        )
+
+    emailconfig.delete()
+    messages.success(request, _("Mail server configuration deleted"))
+
+    return SkylinxRedirect(request)
 
 
+@login_required
 def replace_primary_mail(request):
     """
     This method is used to replace primary mail server
     """
     emailconfig_id = request.POST.get("replace_mail")
-    email_config = DynamicEmailConfiguration.objects.get(id=emailconfig_id)
+    email_config = DynamicEmailConfiguration.find(emailconfig_id)
+    if not email_config:
+        messages.error(request, _("Mail server configuration not found"))
+        return redirect("mail-server-conf")
+
     email_config.is_primary = True
     email_config.save()
     DynamicEmailConfiguration.objects.filter(is_primary=True).first().delete()
-
-    messages.success(request, "Primary Mail server configuration replaced")
+    messages.success(request, _("Primary Mail server configuration replaced"))
     return redirect("mail-server-conf")
 
 
@@ -2030,14 +2165,18 @@ def work_type_create(request):
     This method is used to create work type
     """
     dynamic = request.GET.get("dynamic")
-    form = WorkTypeForm()
+    selected_company = request.session.get("selected_company")
+    company = None
+    if selected_company and selected_company != "all":
+        company = Company.objects.filter(id=selected_company).first()
+    initial = {"company_id": [company] if company else []}
+    form = WorkTypeForm(initial=initial)
     work_types = WorkType.objects.all()
     if request.method == "POST":
         form = WorkTypeForm(request.POST)
         if form.is_valid():
             form.save()
-            form = WorkTypeForm()
-
+            form = WorkTypeForm(initial=initial)
             messages.success(request, _("Work Type has been created successfully!"))
             return SkylinxRedirect(request)
 
@@ -2054,8 +2193,10 @@ def work_type_view(request):
     """
     This method is used to view work type
     """
-
+    selected_company = request.session.get("selected_company")
     work_types = WorkType.objects.all()
+    if selected_company and selected_company != "all":
+        work_types = work_types.filter(company_id__id=selected_company)
     return render(
         request,
         "base/work_type/work_type.html",
@@ -2384,6 +2525,9 @@ def rotating_work_type_assign_redirect(request, obj_id=None, employee_id=None):
     request_copy.pop("instances_ids", None)
     previous_data = request_copy.urlencode()
     hx_target = request.META.get("HTTP_HX_TARGET", None)
+    hx_current_url = request.META.get("HTTP_HX_CURRENT_URL", None)
+    parsed_url = urlparse(hx_current_url)
+    hx_current_path = parsed_url.path.lstrip("/")
     if hx_target and hx_target == "view-container":
         return redirect(f"/rotating-work-type-assign-view?{previous_data}")
     elif hx_target and hx_target == "objectDetailsModalTarget":
@@ -2400,6 +2544,33 @@ def rotating_work_type_assign_redirect(request, obj_id=None, employee_id=None):
         return redirect(url + params)
     elif hx_target and hx_target == "shift_target" and employee_id:
         return redirect(f"/employee/shift-tab/{employee_id}")
+
+    elif hx_target and hx_target == "genericModalBody":
+        instances_ids = request.GET.get("instances_ids")
+        instances_list = json.loads(instances_ids)
+        if obj_id in instances_list:
+            instances_list.remove(obj_id)
+        previous_instance, next_instance = closest_numbers(
+            json.loads(instances_ids), obj_id
+        )
+
+        return redirect(
+            f"/work-rotating-detail-view/{next_instance}/?{previous_data}&instances_ids={instances_list}&deleted=True"
+        )
+
+    elif hx_target and hx_target == "rotating-work-container":
+        if hx_current_path == "employee/rotating-work-type-assign/":
+            rwork_type_requests = RotatingWorkTypeAssign.objects.all()
+            previous_data = request.GET.urlencode()
+            if rwork_type_requests.exists():
+                return redirect(f"/rotating-list-view?is_active=True&{previous_data}")
+            else:
+                return SkylinxRedirect(request)
+        else:
+            return redirect(
+                f"/employee-rotating-work-tab-list/{employee_id}?deleted=True"
+            )
+
     elif hx_target:
         return SkylinxRedirect(request)
     else:
@@ -2440,9 +2611,17 @@ def rotating_work_type_assign_bulk_archive(request):
     """
     This method is used to archive/un-archive bulk rotating work type assigns.
     """
-    ids = json.loads(request.POST["ids"])
-    is_active = request.POST.get("is_active") != "false"
-    message = _("un-archived") if is_active else _("archived")
+    ids = request.POST.get("ids")
+    if not ids:
+        return SkylinxRedirect(
+            request, message=_("No rotatingworktype found matching the query.")
+        )
+    ids = json.loads(ids)
+    is_active = True
+    message = _("un-archived")
+    if request.GET.get("is_active") == "False":
+        is_active = False
+        message = _("archived")
     count = 0
 
     for id in ids:
@@ -2471,6 +2650,8 @@ def rotating_work_type_assign_bulk_archive(request):
             ),
         )
 
+        return JsonResponse({"message": "Success"})
+
     return rotating_work_type_assign_redirect(request)
 
 
@@ -2480,7 +2661,11 @@ def rotating_work_type_assign_bulk_delete(request):
     """
     This method is used to archive/un-archive bulk rotating work type assigns
     """
-    ids = request.POST["ids"]
+    ids = request.POST.get("ids")
+    if not ids:
+        return SkylinxRedirect(
+            request, message=_("No rotatingworktype found matching the query.")
+        )
     ids = json.loads(ids)
     for id in ids:
         try:
@@ -3227,15 +3412,34 @@ def rotating_shift_assign_redirect(request, obj_id, employee_id):
         previous_instance, next_instance = closest_numbers(
             json.loads(instances_ids), obj_id
         )
-        url = f"/rshit-individual-view/{next_instance}/"
-        params = f"?{previous_data}&instances_ids={instances_list}"
-        return redirect(url + params)
+        return redirect(
+            f"/rshit-individual-view/{next_instance}/?{previous_data}\
+            &instances_ids={instances_list}"
+        )
+    elif hx_target and hx_target == "genericModalBody":
+        instances_ids = request.GET.get("instances_ids")
+        instances_list = json.loads(instances_ids)
+        if obj_id in instances_list:
+            instances_list.remove(obj_id)
+        previous_instance, next_instance = closest_numbers(
+            json.loads(instances_ids), obj_id
+        )
+        return redirect(
+            f"/rotating-shift-individual-detail-view/{next_instance}/?{previous_data}&instance_ids={instances_list}&detail=true"
+        )
     elif hx_target and hx_target == "shift_target" and employee_id:
         return redirect(f"/employee/shift-tab/{employee_id}")
-    elif hx_target:
-        return SkylinxRedirect(request)
-    else:
-        return SkylinxRedirect(request)
+    elif hx_target and hx_target == "rotating-shift-container":
+        path = request.META.get("HTTP_HX_CURRENT_URL", None)
+        parsed_url = urlparse(path)
+        parsed_path = parsed_url.path.lstrip("/")
+        if parsed_path == "employee/rotating-shift-assign/":
+            return redirect(f"/rotating-shift-request-list/?is_active=true")
+        return redirect(
+            f"/rotating-shift-individual-tab-view/{employee_id}?deleted=true"
+        )
+
+    return SkylinxRedirect(request)
 
 
 @login_required
@@ -3270,7 +3474,11 @@ def rotating_shift_assign_bulk_archive(request):
     """
     This method is used to archive/un-archive bulk rotating shift assigns
     """
-    ids = request.POST["ids"]
+    ids = request.POST.get("ids")
+    if not ids:
+        return SkylinxRedirect(
+            request, message=_("No rotatingshift found matching the query.")
+        )
     ids = json.loads(ids)
     is_active = True
     message = _("un-archived")
@@ -3315,7 +3523,11 @@ def rotating_shift_assign_bulk_delete(request):
     """
     This method is used to bulk delete for rotating shift assign
     """
-    ids = request.POST["ids"]
+    ids = request.POST.get("ids")
+    if not ids:
+        return SkylinxRedirect(
+            request, message=_("No rotatingshift found matching the query.")
+        )
     ids = json.loads(ids)
     for id in ids:
         try:
@@ -3369,23 +3581,31 @@ def get_models_in_app(app_name):
     try:
         app_config = apps.get_app_config(app_name)
         models = app_config.get_models()
-        return models
+        return [model for model in models if model.__name__ != "CompanyTheme"]
     except LookupError:
         return []
 
 
 @login_required
 @manager_can_enter("auth.view_permission")
-def employee_permission_assign(request):
+def employee_permission_assign(request, pk=None):
     """
     This method is used to assign permissions to employee user
     """
 
     context = {}
     template = "base/auth/permission.html"
-    if request.GET.get("profile_tab") and request.GET.get("employee_id"):
+    path = request.path
+    parts = path.strip("/").split("/")
+    id_part = parts[-1]
+    emp_id = None
+    if id_part != "employee-permission-assign":
+        emp_id = id_part
+    else:
+        id_part = None
+    if emp_id:
         template = "tabs/group_permissions.html"
-        employees = Employee.objects.filter(id=request.GET["employee_id"])
+        employees = Employee.objects.filter(id=emp_id)
         context["employee"] = employees.first()
     else:
         employees = Employee.objects.filter(
@@ -3401,13 +3621,13 @@ def employee_permission_assign(request):
                     "model_name": model._meta.model_name,
                 }
                 for model in get_models_in_app(app_name)
-                if model._meta.model_name not in NO_PERMISSION_MODALS
+                if model._meta.model_name not in settings.NO_PERMISSION_MODALS
             ],
         }
-        for app_name in APPS
+        for app_name in settings.APPS
     ]
     context["permissions"] = permissions
-    context["no_permission_models"] = NO_PERMISSION_MODALS
+    context["no_permission_models"] = settings.NO_PERMISSION_MODALS
     context["employees"] = paginator_qry(employees, request.GET.get("page"))
     return render(
         request,
@@ -3417,6 +3637,7 @@ def employee_permission_assign(request):
 
 
 @login_required
+@hx_request_required
 @permission_required("view_permissions")
 def employee_permission_search(request, codename=None, uid=None):
     """
@@ -3442,13 +3663,13 @@ def employee_permission_search(request, codename=None, uid=None):
                     "model_name": model._meta.model_name,
                 }
                 for model in get_models_in_app(app_name)
-                if model._meta.model_name not in NO_PERMISSION_MODALS
+                if model._meta.model_name not in settings.NO_PERMISSION_MODALS
             ],
         }
-        for app_name in APPS
+        for app_name in settings.APPS
     ]
     context["permissions"] = permissions
-    context["no_permission_models"] = NO_PERMISSION_MODALS
+    context["no_permission_models"] = settings.NO_PERMISSION_MODALS
     context["employees"] = paginator_qry(employees, request.GET.get("page"))
     return render(
         request,
@@ -3460,7 +3681,9 @@ def employee_permission_search(request, codename=None, uid=None):
 @login_required
 @require_http_methods(["POST"])
 @permission_required("auth.add_permission")
-def update_permission(request):
+def update_permission(
+    request,
+):
     """
     This method is used to remove user permission.
     """
@@ -3491,16 +3714,20 @@ def update_permission(request):
         user.user_permissions.remove(*existing_managed)
         user.user_permissions.add(*checked_permissions)
 
+        messages.success(request, _("Permissions updated successfully"))
+
         return JsonResponse(
             {"message": "Permissions updated successfully", "type": "success"}
         )
 
     except Employee.DoesNotExist:
+        messages.error(request, _("Employee not found"))
         return JsonResponse(
             {"message": "Employee not found", "type": "danger"}, status=404
         )
 
     except Exception as e:
+        messages.error(request, _("Something went wrong"))
         return JsonResponse(
             {"message": "Something went wrong", "type": "danger"}, status=500
         )
@@ -3514,10 +3741,10 @@ def permission_table(request):
     This method is used to render the permission table
     """
     permissions = []
-    apps = APPS
+    apps = settings.APPS
     form = AssignPermission()
 
-    no_permission_models = NO_PERMISSION_MODALS
+    no_permission_models = settings.NO_PERMISSION_MODALS
 
     for app_name in apps:
         app_models = []
@@ -3812,10 +4039,11 @@ def work_type_request_cancel(request, id):
         id  : work type request id
 
     """
+    is_ajax = request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest"
     work_type_request = WorkTypeRequest.find(id)
     if not work_type_request:
         messages.error(request, _("Work type request not found."))
-        return SkylinxRedirect(request)
+        return JsonResponse({"result": False}) if is_ajax else SkylinxRedirect(request)
 
     if not (
         is_reportingmanger(request, work_type_request)
@@ -3824,7 +4052,7 @@ def work_type_request_cancel(request, id):
         and work_type_request.approved == False
     ):
         messages.error(request, _("You don't have permission"))
-        return SkylinxRedirect(request)
+        return JsonResponse({"result": False}) if is_ajax else SkylinxRedirect(request)
     work_type_request.canceled = True
     work_type_request.approved = False
     work_info = EmployeeWorkInformation.objects.filter(
@@ -3848,6 +4076,8 @@ def work_type_request_cancel(request, id):
         redirect=reverse("work-type-request-view") + f"?id={work_type_request.id}",
         icon="close",
     )
+    if is_ajax:
+        return JsonResponse({"result": True})
     return handle_wtr_redirect(request, work_type_request)
 
 
@@ -3857,7 +4087,11 @@ def work_type_request_bulk_cancel(request):
     """
     This method is used to cancel a bunch work type request
     """
-    ids = request.POST["ids"]
+    ids = request.POST.get("ids")
+    if not ids:
+        return SkylinxRedirect(
+            request, message=_("No worktype request found matching the query.")
+        )
     ids = json.loads(ids)
     result = False
     for id in ids:
@@ -3898,10 +4132,11 @@ def work_type_request_approve(request, id):
     This method is used to approve requested work type
     """
 
+    is_ajax = request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest"
     work_type_request = WorkTypeRequest.find(id)
     if not work_type_request:
         messages.error(request, _("Work type request not found."))
-        return SkylinxRedirect(request)
+        return JsonResponse({"result": False}) if is_ajax else SkylinxRedirect(request)
     if not (
         is_reportingmanger(request, work_type_request)
         or request.user.has_perm("approve_worktyperequest")
@@ -3909,7 +4144,7 @@ def work_type_request_approve(request, id):
         and not work_type_request.approved
     ):
         messages.error(request, _("You don't have permission"))
-        return SkylinxRedirect(request)
+        return JsonResponse({"result": False}) if is_ajax else SkylinxRedirect(request)
     """
     Here the request will be approved, can send mail right here
     """
@@ -3929,11 +4164,15 @@ def work_type_request_approve(request, id):
             redirect=reverse("work-type-request-view") + f"?id={work_type_request.id}",
             icon="checkmark",
         )
+        if is_ajax:
+            return JsonResponse({"result": True})
     else:
         messages.error(
             request,
             _("An approved work type request already exists during this time period."),
         )
+        if is_ajax:
+            return JsonResponse({"result": False})
     return handle_wtr_redirect(request, work_type_request)
 
 
@@ -3942,7 +4181,11 @@ def work_type_request_bulk_approve(request):
     """
     This method is used to approve bulk of requested work type
     """
-    ids = request.POST["ids"]
+    ids = request.POST.get("ids")
+    if not ids:
+        return SkylinxRedirect(
+            request, message=_("No worktype request found matching the query.")
+        )
     ids = json.loads(ids)
     result = False
     for id in ids:
@@ -4015,6 +4258,7 @@ def work_type_request_delete(request, obj_id):
         id : work type request instance id
 
     """
+
     try:
         work_type_request = WorkTypeRequest.objects.get(id=obj_id)
         employee = work_type_request.employee_id
@@ -4036,8 +4280,12 @@ def work_type_request_delete(request, obj_id):
         messages.error(request, _("Work type request not found."))
     except ProtectedError:
         messages.error(request, _("You cannot delete this work type request."))
+
     hx_target = request.META.get("HTTP_HX_TARGET", None)
-    if hx_target and hx_target == "objectDetailsModalTarget":
+    hx_current_url = request.META.get("HTTP_HX_CURRENT_URL", None)
+    parsed_url = urlparse(hx_current_url)
+    hx_current_path = parsed_url.path.lstrip("/")
+    if hx_target and hx_target == "genericModalBody":
         instances_ids = request.GET.get("instances_ids")
         instances_list = json.loads(instances_ids)
         if obj_id in instances_list:
@@ -4045,24 +4293,38 @@ def work_type_request_delete(request, obj_id):
         previous_instance, next_instance = closest_numbers(
             json.loads(instances_ids), obj_id
         )
-        return redirect(
-            f"/work-type-request-single-view/{next_instance}/?instances_ids={instances_list}"
-        )
-    elif hx_target and hx_target == "view-container":
         previous_data = request.GET.urlencode()
-        work_type_requests = WorkTypeRequest.objects.all()
-        if work_type_requests.exists():
-            return redirect(f"/work-type-request-search?{previous_data}")
+        return redirect(
+            f"/work-detail-view/{next_instance}/?{previous_data}&instance_ids={instances_list}&deleted=true"
+        )
+    # elif hx_target and hx_target == "listContainer":
+    #     previous_data = request.GET.urlencode()
+    #     work_type_requests = WorkTypeRequest.objects.all()
+    #     if work_type_requests.exists():
+    #         return redirect(f"/work-list-view?{previous_data}")
+    #     else:
+    #         return HttpResponse("<script>window.location.reload()</script>")
+
+    elif hx_target and hx_target == "work-shift":
+        if hx_current_path == "employee/work-type-request-view/":
+            work_type_requests = WorkTypeRequest.objects.all()
+            previous_data = request.GET.urlencode()
+            if work_type_requests.exists():
+                return redirect(f"/work-list-view?{previous_data}")
+            else:
+                return SkylinxRedirect(request)
         else:
-            return SkylinxRedirect(request)
+            return redirect(f"/employeeprofileview-Work Type & Shift/{employee.id}")
 
     elif hx_target and hx_target == "shift_target" and employee:
         return redirect(f"/employee/shift-tab/{employee.id}")
+
     else:
         return SkylinxRedirect(request)
 
 
 @login_required
+@hx_request_required
 def work_type_request_single_view(request, obj_id):
     """
     This method is used to view details of an work type request
@@ -4101,12 +4363,13 @@ def work_type_request_bulk_delete(request):
     """
     ids = request.POST["ids"]
     ids = json.loads(ids)
+    del_ids = []
     for id in ids:
         try:
             work_type_request = WorkTypeRequest.objects.get(id=id)
             user = work_type_request.employee_id.employee_user_id
             work_type_request.delete()
-            messages.success(request, _("Work type request deleted."))
+            del_ids.append(work_type_request)
             notify.send(
                 request.user.employee_get,
                 recipient=user,
@@ -4131,6 +4394,7 @@ def work_type_request_bulk_delete(request):
                 ),
             )
         result = True
+    messages.success(request, _("{} work type requests deleted.".format(len(del_ids))))
     return JsonResponse({"result": result})
 
 
@@ -4157,6 +4421,7 @@ def shift_request(request):
         form = ShiftRequestForm(request.POST)
         form = choosesubordinates(request, form, "base.add_shiftrequest")
         form = include_employee_instance(request, form)
+
         if form.is_valid():
             instance = form.save()
             try:
@@ -4192,6 +4457,8 @@ def shift_request(request):
 def update_employee_allocation(request):
 
     shift = request.GET.get("shift_id")
+    if not shift:
+        return SkylinxRedirect(request, message=_("No shift found matching the query."))
     form = ShiftAllocationForm()
     shift = EmployeeShift.objects.filter(id=shift).first()
     employee_ids = shift.employeeworkinformation_set.values_list(
@@ -4227,6 +4494,7 @@ def shift_request_allocation(request):
         form = ShiftAllocationForm(request.POST)
         form = choosesubordinates(request, form, "base.add_shiftrequest")
         form = include_employee_instance(request, form)
+
         if form.is_valid():
             instance = form.save()
             reallocate_emp = form.cleaned_data["reallocate_to"]
@@ -4367,6 +4635,7 @@ def shift_request_export(request):
 
 
 @login_required
+@hx_request_required
 def shift_request_search(request):
     """
     This method is used search shift request by employee and also used to filter shift request.
@@ -4484,6 +4753,9 @@ def shift_request_details(request, id):
         id : shift request instance id
     """
     shift_request = ShiftRequest.find(id)
+    if not shift_request:
+        messages.error(request, _("Shift request not found."))
+        return SkylinxRedirect(request)
     requests_ids_json = request.GET.get("instances_ids")
     context = {
         "shift_request": shift_request,
@@ -4511,6 +4783,9 @@ def shift_allocation_request_details(request, id):
         id : shift request instance id
     """
     shift_request = ShiftRequest.find(id)
+    if not shift_request:
+        messages.error(request, _("Shift request not found."))
+        return SkylinxRedirect(request)
     requests_ids_json = request.GET.get("instances_ids")
     context = {
         "shift_request": shift_request,
@@ -4544,6 +4819,7 @@ def shift_request_update(request, shift_request_id):
     form = include_employee_instance(request, form)
     if request.method == "POST":
         if not shift_request.approved:
+
             form = ShiftRequestForm(request.POST, instance=shift_request)
             form = choosesubordinates(request, form, "base.change_shiftrequest")
             form = include_employee_instance(request, form)
@@ -4634,10 +4910,11 @@ def shift_request_cancel(request, id):
 
     """
 
+    is_ajax = request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest"
     shift_request = ShiftRequest.find(id)
     if not shift_request:
         messages.error(request, _("Shift request not found."))
-        return SkylinxRedirect(request)
+        return JsonResponse({"result": False}) if is_ajax else SkylinxRedirect(request)
     if not (
         is_reportingmanger(request, shift_request)
         or request.user.has_perm("base.cancel_shiftrequest")
@@ -4645,7 +4922,7 @@ def shift_request_cancel(request, id):
         and shift_request.approved == False
     ):
         messages.error(request, _("You don't have permission"))
-        return SkylinxRedirect(request)
+        return JsonResponse({"result": False}) if is_ajax else SkylinxRedirect(request)
     today_date = datetime.today().date()
     if (
         shift_request.approved
@@ -4695,7 +4972,7 @@ def shift_request_cancel(request, id):
             redirect=reverse("shift-request-view") + f"?id={shift_request.id}",
             icon="close",
         )
-    return SkylinxRedirect(request)
+    return JsonResponse({"result": True}) if is_ajax else SkylinxRedirect(request)
 
 
 @login_required
@@ -4708,6 +4985,10 @@ def shift_allocation_request_cancel(request, id):
     """
 
     shift_request = ShiftRequest.find(id)
+    if not shift_request:
+        return SkylinxRedirect(
+            request, message=_("No shift request found matching the query.")
+        )
 
     shift_request.reallocate_canceled = True
     shift_request.reallocate_approved = False
@@ -4805,10 +5086,11 @@ def shift_request_approve(request, id):
         id : shift request instance id
     """
 
+    is_ajax = request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest"
     shift_request = ShiftRequest.find(id)
     if not shift_request:
         messages.error(request, _("Shift request not found."))
-        return SkylinxRedirect(request)
+        return JsonResponse({"result": False}) if is_ajax else SkylinxRedirect(request)
 
     user = request.user
     if not (
@@ -4818,14 +5100,14 @@ def shift_request_approve(request, id):
         and not shift_request.approved
     ):
         messages.error(request, _("You don't have permission"))
-        return SkylinxRedirect(request)
+        return JsonResponse({"result": False}) if is_ajax else SkylinxRedirect(request)
 
     if shift_request.is_any_request_exists():
         messages.error(
             request,
             _("An approved shift request already exists during this time period."),
         )
-        return SkylinxRedirect(request)
+        return JsonResponse({"result": False}) if is_ajax else SkylinxRedirect(request)
 
     today_date = datetime.today().date()
     if not shift_request.is_permanent_shift:
@@ -4863,7 +5145,7 @@ def shift_request_approve(request, id):
             icon="checkmark",
         )
 
-    return SkylinxRedirect(request)
+    return JsonResponse({"result": True}) if is_ajax else SkylinxRedirect(request)
 
 
 @login_required
@@ -4875,6 +5157,10 @@ def shift_allocation_request_approve(request, id):
     """
 
     shift_request = ShiftRequest.find(id)
+    if not shift_request:
+        return SkylinxRedirect(
+            request, message=_("No shift request found matching the query.")
+        )
 
     if not shift_request.is_any_request_exists():
         shift_request.reallocate_approved = True
@@ -4960,6 +5246,7 @@ def shift_request_delete(request, id):
         id : shift request instance id
 
     """
+
     try:
         shift_request = ShiftRequest.find(id)
         user = shift_request.employee_id.employee_user_id
@@ -4983,8 +5270,30 @@ def shift_request_delete(request, id):
         messages.error(request, _("You cannot delete this shift request."))
 
     hx_target = request.META.get("HTTP_HX_TARGET", None)
-    if hx_target and hx_target == "shift_target" and shift_request.employee_id:
-        return redirect(f"/employee/shift-tab/{shift_request.employee_id.id}")
+    path = request.META.get("HTTP_HX_CURRENT_URL", None)
+    parsed_url = urlparse(path)
+    parsed_path = parsed_url.path.lstrip("/")
+    if hx_target and hx_target == "shift-container":
+        previous_data = request.GET.urlencode()
+        if parsed_path == "employee/shift-request-view/":
+            return redirect(f"/list-shift-request/?deleted=true")
+        else:
+            return redirect(
+                f"/shift-request-individual-tab-view/{shift_request.employee_id.id}?deleted=true"
+            )
+    if hx_target and hx_target == "genericModalBody":
+        previous_data = request.GET.urlencode()
+        instances_ids = request.GET.get("instances_ids", None)
+        instances_list = json.loads(instances_ids) if instances_ids else []
+        if id in instances_list:
+            instances_list.remove(id)
+            previous_instance, next_instance = closest_numbers(
+                json.loads(instances_ids), id
+            )
+            return redirect(
+                f"/shift-detail-view/{next_instance}/?{previous_data}&instance_ids={instances_list}&deleted=true"
+            )
+
     return SkylinxRedirect(request)
 
 
@@ -5000,13 +5309,14 @@ def shift_request_bulk_delete(request):
     """
     ids = request.POST["ids"]
     ids = json.loads(ids)
+    del_ids = []
     result = False
     for id in ids:
         try:
             shift_request = ShiftRequest.objects.get(id=id)
             user = shift_request.employee_id.employee_user_id
             shift_request.delete()
-            messages.success(request, _("Shift request deleted."))
+            del_ids.append(shift_request)
             notify.send(
                 request.user.employee_get,
                 recipient=user,
@@ -5031,6 +5341,8 @@ def shift_request_bulk_delete(request):
                 ),
             )
         result = True
+
+    messages.success(request, _("{} shift requests deleted.".format(len(del_ids))))
     return JsonResponse({"result": result})
 
 
@@ -5084,20 +5396,32 @@ def delete_notification(request, id):
     """
     This method is used to delete notification
     """
-    script = ""
     try:
         request.user.notifications.get(id=id).delete()
         messages.success(request, _("Notification deleted."))
+    except request.user.notifications.model.DoesNotExist:
+        messages.error(request, _("Notification not found."))
+        return SkylinxRedirect(request)
     except Exception as e:
         messages.error(request, e)
-    if not request.user.notifications.all():
-        script = """<span hx-get='/all-notifications' hx-target='#allNotificationBody' hx-trigger='load'></span>"""
-    return HttpResponse(script)
+    return HttpResponse(
+        "<script>"
+        "setTimeout(function(){"
+        "$('#reloadMessagesButton').click();"
+        "htmx.ajax('GET','/all-notifications/',{target:'#sidebarModalBody',swap:'innerHTML'});"
+        "},100);"
+        "</script>"
+    )
 
 
 @login_required
 def mark_as_read_notification(request, notification_id):
     script = ""
+    notification_id = request.GET.get("notification_id")
+    if not notification_id:
+        return SkylinxRedirect(
+            request, message=_("No notification found matching the query.")
+        )
     notification = Notification.objects.get(id=notification_id)
     notification.mark_as_read()
     if not request.user.notifications.unread():
@@ -5146,6 +5470,17 @@ def all_notifications(request):
         "notification/all_notifications.html",
         {"notifications": request.user.notifications.all()},
     )
+
+
+@login_required
+def notification_sound(request):
+    employee = request.user.employee_get
+    sound, created = NotificationSound.objects.get_or_create(employee=employee)
+    if not created:
+        sound.sound_enabled = not sound.sound_enabled
+        sound.save()
+
+    return HttpResponse("")
 
 
 @login_required
@@ -5212,6 +5547,7 @@ def general_settings(request):
             form.save()
             messages.success(request, _("Settings updated."))
             return SkylinxRedirect(request)
+
     return render(
         request,
         "base/general_settings.html",
@@ -5240,13 +5576,18 @@ def date_settings(request):
     return render(request, "base/company/date.html")
 
 
+@login_required
 @permission_required("base.change_company")
-@csrf_exempt  # Use this decorator if CSRF protection is enabled
 def save_date_format(request):
     if request.method == "POST":
         # Taking the selected Date Format
         selected_format = request.POST.get("selected_format")
 
+        if selected_format not in settings.SKYLINX_DATE_FORMATS:
+            messages.error(request, _("Invalid date format."))
+            return JsonResponse(
+                {"success": False, "error": "Invalid date format."}, status=400
+            )
         if not len(selected_format):
             messages.error(request, _("Please select a valid date format."))
         else:
@@ -5333,8 +5674,8 @@ def get_date_format(request):
     return JsonResponse({"selected_format": date_format})
 
 
+@login_required
 @permission_required("base.change_company")
-@csrf_exempt  # Use this decorator if CSRF protection is enabled
 def save_time_format(request):
     if request.method == "POST":
         # Taking the selected Time Format
@@ -5445,6 +5786,8 @@ def history_field_settings(request):
             messages.success(request, _("Settings updated."))
             history_object.save()
 
+    if request.headers.get("HX-Request"):
+        return HttpResponse("")
     return redirect(general_settings)
 
 
@@ -5515,22 +5858,22 @@ def enable_profile_edit_feature(request):
 @login_required
 def shift_select(request):
     page_number = request.GET.get("page")
+    shifts = ShiftRequest.objects.none()
 
     if page_number == "all":
         if request.user.has_perm("base.view_shiftrequest"):
-            employees = ShiftRequest.objects.all()
+            shifts = ShiftRequest.objects.all()
         else:
-            employees = ShiftRequest.objects.filter(
+            shifts = ShiftRequest.objects.filter(
                 employee_id__employee_user_id=request.user
             ) | ShiftRequest.objects.filter(
                 employee_id__employee_work_info__reporting_manager_id__employee_user_id=request.user
             )
-        # employees = ShiftRequest.objects.all()
 
-    employee_ids = [str(emp.id) for emp in employees]
-    total_count = employees.count()
+    shift_ids = [str(shift.id) for shift in shifts]
+    total_count = shifts.count()
 
-    context = {"employee_ids": employee_ids, "total_count": total_count}
+    context = {"employee_ids": shift_ids, "total_count": total_count}
 
     return JsonResponse(context, safe=False)
 
@@ -5540,6 +5883,7 @@ def shift_select_filter(request):
     page_number = request.GET.get("page")
     filtered = request.GET.get("filter")
     filters = json.loads(filtered) if filtered else {}
+    context = {}
 
     if page_number == "all":
         employee_filter = ShiftRequestFilter(
@@ -5554,27 +5898,28 @@ def shift_select_filter(request):
 
         context = {"employee_ids": employee_ids, "total_count": total_count}
 
-        return JsonResponse(context)
+    return JsonResponse(context)
 
 
 @login_required
 def work_type_select(request):
     page_number = request.GET.get("page")
+    work_types = WorkTypeRequest.objects.none()
 
     if page_number == "all":
         if request.user.has_perm("base.view_worktyperequest"):
-            employees = WorkTypeRequest.objects.all()
+            work_types = WorkTypeRequest.objects.all()
         else:
-            employees = WorkTypeRequest.objects.filter(
+            work_types = WorkTypeRequest.objects.filter(
                 employee_id__employee_user_id=request.user
             ) | WorkTypeRequest.objects.filter(
                 employee_id__employee_work_info__reporting_manager_id__employee_user_id=request.user
             )
 
-    employee_ids = [str(emp.id) for emp in employees]
-    total_count = employees.count()
+    work_ids = [str(work.id) for work in work_types]
+    total_count = work_types.count()
 
-    context = {"employee_ids": employee_ids, "total_count": total_count}
+    context = {"employee_ids": work_ids, "total_count": total_count}
 
     return JsonResponse(context, safe=False)
 
@@ -5584,6 +5929,7 @@ def work_type_select_filter(request):
     page_number = request.GET.get("page")
     filtered = request.GET.get("filter")
     filters = json.loads(filtered) if filtered else {}
+    context = {}
 
     if page_number == "all":
         employee_filter = WorkTypeRequestFilter(
@@ -5598,7 +5944,7 @@ def work_type_select_filter(request):
 
         context = {"employee_ids": employee_ids, "total_count": total_count}
 
-        return JsonResponse(context)
+    return JsonResponse(context)
 
 
 @login_required
@@ -5607,18 +5953,18 @@ def rotating_shift_select(request):
 
     if page_number == "all":
         if request.user.has_perm("base.view_rotatingshiftassign"):
-            employees = RotatingShiftAssign.objects.filter(is_active=True)
+            r_shifts = RotatingShiftAssign.objects.filter(is_active=True)
         else:
-            employees = RotatingShiftAssign.objects.filter(
+            r_shifts = RotatingShiftAssign.objects.filter(
                 employee_id__employee_work_info__reporting_manager_id__employee_user_id=request.user
             )
     else:
-        employees = RotatingShiftAssign.objects.all()
+        r_shifts = RotatingShiftAssign.objects.all()
 
-    employee_ids = [str(emp.id) for emp in employees]
-    total_count = employees.count()
+    r_shift_ids = [str(r_shift.id) for r_shift in r_shifts]
+    total_count = r_shifts.count()
 
-    context = {"employee_ids": employee_ids, "total_count": total_count}
+    context = {"employee_ids": r_shift_ids, "total_count": total_count}
 
     return JsonResponse(context, safe=False)
 
@@ -5628,6 +5974,7 @@ def rotating_shift_select_filter(request):
     page_number = request.GET.get("page")
     filtered = request.GET.get("filter")
     filters = json.loads(filtered) if filtered else {}
+    context = {}
 
     if page_number == "all":
         employee_filter = RotatingShiftAssignFilters(
@@ -5642,7 +5989,7 @@ def rotating_shift_select_filter(request):
 
         context = {"employee_ids": employee_ids, "total_count": total_count}
 
-        return JsonResponse(context)
+    return JsonResponse(context)
 
 
 @login_required
@@ -5651,18 +5998,18 @@ def rotating_work_type_select(request):
 
     if page_number == "all":
         if request.user.has_perm("base.view_rotatingworktypeassign"):
-            employees = RotatingWorkTypeAssign.objects.filter(is_active=True)
+            r_shifts = RotatingWorkTypeAssign.objects.filter(is_active=True)
         else:
-            employees = RotatingWorkTypeAssign.objects.filter(
+            r_shifts = RotatingWorkTypeAssign.objects.filter(
                 employee_id__employee_work_info__reporting_manager_id__employee_user_id=request.user
             )
     else:
-        employees = RotatingWorkTypeAssign.objects.all()
+        r_shifts = RotatingWorkTypeAssign.objects.all()
 
-    employee_ids = [str(emp.id) for emp in employees]
-    total_count = employees.count()
+    r_shift_ids = [str(r_shift.id) for r_shift in r_shifts]
+    total_count = r_shifts.count()
 
-    context = {"employee_ids": employee_ids, "total_count": total_count}
+    context = {"employee_ids": r_shift_ids, "total_count": total_count}
 
     return JsonResponse(context, safe=False)
 
@@ -5672,6 +6019,7 @@ def rotating_work_type_select_filter(request):
     page_number = request.GET.get("page")
     filtered = request.GET.get("filter")
     filters = json.loads(filtered) if filtered else {}
+    context = {}
 
     if page_number == "all":
         employee_filter = RotatingWorkTypeAssignFilter(
@@ -5686,7 +6034,7 @@ def rotating_work_type_select_filter(request):
 
         context = {"employee_ids": employee_ids, "total_count": total_count}
 
-        return JsonResponse(context)
+    return JsonResponse(context)
 
 
 @login_required
@@ -5870,15 +6218,15 @@ def get_condition_value_fields(request):
 @hx_request_required
 @permission_required("base.add_multipleapprovalcondition")
 def add_more_approval_managers(request):
-    currnet_hx_target = request.META.get("HTTP_HX_TARGET")
-    hx_target_split = currnet_hx_target.split("_")
+    current_hx_target = request.META.get("HTTP_HX_TARGET")
+    hx_target_split = current_hx_target.split("_")
     next_hx_target = "_".join([hx_target_split[0], str(int(hx_target_split[-1]) + 1)])
 
     form = MultipleApproveConditionForm()
     managers_count = request.GET.get("managers_count")
     context = {
         "next_hx_target": next_hx_target,
-        "currnet_hx_target": currnet_hx_target,
+        "current_hx_target": current_hx_target,
     }
     if managers_count:
         managers_count = int(managers_count) + 1
@@ -5911,7 +6259,6 @@ def add_more_approval_managers(request):
     field_html = render_to_string(
         "multi_approval_condition/add_more_approval_manager.html", context
     )
-
     return HttpResponse(field_html)
 
 
@@ -5994,6 +6341,23 @@ def edit_approval_managers(form, managers):
                 widget=forms.Select(attrs={"class": "oh-select oh-select-2 mb-3"}),
                 required=False,
             )
+
+            form.initial[field_name] = manager.employee_id
+    return form
+
+
+def approval_managers_edit(form, managers):
+    for i, manager in enumerate(managers):
+        if i == 0:
+            form.initial["multi_approval_manager"] = manager.employee_id
+        else:
+            field_name = f"multi_approval_manager_{i}"
+            form.fields[field_name] = forms.ModelChoiceField(
+                queryset=Employee.objects.all(),
+                label=_("Approval Manager {}").format(i),
+                widget=forms.Select(attrs={"class": "oh-select oh-select-2 mb-3"}),
+                required=False,
+            )
             form.initial[field_name] = manager.employee_id
     return form
 
@@ -6059,10 +6423,34 @@ def multiple_level_approval_edit(request, condition_id):
 @login_required
 @permission_required("base.delete_multipleapprovalcondition")
 def multiple_level_approval_delete(request, condition_id):
+
+    request_copy = request.GET.copy()
+    request_copy.pop("instances_ids", None)
+    previous_data = request_copy.urlencode()
+
+    if not MultipleApprovalCondition.objects.filter(id=condition_id).exists():
+        return SkylinxRedirect(
+            request,
+            message=_("No MultipleApprovalCondition matching query does not exist."),
+        )
+
     condition = MultipleApprovalCondition.objects.get(id=condition_id)
     condition.delete()
     messages.success(request, _("Multiple approval condition deleted successfully"))
-    return redirect(hx_multiple_approval_condition)
+    hx_target = request.META.get("HTTP_HX_TARGET")
+    if hx_target and hx_target == "genericModalBody":
+        instances_ids = request.GET.get("instances_ids")
+        instances_list = json.loads(instances_ids)
+        if condition_id in instances_list:
+            instances_list.remove(condition_id)
+            previous_instance, next_instance = closest_numbers(
+                json.loads(instances_ids), condition_id
+            )
+        return redirect(
+            f"/detail-view-multiple-approval-condition/{next_instance}/?{previous_data}&instance_ids={instances_list}&deleted=true"
+        )
+
+    return redirect(reverse("hx-multiple-approval-condition"))
 
 
 @login_required
@@ -6303,8 +6691,7 @@ def delete_work_type_comment_file(request):
         comment_id = int(request.GET["comment_id"])
     except (KeyError, ValueError):
         return SkylinxRedirect(
-            request,
-            message=_("Invalid Request"),
+            request, message=_("Invalid Request"), redirect_to="work-type-request-view"
         )
 
     comment = WorkTypeRequestComment.find(comment_id)
@@ -6629,177 +7016,91 @@ def driver_viewed_status(request):
 
 
 @login_required
+@hx_request_required
 def dashboard_components_toggle(request):
     """
     This function is used to create personalized dashboard charts for employees
     """
-    employee_charts = DashboardEmployeeCharts.objects.get_or_create(
+    employee_charts, created = DashboardEmployeeCharts.objects.get_or_create(
         employee=request.user.employee_get
-    )[0]
+    )
     charts = employee_charts.charts or []
     chart_id = request.GET.get("chart_id")
-    if chart_id and chart_id not in charts:
-        charts.append(chart_id)
+    if chart_id and chart_id in charts:
+        charts.remove(chart_id)
         employee_charts.charts = charts
         employee_charts.save()
     return HttpResponse("")
 
 
-def check_chart_permission(request, charts):
-    """
-    This function is used to check the permissions for the charts
-    Args:
-        charts: dashboard charts
-    """
-    from base.templatetags.basefilters import is_reportingmanager
-
-    if apps.is_installed("recruitment"):
-        from recruitment.templatetags.recruitmentfilters import is_stagemanager
-
-        need_stage_manager = [
-            "hired_candidates",
-            "onboarding_candidates",
-            "recruitment_analytics",
-        ]
-    chart_apps = {
-        "offline_employees": "attendance",
-        "online_employees": "attendance",
-        "overall_leave_chart": "leave",
-        "hired_candidates": "recruitment",
-        "onboarding_candidates": "onboarding",
-        "recruitment_analytics": "recruitment",
-        "attendance_analytic": "attendance",
-        "hours_chart": "attendance",
-        "objective_status": "pms",
-        "key_result_status": "pms",
-        "feedback_status": "pms",
-        "shift_request_approve": "base",
-        "work_type_request_approve": "base",
-        "overtime_approve": "attendance",
-        "attendance_validate": "attendance",
-        "leave_request_approve": "leave",
-        "leave_allocation_approve": "leave",
-        "asset_request_approve": "asset",
-        "employees_chart": "employee",
-        "gender_chart": "employee",
-        "department_chart": "base",
-    }
-    permissions = {
-        "offline_employees": "employee.view_employee",
-        "online_employees": "employee.view_employee",
-        "overall_leave_chart": "leave.view_leaverequest",
-        "hired_candidates": "recruitment.view_candidate",
-        "onboarding_candidates": "recruitment.view_candidate",
-        "recruitment_analytics": "recruitment.view_recruitment",
-        "attendance_analytic": "attendance.view_attendance",
-        "hours_chart": "attendance.view_attendance",
-        "objective_status": "pms.view_employeeobjective",
-        "key_result_status": "pms.view_employeekeyresult",
-        "feedback_status": "pms.view_feedback",
-        "shift_request_approve": "base.change_shiftrequest",
-        "work_type_request_approve": "base.change_worktyperequest",
-        "overtime_approve": "attendance.change_attendance",
-        "attendance_validate": "attendance.change_attendance",
-        "leave_request_approve": "leave.change_leaverequest",
-        "leave_allocation_approve": "leave.change_leaveallocationrequest",
-        "asset_request_approve": "asset.change_assetrequest",
-    }
-    chart_list = []
-    need_reporting_manager = [
-        "offline_employees",
-        "online_employees",
-        "attendance_analytic",
-        "hours_chart",
-        "objective_status",
-        "key_result_status",
-        "feedback_status",
-        "shift_request_approve",
-        "work_type_request_approve",
-        "overtime_approve",
-        "attendance_validate",
-        "leave_request_approve",
-        "leave_allocation_approve",
-        "asset_request_approve",
-    ]
-    for chart in charts:
-        if apps.is_installed(chart_apps.get(chart[0])):
-            if (
-                chart[0] in permissions.keys()
-                or chart[0] in need_reporting_manager
-                or (apps.is_installed("recruitment") and chart[0] in need_stage_manager)
-            ):
-                if request.user.has_perm(permissions[chart[0]]):
-                    chart_list.append(chart)
-                elif chart[0] in need_reporting_manager:
-                    if is_reportingmanager(request.user):
-                        chart_list.append(chart)
-                elif (
-                    apps.is_installed("recruitment") and chart[0] in need_stage_manager
-                ):
-                    if is_stagemanager(request.user):
-                        chart_list.append(chart)
-            else:
-                chart_list.append(chart)
-
-    return chart_list
-
-
 @login_required
+@hx_request_required
 def employee_chart_show(request):
     """
     This function is used to choose which chart to show in the dashboard
     """
-    employee_charts = DashboardEmployeeCharts.objects.get_or_create(
+    employee_charts, created = DashboardEmployeeCharts.objects.get_or_create(
         employee=request.user.employee_get
-    )[0]
-    charts = [
-        ("offline_employees", _("Offline Employees")),
-        ("online_employees", _("Online Employees")),
-        ("overall_leave_chart", _("Overall Leave Chart")),
-        ("hired_candidates", _("Hired Candidates")),
-        ("onboarding_candidates", _("Onboarding Candidates")),
-        ("recruitment_analytics", _("Recruitment Analytics")),
-        ("attendance_analytic", _("Attendance analytics")),
-        ("hours_chart", _("Hours Chart")),
-        ("employees_chart", _("Employees Chart")),
-        ("department_chart", _("Department Chart")),
-        ("gender_chart", _("Gender Chart")),
-        ("objective_status", _("Objective Status")),
-        ("key_result_status", _("Key Result Status")),
-        ("feedback_status", _("Feedback Status")),
-        ("shift_request_approve", _("Shift Request to Approve")),
-        ("work_type_request_approve", _("Work Type Request to Approve")),
-        ("overtime_approve", _("Overtime to Approve")),
-        ("attendance_validate", _("Attendance to Validate")),
-        ("leave_request_approve", _("Leave Request to Approve")),
-        ("leave_allocation_approve", _("Leave Allocation to Approve")),
-        ("feedback_answer", _("Feedbacks to Answer")),
-        ("asset_request_approve", _("Asset Request to Approve")),
-    ]
-    charts = check_chart_permission(request, charts)
+    )
+
+    charts = check_chart_permission(request, CHARTS)
 
     if request.method == "POST":
-        employee_charts.charts = []
-        employee_charts.save()
-        data = request.POST
-        for chart in charts:
-            if chart[0] not in data.keys() and chart[0] not in employee_charts.charts:
-                employee_charts.charts.append(chart[0])
-            elif chart[0] in data.keys() and chart[0] in employee_charts.charts:
-                employee_charts.charts.remove(chart[0])
-            else:
-                pass
+        data = set(request.POST.keys())
+        current_order = employee_charts.charts or []
 
+        new_order = [c for c in current_order if c in data]
+
+        for char in data:
+            if char not in new_order:
+                new_order.append(char)
+
+        employee_charts.charts = new_order
         employee_charts.save()
-        return SkylinxRedirect(request)
+        messages.success(request, _("Dashboard charts updated successfully"))
+
+        return HttpResponse("<script>window.location.reload();</script>")
+
     context = {"dashboard_charts": charts, "employee_chart": employee_charts.charts}
     return render(request, "dashboard_chart_form.html", context)
 
 
 @login_required
+@hx_request_required
+def reorder_dashboard_charts(request):
+    """
+    This function is used to reorder the dashboard charts
+    """
+    employee_charts, created = DashboardEmployeeCharts.objects.get_or_create(
+        employee=request.user.employee_get
+    )
+    charts = [(chart, chart.replace("_", " ")) for chart in employee_charts.charts]
+
+    if request.method == "POST":
+        chart_keys = list(request.POST.keys())
+        filtered_chart_keys = [
+            item for item in chart_keys if item in employee_charts.charts
+        ]
+        employee_charts.charts = filtered_chart_keys
+        employee_charts.save()
+        return HttpResponse(headers={"HX-Refresh": "true"})
+
+    return render(
+        request,
+        "skylinx_theme/components/reorder_dashboard_charts.html",
+        {"charts": charts},
+    )
+
+
+@login_required
 @permission_required("base.view_biometricattendance")
 def enable_biometric_attendance_view(request):
-    biometric = BiometricAttendance.objects.first()
+    selected_company = request.session.get("selected_company")
+    if selected_company == "all":
+        company = None
+    else:
+        company = Company.objects.filter(id=selected_company).first()
+    biometric = BiometricAttendance.objects.filter(company_id=company).first()
     return render(
         request,
         "base/install_biometric_attendance.html",
@@ -6812,9 +7113,14 @@ def enable_biometric_attendance_view(request):
 def activate_biometric_attendance(request):
     if request.method == "GET":
         is_installed = request.GET.get("is_installed")
-        instance = BiometricAttendance.objects.first()
-        if not instance:
-            instance = BiometricAttendance.objects.create()
+        selected_company = request.session.get("selected_company")
+        if selected_company == "all":
+            company = None
+        else:
+            company = Company.objects.filter(id=selected_company).first()
+        instance, created = BiometricAttendance.objects.get_or_create(
+            company_id=company
+        )
         if is_installed == "true":
             instance.is_installed = True
             messages.success(
@@ -6835,7 +7141,7 @@ def activate_biometric_attendance(request):
 
 @login_required
 def get_skylinx_installed_apps(request):
-    return JsonResponse({"installed_apps": APPS})
+    return JsonResponse({"installed_apps": settings.APPS})
 
 
 def generate_error_report(error_list, error_data, file_name):
@@ -6875,7 +7181,7 @@ def generate_error_report(error_list, error_data, file_name):
     # Create a unique path for the error file download
     path_info = f"error-sheet-{uuid.uuid4()}"
     urlpatterns.append(path(path_info, get_error_sheet, name=path_info))
-    DYNAMIC_URL_PATTERNS.append(path_info)
+    settings.DYNAMIC_URL_PATTERNS.append(path_info)
     for key in error_data:
         error_data[key] = []
     return path_info
@@ -6928,6 +7234,7 @@ def holiday_creation(request):
     )
 
 
+@login_required
 def holidays_excel_template(request):
     try:
         columns = [
@@ -6961,8 +7268,10 @@ def csv_holiday_import(file):
     - "Recurring": Indicates whether the holiday recurs ("yes" or "no")
     """
     holiday_list, error_list = [], []
-    file_name = FILE_STORAGE.save("holiday_import.csv", ContentFile(file.read()))
-    holiday_file = FILE_STORAGE.path(file_name)
+    file_name = settings.FILE_STORAGE.save(
+        "holiday_import.csv", ContentFile(file.read())
+    )
+    holiday_file = settings.FILE_STORAGE.path(file_name)
 
     with open(holiday_file, errors="ignore") as csv_file:
         save = True
@@ -7094,6 +7403,7 @@ def excel_holiday_import(file):
 
 
 @login_required
+@hx_request_required
 @permission_required("base.add_holiday")
 def holidays_info_import(request):
     result = None
@@ -7109,6 +7419,8 @@ def holidays_info_import(request):
         "Recurring Field Error": [],
         "Other Errors": [],
     }
+
+    # is_hx_request = request.headers.get('HX-Request') == 'true'
 
     if request.method == "POST":
         file = request.FILES.get("holidays_import")
@@ -7299,14 +7611,15 @@ def bulk_holiday_delete(request):
 @login_required
 def holiday_select(request):
     page_number = request.GET.get("page")
+    holidays = Holidays.objects.none()
 
     if page_number == "all":
-        employees = Holidays.objects.all()
+        holidays = Holidays.objects.all()
 
-    employee_ids = [str(emp.id) for emp in employees]
-    total_count = employees.count()
+    holiday_ids = [str(hol.id) for hol in holidays]
+    total_count = holidays.count()
 
-    context = {"employee_ids": employee_ids, "total_count": total_count}
+    context = {"employee_ids": holiday_ids, "total_count": total_count}
 
     return JsonResponse(context, safe=False)
 
@@ -7316,6 +7629,7 @@ def holiday_select_filter(request):
     page_number = request.GET.get("page")
     filtered = request.GET.get("filter")
     filters = json.loads(filtered) if filtered else {}
+    context = {}
 
     if page_number == "all":
         employee_filter = HolidayFilter(filters, queryset=Holidays.objects.all())
@@ -7328,7 +7642,7 @@ def holiday_select_filter(request):
 
         context = {"employee_ids": employee_ids, "total_count": total_count}
 
-        return JsonResponse(context)
+    return JsonResponse(context)
 
 
 @login_required
@@ -7486,9 +7800,53 @@ def view_penalties(request):
     return render(request, "penalty/penalty_view.html", {"records": records})
 
 
-from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
-from rest_framework_simplejwt.tokens import UntypedToken
+@login_required
+@permission_required("base.delete_penaltyaccounts")
+def delete_penalities(request, penalty_id):
+    penalty = PenaltyAccounts.objects.filter(id=penalty_id).first()
+    if not penalty:
+        return SkylinxRedirect(
+            request, message=_("No penalty account found matching the query.")
+        )
+    penalty.delete()
+    messages.success(request, _("Penalty deleted suucessfully"))
+    return HttpResponse(
+        "<script>$('.reload-record').click();$('#reloadMessagesButton').click();</script>"
+    )
+
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(
+    permission_required("skylinx_meet.view_googlecloudcredential"), name="dispatch"
+)
+class EnableIntegrationsView(View):
+    """Handles enabling/disabling Google Meet integration dynamically."""
+
+    def post(self, request, *args, **kwargs):
+        """Handles POST request to enable/disable an integration app."""
+        app_label = request.GET.get("app_label")
+
+        if not app_label:
+            messages.error(request, "Missing app_label")
+            return HttpResponse("<script>window.location.reload()</script>")
+
+        enabled = request.POST.get("is_enabled") is not None
+        integration_app, created = IntegrationApps.objects.update_or_create(
+            app_label=app_label,
+            defaults={"is_enabled": enabled},
+        )
+        try:
+            app_config = apps.get_app_config(app_label)
+            app_verbose_name = app_config.verbose_name
+        except LookupError:
+            app_verbose_name = app_label
+
+        if enabled:
+            messages.success(request, f"{app_verbose_name} enabled")
+        else:
+            messages.error(request, f"{app_verbose_name} disabled")
+
+        return HttpResponse("<script>window.location.reload()</script>")
 
 
 def is_jwt_token_valid(auth_header):

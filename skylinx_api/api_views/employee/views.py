@@ -98,7 +98,6 @@ class EmployeeAPIView(APIView):
     filter_backends = [DjangoFilterBackend]
     filterset_class = EmployeeFilter
     permission_classes = [IsAuthenticated]
-    queryset = Employee.objects.all()
 
     def get(self, request, pk):
         user = request.user
@@ -533,6 +532,7 @@ class DisciplinaryActionAPIView(APIView):
 
     filterset_class = DisciplinaryActionFilter
     permission_classes = [IsAuthenticated]
+    queryset = DisciplinaryAction.objects.none()  # For drf-yasg schema generation
 
     def get_object(self, pk):
         try:
@@ -778,6 +778,7 @@ class DocumentRequestAPIView(APIView):
 class DocumentAPIView(APIView):
     filterset_class = DocumentRequestFilter
     permission_classes = [IsAuthenticated]
+    queryset = Document.objects.none()  # For drf-yasg schema generation
 
     def get_object(self, pk):
         try:

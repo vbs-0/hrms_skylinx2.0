@@ -10,10 +10,12 @@ import datetime as dt
 import json
 from datetime import date, datetime, timedelta
 
+import pandas as pd
 from django.apps import apps
 from django.core.exceptions import ValidationError
-from django.db import models
-from django.db.models import Q
+from django.db import models, transaction
+from django.db.models import F, Q
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -31,9 +33,12 @@ from base.skylinx_company_manager import SkylinxCompanyManager
 from base.methods import is_company_leave, is_holiday
 from base.models import Company, EmployeeShift, EmployeeShiftDay, WorkType
 from employee.models import Employee
+
+# Create your models here.
 from skylinx.methods import get_skylinx_model_class
 from skylinx.models import SkylinxModel, upload_path
 from skylinx_audit.models import SkylinxAuditInfo, SkylinxAuditLog
+from skylinx_views.cbv_methods import render_template
 
 # to skip the migration issue with the old migrations
 _validate_time_in_minutes = validate_time_in_minutes
@@ -81,6 +86,70 @@ class AttendanceActivity(SkylinxModel):
 
         ordering = ["-attendance_date", "employee_id__employee_first_name", "clock_in"]
 
+    def get_status(self):
+        """
+        Display status
+        """
+
+        DAY = [
+            ("monday", _("Monday")),
+            ("tuesday", _("Tuesday")),
+            ("wednesday", _("Wednesday")),
+            ("thursday", _("Thursday")),
+            ("friday", _("Friday")),
+            ("saturday", _("Saturday")),
+            ("sunday", _("Sunday")),
+        ]
+        return dict(DAY).get(self.shift_day.day)
+
+    def get_delete_attendance(self):
+        """
+        for delete button
+        """
+
+        return render_template(
+            path="cbv/attendance_activity/delete_action.html",
+            context={"instance": self},
+        )
+
+    def attendance_detail_subtitle(self):
+        """
+        Return subtitle containing both department and job position information.
+        """
+        return f"{self.employee_id.get_department()} / {self.employee_id.get_job_position()}"
+
+    def attendance_detail_view(self):
+        """
+        for detail view of page
+        """
+        url = reverse("attendance-activity-single-view", kwargs={"pk": self.pk})
+        return url
+
+    def diff_cell(self):
+        if self.clock_out == None:
+            return 'style="background-color: #FFE4B3"'
+
+    def detail_view_delete_attendance(self):
+        """
+        for delete button
+        """
+
+        return render_template(
+            path="cbv/attendance_activity/detail_delete_action.html",
+            context={"instance": self},
+        )
+
+    def duration_format_time(self, seconds):
+        """
+        This method is used to format seconds to H:M:S and return it
+        args:
+            seconds : seconds
+        """
+        hour = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        seconds = int((seconds % 3600) % 60)
+        return f"{hour:02d}:{minutes:02d}:{seconds:02d}"
+
     def duration(self):
         """
         Duration calc b/w in-out method
@@ -96,6 +165,15 @@ class AttendanceActivity(SkylinxModel):
         time_difference = clock_out_datetime - clock_in_datetime
 
         return time_difference.total_seconds()
+
+    def duration_format(self):
+        """
+        Function to return the duration time in hh:mm:ss
+        """
+        total_seconds = self.duration()
+        formatted_duration = self.duration_format_time(total_seconds)
+
+        return formatted_duration
 
     def __str__(self):
         return f"{self.employee_id} - {self.attendance_date} - {self.clock_in} - {self.clock_out}"
@@ -123,7 +201,7 @@ class Attendance(SkylinxModel):
     status = [
         ("create_request", _("Create Request")),
         ("update_request", _("Update Request")),
-        ("revalidate_request", _("Re-validate Request")),
+        ("created_request", _("Created Request")),
     ]
 
     employee_id = models.ForeignKey(
@@ -236,6 +314,48 @@ class Attendance(SkylinxModel):
         ],
     )
 
+    def get_instance_id(self):
+        return self.id
+
+    def diff_cell(self):
+        if self.request_type == "created_request":
+            return 'style="background-color: #FFE4B3"'
+
+    def status_col(self):
+        """
+        This method for get custome coloumn for rating.
+        """
+
+        return render_template(
+            path="cbv/attendance_request/status.html",
+            context={"instance": self},
+        )
+
+    def my_attendance_subtitle(self):
+        """
+        Detail view subtitle
+        """
+
+        return f"{self.employee_id.get_department()} / {self.employee_id.get_job_position()}"
+
+    def my_attendance_detail(self):
+        """
+        detail view
+        """
+
+        url = reverse("my-attendance-detail", kwargs={"pk": self.pk})
+
+        return url
+
+    def attendance_detail_view(self):
+        """
+        detail view
+        """
+
+        url = reverse("attendances-tab-detail-view", kwargs={"pk": self.pk})
+
+        return url
+
     class Meta:
         """
         Meta class to add some additional options
@@ -274,6 +394,171 @@ class Attendance(SkylinxModel):
     def __str__(self) -> str:
         return f"{self.employee_id.employee_first_name} \
             {self.employee_id.employee_last_name} - {self.attendance_date}"
+
+    def activities(self):
+        """
+        This method is used to return the activites and count of activites comes for an attendance
+        """
+        activities = AttendanceActivity.objects.filter(
+            attendance_date=self.attendance_date, employee_id=self.employee_id
+        )
+        return {"query": activities, "count": activities.count()}
+
+    def attendance_actions(self):
+        """
+        method for rendering actions(edit,delete)
+        """
+
+        return render_template(
+            path="cbv/attendances/attendance_actions.html",
+            context={"instance": self},
+        )
+
+    def comment_col(self):
+        """
+        This method for get custom coloumn for comment.
+        """
+
+        return render_template(
+            path="cbv/attendance_request/comment.html",
+            context={"instance": self},
+        )
+
+    def attendance_detail_activity_col(self):
+        """
+        this method is used to return attendance detail view activity custom col
+        """
+
+        return render_template(
+            path="cbv/attendances/detail_view_activity_col.html",
+            context={"instance": self},
+        )
+
+    def request_actions(self):
+        """
+        This method for get custom coloumn for comment.
+        """
+
+        return render_template(
+            path="cbv/attendance_request/request_actions.html",
+            context={"instance": self},
+        )
+
+    def request_options(self):
+        """
+        This method for get custom options for request.
+        """
+        return render_template(
+            path="cbv/attendance_request/attendance_request_option.html",
+            context={"instance": self},
+        )
+
+    def validate_detail_view(self):
+        """
+        detail view of validate tab
+        """
+        url = reverse("validate-detail-view", kwargs={"pk": self.pk})
+        return url
+
+    def individual_validate_detail_view(self):
+        """
+        detail view of validate tab
+        """
+        url = reverse("individual-validate-detail-view", kwargs={"pk": self.pk})
+        return url
+
+    def ot_detail_view(self):
+        """
+        detail view of OT tab
+        """
+        url = reverse("ot-detail-view", kwargs={"pk": self.pk})
+        return url
+
+    def validated_detail_view(self):
+        """
+        detail view of validated tab
+        """
+        url = reverse("validated-detail-view", kwargs={"pk": self.pk})
+        return url
+
+    def detail_view(self):
+        """
+        deteil view of requested attendances
+        """
+        url = reverse("validate-attendance-request", kwargs={"attendance_id": self.pk})
+        return url
+
+    def change_attendance(self):
+        """
+        Edit url
+        """
+        url = reverse("update-attendance-request", kwargs={"pk": self.pk})
+        return url
+
+    def ot_approve(self):
+        """
+        method for rendering approve OT
+        """
+        minot = strtime_seconds("00:30")
+        condition = AttendanceValidationCondition.objects.first()
+        if condition is not None:
+            minot = strtime_seconds(condition.minimum_overtime_to_approve)
+
+        return render_template(
+            path="cbv/attendances/ot_confirmation.html",
+            context={"instance": self, "minot": minot},
+        )
+
+    def validate_detail_actions(self):
+        """
+        detail view actions of validate tab
+        """
+
+        return render_template(
+            path="cbv/attendances/validate_tab_action.html",
+            context={"instance": self},
+        )
+
+    def ot_detail_actions(self):
+        """
+        detail view actions of OT tab
+        """
+
+        minot = strtime_seconds("00:30")
+        condition = AttendanceValidationCondition.objects.first()
+        if condition is not None:
+            minot = strtime_seconds(condition.minimum_overtime_to_approve)
+
+        return render_template(
+            path="cbv/attendances/ot_tab_action.html",
+            context={"instance": self, "minot": minot},
+        )
+
+    def validated_detail_actions(self):
+        """
+        detail view actions of validated tab
+        """
+
+        return render_template(
+            path="cbv/attendances/validated_tab_action.html",
+            context={"instance": self},
+        )
+
+    def validate_button(self):
+        """
+        detail view actions of validated tab
+        """
+
+        return render_template(
+            path="cbv/attendances/validate_button.html",
+            context={"instance": self},
+        )
+
+    def attendances_detail_subtitle(self):
+        """
+        Return subtitle containing both department and job position information.
+        """
+        return f"{self.employee_id.get_department()} / {self.employee_id.get_job_position()}"
 
     def activities(self):
         """
@@ -384,49 +669,129 @@ class Attendance(SkylinxModel):
             ):
                 self.attendance_overtime_approve = True
 
-    def save(self, *args, **kwargs):
-        self.update_attendance_overtime()
-        self.attendance_day = EmployeeShiftDay.objects.get(
-            day=self.attendance_date.strftime("%A").lower()
-        )
-        prev_attendance_approved = False
-        self.adjust_minimum_hour()
+    # def save(self, *args, **kwargs):
+    #     self.update_attendance_overtime()
+    #     self.attendance_day = EmployeeShiftDay.objects.get(
+    #         day=self.attendance_date.strftime("%A").lower()
+    #     )
+    #     prev_attendance_approved = False
+    #     self.adjust_minimum_hour()
 
-        # Handle overtime cutoff and auto-approval
+    #     # Handle overtime cutoff and auto-approval
+    #     self.handle_overtime_conditions()
+
+    #     if self.pk is not None:
+    #         # Get the previous values of the boolean field
+    #         prev_state = Attendance.objects.get(pk=self.pk)
+    #         prev_attendance_approved = prev_state.attendance_overtime_approve
+
+    #     # super().save(*args, **kwargs)  #commend this line, it take too much time to complete
+    #     employee_ot = self.employee_id.employee_overtime.filter(
+    #         month=self.attendance_date.strftime("%B").lower(),
+    #         year=self.attendance_date.year,
+    #     ).first()
+    #     if employee_ot:
+    #         # Update if exists
+    #         self.update_ot(employee_ot)
+    #     else:
+    #         # Create and update in one call
+    #         employee_ot = self.create_ot()
+    #         self.update_ot(employee_ot)
+    #     approved = self.attendance_overtime_approve
+    #     attendance_account = self.employee_id.employee_overtime.filter(
+    #         month=self.attendance_date.strftime("%B").lower(),
+    #         year=self.attendance_date.year,
+    #     ).first()
+    #     total_ot_seconds = attendance_account.overtime_second
+    #     if approved and prev_attendance_approved is False:
+    #         self.approved_overtime_second = self.overtime_second
+    #         total_ot_seconds = total_ot_seconds + self.approved_overtime_second
+    #     elif not approved:
+    #         total_ot_seconds = total_ot_seconds - self.approved_overtime_second
+    #         self.approved_overtime_second = 0
+    #     attendance_account.overtime = format_time(total_ot_seconds)
+    #     attendance_account.save()
+    #     super().save(*args, **kwargs)
+    #     self.first_save = False
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        old = None
+
+        if not is_new:
+            old = Attendance.objects.only(
+                "at_work_second",
+                "approved_overtime_second",
+                "minimum_hour",
+                "attendance_overtime_approve",
+            ).get(pk=self.pk)
+
+            old_work = old.at_work_second or 0
+            old_approved_ot = old.approved_overtime_second or 0
+            old_approved_flag = old.attendance_overtime_approve or False
+
+            old_min = strtime_seconds(old.minimum_hour)
+            old_pending_today = max(0, old_min - old_work)
+        else:
+            old_work = 0
+            old_approved_ot = 0
+            old_pending_today = 0
+            old_approved_flag = False
+
+        self.update_attendance_overtime()
+        self.adjust_minimum_hour()
         self.handle_overtime_conditions()
 
-        if self.pk is not None:
-            # Get the previous values of the boolean field
-            prev_state = Attendance.objects.get(pk=self.pk)
-            prev_attendance_approved = prev_state.attendance_overtime_approve
-
-        # super().save(*args, **kwargs)  #commend this line, it take too much time to complete
-        employee_ot = self.employee_id.employee_overtime.filter(
-            month=self.attendance_date.strftime("%B").lower(),
-            year=self.attendance_date.year,
-        ).first()
-        if employee_ot:
-            # Update if exists
-            self.update_ot(employee_ot)
-        else:
-            # Create and update in one call
-            employee_ot = self.create_ot()
-            self.update_ot(employee_ot)
-        approved = self.attendance_overtime_approve
-        attendance_account = self.employee_id.employee_overtime.filter(
-            month=self.attendance_date.strftime("%B").lower(),
-            year=self.attendance_date.year,
-        ).first()
-        total_ot_seconds = attendance_account.overtime_second
-        if approved and prev_attendance_approved is False:
+        if self.attendance_overtime_approve and not old_approved_flag:
             self.approved_overtime_second = self.overtime_second
-            total_ot_seconds = total_ot_seconds + self.approved_overtime_second
-        elif not approved:
-            total_ot_seconds = total_ot_seconds - self.approved_overtime_second
+        elif not self.attendance_overtime_approve:
             self.approved_overtime_second = 0
-        attendance_account.overtime = format_time(total_ot_seconds)
-        attendance_account.save()
+        else:
+            self.approved_overtime_second = old_approved_ot
+
+        new_work = self.at_work_second or 0
+        new_approved_ot = self.approved_overtime_second or 0
+
+        new_min = strtime_seconds(self.minimum_hour)
+        new_pending_today = max(0, new_min - new_work)
+
+        diff_work = new_work - old_work
+        diff_approved_ot = new_approved_ot - old_approved_ot
+        diff_pending = new_pending_today - old_pending_today
+
         super().save(*args, **kwargs)
+
+        if diff_work == diff_approved_ot == diff_pending == 0:
+            return
+
+        month = self.attendance_date.strftime("%B").lower()
+        year = self.attendance_date.year
+
+        with transaction.atomic():
+            ot, _ = AttendanceOverTime.objects.get_or_create(
+                employee_id=self.employee_id,
+                month=month,
+                year=year,
+                defaults={
+                    "hour_account_second": 0,
+                    "hour_pending_second": 0,
+                    "overtime_second": 0,
+                },
+            )
+
+            AttendanceOverTime.objects.filter(pk=ot.pk).update(
+                hour_account_second=F("hour_account_second") + diff_work,
+                overtime_second=F("overtime_second") + diff_approved_ot,
+                hour_pending_second=F("hour_pending_second") + diff_pending,
+            )
+
+            ot.refresh_from_db(
+                fields=["hour_account_second", "hour_pending_second", "overtime_second"]
+            )
+            ot.worked_hours = format_time(ot.hour_account_second or 0)
+            ot.pending_hours = format_time(ot.hour_pending_second or 0)
+            ot.overtime = format_time(ot.overtime_second or 0)
+            ot.save(update_fields=["worked_hours", "pending_hours", "overtime"])
 
     def serialize(self):
         """
@@ -558,7 +923,10 @@ class Attendance(SkylinxModel):
         else:
             out_time = self.attendance_clock_out
 
-        if self.attendance_clock_in_date < self.attendance_date:
+        if (
+            self.attendance_clock_in_date
+            and self.attendance_clock_in_date < self.attendance_date
+        ):
             raise ValidationError(
                 {
                     "attendance_clock_in_date": "Attendance check-in date cannot be earlier than attendance date"
@@ -567,6 +935,7 @@ class Attendance(SkylinxModel):
 
         if (
             self.attendance_clock_out_date
+            and self.attendance_clock_in_date
             and self.attendance_clock_out_date < self.attendance_clock_in_date
         ):
             raise ValidationError(
@@ -671,6 +1040,82 @@ class AttendanceOverTime(SkylinxModel):
         verbose_name = _("Hour Account")
         verbose_name_plural = _("Hour Accounts")
 
+    def __str__(self):
+        return f"{self.employee_id} - {self.month}"
+
+    def get_month_capitalized(self):
+        """
+        capitalize month
+        """
+        return self.month.capitalize()
+
+    def edit_url_overtime(self):
+        """
+        Edit url
+        """
+
+        url = reverse("attendance-overtime-update", kwargs={"obj_id": self.pk})
+
+        return url
+
+    def delete_url_overtime(self):
+        """
+        delete url
+        """
+
+        url = reverse("attendance-overtime-delete", kwargs={"obj_id": self.pk})
+
+        return url
+
+    def hour_actions(self):
+        """
+        actions in hour account
+
+        """
+
+        return render_template(
+            path="cbv/hour_account/hour_actions.html",
+            context={"instance": self},
+        )
+
+    def hour_options(self):
+        """
+        options in hour account
+
+        """
+
+        return render_template(
+            path="cbv/hour_account/hour_options.html",
+            context={"instance": self},
+        )
+
+    def hour_account_subtitle(self):
+        """
+        Detail view subtitle
+        """
+
+        return f"{self.employee_id.get_department()} / {self.employee_id.get_job_position()}"
+
+    def hour_account_detail(self):
+        """
+        detail view
+        """
+
+        url = reverse("hour-account-detail-view", kwargs={"pk": self.pk})
+
+        return url
+
+    def hour_detail_actions(self):
+        """
+        actions in hour account detail view
+
+        """
+
+        return render_template(
+            path="cbv/hour_account/hour_detail_action.html",
+            context={"instance": self},
+        )
+
     def clean(self):
         try:
             year = int(self.year)
@@ -725,6 +1170,7 @@ class AttendanceOverTime(SkylinxModel):
                     employee_id=self.employee_id,
                     attendance_validated=True,
                     attendance_overtime_approve=False,
+                    overtime_second__isnull=False,
                 ).values_list("overtime_second", flat=True)
             )
         )
@@ -736,10 +1182,33 @@ class AttendanceOverTime(SkylinxModel):
         """
         return MONTH_MAPPING[self.month]
 
+    # def save(self, *args, **kwargs):
+    #     self.hour_account_second = strtime_seconds(self.worked_hours)
+    #     self.hour_pending_second = strtime_seconds(self.pending_hours)
+    #     self.overtime_second = strtime_seconds(self.overtime)
+    #     month_name = self.month.split("-")[0]
+    #     months = [
+    #         "january",
+    #         "february",
+    #         "march",
+    #         "april",
+    #         "may",
+    #         "june",
+    #         "july",
+    #         "august",
+    #         "september",
+    #         "october",
+    #         "november",
+    #         "december",
+    #     ]
+    #     self.month_sequence = months.index(month_name)
+    #     super().save(*args, **kwargs)
+
     def save(self, *args, **kwargs):
-        self.hour_account_second = strtime_seconds(self.worked_hours)
-        self.hour_pending_second = strtime_seconds(self.pending_hours)
-        self.overtime_second = strtime_seconds(self.overtime)
+        self.worked_hours = format_time(self.hour_account_second or 0)
+        self.pending_hours = format_time(self.hour_pending_second or 0)
+        self.overtime = format_time(self.overtime_second or 0)
+
         month_name = self.month.split("-")[0]
         months = [
             "january",
@@ -756,6 +1225,7 @@ class AttendanceOverTime(SkylinxModel):
             "december",
         ]
         self.month_sequence = months.index(month_name)
+
         super().save(*args, **kwargs)
 
 
@@ -808,6 +1278,71 @@ class AttendanceLateComeEarlyOut(SkylinxModel):
         unique_together = [("attendance_id"), ("type")]
         ordering = ["-attendance_id__attendance_date"]
 
+    def get_type(self):
+        """
+        Display work type
+        """
+        choices = [
+            ("late_come", _("Late Come")),
+            ("early_out", _("Early Out")),
+        ]
+        return dict(choices).get(self.type)
+
+    def penalities_column(self):
+        """
+        To get penalities
+
+        """
+
+        return render_template(
+            path="cbv/late_come_and_early_out/penality.html",
+            context={"instance": self},
+        )
+
+    def actions_column(self):
+        """
+        actions in hour account
+
+        """
+
+        return render_template(
+            path="cbv/late_come_and_early_out/actions_column.html",
+            context={"instance": self},
+        )
+
+    def detail_actions(self):
+        """
+        actions in hour account
+
+        """
+
+        return render_template(
+            path="cbv/late_come_and_early_out/detail_action.html",
+            context={"instance": self},
+        )
+
+    def late_come_subtitle(self):
+        """
+        Detail view subtitle
+        """
+
+        return f"{self.employee_id.get_department()} / {self.employee_id.get_job_position()}"
+
+    def attendance_validated_check(self):
+        if self.attendance_id.attendance_validated == True:
+            return _("Yes")
+        else:
+            return _("No")
+
+    def late_come_detail(self):
+        """
+        detail view
+        """
+
+        url = reverse("late-in-early-out-single-view", kwargs={"pk": self.pk})
+
+        return url
+
     def __str__(self) -> str:
         return f"{self.attendance_id.employee_id.employee_first_name} \
             {self.attendance_id.employee_id.employee_last_name} - {self.type}"
@@ -843,6 +1378,17 @@ class AttendanceValidationCondition(SkylinxModel):
         if not self.id and AttendanceValidationCondition.objects.exists():
             raise ValidationError(_("You cannot add more conditions."))
 
+    def break_point_actions(self):
+        """
+        actions in hour account
+
+        """
+
+        return render_template(
+            path="cbv/settings/break_point_action.html",
+            context={"instance": self},
+        )
+
 
 class GraceTime(SkylinxModel):
     """
@@ -873,6 +1419,71 @@ class GraceTime(SkylinxModel):
 
     def __str__(self) -> str:
         return str(f"{self.allowed_time} - Hours")
+
+    def get_instance_id(self):
+        return self.id
+
+    def is_active_col(self):
+        """
+        This method for get custome coloumn .
+        """
+
+        return render_template(
+            path="cbv/settings/is_active_col_grace_time.html",
+            context={"instance": self},
+        )
+
+    def allowed_time_col(self):
+        """
+        Allowed time col
+        """
+        return f"{self.allowed_time} Hours"
+
+    def is_default_col(self):
+        """
+        Allowed time col
+        """
+        return _("Yes") if self.is_default else _("No")
+
+    def action_col(self):
+        """
+        This method for get custome coloumn .
+        """
+
+        return render_template(
+            path="cbv/settings/grace_time_default_action.html",
+            context={"instance": self},
+        )
+
+    def applicable_on_clock_in_col(self):
+        """
+        This method for get custom column .
+        """
+
+        return render_template(
+            path="cbv/settings/applicable_on_clock_in_col.html",
+            context={"instance": self},
+        )
+
+    def applicable_on_clock_out_col(self):
+        """
+        This method for get custom column .
+        """
+
+        return render_template(
+            path="cbv/settings/applicable_on_clock_out_col.html",
+            context={"instance": self},
+        )
+
+    def get_shifts_display(self):
+        """
+        This method for get custom column .
+        """
+
+        return render_template(
+            path="cbv/settings/grace_time_shift.html",
+            context={"instance": self},
+        )
 
     def clean(self):
         """
@@ -935,6 +1546,22 @@ class AttendanceGeneralSetting(SkylinxModel):
     )
     company_id = models.ForeignKey(Company, on_delete=models.CASCADE, null=True)
     objects = SkylinxCompanyManager()
+
+    def company_col(self):
+        if self.company_id:
+            return self.company_id.company
+        else:
+            return "All Company"
+
+    def check_in_check_out_col(self):
+        """
+        This method for get custom coloumn .
+        """
+
+        return render_template(
+            path="cbv/settings/check_in_check_out_col.html",
+            context={"instance": self},
+        )
 
 
 class WorkRecords(models.Model):

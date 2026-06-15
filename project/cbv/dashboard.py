@@ -13,7 +13,6 @@ from django.utils.decorators import method_decorator
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
-from base.methods import get_subordinates
 from skylinx_views.cbv_methods import login_required
 from skylinx_views.generic.cbv.views import SkylinxDetailedView, SkylinxListView
 from project.cbv.cbv_decorators import is_projectmanager_or_member_or_perms
@@ -32,6 +31,7 @@ class ProjectsDueInMonth(SkylinxListView):
     bulk_select_option = False
     columns = [(_("Project"), "title", "get_avatar")]
     show_filter_tags = False
+    show_toggle_form = False
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -56,13 +56,14 @@ class ProjectsDueInMonth(SkylinxListView):
         self.search_url = reverse("projects-due-in-this-month")
 
     row_attrs = """
-                hx-get='{get_detail_url}?instance_ids={ordered_ids}'
-                hx-target="#genericModalBody"
-                data-target="#genericModal"
-                data-toggle="oh-modal-toggle"
-                """
+        hx-get='{get_detail_url}?instance_ids={ordered_ids}'
+        hx-target="#genericModalBody"
+        data-target="#genericModal"
+        data-toggle="oh-modal-toggle"
+    """
 
 
+@method_decorator(login_required, name="dispatch")
 class ProjectDetailView(SkylinxDetailedView):
     """
     detail view of the projects
@@ -72,11 +73,17 @@ class ProjectDetailView(SkylinxDetailedView):
     title = _("Details")
     header = {"title": "title", "subtitle": "", "avatar": "get_avatar"}
 
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        instnce_id = resolve(self.request.path_info).kwargs.get("pk")
+    cols = {
+        "get_managers": 12,
+        "get_members": 12,
+        "description": 12,
+    }
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        instance_id = resolve(self.request.path_info).kwargs.get("pk")
         employee = self.request.user.employee_get
-        project = Project.objects.get(id=instnce_id)
+        project = Project.objects.get(id=instance_id)
         if (
             employee in project.managers.all()
             or employee in project.members.all()
@@ -92,6 +99,8 @@ class ProjectDetailView(SkylinxDetailedView):
                 """,
                 }
             ]
+        context["actions"] = self.actions
+        return context
 
     def get_queryset(self) -> QuerySet[Any]:
         queryset = super().get_queryset()

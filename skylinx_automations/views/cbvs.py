@@ -4,6 +4,7 @@ skylinx_automations/views/cbvs.py
 
 import json
 import os
+from typing import Any
 
 from django.conf import settings
 from django.contrib import messages
@@ -12,11 +13,11 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
-from django.utils.translation import gettext_lazy as _trans
+from django.utils.translation import gettext_lazy as _
 from django.views import View
 
 from base.models import SkylinxMailTemplate
-from skylinx.decorators import login_required, permission_required
+from skylinx.decorators import hx_request_required, login_required, permission_required
 from skylinx_automations import models
 from skylinx_automations.filters import AutomationFilter
 from skylinx_automations.forms import AutomationForm
@@ -65,7 +66,7 @@ class AutomationNavView(views.SkylinxNavView):
 
             self.actions.append(
                 {
-                    "action": "Load Automations",
+                    "action": _("Load Automations"),
                     "attrs": f"""
                         data-toggle="oh-modal-toggle"
                         data-target="#genericModal"
@@ -79,7 +80,7 @@ class AutomationNavView(views.SkylinxNavView):
         if self.request.user.has_perm("skylinx_automations.add_mailautomation"):
             self.actions.append(
                 {
-                    "action": "Refresh Automations",
+                    "action": _("Refresh Automations"),
                     "attrs": f"""
                         hx-get="{reverse_lazy('refresh-automations')}"
                         hx-target="#reloadMessages"
@@ -88,7 +89,7 @@ class AutomationNavView(views.SkylinxNavView):
                 }
             )
 
-    nav_title = _trans("Automations")
+    nav_title = _("Automations")
     search_url = reverse_lazy("mail-automations-list-view")
     search_swap_target = "#listContainer"
 
@@ -104,14 +105,17 @@ class AutomationFormView(views.SkylinxFormView):
 
     form_class = AutomationForm
     model = models.MailAutomation
-    new_display_title = _trans("New Automation")
+    new_display_title = _("New Automation")
     template_name = "skylinx_automations/automation_form.html"
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.view_id = "automation"
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         instance = models.MailAutomation.objects.filter(pk=self.kwargs["pk"]).first()
         kwargs["instance"] = instance
-
         return kwargs
 
     def form_valid(self, form: AutomationForm) -> views.HttpResponse:
@@ -120,8 +124,7 @@ class AutomationFormView(views.SkylinxFormView):
             if form.instance.pk:
                 message = "Automation updated"
             form.save()
-
-            messages.success(self.request, _trans(message))
+            messages.success(self.request, _(message))
             return self.HttpResponse()
         return super().form_valid(form)
 
@@ -190,45 +193,24 @@ class AutomationDetailedView(views.SkylinxDetailedView):
     """
 
     model = models.MailAutomation
-    title = "Detailed View"
+    title = _("Detailed View")
     header = {
         "title": "title",
         "subtitle": "title",
         "avatar": "get_avatar",
     }
     body = [
-        ("Model", "model"),
-        ("Mail Templates", "mail_template"),
-        ("Mail To", "get_mail_to_display"),
-        ("Mail Cc", "get_mail_cc_display"),
-        ("Trigger", "trigger_display"),
+        (_("Model"), "model"),
+        (_("Mail Templates"), "mail_template"),
+        (_("Mail To"), "get_mail_to_display"),
+        (_("Mail Cc"), "get_mail_cc_display"),
+        (_("Trigger"), "trigger_display"),
     ]
-    actions = [
-        {
-            "action": "Edit",
-            "icon": "create-outline",
-            "attrs": """
-            hx-get="{edit_url}?instance_ids={ordered_ids}"
-            hx-target="#genericModalBody"
-            data-toggle="oh-modal-toggle"
-            data-target="#genericModal"
-            class="oh-btn oh-btn--info w-50"
-            """,
-        },
-        {
-            "action": "Delete",
-            "icon": "trash-outline",
-            "attrs": """
-            class="oh-btn oh-btn--danger w-50"
-            onclick="
-                confirm('Do you want to delete the automation?','{delete_url}')
-            "
-            """,
-        },
-    ]
+    action_method = "detail_view_actions"
 
 
 @method_decorator(login_required, name="dispatch")
+@method_decorator(hx_request_required, name="dispatch")
 @method_decorator(
     permission_required("skylinx_automations.add_mailautomation"), name="dispatch"
 )

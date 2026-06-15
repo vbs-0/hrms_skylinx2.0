@@ -1,4 +1,4 @@
-{% load i18n %} {% load static %}
+{% load i18n static %}
 <form hx-post="{% url 'recruitment-duplicate' obj_id %}" hx-target='#duplicateFormContainer' hx-swap='innerHTML' data-toggle='oh-modal-toggle' data-target='#duplicateRecruitmentModal' class="oh-general__tab-target oh-profile-section">
   <div>
     {% csrf_token %}

@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, unquote
 
 import pandas as pd
 from django.apps import apps
+from django.conf import settings
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -49,8 +50,7 @@ from skylinx.decorators import (
     permission_required,
 )
 from skylinx.group_by import group_by_queryset
-from skylinx.skylinx_settings import DYNAMIC_URL_PATTERNS
-from skylinx.http import SkylinxRedirect
+from skylinx.http.response import SkylinxRedirect
 from skylinx.methods import get_skylinx_model_class, remove_dynamic_url
 from leave.decorators import *
 from leave.filters import *
@@ -65,6 +65,7 @@ from leave.methods import (
 )
 from leave.models import *
 from leave.models import leave_requested_dates
+from leave.services import evaluate_leave_type_conditions
 from leave.threading import LeaveMailSendThread
 from notifications.signals import notify
 
@@ -104,7 +105,7 @@ def generate_error_report(error_list, error_data, file_name):
 
     path_info = f"error-sheet-{uuid.uuid4()}"
     urlpatterns.append(path(path_info, get_error_sheet, name=path_info))
-    DYNAMIC_URL_PATTERNS.append(path_info)
+    settings.DYNAMIC_URL_PATTERNS.append(path_info)
     path_info = f"leave/{path_info}"
     return path_info
 
@@ -122,13 +123,30 @@ def leave_type_creation(request):
     GET : return leave type creation template
     POST : return leave view
     """
+    is_htmx = request.headers.get("HX-Request") is not None
     form = LeaveTypeForm()
     if request.method == "POST":
         form = LeaveTypeForm(request.POST, request.FILES)
         if form.is_valid():
-            form.save()
+            leave_type = form.save()
             messages.success(request, _("New leave type Created.."))
-            return redirect(leave_type_view)
+            update_url = reverse("type-update", kwargs={"id": leave_type.id})
+            if is_htmx:
+                response = HttpResponse("", status=200)
+                response["HX-Redirect"] = update_url
+                return response
+            return redirect(update_url)
+    if is_htmx:
+        return render(
+            request,
+            "leave/leave_type/leave_type_form_fragment.html",
+            {
+                "form": form,
+                "title": _("Create Leave Type"),
+                "post_url": reverse("type-creation"),
+                "is_htmx": True,
+            },
+        )
     return render(request, "leave/leave_type/leave_type_creation.html", {"form": form})
 
 
@@ -257,10 +275,11 @@ def leave_type_update(request, id, **kwargs):
         leave_type = LeaveType.objects.get(id=id)
     except (LeaveType.DoesNotExist, OverflowError, ValueError):
         messages.error(request, _("Leave type not found"))
-        return redirect(leave_type_view)
+        return redirect("type-view")
+    is_htmx = request.headers.get("HX-Request") is not None
     form = UpdateLeaveTypeForm(instance=leave_type)
     compensatory = request.GET.get("compensatory")
-    redirect_url = leave_type_view
+    redirect_url = reverse("type-view")
     if compensatory:
         redirect_url = compensatory_leave_settings_view
     if request.method == "POST":
@@ -270,12 +289,25 @@ def leave_type_update(request, id, **kwargs):
         if form_data.is_valid():
             form_data.save()
             messages.success(request, _("Leave type is updated successfully.."))
+            if is_htmx:
+                response = HttpResponse("", status=200)
+                response["HX-Trigger"] = json.dumps(
+                    {"reloadLeaveTypeList": {"target": "body"}}
+                )
+                return response
             return redirect(redirect_url)
-    return render(
-        request,
-        "leave/leave_type/leave_type_update.html",
-        {"form": form, "compensatory": compensatory},
-    )
+        form = form_data
+    context = {
+        "form": form,
+        "title": _("Update Leave Type"),
+        "post_url": request.get_full_path(),
+        "is_htmx": is_htmx,
+    }
+    if is_htmx:
+        return render(
+            request, "leave/leave_type/leave_type_form_fragment.html", context
+        )
+    return render(request, "leave/leave_type/leave_type_update_page.html", context)
 
 
 @login_required
@@ -322,7 +354,7 @@ def leave_type_delete(request, obj_id):
                 f"/leave/leave-type-individual-view/{next_instance}?instances_ids={instances_list}"
             )
         return redirect(f"/leave/type-filter?{request.GET.urlencode()}")
-    return redirect(leave_type_view)
+    return redirect(reverse("type-view"))
 
 
 @login_required
@@ -970,7 +1002,7 @@ def leave_request_delete(request, id):
             return redirect(f"/leave/request-filter?{previous_data}")
         else:
             return SkylinxRedirect(request)
-    return redirect(leave_request_view)
+    return redirect(reverse("request-filter"))
 
 
 @login_required
@@ -989,16 +1021,53 @@ def leave_request_approve(request, id, emp_id=None):
     GET : If `emp_id` is provided, it returns to the "/employee/employee-view/{employee_id}/" template after approval.
           Otherwise, it returns to the default leave request view template.
     """
-    leave_request = LeaveRequest.objects.get(id=id)
+    leave_request = LeaveRequest.find(id)
+    if not leave_request:
+        return SkylinxRedirect(
+            request, message=_("No leave rquest found matching the query.")
+        )
     employee_id = leave_request.employee_id
+    if not request.user.is_superuser:
+        if employee_id == request.user.employee_get:
+            messages.error(request, _("You cannot approve your own leave request."))
+            if emp_id is not None:
+                employee_id = emp_id
+                return redirect(f"/employee/employee-view/{employee_id}/")
+            return SkylinxRedirect(request)
     leave_type_id = leave_request.leave_type_id
-    available_leave = AvailableLeave.objects.get(
-        leave_type_id=leave_type_id, employee_id=employee_id
-    )
+    try:
+        available_leave = AvailableLeave.objects.get(
+            leave_type_id=leave_type_id, employee_id=employee_id
+        )
+    except AvailableLeave.DoesNotExist:
+        messages.error(
+            request,
+            _("No available leave record found for this employee and leave type."),
+        )
+        if request.headers.get("HX-Request"):
+            response = HttpResponse("", status=200)
+            response["HX-Trigger"] = json.dumps(
+                {
+                    "reloadLeaveRequestList": {"target": "body"},
+                    "skylinxMessage": {
+                        "level": "error",
+                        "text": str(
+                            _(
+                                "No available leave record found for this employee and leave type."
+                            )
+                        ),
+                    },
+                }
+            )
+            return response
+        return SkylinxRedirect(request)
+
     total_available_leave = (
         available_leave.available_days + available_leave.carryforward_days
     )
     send_notification = False
+    approved = False
+    error_message = ""
     if leave_request.status != "approved":
         if total_available_leave >= leave_request.requested_days:
             if leave_request.requested_days > available_leave.carryforward_days:
@@ -1018,6 +1087,7 @@ def leave_request_approve(request, id, emp_id=None):
                 leave_request.save()
                 available_leave.save()
                 send_notification = True
+                approved = True
             else:
                 if request.user.is_superuser:
                     LeaveRequestConditionApproval.objects.filter(
@@ -1026,6 +1096,7 @@ def leave_request_approve(request, id, emp_id=None):
                     leave_request.save()
                     available_leave.save()
                     send_notification = True
+                    approved = True
                 else:
                     conditional_requests = leave_request.multiple_approvals()
                     approver = next(
@@ -1039,56 +1110,78 @@ def leave_request_approve(request, id, emp_id=None):
                     condition_approval = LeaveRequestConditionApproval.objects.filter(
                         manager_id=approver, leave_request_id=leave_request
                     ).first()
-                    condition_approval.is_approved = True
-                    managers = []
-                    for manager in conditional_requests["managers"]:
-                        managers.append(manager.employee_user_id)
-                    if len(managers) > condition_approval.sequence:
-                        with contextlib.suppress(Exception):
-                            notify.send(
-                                request.user.employee_get,
-                                recipient=managers[condition_approval.sequence],
-                                verb="You have a new leave request to validate.",
-                                verb_ar="لديك طلب إجازة جديد يجب التحقق منه.",
-                                verb_de="Sie haben eine neue Urlaubsanfrage zur Validierung.",
-                                verb_es="Tiene una nueva solicitud de permiso que debe validar.",
-                                verb_fr="Vous avez une nouvelle demande de congé à valider.",
-                                icon="people-circle",
-                                redirect=f"/leave/request-view?id={leave_request.id}",
-                            )
-
-                    condition_approval.save()
-                    if approver == conditional_requests["managers"][-1]:
-                        leave_request.save()
-                        available_leave.save()
-                        send_notification = True
-            messages.success(request, _("Leave request approved successfully.."))
-            if send_notification:
-                with contextlib.suppress(Exception):
-                    notify.send(
-                        request.user.employee_get,
-                        recipient=leave_request.employee_id.employee_user_id,
-                        verb="Your Leave request has been approved",
-                        verb_ar="تمت الموافقة على طلب الإجازة الخاص بك",
-                        verb_de="Ihr Urlaubsantrag wurde genehmigt",
-                        verb_es="Se ha aprobado su solicitud de permiso",
-                        verb_fr="Votre demande de congé a été approuvée",
-                        icon="people-circle",
-                        redirect=reverse("user-request-view")
-                        + f"?id={leave_request.id}",
+                    if condition_approval is None:
+                        error_message = str(
+                            _("You are not an approver for this leave request.")
+                        )
+                        messages.error(request, error_message)
+                    else:
+                        condition_approval.is_approved = True
+                        managers = []
+                        for manager in conditional_requests["managers"]:
+                            managers.append(manager.employee_user_id)
+                        if len(managers) > condition_approval.sequence:
+                            with contextlib.suppress(Exception):
+                                notify.send(
+                                    request.user.employee_get,
+                                    recipient=managers[condition_approval.sequence],
+                                    verb="You have a new leave request to validate.",
+                                    verb_ar="لديك طلب إجازة جديد يجب التحقق منه.",
+                                    verb_de="Sie haben eine neue Urlaubsanfrage zur Validierung.",
+                                    verb_es="Tiene una nueva solicitud de permiso que debe validar.",
+                                    verb_fr="Vous avez une nouvelle demande de congé à valider.",
+                                    icon="people-circle",
+                                    redirect=f"/leave/request-view?id={leave_request.id}",
+                                )
+                        condition_approval.save()
+                        approved = True
+                        if approver == conditional_requests["managers"][-1]:
+                            leave_request.save()
+                            available_leave.save()
+                            send_notification = True
+            if approved:
+                messages.success(request, _("Leave request approved successfully.."))
+                if send_notification:
+                    with contextlib.suppress(Exception):
+                        notify.send(
+                            request.user.employee_get,
+                            recipient=leave_request.employee_id.employee_user_id,
+                            verb="Your Leave request has been approved",
+                            verb_ar="تمت الموافقة على طلب الإجازة الخاص بك",
+                            verb_de="Ihr Urlaubsantrag wurde genehmigt",
+                            verb_es="Se ha aprobado su solicitud de permiso",
+                            verb_fr="Votre demande de congé a été approuvée",
+                            icon="people-circle",
+                            redirect=reverse("user-request-view")
+                            + f"?id={leave_request.id}",
+                        )
+                    mail_thread = LeaveMailSendThread(
+                        request, leave_request, type="approve"
                     )
-
-                mail_thread = LeaveMailSendThread(
-                    request, leave_request, type="approve"
-                )
-                mail_thread.start()
+                    mail_thread.start()
         else:
-            messages.error(
-                request,
-                f"{employee_id} dont have enough leave days to approve the request..",
+            error_message = str(
+                _(f"{employee_id} dont have enough leave days to approve the request..")
             )
+            messages.error(request, error_message)
     else:
-        messages.error(request, _("Leave request already approved"))
+        error_message = str(_("Leave request already approved"))
+        messages.error(request, error_message)
+    if request.headers.get("HX-Request"):
+        response = HttpResponse("", status=200)
+        trigger_data = {"reloadLeaveRequestList": {"target": "body"}}
+        if approved:
+            trigger_data["skylinxMessage"] = {
+                "level": "success",
+                "text": str(_("Leave request approved successfully..")),
+            }
+        elif error_message:
+            trigger_data["skylinxMessage"] = {
+                "level": "error",
+                "text": error_message,
+            }
+        response["HX-Trigger"] = json.dumps(trigger_data)
+        return response
     if emp_id is not None:
         employee_id = emp_id
         return redirect(f"/employee/employee-view/{employee_id}/")
@@ -1100,7 +1193,15 @@ def leave_request_approve(request, id, emp_id=None):
 def leave_request_bulk_approve(request):
     if request.method == "POST":
         request_ids = request.POST.getlist("ids")
+        filtered_ids = []
         for request_id in request_ids:
+            leave_request = LeaveRequest.objects.get(id=int(request_id))
+            # Exclude requests where the employee is the current user
+            if leave_request.employee_id != request.user.employee_get:
+                filtered_ids.append(request_id)
+        if request.user.is_superuser:
+            filtered_ids = request_ids
+        for request_id in filtered_ids:
             try:
                 leave_request = (
                     LeaveRequest.objects.get(id=int(request_id)) if request_id else None
@@ -1153,6 +1254,7 @@ def leave_bulk_reject(request):
 
 
 @login_required
+@hx_request_required
 @manager_can_enter("leave.change_leaverequest")
 def leave_request_cancel(request, id, emp_id=None):
     """
@@ -1231,6 +1333,18 @@ def leave_request_cancel(request, id, emp_id=None):
             else:
                 messages.error(request, _("Leave request already rejected."))
 
+            if request.headers.get("HX-Request"):
+                response = HttpResponse("", status=200)
+                response["HX-Trigger"] = json.dumps(
+                    {
+                        "reloadLeaveRequestList": {"target": "body"},
+                        "skylinxMessage": {
+                            "level": "success",
+                            "text": str(_("Leave request rejected successfully..")),
+                        },
+                    }
+                )
+                return response
             if emp_id is not None:
                 employee_id = emp_id
                 return redirect(f"/employee/employee-view/{employee_id}/")
@@ -1371,15 +1485,34 @@ def leave_assign_one(request, obj_id):
             if leave_type.carryforward_expire_date
             else None
         )
-        new_employees = list(set(employee_ids) - existing_leaves_set)
+        new_employee_ids = list(set(employee_ids) - existing_leaves_set)
+        new_employees_qs = Employee.objects.filter(id__in=new_employee_ids)
+
+        # Evaluate conditions before assignment
+        condition_blocked = []
+        eligible_employees = []
+        for employee in new_employees_qs:
+            is_eligible, error_msg = evaluate_leave_type_conditions(
+                leave_type, employee
+            )
+            if is_eligible:
+                eligible_employees.append(employee)
+            else:
+                condition_blocked.append((employee, error_msg))
+                messages.warning(
+                    request,
+                    _("{employee}: {reason}").format(
+                        employee=employee.get_full_name(), reason=error_msg
+                    ),
+                )
 
         assigned_count = 0
-        if new_employees:
+        if eligible_employees:
             available_leaves = []
-            for employee_id in new_employees:
+            for employee in eligible_employees:
                 leave = AvailableLeave(
                     leave_type_id=leave_type,
-                    employee_id_id=employee_id,
+                    employee_id=employee,
                     available_days=leave_type.total_days,
                 )
                 if leave.reset_date is None:
@@ -1410,9 +1543,9 @@ def leave_assign_one(request, obj_id):
             )
             form = LeaveOneAssignForm()
 
-            employees = Employee.objects.filter(id__in=new_employees).only(
-                "id", "employee_user_id"
-            )
+            notify_employees = Employee.objects.filter(
+                id__in=[e.id for e in eligible_employees]
+            ).only("id", "employee_user_id")
             notifications = [
                 notify.send(
                     request.user.employee_get,
@@ -1425,15 +1558,16 @@ def leave_assign_one(request, obj_id):
                     icon="people-circle",
                     redirect=reverse("user-request-view"),
                 )
-                for employee in employees
+                for employee in notify_employees
             ]
 
-        if len(employee_ids) != assigned_count:
+        already_assigned_count = len(employee_ids) - len(new_employee_ids)
+        if already_assigned_count:
             messages.info(
                 request,
                 _(
                     "Leave type is already assigned to some selected {} employees."
-                ).format(len(employee_ids) - assigned_count),
+                ).format(already_assigned_count),
             )
 
     return render(
@@ -1611,6 +1745,20 @@ def leave_assign(request):
                 for leave_type in leave_types:
                     assignment_key = (leave_type.id, employee.id)
                     if assignment_key not in existing_assignments:
+                        # Evaluate conditions before creating the assignment
+                        is_eligible, error_msg = evaluate_leave_type_conditions(
+                            leave_type, employee
+                        )
+                        if not is_eligible:
+                            messages.warning(
+                                request,
+                                _("{employee} — {leave_type}: {reason}").format(
+                                    employee=employee.get_full_name(),
+                                    leave_type=leave_type.name,
+                                    reason=error_msg,
+                                ),
+                            )
+                            continue
                         new_assignment = AvailableLeave(
                             leave_type_id=leave_type,
                             employee_id=employee,
@@ -1721,22 +1869,26 @@ def leave_assign_delete(request, obj_id):
     except AvailableLeave.DoesNotExist:
         messages.error(request, _("Assigned leave not found."))
     except ProtectedError:
-        messages.error(request, _("Related entries exist."))
-
-    if instances_ids := request.GET.get("instances_ids"):
+        messages.error(request, _("Related entries exists"))
+    if not request.GET.get("instances_ids"):
+        if not AvailableLeave.objects.filter():
+            return SkylinxRedirect(request)
+        return redirect("/leave/assign-filter?field=leave_type_id")
+    else:
+        instances_ids = request.GET.get("instances_ids")
         instances_list = json.loads(instances_ids)
         previous_instance, next_instance = closest_numbers(instances_list, obj_id)
         if obj_id in instances_list:
             instances_list.remove(obj_id)
         return redirect(
-            f"/leave/available-leave-single-view/{next_instance}/?{pd}&instances_ids={json.dumps(instances_list)}"
+            f"/leave/available-leave-single-view/{next_instance}/?instances_ids={instances_list}&deleted=true"
         )
+    # if not AvailableLeave.objects.exists():
+    #     return HttpResponse("<script>window.location.reload()</script>")
+    # return redirect(f"/leave/assign-filter?{pd}")
 
-    if not AvailableLeave.objects.exists():
-        return SkylinxRedirect(request)
-    return redirect(f"/leave/assign-filter?{pd}")
 
-
+@login_required
 @require_http_methods(["POST"])
 @permission_required("leave.delete_availableleave")
 def leave_assign_bulk_delete(request):
@@ -1768,12 +1920,10 @@ def assign_leave_type_excel(_request):
     """
     try:
         columns = [
-            "Employee Badge ID",
+            "Badge ID",
             "Leave Type",
-            "Available Days",  # 779
-            "Carryforward Days",
-            "Total Leave Days",
-            "Assigned Date",
+            "Available Days",
+            "Carry Forward Days",
         ]
         data_frame = pd.DataFrame(columns=columns)
         response = HttpResponse(content_type="application/ms-excel")
@@ -1787,6 +1937,7 @@ def assign_leave_type_excel(_request):
 
 
 @login_required
+@hx_request_required
 @manager_can_enter("leave.add_availableleave")
 def assign_leave_type_import(request):
     """
@@ -1907,6 +2058,7 @@ def assign_leave_type_import(request):
         }
         html = render_to_string("import_popup.html", context)
         return HttpResponse(html)
+    return HttpResponse("")
 
 
 @login_required
@@ -2086,6 +2238,10 @@ def restrict_delete(request, id):
     Returns:
     GET : return restricted days view template
     """
+    request_copy = request.GET.copy()
+    request_copy.pop("instances_ids", None)
+    previous_data = request_copy.urlencode()
+
     query_string = request.GET.urlencode()
     try:
         RestrictLeave.objects.get(id=id).delete()
@@ -2094,6 +2250,18 @@ def restrict_delete(request, id):
         messages.error(request, _("Restricted day not found."))
     except ProtectedError:
         messages.error(request, _("Related entries exists"))
+
+    hx_target = request.META.get("HTTP_HX_TARGET")
+    if hx_target and hx_target == "genericModalBody":
+        instances_ids = request.GET.get("instances_ids")
+        if instances_ids:
+            instances_list = json.loads(instances_ids)
+            if id in instances_list:
+                previous_instance, next_instance = closest_numbers(instances_list, id)
+                instances_list.remove(id)
+            return redirect(
+                f"/leave/restricted-days-detail-view/{next_instance}/?{previous_data}&instance_ids={instances_list}&deleted=true"
+            )
     if not RestrictLeave.objects.filter():
         return SkylinxRedirect(request)
     return redirect(f"/leave/restrict-filter?{query_string}")
@@ -2135,6 +2303,7 @@ def restrict_days_bulk_delete(request):
 @permission_required("leave.add_restrictleave")
 def restrict_day_select(request):
     page_number = request.GET.get("page")
+    restrict_days = RestrictLeave.objects.none()
     if page_number == "all":
         restrict_days = RestrictLeave.objects.all()
     restrict_day_ids = [str(day.id) for day in restrict_days]
@@ -2149,6 +2318,7 @@ def restrict_day_select_filter(request):
     page_number = request.GET.get("page")
     filtered = request.GET.get("filter")
     filters = json.loads(filtered) if filtered else {}
+    context = {}
 
     if page_number == "all":
         restrictday_filter = RestrictLeaveFilter(
@@ -2158,7 +2328,7 @@ def restrict_day_select_filter(request):
         restrictday_ids = [str(restrictday.id) for restrictday in restrictday_filter]
         total_count = restrictday_filter.count()
         context = {"restrict_day_ids": restrictday_ids, "total_count": total_count}
-        return JsonResponse(context)
+    return JsonResponse(context)
 
 
 @login_required
@@ -2452,6 +2622,9 @@ def user_request_delete(request, id):
     Returns:
     GET : return user leave request view template
     """
+
+    hx_target = request.META.get("HTTP_HX_TARGET", None)
+
     previous_data = request.GET.urlencode()
     try:
         leave_request = LeaveRequest.objects.get(id=id)
@@ -2462,6 +2635,9 @@ def user_request_delete(request, id):
         messages.error(request, _("User has no leave request.."))
     except ProtectedError:
         messages.error(request, _("Related entries exists"))
+    if hx_target and hx_target == "genericModalBody":
+        return SkylinxRedirect(request)
+
     if not LeaveRequest.objects.filter(employee_id=request.user.employee_get):
         return SkylinxRedirect(request)
     else:
@@ -2699,7 +2875,7 @@ def user_request_one(request, id):
 
 
 @login_required
-@manager_can_enter("leave.view_leaverequest")
+@manager_can_enter("leave.can_view_on_leave")
 def employee_leave(request):
     """
     function used to view employees are leave today.
@@ -2823,6 +2999,7 @@ def employee_dashboard(request):
 
 
 @login_required
+@hx_request_required
 def dashboard_leave_request(request):
     """
     function used to view leave request table.
@@ -3002,7 +3179,7 @@ def department_leave_chart(request):
     values = [value for value in values if value != 0]
     dataset = [
         {
-            "label": _(""),
+            "label": "",
             "data": values,
         },
     ]
@@ -3222,9 +3399,6 @@ def leave_request_create(request):
             )
         else:
             messages.error(request, _("You don't have permission"))
-            response = render(
-                request, "leave/user_leave/request_form.html", {"form": form}
-            )
             return SkylinxRedirect(request)
     return render(
         request,
@@ -3234,6 +3408,29 @@ def leave_request_create(request):
             "pd": previous_data,
         },
     )
+
+
+@login_required
+def employee_leave_details(request):
+    balance_count = ""
+    employee = request.POST.get("employee_id")
+    if not employee:
+        return SkylinxRedirect(request, message=_("No leave found matching the query."))
+    date = request.POST.get("date", "")
+    if request.POST["leave_type"] and request.POST["employee_id"]:
+        leave_type_id = request.POST["leave_type"]
+        leave_type = LeaveType.objects.filter(id=leave_type_id).first()
+        balance = AvailableLeave.objects.filter(
+            Q(leave_type_id=leave_type.id) & Q(employee_id=employee)
+        )
+        for i in balance:
+            balance_count = i.available_days
+        if date:
+            try:
+                balance_count += balance.first().forcasted_leaves()[date[:7]]
+            except:
+                pass
+    return JsonResponse({"leave_count": balance_count, "employee": employee})
 
 
 @login_required
@@ -3344,14 +3541,9 @@ def leave_allocation_request_create(request):
     employee = request.user.employee_get
     form = LeaveAllocationRequestForm(initial={"employee_id": employee})
     form = choosesubordinates(request, form, "leave.add_leaveallocationrequest")
-    # 961
-    employee_qs = form.fields["employee_id"].queryset
-    # 999
-    if not employee_qs.filter(employee_user_id=request.user).exists():
-        form.fields["employee_id"].queryset = employee_qs.union(
-            Employee.objects.filter(employee_user_id=request.user).distinct()
-        )
-
+    form.fields["employee_id"].queryset = form.fields[
+        "employee_id"
+    ].queryset | Employee.objects.filter(employee_user_id=request.user)
     if request.method == "POST":
         form = LeaveAllocationRequestForm(request.POST, request.FILES)
         if form.is_valid():
@@ -3657,6 +3849,9 @@ def leave_allocation_request_delete(request, req_id):
     Returns:
     GET : return leave allocation request view template
     """
+    request_copy = request.GET.copy()
+    request_copy.pop("instances_ids", None)
+    previous_data = request_copy.urlencode()
 
     try:
         leave_allocation_request = LeaveAllocationRequest.objects.get(id=req_id)
@@ -3677,30 +3872,32 @@ def leave_allocation_request_delete(request, req_id):
         messages.error(request, _("Related entries exist"))
     hx_target = request.META.get("HTTP_HX_TARGET")
     previous_data = request.GET.urlencode()
-    if hx_target and hx_target == "view-container":
+    if hx_target and hx_target == "leave-allocation":
         leave_allocations = LeaveAllocationRequest.objects.all()
         if leave_allocations.exists():
             return redirect(f"/leave/leave-allocation-request-filter?{previous_data}")
         else:
             return SkylinxRedirect(request)
-    elif hx_target and hx_target == "objectDetailsModalW25Target":
+    elif hx_target and hx_target == "genericModalBody":
         instances_ids = request.GET.get("instances_ids")
         instances_list = json.loads(instances_ids)
         if req_id in instances_list:
             instances_list.remove(req_id)
-        previous_instance, next_instance = closest_numbers(
-            json.loads(instances_ids), req_id
-        )
+            previous_instance, next_instance = closest_numbers(
+                json.loads(instances_ids), req_id
+            )
         return redirect(
-            f"/leave/leave-allocation-request-single-view/{next_instance}?{previous_data}"
+            f"/leave/detail-leave-allocation-request/{next_instance}/?{previous_data}&instance_ids={instances_list}&deleted=true"
         )
+    else:
 
-    return redirect(leave_allocation_request_view)
+        return redirect(reverse("leave-allocation-request-view"))
 
 
 @login_required
 def assigned_leave_select(request):
     page_number = request.GET.get("page")
+    employees = AvailableLeave.objects.none()
 
     if page_number == "all":
         if request.user.has_perm("leave.view_availableleave"):
@@ -3723,6 +3920,7 @@ def assigned_leave_select_filter(request):
     page_number = request.GET.get("page")
     filtered = request.GET.get("filter")
     filters = json.loads(filtered) if filtered else {}
+    context = {}
 
     if page_number == "all":
         if request.user.has_perm("leave.view_availableleave"):
@@ -3745,7 +3943,7 @@ def assigned_leave_select_filter(request):
 
         context = {"employee_ids": employee_ids, "total_count": total_count}
 
-        return JsonResponse(context)
+    return JsonResponse(context)
 
 
 @login_required
@@ -3785,19 +3983,20 @@ def leave_request_bulk_delete(request):
 @login_required
 def leave_request_select(request):
     page_number = request.GET.get("page")
+    leave_req = LeaveRequest.objects.none()
 
     if page_number == "all":
         if request.user.has_perm("leave.view_leaverequest"):
-            employees = LeaveRequest.objects.all()
+            leave_req = LeaveRequest.objects.all()
         else:
-            employees = LeaveRequest.objects.filter(
+            leave_req = LeaveRequest.objects.filter(
                 employee_id__employee_work_info__reporting_manager_id__employee_user_id=request.user
             )
 
-    employee_ids = [str(emp.id) for emp in employees]
-    total_count = employees.count()
+    req_ids = [str(lev.id) for lev in leave_req]
+    total_count = leave_req.count()
 
-    context = {"employee_ids": employee_ids, "total_count": total_count}
+    context = {"employee_ids": req_ids, "total_count": total_count}
 
     return JsonResponse(context, safe=False)
 
@@ -3807,14 +4006,15 @@ def leave_request_select_filter(request):
     page_number = request.GET.get("page")
     filtered = request.GET.get("filter")
     filters = json.loads(filtered) if filtered else {}
+    context = {}
 
     if page_number == "all":
         if request.user.has_perm("leave.view_leaverequest"):
-            employee_filter = LeaveRequestFilter(
+            leave_filter = LeaveRequestFilter(
                 filters, queryset=LeaveRequest.objects.all()
             )
         else:
-            employee_filter = LeaveRequestFilter(
+            leave_filter = LeaveRequestFilter(
                 filters,
                 queryset=LeaveRequest.objects.filter(
                     employee_id__employee_work_info__reporting_manager_id__employee_user_id=request.user
@@ -3822,18 +4022,18 @@ def leave_request_select_filter(request):
             )
 
         # Get the filtered queryset
-        filtered_employees = employee_filter.qs
+        filtered_leave = leave_filter.qs
 
-        employee_ids = [str(emp.id) for emp in filtered_employees]
-        total_count = filtered_employees.count()
+        req_ids = [str(lev.id) for lev in filtered_leave]
+        total_count = filtered_leave.count()
 
-        context = {"employee_ids": employee_ids, "total_count": total_count}
+        context = {"employee_ids": req_ids, "total_count": total_count}
 
-        return JsonResponse(context)
+    return JsonResponse(context)
 
 
-@require_http_methods(["POST"])
 @login_required
+@require_http_methods(["POST"])
 def user_request_bulk_delete(request):
     """
     This method is used to delete bulk of leaves requests
@@ -3864,14 +4064,15 @@ def user_request_bulk_delete(request):
 def user_request_select(request):
     page_number = request.GET.get("page")
     user = request.user.employee_get
+    leaves = LeaveRequest.objects.none()
 
     if page_number == "all":
-        employees = LeaveRequest.objects.filter(employee_id=user)
+        leaves = LeaveRequest.objects.filter(employee_id=user)
 
-    employee_ids = [str(emp.id) for emp in employees]
-    total_count = employees.count()
+    req_id = [str(lev.id) for lev in leaves]
+    total_count = leaves.count()
 
-    context = {"employee_ids": employee_ids, "total_count": total_count}
+    context = {"employee_ids": req_id, "total_count": total_count}
 
     return JsonResponse(context, safe=False)
 
@@ -3882,21 +4083,22 @@ def user_request_select_filter(request):
     filtered = request.GET.get("filter")
     filters = json.loads(filtered) if filtered else {}
     user = request.user.employee_get
+    context = {}
 
     if page_number == "all":
-        employee_filter = UserLeaveRequestFilter(
+        leave_filter = UserLeaveRequestFilter(
             filters, queryset=LeaveRequest.objects.filter(employee_id=user)
         )
 
         # Get the filtered queryset
-        filtered_employees = employee_filter.qs
+        filtered_leave = leave_filter.qs
 
-        employee_ids = [str(emp.id) for emp in filtered_employees]
-        total_count = filtered_employees.count()
+        req_id = [str(emp.id) for emp in filtered_leave]
+        total_count = filtered_leave.count()
 
-        context = {"employee_ids": employee_ids, "total_count": total_count}
+        context = {"employee_ids": req_id, "total_count": total_count}
 
-        return JsonResponse(context)
+    return JsonResponse(context)
 
 
 @login_required
@@ -3908,8 +4110,28 @@ def employee_available_leave_count(request):
 
     try:
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
-    except (ValueError, TypeError):
-        start_date = None
+    except:
+        leave_type_id = None
+    hx_target = request.META.get("HTTP_HX_TARGET", None)
+    employee_id = (
+        request.GET.getlist("employee_id")[0]
+        if request.GET.getlist("employee_id")
+        else None
+    )
+    referer = request.headers.get("Referer")
+
+    if not employee_id and "user-request-view" in referer:
+        employee_id = request.user.employee_get
+
+    available_leave = (
+        AvailableLeave.objects.filter(
+            leave_type_id=leave_type_id, employee_id=employee_id
+        ).first()
+        if leave_type_id and employee_id
+        else None
+    )
+    total_leave_days = available_leave.total_leave_days if available_leave else 0
+    forcasted_days = 0
 
     if not leave_type_id or not start_date:
         return render(
@@ -4369,9 +4591,13 @@ def delete_allocation_comment_file(request):
     """
     script = ""
     ids = request.GET.getlist("ids")
-    leave_id = request.GET["leave_id"]
-    comment_id = request.GET["comment_id"]
+    leave_id = request.GET.get("leave_id")
+    comment_id = request.GET.get("comment_id")
     comment = LeaveallocationrequestComment.find(comment_id)
+    if not comment:
+        return SkylinxRedirect(
+            request, message=_("No comment found matching the query.")
+        )
     if (
         request.user.employee_get == comment.employee_id
         or request.user.has_perm("leave.delete_leaverequestfile")
@@ -4452,31 +4678,57 @@ def view_clashes(request, leave_request_id):
 @login_required
 @permission_required("leave.view_leavegeneralsetting")
 def compensatory_leave_settings_view(request):
-    enabled_compensatory = (
-        LeaveGeneralSetting.objects.exists()
-        and LeaveGeneralSetting.objects.first().compensatory_leave
-    )
-    leave_type, create = LeaveType.objects.get_or_create(
-        is_compensatory_leave=True,
-        defaults={"name": "Compensatory Leave Type", "payment": "paid"},
-    )
+    selected_company = request.session.get("selected_company")
+    if selected_company != "all":
+        enabled_compensatory = (
+            LeaveGeneralSetting.objects.filter(company_id_id=selected_company).exists()
+            and LeaveGeneralSetting.objects.filter(company_id_id=selected_company)
+            .first()
+            .compensatory_leave
+        )
+        leave_type, create = LeaveType.objects.get_or_create(
+            is_compensatory_leave=True,
+            company_id_id=selected_company,
+            defaults={"name": "Compensatory Leave Type", "payment": "paid"},
+        )
+    else:
+        enabled_compensatory = (
+            LeaveGeneralSetting.objects.exists()
+            and LeaveGeneralSetting.objects.first().compensatory_leave
+        )
+        leave_type, create = LeaveType.objects.get_or_create(
+            is_compensatory_leave=True,
+            company_id=None,
+            defaults={"name": "Compensatory Leave Type", "payment": "paid"},
+        )
+    request.session["ordered_ids_leavetype"] = []
     context = {"enabled_compensatory": enabled_compensatory, "leave_type": leave_type}
     return render(request, "compensatory_settings.html", context)
 
 
 @login_required
+@hx_request_required
 @permission_required("leave.add_leavegeneralsetting")
 def enable_compensatory_leave(request):
     """
     This method is used to enable/disable the compensatory leave feature
     """
-    compensatory_leave = LeaveGeneralSetting.objects.first()
-    compensatory_leave = (
-        compensatory_leave if compensatory_leave else LeaveGeneralSetting()
-    )
-    compensatory_leave.compensatory_leave = "compensatory_leave" in request.GET.keys()
+    selected_company = request.session.get("selected_company")
+    if selected_company != "all":
+        compensatory_leave = LeaveGeneralSetting.objects.filter(
+            company_id_id=selected_company
+        ).first()
+        if not compensatory_leave:
+            compensatory_leave = LeaveGeneralSetting(company_id_id=selected_company)
+    else:
+        compensatory_leave = LeaveGeneralSetting.objects.first()
+        compensatory_leave = (
+            compensatory_leave if compensatory_leave else LeaveGeneralSetting()
+        )
+    enable = request.POST.get("compensatory_leave") == "on"
+    compensatory_leave.compensatory_leave = enable
     compensatory_leave.save()
-    if "compensatory_leave" in request.GET.keys():
+    if compensatory_leave.compensatory_leave:
         messages.success(request, _("Compensatory leave is enabled successfully!"))
     else:
         messages.success(request, _("Compensatory leave is disabled successfully!"))
@@ -4513,7 +4765,9 @@ def delete_leave_comment_file(request):
     """
     script = ""
     ids = request.GET.getlist("ids")
-    leave_id = request.GET["leave_id"]
+    leave_id = request.GET.get("leave_id")
+    if not leave_id:
+        return SkylinxRedirect(request, message=_("No leave found matching the query."))
     comment_id = request.GET["comment_id"]
     comment = LeaverequestComment.find(comment_id)
     if (
@@ -4561,6 +4815,9 @@ if apps.is_installed("attendance"):
                 },
             )
             return HttpResponse(f"{attendance_id}")
+        return SkylinxRedirect(
+            request, message=_("No attendance found matching the query.")
+        )
 
     @login_required
     def delete_comment_compensatory_file(request):
@@ -4569,7 +4826,11 @@ if apps.is_installed("attendance"):
         """
         ids = request.GET.getlist("ids")
         LeaverequestFile.objects.filter(id__in=ids).delete()
-        leave_id = request.GET["leave_id"]
+        leave_id = request.GET.get("leave_id")
+        if not leave_id:
+            return SkylinxRedirect(
+                request, message=_("No leave comment found matching the query.")
+            )
         comments = CompensatoryLeaverequestComment.objects.all()
         if not request.user.has_perm("leave.delete_compensatoryleaverequestcomment"):
             comments = comments.filter(employee_id__employee_user_id=request.user)
@@ -5103,6 +5364,7 @@ if apps.is_installed("attendance"):
 
 if apps.is_installed("recruitment"):
 
+    @login_required
     def check_interview_conflicts(request):
         start_date = request.GET.get("start_date")
         end_date = request.GET.get("end_date")
@@ -5131,7 +5393,9 @@ if apps.is_installed("recruitment"):
             return JsonResponse(response)
         except Exception as e:
             logger.error(e)
-            return JsonResponse(e)
+            return SkylinxRedirect(
+                request, message=_("No interview found matching the query.")
+            )
 
 
 @login_required
@@ -5141,12 +5405,17 @@ def employee_past_leave_restriction(request):
     if not enabled_restriction:
         enabled_restriction = EmployeePastLeaveRestrict.objects.create(enabled=True)
     if request.method == "POST":
-        enabled = request.POST.get("enabled")
-        if enabled:
-            enabled_restriction.enabled = True
-        else:
-            enabled_restriction.enabled = False
+        enabled_restriction.enabled = not enabled_restriction.enabled
         enabled_restriction.save()
+
+        if enabled_restriction.enabled:
+            messages.success(
+                request, "Past Date Leave Request Restriction has been enabled"
+            )
+        else:
+            messages.success(
+                request, "Past Date Leave Request Restriction has been disabled"
+            )
 
     return render(
         request,
@@ -5197,11 +5466,15 @@ def employee_profile_leave_tab(request):
 
 
 @login_required
-def employee_view_individual_leave_tab(request, obj_id, **kwargs):
+def employee_view_individual_leave_tab(request, pk, **kwargs):
     """
     This method is used to view profile of an employee.
     """
-    employee = Employee.objects.get(id=obj_id)
+    employee = Employee.objects.filter(id=pk).first()
+    if not employee:
+        return SkylinxRedirect(
+            request, message=_("No leave request found matching the query.")
+        )
     instances = (
         LeaveRequest.objects.filter(employee_id=employee)
         if apps.is_installed("leave")
@@ -5327,5 +5600,57 @@ def leave_allocation_approve(request):
             "reqests_ids": allocation_reqests_ids,
             "pd": previous_data,
             # "current_date":date.today(),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Leave Type Condition CRUD views
+# ---------------------------------------------------------------------------
+
+
+@login_required
+@hx_request_required
+@permission_required("leave.change_leavetype")
+def leave_type_condition_create(request, leave_type_id):
+    """
+    HTMX view to add a condition to a LeaveType.
+    Returns an updated conditions panel partial.
+    """
+    leave_type = get_object_or_404(LeaveType, id=leave_type_id)
+    form = LeaveTypeConditionForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        condition = form.save()
+        leave_type.conditions.add(condition)
+        messages.success(request, _("Condition added successfully."))
+        form = LeaveTypeConditionForm()
+    return render(
+        request,
+        "leave/leave_type/conditions_panel.html",
+        {
+            "leave_type": leave_type,
+            "condition_form": form,
+        },
+    )
+
+
+@login_required
+@hx_request_required
+@permission_required("leave.change_leavetype")
+def leave_type_condition_delete(request, leave_type_id, condition_id):
+    """
+    HTMX view to remove a condition from a LeaveType and delete it.
+    """
+    leave_type = get_object_or_404(LeaveType, id=leave_type_id)
+    condition = get_object_or_404(LeaveTypeCondition, id=condition_id)
+    leave_type.conditions.remove(condition)
+    condition.delete()
+    messages.success(request, _("Condition removed successfully."))
+    return render(
+        request,
+        "leave/leave_type/conditions_panel.html",
+        {
+            "leave_type": leave_type,
+            "condition_form": LeaveTypeConditionForm(),
         },
     )

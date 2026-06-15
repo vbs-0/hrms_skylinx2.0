@@ -7,6 +7,7 @@ This module is used to register context processor`
 import re
 
 from django.apps import apps
+from django.conf import settings
 from django.contrib import messages
 from django.http import HttpResponse
 from django.urls import path, reverse
@@ -20,7 +21,6 @@ from employee.models import (
     EmployeeWorkInformation,
     ProfileEditFeature,
 )
-from skylinx import skylinx_apps
 from skylinx.decorators import hx_request_required, login_required, permission_required
 from skylinx.http.response import SkylinxRedirect
 from skylinx.methods import get_skylinx_model_class
@@ -150,7 +150,7 @@ def update_selected_company(request):
 
 urlpatterns.append(
     path(
-        "update-selected-company",
+        "update-selected-company/",
         update_selected_company,
         name="update-selected-company",
     )
@@ -158,7 +158,7 @@ urlpatterns.append(
 
 
 def white_labelling_company(request):
-    white_labelling = getattr(skylinx_apps, "WHITE_LABELLING", False)
+    white_labelling = getattr(settings, "WHITE_LABELLING", False)
     if white_labelling:
         hq = Company.objects.filter(hq=True).last()
         try:
@@ -185,13 +185,19 @@ def resignation_request_enabled(request):
     """
     Check weather resignation_request enabled of not in offboarding
     """
+    selected_company = request.session.get("selected_company")
     enabled_resignation_request = False
     first = None
     if apps.is_installed("offboarding"):
         OffboardingGeneralSetting = get_skylinx_model_class(
             app_label="offboarding", model="offboardinggeneralsetting"
         )
-        first = OffboardingGeneralSetting.objects.first()
+        if selected_company and selected_company != "all":
+            first = OffboardingGeneralSetting.objects.filter(
+                company_id=selected_company
+            ).first()
+        else:
+            first = OffboardingGeneralSetting.objects.first()
     if first:
         enabled_resignation_request = first.resignation_request
     return {"enabled_resignation_request": enabled_resignation_request}
@@ -235,11 +241,19 @@ def check_candidate_self_tracking(request):
     """
 
     candidate_self_tracking = False
+    selected_company = request.session.get("selected_company")
     if apps.is_installed("recruitment"):
         RecruitmentGeneralSetting = get_skylinx_model_class(
             app_label="recruitment", model="recruitmentgeneralsetting"
         )
-        first = RecruitmentGeneralSetting.objects.first()
+        if selected_company and selected_company != "all":
+            first = RecruitmentGeneralSetting.objects.filter(
+                company_id_id=selected_company
+            ).first()
+        else:
+            first = RecruitmentGeneralSetting.objects.filter(
+                company_id__isnull=True
+            ).first()
     else:
         first = None
     if first:
@@ -252,11 +266,19 @@ def check_candidate_self_tracking_rating(request):
     This method is used to check enabled/disabled of rating option
     """
     rating_option = False
+    selected_company = request.session.get("selected_company")
     if apps.is_installed("recruitment"):
         RecruitmentGeneralSetting = get_skylinx_model_class(
             app_label="recruitment", model="recruitmentgeneralsetting"
         )
-        first = RecruitmentGeneralSetting.objects.first()
+        if selected_company and selected_company != "all":
+            first = RecruitmentGeneralSetting.objects.filter(
+                company_id_id=selected_company
+            ).first()
+        else:
+            first = RecruitmentGeneralSetting.objects.filter(
+                company_id__isnull=True
+            ).first()
     else:
         first = None
     if first:
@@ -285,7 +307,17 @@ def biometric_app_exists(request):
 
 
 def enable_late_come_early_out_tracking(request):
-    tracking = TrackLateComeEarlyOut.objects.first()
+    if request is None:
+        tracking = TrackLateComeEarlyOut.objects.first()
+        enable = tracking.is_enable if tracking else True
+        return {"tracking": enable, "late_come_early_out_tracking": enable}
+    selected_company = request.session.get("selected_company")
+    if selected_company == "all":
+        company = None
+    else:
+        company = Company.objects.filter(id=selected_company).first()
+
+    tracking = TrackLateComeEarlyOut.objects.filter(company_id=company).first()
     enable = tracking.is_enable if tracking else True
     return {"tracking": enable, "late_come_early_out_tracking": enable}
 
@@ -294,7 +326,7 @@ def enable_profile_edit(request):
     from accessibility.accessibility import ACCESSBILITY_FEATURE
 
     profile_edit = ProfileEditFeature.objects.filter().first()
-    enable = True if profile_edit and profile_edit.is_enabled else False
+    enable = False if profile_edit and profile_edit.is_enabled else True
     if enable:
         if not any(item[0] == "profile_edit" for item in ACCESSBILITY_FEATURE):
             ACCESSBILITY_FEATURE.append(("profile_edit", _("Profile Edit Access")))

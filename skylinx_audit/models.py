@@ -6,6 +6,8 @@ from collections.abc import Iterable
 
 from django.db import models
 from django.dispatch import receiver
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
 from simple_history.models import (
     HistoricalRecords,
     _default_get_user,
@@ -41,6 +43,33 @@ class AuditTag(models.Model):
         """
 
         app_label = "skylinx_audit"
+
+    def custom_highlight_col(self):
+        """
+        return yes or no based on highlight true or false
+        """
+        return _("Yes") if self.highlight else _("No")
+
+    def get_update_url(self):
+        """
+        This method to get update url
+        """
+        url = reverse_lazy("settings-audit-tag-update", kwargs={"pk": self.pk})
+        return url
+
+    def get_delete_url(self):
+        """
+        This method to get delete url
+        """
+        url = reverse_lazy("audit-tag-delete", kwargs={"obj_id": self.pk})
+        return url
+
+    def get_delete_instance(self):
+        """
+        to get instance for delete
+        """
+
+        return self.pk
 
 
 class SkylinxAuditInfo(models.Model):
@@ -127,3 +156,34 @@ class HistoryTrackingFields(SkylinxModel):
 class AccountBlockUnblock(SkylinxModel):
     is_enabled = models.BooleanField(default=False, null=True, blank=True)
     objects = models.Manager()
+
+
+class AuditModelConfig(SkylinxModel):
+    """
+    Stores which models (and optionally which fields) are tracked by the
+    django-auditlog registry. When no rows exist, a built-in default set
+    of Employee-related models is tracked. Rows here fully override the
+    defaults.
+    """
+
+    app_label = models.CharField(max_length=100, verbose_name=_("App"))
+    model_name = models.CharField(max_length=100, verbose_name=_("Model"))
+    is_enabled = models.BooleanField(default=True, verbose_name=_("Enabled"))
+    tracked_fields = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name=_("Tracked Fields"),
+        help_text=_("Leave empty to track every field on the model."),
+    )
+
+    class Meta:
+        unique_together = ("app_label", "model_name")
+        verbose_name = _("Audit Tracking Configuration")
+        verbose_name_plural = _("Audit Tracking Configurations")
+
+    def __str__(self):
+        return f"{self.app_label}.{self.model_name}"
+
+    @property
+    def dotted_path(self):
+        return f"{self.app_label}.{self.model_name}"

@@ -11,9 +11,9 @@ from datetime import date
 from django.apps import apps
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.templatetags.static import static
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.utils.formats import localize
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
@@ -102,8 +102,8 @@ class Project(SkylinxModel):
         """
         employees = self.managers.all()
         if employees:
-            employee_names_string = "<br>".join(
-                [str(employee) for employee in employees]
+            employee_names_string = ", ".join(
+                [str(employee.get_full_name()) for employee in employees]
             )
             return employee_names_string
 
@@ -113,8 +113,8 @@ class Project(SkylinxModel):
         """
         employees = self.members.all()
         if employees:
-            employee_names_string = "<br>".join(
-                [str(employee) for employee in employees]
+            employee_names_string = ", ".join(
+                [str(employee.get_full_name()) for employee in employees]
             )
             return employee_names_string
 
@@ -128,14 +128,12 @@ class Project(SkylinxModel):
     def get_document_html(self):
         if self.document:
             document_url = self.document.url
-            image_url = static("images/ui/project/document.png")
             return format_html(
                 '<a href="{0}" style="text-decoration: none" rel="noopener noreferrer" class="oh-btn oh-btn--light" target="_blank" onclick="event.stopPropagation();">'
                 '<span class="oh-file-icon oh-file-icon--pdf"></span>'
                 "&nbsp View"
                 "</a>",
                 document_url,
-                image_url,
             )
 
     def redirect(self):
@@ -193,6 +191,23 @@ class Project(SkylinxModel):
             task_count,
         )
 
+    def get_card_view_subtitle(self):
+
+        col = format_html(
+            """
+                <div class="my-2">{status_label} : <span class="font-semibold">{status}</span></div>
+                <div class="mb-2">{start_label} : <span class="dateformat_changer font-semibold"> {start} </span></div>
+                <div>{end_label} : <span class="dateformat_changer font-semibold"> {end} </span></div>
+            """,
+            status_label=_("Status"),
+            start_label=_("Start date"),
+            end_label=_("End date"),
+            status=self.get_status_display(),
+            start=localize(self.start_date),
+            end=localize(self.end_date),
+        )
+        return col
+
     def get_delete_url(self):
         """
         This method to get delete url
@@ -216,9 +231,9 @@ class Project(SkylinxModel):
         archive status
         """
         if self.is_active:
-            return "Archive"
+            return _("Archive")
         else:
-            return "Un-Archive"
+            return _("Un-Archive")
 
     def clean(self) -> None:
         # validating end date
@@ -250,6 +265,7 @@ class Project(SkylinxModel):
 
         verbose_name = _("Project")
         verbose_name_plural = _("Projects")
+        ordering = ["-id"]
 
 
 class ProjectStage(SkylinxModel):
@@ -385,6 +401,7 @@ class Task(SkylinxModel):
         unique_together = ["project", "title"]
         verbose_name = _("Task")
         verbose_name_plural = _("Tasks")
+        ordering = ["-id"]
 
     def __str__(self):
         return f"{self.title}"
@@ -404,6 +421,25 @@ class Task(SkylinxModel):
         url = reverse("task-detail-view", kwargs={"pk": self.pk})
         return url
 
+    def card_view_subtitle(self):
+        """
+        subtitle for card view
+        """
+        col = format_html(
+            """
+                <div class="my-2">{project_label} : <span class="font-semibold">{project}</span></div>
+                <div class="mb-2">{stage_label} : <span class="font-semibold">{stage}</span></div>
+                <div>{end_label} : <span class="dateformat_changer font-semibold">{end}</span></div>
+            """,
+            project_label=_("Project Name"),
+            stage_label=_("Stage Name"),
+            end_label=_("End date"),
+            project=self.if_project(),
+            stage=self.stage,
+            end=localize(self.end_date),
+        )
+        return col
+
     def status_column(self):
         """
         to get status
@@ -416,7 +452,9 @@ class Task(SkylinxModel):
         """
         managers = self.task_managers.all()
         if managers:
-            managers_name_string = "<br>".join([str(manager) for manager in managers])
+            managers_name_string = ", ".join(
+                [str(manager.get_full_name()) for manager in managers]
+            )
             return managers_name_string
         else:
             return ""
@@ -427,7 +465,9 @@ class Task(SkylinxModel):
         """
         members = self.task_members.all()
         if members:
-            members_name_string = "<br>".join([str(member) for member in members])
+            members_name_string = ", ".join(
+                [str(member.get_full_name()) for member in members]
+            )
             return members_name_string
         else:
             return ""
@@ -436,21 +476,6 @@ class Task(SkylinxModel):
         """
         This method for get custom column for action.
         """
-        # request = getattr(_thread_locals, "request", None)
-        # is_task_manager = self.task_manager == request.user
-        # print(self.title)
-        # is_project_manager = self.project.manager == request.user if self.project else False
-        # print(self.project)
-        # has_permission = request.user.has_perm('project.view_task')  # Replace 'your_app' with your app name
-
-        # if is_task_manager or is_project_manager or has_permission:
-        #     return render_template(
-        #         "cbv/tasks/task_actions.html",
-        #         {"instance": self}
-        #     )
-        # else:
-        #     return ""
-
         return render_template(
             path="cbv/tasks/task_actions.html",
             context={"instance": self},
@@ -606,6 +631,16 @@ class TimeSheet(SkylinxModel):
 
         return render_template(
             path="cbv/timesheet/actions.html",
+            context={"instance": self},
+        )
+
+    def get_description_col(self):
+        """
+        This method for get custom column for action.
+        """
+
+        return render_template(
+            path="cbv/timesheet/description_col.html",
             context={"instance": self},
         )
 

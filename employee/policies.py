@@ -10,17 +10,19 @@ from datetime import timedelta
 from urllib.parse import parse_qs
 
 from django.contrib import messages
-from django.contrib.auth.models import User
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from base.methods import (
+    closest_numbers,
     eval_validate,
     filtersubordinates,
     get_key_instances,
     paginator_qry,
 )
+from base.views import paginator_qry
 from employee.filters import DisciplinaryActionFilter, PolicyFilter
 from employee.forms import DisciplinaryActionForm, PolicyForm
 from employee.models import (
@@ -32,6 +34,7 @@ from employee.models import (
 )
 from skylinx.decorators import hx_request_required, login_required, permission_required
 from skylinx.http.response import SkylinxRedirect
+from skylinx_auth.models import SkylinxUser
 from notifications.signals import notify
 
 
@@ -66,7 +69,7 @@ def create_policy(request):
         form = PolicyForm(request.POST, request.FILES, instance=instance)
         if form.is_valid():
             form.save()
-            messages.success(request, _("Policy saved"))
+            messages.success(request, "Policy saved")
             form = PolicyForm()
             # return HttpResponse("<script>window.location.reload()</script>")
     return render(request, "policies/form.html", {"form": form})
@@ -120,9 +123,21 @@ def delete_policies(request):
         if count == 0:
             messages.error(request, _("Policies Not Found"))
         else:
-            messages.success(request, _("Policies deleted"))
+            messages.success(request, "Policies deleted")
     except ValueError:
         messages.error(request, _("Policies Not Found"))
+    if request.META.get("HTTP_HX_REQUEST"):
+        policies_qs = Policy.objects.all()
+        if not request.user.has_perm("employee.view_policy"):
+            policies_qs = policies_qs.filter(is_visible_to_all=True)
+        return render(
+            request,
+            "policies/records.html",
+            {
+                "policies": paginator_qry(policies_qs, request.GET.get("page")),
+                "pd": request.GET.urlencode(),
+            },
+        )
     return redirect(view_policies)
 
 
@@ -132,17 +147,21 @@ def add_attachment(request):
     """
     This method is used to add attachment to policy
     """
+    policy = Policy.find(request.GET.get("policy_id"))
+    if not policy:
+        return SkylinxRedirect(
+            request, message=_("No Policy found matching the query.")
+        )
+
     files = request.FILES.getlist("files")
-    policy_id = request.GET["policy_id"]
     attachments = []
     for file in files:
         attachment = PolicyMultipleFile()
         attachment.attachment = file
         attachment.save()
         attachments.append(attachment)
-    policy = Policy.objects.get(id=policy_id)
     policy.attachments.add(*attachments)
-    messages.success(request, _("Attachments added"))
+    messages.success(request, "Attachments added")
     return render(request, "policies/attachments.html", {"policy": policy})
 
 
@@ -152,9 +171,13 @@ def remove_attachment(request):
     """
     This method is used to remove the attachments
     """
+    policy = Policy.find(request.GET.get("policy_id"))
+    if not policy:
+        return SkylinxRedirect(
+            request, message=_("No Policy found matching the query.")
+        )
+
     ids = request.GET.getlist("ids")
-    policy_id = request.GET["policy_id"]
-    policy = Policy.objects.get(id=policy_id)
     PolicyMultipleFile.objects.filter(id__in=ids).delete()
     return render(request, "policies/attachments.html", {"policy": policy})
 
@@ -164,8 +187,12 @@ def get_attachments(request):
     """
     This method is used to view all the attachments inside the policy
     """
-    policy = request.GET["policy_id"]
-    policy = Policy.objects.get(id=policy)
+    policy = Policy.find(request.GET.get("policy_id"))
+    if not policy:
+        return SkylinxRedirect(
+            request, message=_("No Policy found matching the query.")
+        )
+
     return render(request, "policies/attachments.html", {"policy": policy})
 
 
@@ -232,19 +259,6 @@ def get_action_type_delete(action_id):
     """
     action = Actiontype.objects.get(title=action_id)
     return action.action_type
-
-
-def employee_account_block_unblock(emp_id, result):
-
-    employee = get_object_or_404(Employee, id=emp_id)
-    if not employee:
-        return redirect(disciplinary_actions)
-    user = get_object_or_404(User, id=employee.employee_user_id.id)
-    if not user:
-        return redirect(disciplinary_actions)
-    user.is_active = result
-    user.save()
-    return HttpResponse("<script>window.location.reload()</script>")
 
 
 @login_required
@@ -342,7 +356,7 @@ def remove_employee_disciplinary_action(request, action_id, emp_id):
 
     if action_type == "dismissal" or action_type == "suspension":
         emp = get_object_or_404(Employee, id=emp_id)
-        user = get_object_or_404(User, id=emp.employee_user_id.id)
+        user = get_object_or_404(SkylinxUser, id=emp.employee_user_id.id)
         if user.is_active:
             pass
         else:
@@ -362,7 +376,7 @@ def remove_employee_disciplinary_action(request, action_id, emp_id):
     messages.success(
         request, _("Employee removed from disciplinary action successfully.")
     )
-    return redirect(f"/employee/disciplinary-filter-view?click_id={dis_action.id}")
+    return redirect(f"/employee/disciplinary-actions-list?click_id={dis_action.id}")
 
 
 @login_required
@@ -372,6 +386,9 @@ def delete_actions(request, action_id):
     """
     This method is used to delete Disciplinary action
     """
+    request_copy = request.GET.copy()
+    request_copy.pop("instances_ids", None)
+    previous_data = request_copy.urlencode()
 
     dis = DisciplinaryAction.objects.get(id=action_id)
 
@@ -381,7 +398,7 @@ def delete_actions(request, action_id):
 
         if action_type == "dismissal" or action_type == "suspension":
             employee = get_object_or_404(Employee, id=dis_emp.id)
-            user = get_object_or_404(User, id=employee.employee_user_id.id)
+            user = get_object_or_404(SkylinxUser, id=employee.employee_user_id.id)
             if user.is_active:
                 pass
             else:
@@ -395,8 +412,21 @@ def delete_actions(request, action_id):
     messages.success(request, _("Disciplinary action deleted."))
     dis_actions = DisciplinaryAction.objects.all()
 
+    hx_target = request.META.get("HTTP_HX_TARGET")
+    if hx_target and hx_target == "genericModalBody":
+        instances_ids = request.GET.get("instances_ids")
+        instances_list = json.loads(instances_ids)
+        if action_id in instances_list:
+            instances_list.remove(action_id)
+            previous_instance, next_instance = closest_numbers(
+                json.loads(instances_ids), action_id
+            )
+        return redirect(
+            f"/employee/disciplinary-actions-detail-view/{next_instance}/?{previous_data}&instance_ids={instances_list}&deleted=true"
+        )
+
     if dis_actions.exists():
-        return redirect(disciplinary_filter_view)
+        return redirect(reverse("disciplinary-actions-list"))
     return SkylinxRedirect(request)
 
 
@@ -405,9 +435,8 @@ def action_type_details(request):
     """
     This method is used to get the action type by the selection of title in the form.
     """
-    action_id = request.POST["action_type"]
-    action = Actiontype.objects.get(id=action_id)
-    action_type = action.action_type
+    action = Actiontype.find(request.POST.get("action_type"))
+    action_type = action.action_type if action else ""
     return JsonResponse({"action_type": action_type})
 
 
@@ -416,7 +445,7 @@ def action_type_name(request):
     """
     This method is used to get the action type name by the selection of type in the form.
     """
-    action_type = request.POST["action_type"]
+    action_type = request.POST.get("action_type")
     return JsonResponse({"action_type": action_type})
 
 
@@ -448,6 +477,7 @@ def disciplinary_filter_view(request):
 
 
 @login_required
+@hx_request_required
 def search_disciplinary(request):
     """
     This method is used to search in Disciplinary Actions

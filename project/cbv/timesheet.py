@@ -11,7 +11,9 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django.urls import resolve, reverse
 from django.utils.decorators import method_decorator
+from django.utils.formats import localize
 from django.utils.functional import cached_property
+from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
 
 from employee.models import Employee
@@ -73,7 +75,6 @@ class TimeSheetNavView(SkylinxNavView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.search_url = reverse("time-sheet-list")
-        url = f"{reverse('personal-time-sheet-view',kwargs={'emp_id': self.request.user.employee_get.id})}"
         self.actions = [
             {
                 "action": _("Delete"),
@@ -85,34 +86,6 @@ class TimeSheetNavView(SkylinxNavView):
                     """,
             },
         ]
-        self.view_types = [
-            {
-                "type": "list",
-                "icon": "list-outline",
-                "url": reverse("time-sheet-list"),
-                "attrs": """
-                        title ='List'
-                        """,
-            },
-            {
-                "type": "card",
-                "icon": "grid-outline",
-                "url": reverse("time-sheet-card"),
-                "attrs": """
-                          title ='Card'
-                          """,
-            },
-            {
-                "type": "graph",
-                "icon": "bar-chart",
-                "attrs": f"""
-                          onclick="event.stopPropagation();
-                          window.location.href='{url}'"
-                          title ='Graph'
-                          """,
-            },
-        ]
-
         self.create_attrs = f"""
                                 onclick = "event.stopPropagation();"
                                 data-toggle="oh-modal-toggle"
@@ -120,6 +93,38 @@ class TimeSheetNavView(SkylinxNavView):
                                 hx-target="#genericModalBody"
                                 hx-get="{reverse('create-time-sheet')}"
                                 """
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        url = f"{reverse('personal-time-sheet-view',kwargs={'emp_id': self.request.user.employee_get.id})}"
+        self.view_types = [
+            {
+                "type": "list",
+                "icon": "list-outline",
+                "url": reverse("time-sheet-list"),
+                "attrs": f"""
+                        title ='{_("List")}'
+                        """,
+            },
+            {
+                "type": "card",
+                "icon": "grid-outline",
+                "url": reverse("time-sheet-card"),
+                "attrs": f"""
+                          title ='{_("Card")}'
+                          """,
+            },
+            {
+                "type": "graph",
+                "icon": "bar-chart",
+                "url": url,
+                "attrs": f"""
+                          title ='Graph'
+                          """,
+            },
+        ]
+        context["view_types"] = self.view_types
+        return context
 
 
 @method_decorator(login_required, name="dispatch")
@@ -151,22 +156,15 @@ class TimeSheetList(SkylinxListView):
         self.search_url = reverse("time-sheet-list")
         self.action_method = "actions"
 
-    @cached_property
-    def columns(self):
-        get_field = self.model()._meta.get_field
-        return [
-            (
-                get_field("employee_id").verbose_name,
-                "employee_id",
-                "employee_id__get_avatar",
-            ),
-            (get_field("project_id").verbose_name, "project_id"),
-            (get_field("task_id").verbose_name, "task_id"),
-            (get_field("date").verbose_name, "date"),
-            (get_field("time_spent").verbose_name, "time_spent"),
-            (get_field("status").verbose_name, "get_status_display"),
-            (get_field("description").verbose_name, "description"),
-        ]
+    columns = [
+        (_("Employee"), "employee_id", "employee_id__get_avatar"),
+        "project_id",
+        "task_id",
+        "date",
+        "time_spent",
+        (_("Status"), "get_status_display"),
+        (_("Description"), "get_description_col"),
+    ]
 
     @cached_property
     def sortby_mapping(self):
@@ -239,24 +237,26 @@ class TaskTimeSheet(TimeSheetList):
     def get_context_data(self, **kwargs: Any):
         context = super().get_context_data(**kwargs)
         task_id = self.kwargs.get("task_id")
-        task = Task.objects.get(id=task_id)
+        task = Task.find(task_id)
+        if not task:
+            return context
         project = task.project
         context["task_id"] = task_id
         context["project"] = project
         context["task"] = task
+        self.template_name = "cbv/timesheet/task_timesheet.html"
         return context
-
-    template_name = "cbv/timesheet/task_timesheet.html"
 
     def get_queryset(self):
         queryset = SkylinxListView.get_queryset(self)
         task_id = self.kwargs.get("task_id")
         task = Task.objects.filter(id=task_id).first()
         queryset = TimeSheet.objects.filter(task_id=task_id)
-        queryset = queryset.filter(task_id=task_id)
         employee_id = self.request.GET.get("employee_id")
-        if employee_id:
+        if employee_id and employee_id.isdigit():
             employee = Employee.objects.filter(id=employee_id).first()
+            if not task:
+                return queryset.none()
             if (
                 employee
                 and not employee in task.task_managers.all()
@@ -264,6 +264,8 @@ class TaskTimeSheet(TimeSheetList):
                 and not employee.employee_user_id.is_superuser
             ):
                 queryset = queryset.filter(employee_id=employee_id)
+        else:
+            return queryset.none()
 
         return queryset
 
@@ -300,7 +302,9 @@ class TimeSheetFormView(SkylinxFormView):
         initial = super().get_initial()
         task_id = self.kwargs.get("task_id")
         if task_id:
-            task = Task.objects.get(id=task_id)
+            task = Task.find(task_id)
+            if not task:
+                return initial
             project_id = task.project
             initial["project_id"] = project_id.id
             initial["task_id"] = task.id
@@ -421,7 +425,7 @@ class TimeSheetCardView(SkylinxCardView):
         self.search_url = reverse("time-sheet-card")
         self.actions = [
             {
-                "action": "Edit",
+                "action": _("Edit"),
                 "attrs": """
                          hx-get='{get_update_url}'
                          hx-target='#genericModalBody'
@@ -431,7 +435,7 @@ class TimeSheetCardView(SkylinxCardView):
                          """,
             },
             {
-                "action": "Delete",
+                "action": _("Delete"),
                 "attrs": """
                 onclick="
                             event.stopPropagation()
@@ -445,7 +449,17 @@ class TimeSheetCardView(SkylinxCardView):
     details = {
         "image_src": "employee_id__get_avatar",
         "title": "{employee_id}",
-        "subtitle": " <b>{date}</b> <br>Project : <b>{project_id}</b> <br><b>{task_id}</b> |  Time Spent : <b>{time_spent}</b>",
+        "subtitle": format_lazy(
+            "<b>{date_str}</b> <br>"
+            "{project_str} : <b>{project}</b> <br>"
+            "<b>{task}</b> |  {time_str} : <b>{time}</b>",
+            date_str=localize("{date}"),
+            project_str=_("Project"),
+            project="{project_id}",
+            time_str=_("Time Spent"),
+            task="{task_id}",
+            time="{time_spent}",
+        ),
     }
 
     card_status_class = "status-{status}"
@@ -511,3 +525,7 @@ class TimeSheetDetailView(SkylinxDetailedView):
             (get_field("status").verbose_name, "get_status_display"),
             (get_field("description").verbose_name, "description"),
         ]
+
+    cols = {
+        "description": 12,
+    }

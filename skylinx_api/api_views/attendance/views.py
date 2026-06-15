@@ -195,6 +195,7 @@ class AttendanceView(APIView):
 
     permission_classes = [IsAuthenticated]
     filterset_class = AttendanceFilters
+    queryset = Attendance.objects.none()  # For drf-yasg schema generation
 
     def get_queryset(self, request=None, type=None):
         # Handle schema generation for DRF-YASG
@@ -368,7 +369,6 @@ class OvertimeApproveView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    @method_decorator(manager_permission_required("attendance.change_attendance"))
     def put(self, request, pk):
         try:
             attendance = Attendance.objects.filter(id=pk).update(
@@ -1032,7 +1032,7 @@ class UserAttendanceView(APIView):
 
         attendance_queryset = Attendance.objects.filter(
             employee_id=employee_id
-        ).order_by("-id")
+        ).order_by("-attendance_date")
 
         paginator = PageNumberPagination()
         paginator.page_size = 20

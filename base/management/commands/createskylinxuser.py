@@ -4,10 +4,10 @@ Skylinx management command to create a new user and associated employee.
 
 import uuid
 
-from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand, CommandError
 
 from employee.models import Employee
+from skylinx_auth.models import SkylinxUser
 
 
 class Command(BaseCommand):
@@ -41,14 +41,14 @@ class Command(BaseCommand):
             email = options["email"]
             phone = options["phone"]
 
-        if User.objects.filter(username=username).exists():
+        if SkylinxUser.objects.filter(username=username).exists():
             self.stdout.write(
                 self.style.WARNING(f'User with username "{username}" already exists')
             )
             return
 
         try:
-            user = User.objects.create_superuser(
+            user = SkylinxUser.objects.create_superuser(
                 username=username, email=email, password=password
             )
             employee = Employee()
@@ -59,9 +59,9 @@ class Command(BaseCommand):
             employee.phone = phone
             employee.save()
 
-            bot = User.objects.filter(username="Skylinx Bot").first()
+            bot = SkylinxUser.objects.filter(username="Skylinx Bot").first()
             if bot is None:
-                User.objects.create_user(
+                SkylinxUser.objects.create_user(
                     username="Skylinx Bot",
                     password=str(uuid.uuid4()),
                 )

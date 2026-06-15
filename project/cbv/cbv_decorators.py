@@ -1,11 +1,17 @@
+from django.contrib import messages
+
 from skylinx.skylinx_middlewares import _thread_locals
-from skylinx.methods import handle_no_permission
+from skylinx.http import SkylinxRedirect
 from project.methods import (
     any_project_manager,
     any_project_member,
     any_task_manager,
     any_task_member,
+    has_subordinates,
 )
+
+# from project.sidebar import has_subordinates
+
 
 decorator_with_arguments = (
     lambda decorator: lambda *args, **kwargs: lambda func: decorator(
@@ -32,6 +38,7 @@ def is_projectmanager_or_member_or_perms(function, perm):
             or any_task_member(user)
         ):
             return function(self, *args, **kwargs)
-        return handle_no_permission(request)
+        messages.info(request, "You don't have permission.")
+        return SkylinxRedirect(request)
 
     return _function

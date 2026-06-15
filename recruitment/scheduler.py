@@ -32,19 +32,20 @@ def candidate_convert():
     """
     Converts candidates to a "converted" state if they already exist as users.
     """
-    from django.contrib.auth.models import User
-
+    from skylinx_auth.models import SkylinxUser
     from recruitment.models import Candidate
 
-    candidates = Candidate.objects.filter(is_active=True)
-    mails = list(Candidate.objects.values_list("email", flat=True))
-    existing_emails = list(
-        User.objects.filter(username__in=mails).values_list("email", flat=True)
+    mails = list(
+        Candidate.objects.filter(is_active=True).values_list("email", flat=True)
     )
-    for cand in candidates:
-        if cand.email in existing_emails:
-            cand.converted = True
-            cand.save()
+    existing_emails = list(
+        SkylinxUser.objects.filter(email__in=mails).values_list("email", flat=True)
+    )
+    Candidate.objects.filter(
+        is_active=True,
+        email__in=existing_emails,
+        converted=False,
+    ).update(converted=True)
 
 
 if not any(

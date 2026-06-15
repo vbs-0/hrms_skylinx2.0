@@ -12,7 +12,6 @@ from base.methods import filter_own_and_subordinate_recordes, is_reportingmanage
 from employee.models import Employee
 from skylinx import skylinx_middlewares
 from skylinx.decorators import login_required, owner_can_enter, permission_required
-from skylinx.http.response import SkylinxRedirect
 from skylinx_views.generic.cbv import views
 from pms import models
 from pms.filters import BonusPointSettingFilter, EmployeeBonusPointFilter
@@ -54,12 +53,13 @@ class BonusPointSettingNavView(views.SkylinxNavView):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.create_attrs = f"""
-            hx-get="{reverse_lazy("create-bonus-point-setting")}"
-            hx-target="#genericModalBody"
-            data-toggle="oh-modal-toggle"
-            data-target="#genericModal"
-        """
+        if self.request.user.has_perm("pms.add_bonuspointsetting"):
+            self.create_attrs = f"""
+                hx-get="{reverse_lazy("create-bonus-point-setting")}"
+                hx-target="#genericModalBody"
+                data-toggle="oh-modal-toggle"
+                data-target="#genericModal"
+            """
 
     nav_title = _("Bonus Point Setting")
     search_url = reverse_lazy("bonus-point-setting-list-view")
@@ -67,7 +67,7 @@ class BonusPointSettingNavView(views.SkylinxNavView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(permission_required("pms.change_bonuspointsetting"), name="dispatch")
+@method_decorator(permission_required("pms.add_bonuspointsetting"), name="dispatch")
 class BonusPointSettingFormView(views.SkylinxFormView):
     """
     BonusPointSettingForm View
@@ -151,6 +151,7 @@ class EmployeeBonusPointSectionView(views.SkylinxSectionView):
     template_name = "bonus/employee_bonus_point_section.html"
 
 
+@method_decorator(login_required, name="dispatch")
 class EmployeeBonusPointNavView(views.SkylinxNavView):
     """
     BonusPoint nav view
@@ -234,6 +235,7 @@ class EmployeeBonusPointFormView(views.SkylinxFormView):
         return super().form_valid(form)
 
 
+@method_decorator(login_required, name="dispatch")
 class EmployeeBonusPointListView(views.SkylinxListView):
     """
     BnusPoint list view
@@ -311,7 +313,7 @@ class FeedbackEmployeeFormView(views.SkylinxFormView):
             form.cleaned_data["others_id"] = other_employees
             form.save()
             messages.success(self.request, _(message))
-            return SkylinxRedirect(self.request)
+            return self.HttpResponse("<script>window.location.reload()</script>")
         return super().form_valid(form)
 
 
@@ -408,5 +410,5 @@ class BulkFeedbackFormView(views.SkylinxFormView):
                     )
                     feedback.others_id.add(*other_employees)
             messages.success(self.request, _(message))
-            return SkylinxRedirect(self.request)
+            return self.HttpResponse("<script>window.location.reload()</script>")
         return super().form_valid(form)

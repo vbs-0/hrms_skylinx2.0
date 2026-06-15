@@ -1,6 +1,6 @@
 {% load basefilters i18n %}
 {% for employee in employees %}
-  <div class="oh-user_permission-list_item perm-accordion exclude-accordion-style" onclick="$(this).next().toggle();$(this).toggleClass('perm-accordion-active');">
+  <div class="oh-user_permission-list_item perm-accordion exclude-accordion-style" onclick="$(this).next().toggle();$(this).toggleClass('perm-accordion-active');$(this).next().find('.oh-general__tab-target').removeClass('d-none');">
     <div class="oh-user_permission-list_profile">
       <div class="oh-navbar__user-photo oh-user_permission--profile">
         <img src="{{ employee.get_avatar }}" class="oh-navbar__user-image" loading="lazy" />
@@ -74,46 +74,34 @@
 	var timeout
 
 	function updatePermissions(elem){
-		var $panel = $(elem).closest(".panel").closest(".panel.view-employees");
-		var userId = $panel.data("user-id");
-		var permissions = [];
+    var $panel = $(elem).closest(".panel").closest(".panel.view-employees");
+    var userId = $panel.data("user-id");
+    var permissions = [];
 
-		$panel.find("[name=permissions]").each(function () {
-			permissions.push({
-				codename: $(this).val(),
-				checked: $(this).is(":checked")
-			});
-		});
+    $panel.find("[name=permissions]").each(function () {
+      permissions.push({
+        codename: $(this).val(),
+        checked: $(this).is(":checked")
+      });
+    });
 
-		$.ajax({
-			type: "post",
-			url: '{% url "update-user-permission" %}',
-			contentType: "application/json",
-			data: JSON.stringify({
-				permissions: permissions,
-				employee: userId,
-			}),
-			headers: {
-				"X-CSRFToken": getCookie("csrftoken"),
-			},
-			success: function (response) {
-				$("#messages").html(
-					$(`
-						<div class="oh-alert oh-alert--animated oh-alert--${response.type}">
-							${response.message}.
-						</div>
-					`)
-				);
-			},
-			error: function (response) {
-				$("#messages").html(
-					$(`
-						<div class="oh-alert oh-alert--animated oh-alert--danger">
-							Sever error.
-						</div>
-					`)
-				);
-			},
+    $.ajax({
+      type: "post",
+      url: '{% url "update-user-permission" %}',
+      contentType: "application/json",
+      data: JSON.stringify({
+        permissions: permissions,
+        employee: userId,
+      }),
+      headers: {
+        "X-CSRFToken": getCookie("csrftoken"),
+      },
+      success: function (response) {
+        reloadMessage()
+      },
+      error: function () {
+        reloadMessage()
+      }
 		});
 	}
 

@@ -26,7 +26,6 @@ import fitz  # type: ignore
 from django import template
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth.models import User
 from django.core import serializers
 from django.core.cache import cache as CACHE
 from django.core.mail import EmailMessage
@@ -64,10 +63,12 @@ from skylinx.decorators import (
 )
 from skylinx.group_by import group_by_queryset
 from skylinx.http import SkylinxRedirect
+from skylinx_auth.models import SkylinxUser
 from skylinx_documents.models import Document
 from notifications.signals import notify
 from recruitment.auth import CandidateAuthenticationBackend
 from recruitment.decorators import (
+    all_manager_can_enter,
     candidate_login_required,
     manager_can_enter,
     recruitment_manager_can_enter,
@@ -111,6 +112,8 @@ from recruitment.models import (
     Recruitment,
     RecruitmentGeneralSetting,
     RecruitmentSurvey,
+    RecruitmentSurveyAnswer,
+    RejectedCandidate,
     RejectReason,
     Resume,
     Skill,
@@ -514,14 +517,15 @@ def filter_pipeline(request):
 
 
 @login_required
+@hx_request_required
 @manager_can_enter("recruitment.view_recruitment")
 def get_stage_badge_count(request):
     """
     Method to update stage badge count
     """
-    stage_id = request.GET["stage_id"]
-    stage = Stage.objects.get(id=stage_id)
-    count = stage.candidate_set.filter(is_active=True).count()
+    stage_id = request.GET.get("stage_id")
+    stage = Stage.find(stage_id)
+    count = stage.candidate_set.filter(is_active=True).count() if stage else 0
     return HttpResponse(count)
 
 
@@ -531,13 +535,20 @@ def stage_component(request, view: str = "list"):
     """
     This method will stage tab contents
     """
-    recruitment_id = request.GET["rec_id"]
-    recruitment = Recruitment.objects.get(id=recruitment_id)
-    pipeline_cache = CACHE.get(request.session.session_key + "pipeline")
-    # 1060
-    if not pipeline_cache:
-        return HttpResponse(headers={"HX-Refresh": "true"})
-    ordered_stages = pipeline_cache["stages"].filter(recruitment_id__id=recruitment_id)
+    recruitment_id = request.GET.get("rec_id")
+    if not recruitment_id or not (recruitment := Recruitment.find(recruitment_id)):
+        return SkylinxRedirect(
+            request,
+            message=(
+                _("Recruitment ID missing.")
+                if not recruitment_id
+                else _("No Recruitment found matching the query.")
+            ),
+        )
+
+    ordered_stages = CACHE.get(request.session.session_key + "pipeline")[
+        "stages"
+    ].filter(recruitment_id__id=recruitment_id)
     template = "pipeline/components/stages_tab_content.html"
     if view == "card":
         template = "pipeline/kanban_components/kanban_stage_components.html"
@@ -547,7 +558,9 @@ def stage_component(request, view: str = "list"):
         {
             "rec": recruitment,
             "ordered_stages": ordered_stages,
-            "filter_dict": pipeline_cache["filter_dict"],
+            "filter_dict": CACHE.get(request.session.session_key + "pipeline")[
+                "filter_dict"
+            ],
         },
     )
 
@@ -555,53 +568,57 @@ def stage_component(request, view: str = "list"):
 @login_required
 @manager_can_enter(perm="recruitment.change_candidate")
 def update_candidate_stage_and_sequence(request):
-    """
-    Update candidate sequence method
-    """
+    """Update candidate sequence"""
+
     order_list = request.GET.getlist("order")
-    stage_id = request.GET["stage_id"]
-    stage = (
-        CACHE.get(request.session.session_key + "pipeline")["stages"]
-        .filter(id=stage_id)
-        .first()
-    )
+    stage_id = request.GET.get("stage_id")
+
+    pipeline_cache = CACHE.get(request.session.session_key + "pipeline")
+    if not pipeline_cache:
+        return JsonResponse({"message": _("Pipeline cache expired.")})
+
+    stage = pipeline_cache["stages"].filter(id=stage_id).first()
+    if not stage:
+        return JsonResponse({"message": _("Stage not found.")})
+
     context = {}
+
     for index, cand_id in enumerate(order_list):
-        candidate = CACHE.get(request.session.session_key + "pipeline")[
-            "candidates"
-        ].filter(id=cand_id)
-        candidate.update(sequence=index, stage_id=stage)
-    if stage.stage_type == "hired":
-        if stage.recruitment_id.is_vacancy_filled():
-            context["message"] = _("Vaccancy is filled")
-            context["vacancy"] = stage.recruitment_id.vacancy
+        pipeline_cache["candidates"].filter(id=cand_id).update(
+            sequence=index, stage_id=stage
+        )
+
+    if stage.stage_type == "hired" and stage.recruitment_id.is_vacancy_filled():
+        context["message"] = _("Vacancy is filled")
+        context["vacancy"] = stage.recruitment_id.vacancy
+
     return JsonResponse(context)
 
 
 @login_required
 @manager_can_enter(perm="recruitment.change_candidate")
 def update_candidate_sequence(request):
-    """
-    Update candidate sequence method
-    """
+    """Update candidate sequence"""
+
     order_list = request.GET.getlist("order")
-    stage_id = request.GET["stage_id"]
-    stage = (
-        CACHE.get(request.session.session_key + "pipeline")["stages"]
-        .filter(id=stage_id)
-        .first()
-    )
-    data = {}
+    stage_id = request.GET.get("stage_id")
+
+    pipeline_cache = CACHE.get(request.session.session_key + "pipeline")
+    if not pipeline_cache:
+        return JsonResponse({"message": _("Pipeline cache expired.")})
+
+    stage = pipeline_cache["stages"].filter(id=stage_id).first()
+    if not stage:
+        return JsonResponse({"message": _("Stage not found.")})
 
     for index, cand_id in enumerate(order_list):
-        candidate = CACHE.get(request.session.session_key + "pipeline")[
-            "candidates"
-        ].filter(id=cand_id)
-        candidate.update(
-            sequence=index, stage_id=stage, hired=(stage.stage_type == "hired")
+        pipeline_cache["candidates"].filter(id=cand_id).update(
+            sequence=index,
+            stage_id=stage,
+            hired=(stage.stage_type == "hired"),
         )
 
-    return JsonResponse(data)
+    return JsonResponse({})
 
 
 def limited_paginator_qry(queryset, page):
@@ -621,15 +638,17 @@ def candidate_component(request):
     Candidate component
     """
     stage_id = request.GET.get("stage_id")
-    pipeline_cache = CACHE.get(request.session.session_key + "pipeline")
-    # 1060
-    if not pipeline_cache:
-        return HttpResponse(headers={"HX-Refresh": "true"})
-    stage = pipeline_cache["stages"].filter(id=stage_id).first()
-    candidates = pipeline_cache["candidates"].filter(stage_id=stage)
+    stage = (
+        CACHE.get(request.session.session_key + "pipeline")["stages"]
+        .filter(id=stage_id)
+        .first()
+    )
+    candidates = CACHE.get(request.session.session_key + "pipeline")[
+        "candidates"
+    ].filter(stage_id=stage)
 
     template = "pipeline/components/candidate_stage_component.html"
-    if pipeline_cache["filter_query"].get("view") == "card":
+    if request.GET.get("view") == "card":
         template = "pipeline/kanban_components/candidate_kanban_components.html"
 
     now = timezone.now()
@@ -694,9 +713,14 @@ def change_candidate_stage(request):
             except Candidate.DoesNotExist:
                 messages.error(request, _("Candidate not found."))
         return JsonResponse(context)
-    candidate_id = request.GET["candidate_id"]
-    stage_id = request.GET["stage_id"]
-    candidate = Candidate.objects.get(id=candidate_id)
+    stage_id = request.GET.get("stage_id")
+    candidate_id = request.GET.get("candidate_id")
+    candidate = Candidate.find(candidate_id)
+    if not candidate:
+        return SkylinxRedirect(
+            request, message=_("No Candidate found matching the query.")
+        )
+
     stage = Stage.objects.filter(
         recruitment_id=candidate.recruitment_id, id=stage_id
     ).first()
@@ -737,11 +761,20 @@ def recruitment_archive(request, rec_id):
         recruitment = Recruitment.objects.get(id=rec_id)
         if recruitment.is_active:
             recruitment.is_active = False
+            messages.success(request, _("Recruitment archived successfully."))
         else:
             recruitment.is_active = True
+            messages.success(request, _("Recruitment un-archived successfully."))
         recruitment.save()
     except (Recruitment.DoesNotExist, OverflowError):
         messages.error(request, _("Recruitment Does not exists.."))
+    if request.META.get("HTTP_HX_REQUEST") == "true":
+        return HttpResponse(
+            "<script>"
+            "$('#applyFilter').click();"
+            "$('#reloadMessagesButton').click();"
+            "</script>"
+        )
     return SkylinxRedirect(request)
 
 
@@ -844,10 +877,14 @@ def recruitment_reopen_pipeline(request, rec_id):
     """
     This method is used to reopen recruitment from pipeline view
     """
-    recruitment_obj = Recruitment.objects.get(id=rec_id)
+    recruitment_obj = Recruitment.find(rec_id)
+    if not recruitment_obj:
+        return SkylinxRedirect(
+            request, message=_("No Recruitment found matching the query.")
+        )
+
     recruitment_obj.closed = False
     recruitment_obj.save()
-
     messages.success(request, "Recruitment reopend successfully")
     return SkylinxRedirect(request)
 
@@ -861,8 +898,13 @@ def candidate_stage_update(request, cand_id):
     Args:
         id : candidate_id
     """
-    stage_id = request.POST["stageId"]
-    candidate_obj = Candidate.objects.get(id=cand_id)
+    stage_id = request.POST.get("stageId")
+    candidate_obj = Candidate.find(cand_id)
+    if not candidate_obj:
+        return JsonResponse(
+            {"type": "error", "message": _("No Candidate found matching the query.")}
+        )
+
     history_queryset = candidate_obj.history_set.all().first()
     stage_obj = Stage.objects.get(id=stage_id)
     if candidate_obj.stage_id == stage_obj:
@@ -915,7 +957,7 @@ def candidate_stage_update(request, cand_id):
 
 @login_required
 @hx_request_required
-@manager_can_enter(perm="recruitment.view_stagenote")
+@all_manager_can_enter(perm="recruitment.view_stagenote")
 def view_note(request, cand_id):
     """
     This method renders a template components to view candidate remark or note
@@ -934,11 +976,11 @@ def view_note(request, cand_id):
 @login_required
 @hx_request_required
 @manager_can_enter(perm="recruitment.add_stagenote")
-def add_note(request, cand_id=None):
+def add_note(request, pk=None):
     """
     This method renders template component to add candidate remark
     """
-    form = StageNoteForm(initial={"candidate_id": cand_id})
+    form = StageNoteForm(initial={"candidate_id": pk})
     if request.method == "POST":
         form = StageNoteForm(
             request.POST,
@@ -946,17 +988,17 @@ def add_note(request, cand_id=None):
         )
         if form.is_valid():
             note, attachment_ids = form.save(commit=False)
-            candidate = Candidate.objects.get(id=cand_id)
+            candidate = Candidate.objects.get(id=pk)
             note.candidate_id = candidate
             note.stage_id = candidate.stage_id
             note.updated_by = request.user.employee_get
             note.save()
             note.stage_files.set(attachment_ids)
             messages.success(request, _("Note added successfully.."))
-    candidate_obj = Candidate.objects.get(id=cand_id)
+    candidate_obj = Candidate.objects.get(id=pk)
     return render(
         request,
-        "candidate/individual_view_note.html",
+        "cbv/candidates/profile_notes_tab.html",
         {
             "candidate": candidate_obj,
             "note_form": form,
@@ -1001,7 +1043,12 @@ def note_update(request, note_id):
     Args:
         id : stage note instance id
     """
-    note = StageNote.objects.get(id=note_id)
+    note = StageNote.find(note_id)
+    if not note:
+        return SkylinxRedirect(
+            request, message=_("No Stage Note found matching the query.")
+        )
+
     form = StageNoteUpdateForm(instance=note)
     if request.POST:
         form = StageNoteUpdateForm(request.POST, request.FILES, instance=note)
@@ -1024,7 +1071,12 @@ def note_update_individual(request, note_id):
     Args:
         id : stage note instance id
     """
-    note = StageNote.objects.get(id=note_id)
+    note = StageNote.find(note_id)
+    if not note:
+        return SkylinxRedirect(
+            request, message=_("No Stage Note found matching the query.")
+        )
+
     form = StageNoteForm(instance=note)
     if request.POST:
         form = StageNoteForm(request.POST, request.FILES, instance=note)
@@ -1082,17 +1134,20 @@ def add_more_individual_files(request, id):
 
 
 @login_required
+@hx_request_required
 def delete_stage_note_file(request, id):
     """
     This method is used to delete the stage note file
     Args:
         id : stage file instance id
     """
-    script = ""
-    file = StageFiles.objects.get(id=id)
-    file.delete()
-    messages.success(request, _("File deleted successfully"))
-    return HttpResponse(script)
+    if stage_file := StageFiles.find(id):
+        stage_file.delete()
+        messages.success(request, _("File deleted successfully"))
+    else:
+        messages.error(request, _("No Stage Files found matching the query."))
+
+    return HttpResponse("")
 
 
 @login_required
@@ -1128,12 +1183,15 @@ def candidate_schedule_date_update(request):
     """
     This is a an ajax method to update schedule date for a candidate
     """
-    candidate_id = request.POST["candidateId"]
-    schedule_date = request.POST["date"]
-    candidate_obj = Candidate.objects.get(id=candidate_id)
-    candidate_obj.schedule_date = schedule_date
-    candidate_obj.save()
-    return JsonResponse({"message": "congratulations"})
+    candidate_id = request.POST.get("candidateId")
+    schedule_date = request.POST.get("date")
+    candidate_obj = Candidate.find(candidate_id)
+    message = "Error"
+    if candidate_obj:
+        candidate_obj.schedule_date = schedule_date
+        candidate_obj.save()
+        message = "Congratulations"
+    return JsonResponse({"message": message})
 
 
 @login_required
@@ -1220,6 +1278,8 @@ def stage_view(request):
     )
 
 
+@login_required
+@hx_request_required
 def stage_data(request, rec_id):
     stages = StageFilter(request.GET).qs.filter(recruitment_id__id=rec_id)
     previous_data = request.GET.urlencode()
@@ -1263,6 +1323,43 @@ def stage_update(request, stage_id):
                 response.content.decode("utf-8") + "<script>location.reload();</script>"
             )
     return render(request, "stage/stage_update_form.html", {"form": form})
+
+
+@login_required
+@recruitment_manager_can_enter("recruitment.change_stage")
+def update_stage_order(request, pk):
+    """
+    This method is used to update the stage sequence of the onboarding
+    """
+    recruitment = Recruitment.find(pk)
+    if not recruitment:
+        return SkylinxRedirect(
+            request, message=_("No Recruitment found matching the query.")
+        )
+
+    if request.method == "POST":
+        try:
+            order = json.loads(request.POST.get("order", "[]"))
+            for index, stage_id in enumerate(order):
+                stage = recruitment.stage_set.get(id=stage_id)
+                stage.sequence = index + 1
+                stage.save()
+            messages.success(request, "Sequence Updated Successfully")
+            return JsonResponse({"status": "success"})
+        except Exception as e:
+            messages.error(request, "Error Updating Sequence..")
+            return JsonResponse({"status": "error", "message": str(e)}, status=400)
+
+    stages = recruitment.stage_set.order_by("sequence")
+
+    return render(
+        request,
+        "cbv/pipeline/stage_order.html",
+        {
+            "stages": stages,
+            "recruitment": recruitment,
+        },
+    )
 
 
 @login_required
@@ -1313,6 +1410,9 @@ def candidate(request):
     form = CandidateCreationForm()
     open_recruitment = Recruitment.objects.filter(closed=False, is_active=True)
     path = "/recruitment/candidate-view"
+    template_name = "candidate/candidate_create_form.html"
+    if request.META.get("HTTP_HX_REQUEST") == "true":
+        template_name = "candidate/candidate_create_modal_form.html"
     if request.method == "POST":
         form = CandidateCreationForm(request.POST, request.FILES)
         if form.is_valid():
@@ -1334,29 +1434,58 @@ def candidate(request):
                 messages.error(request, "Job position field is required")
                 return render(
                     request,
-                    "candidate/candidate_create_form.html",
+                    template_name,
                     {"form": form, "open_recruitment": open_recruitment},
+                )
+            if request.META.get("HTTP_HX_REQUEST") == "true":
+                close_modal_script = ""
+                if request.GET.get("container") != "true":
+                    close_modal_script = (
+                        "$('#objectCreateModal').removeClass('oh-modal--show');"
+                    )
+                container_reload_script = (
+                    "$('#candidateMainContainer').html("
+                    '\'<div hx-get="/recruitment/nav-candidate/?" hx-trigger="load"></div>\' + '
+                    '\'<div class="oh-checkpoint-badge mb-2" id="selectedInstances" data-ids="[]" data-clicked="" style="display: none"></div>\' + '
+                    '\'<div class="oh-wrapper" id="listContainer"><div class="animated-background"></div></div>\''
+                    ");"
+                    "htmx.process($('#candidateMainContainer')[0]);"
+                )
+                if request.GET.get("container") != "true":
+                    container_reload_script = "$('#applyFilter').click();"
+                return HttpResponse(
+                    "<script>"
+                    + close_modal_script
+                    + container_reload_script
+                    + "$('#reloadMessagesButton').click();"
+                    + "</script>"
                 )
             return redirect(path)
 
     return render(
         request,
-        "candidate/candidate_create_form.html",
+        template_name,
         {"form": form, "open_recruitment": open_recruitment},
     )
 
 
 @login_required
 @permission_required(perm="recruitment.add_candidate")
-def recruitment_stage_get(_, rec_id):
+def recruitment_stage_get(request, rec_id):
     """
     This method returns all stages as json
-    Args:
-        id: recruitment_id
     """
-    recruitment_obj = Recruitment.objects.get(id=rec_id)
+    recruitment_obj = Recruitment.find(rec_id)
+
+    if not recruitment_obj:
+        return JsonResponse(
+            {"error": _("No Recruitment found matching the query.")},
+            status=404,
+        )
+
     all_stages = recruitment_obj.stage_set.all()
     all_stage_json = serializers.serialize("json", all_stages)
+
     return JsonResponse({"stages": all_stage_json})
 
 
@@ -1372,9 +1501,9 @@ def candidate_view(request):
     recruitments = Recruitment.objects.filter(closed=False, is_active=True)
 
     mails = list(Candidate.objects.values_list("email", flat=True))
-    # Query the User model to check if any email is present
+    # Query the SkylinxUser model to check if any email is present
     existing_emails = list(
-        User.objects.filter(username__in=mails).values_list("email", flat=True)
+        SkylinxUser.objects.filter(username__in=mails).values_list("email", flat=True)
     )
 
     filter_obj = CandidateFilter(request.GET, queryset=candidates)
@@ -1476,6 +1605,7 @@ def interview_view(request):
 
 
 @login_required
+@hx_request_required
 @manager_can_enter(perm="recruitment.change_interviewschedule")
 def interview_employee_remove(request, interview_id, employee_id):
     """
@@ -1484,11 +1614,17 @@ def interview_employee_remove(request, interview_id, employee_id):
         interview_id(int) : primarykey of the interview.
         employee_id(int) : primarykey of the employee
     """
-    interview = InterviewSchedule.objects.filter(id=interview_id).first()
+    interview = InterviewSchedule.find(interview_id)
+    if not interview:
+        return SkylinxRedirect(
+            request, message=_("No Meeting found matching the query")
+        )
+
     interview.employee_id.remove(employee_id)
     messages.success(request, "Interviewer removed succesfully.")
     interview.save()
-    return HttpResponse("<script>$('.filterButton')[0].click()</script>")
+    # return redirect(interview_filter_view)
+    return HttpResponse("<script> $('#applyFilter').click();</script>")
 
 
 @login_required
@@ -1558,70 +1694,258 @@ def candidate_view_card(request):
 
 @login_required
 @manager_can_enter(perm="recruitment.view_candidate")
+def candidate_about_tab(request, pk, **kwargs):
+    """
+    method for rendering about tab
+    """
+
+    candidate_obj = Candidate.find(pk)
+    if not candidate_obj:
+        messages.error(request, _("Candidate not found"))
+        return SkylinxRedirect(request)
+    return render(
+        request,
+        "cbv/candidates/profile_about_tab.html",
+        {
+            "candidate": candidate_obj,
+        },
+    )
+
+
+@login_required
+@manager_can_enter(perm="recruitment.view_candidate")
+def candidate_resume_tab(request, pk, **kwargs):
+    """
+    method for rendering resume tab
+    """
+
+    candidate_obj = Candidate.find(pk)
+    return render(
+        request,
+        "cbv/candidates/profile_resume_tab.html",
+        {
+            "candidate": candidate_obj,
+        },
+    )
+
+
+@login_required
+@manager_can_enter(perm="recruitment.view_candidate")
+def candidate_survey_tab(request, pk, **kwargs):
+    """
+    method for rendering survey tab
+    """
+
+    candidate_obj = Candidate.find(pk)
+    survey = RecruitmentSurveyAnswer.objects.filter(candidate_id=pk).first()
+    return render(
+        request,
+        "cbv/candidates/profile_survey_tab.html",
+        {
+            "candidate": candidate_obj,
+            "survey": survey,
+        },
+    )
+
+
+@login_required
+@manager_can_enter(perm="recruitment.view_candidate")
+def candidate_document_request_tab(request, pk, **kwargs):
+    """
+    method for rendering survey tab
+    """
+
+    candidate_obj = Candidate.find(pk)
+    documents = candidate_obj.candidatedocument_set.all()
+    return render(
+        request,
+        "candidate/document.html",
+        {
+            "candidate": candidate_obj,
+            "documents": documents,
+        },
+    )
+
+
+# @login_required
+# @manager_can_enter(perm="recruitment.view_candidate")
+# def candidate_notes_tab(request, pk, **kwargs):
+#     """
+#     method for rendering notes tab
+#     """
+
+#     candidate_obj = Candidate.find(pk)
+#     return render(
+#         request,
+#         "candidate/individual_view_note.html",
+#         {
+#             "candidate": candidate_obj,
+#         },
+#     )
+
+
+@login_required
+@manager_can_enter(perm="recruitment.view_candidate")
+def candidate_history_tab(request, pk, **kwargs):
+    """
+    method for rendering history tab
+    """
+
+    candidate_obj = Candidate.find(pk)
+    return render(
+        request,
+        "candidate/history.html",
+        {
+            "candidate": candidate_obj,
+        },
+    )
+
+
+@login_required
+@all_manager_can_enter(perm="recruitment.view_candidate")
+def candidate_onboarding_tab(request, pk, **kwargs):
+    """
+    method for rendering onboarding tab
+    """
+
+    candidate_obj = Candidate.find(pk)
+    return render(
+        request,
+        "cbv/candidates/profile_onboarding_tab.html",
+        {
+            "candidate": candidate_obj,
+        },
+    )
+
+
+@login_required
+@all_manager_can_enter(perm="recruitment.view_candidate")
+def candidate_rating_tab(request, pk, **kwargs):
+    """
+    method for rendering rating tab
+    """
+
+    candidate_obj = Candidate.find(pk)
+    return render(
+        request,
+        "candidate/rating_tab.html",
+        {
+            "candidate": candidate_obj,
+        },
+    )
+
+
+@login_required
+@manager_can_enter(perm="recruitment.view_candidate")
+def candidate_interview_tab(request, pk, **kwargs):
+    """
+    method for rendering interview tab
+    """
+
+    candidate_obj = Candidate.find(pk)
+    return render(
+        request,
+        "cbv/candidates/profile_interview_tab.html",
+        {
+            "candidate": candidate_obj,
+        },
+    )
+
+
+def scheduled_interview_tab(request, pk, **kwargs):
+    """
+    method for rendering interview tab
+    """
+    employee = Employee.objects.get(id=pk)
+    interviews = InterviewSchedule.objects.filter(employee_id=employee).order_by(
+        "-interview_date"
+    )
+    return render(
+        request,
+        "tabs/scheduled_interview.html",
+        {"interviews": interviews, "employee": employee},
+    )
+
+
+@login_required
+@all_manager_can_enter(perm="recruitment.view_candidate")
 def candidate_view_individual(request, cand_id, **kwargs):
     """
     This method is used to view profile of candidate.
     """
-    candidate_obj = Candidate.find(cand_id)
-    if not candidate_obj:
-        messages.error(request, _("Candidate not found"))
-        return SkylinxRedirect(request)
+    # candidate_obj = Candidate.find(cand_id)
+    # # if not candidate_obj:
+    # #     messages.error(request, _("Candidate not found"))
+    # #     return SkylinxRedirect(request)
 
-    mails = list(Candidate.objects.values_list("email", flat=True))
-    # Query the User model to check if any email is present
-    existing_emails = list(
-        User.objects.filter(username__in=mails).values_list("email", flat=True)
-    )
-    ratings = candidate_obj.candidate_rating.all()
-    documents = CandidateDocument.objects.filter(candidate_id=cand_id)
-    rating_list = []
-    avg_rate = 0
-    for rating in ratings:
-        rating_list.append(rating.rating)
-    if len(rating_list) != 0:
-        avg_rate = round(sum(rating_list) / len(rating_list))
+    # mails = list(Candidate.objects.values_list("email", flat=True))
+    # # Query the SkylinxUser model to check if any email is present
+    # existing_emails = list(
+    #     SkylinxUser.objects.filter(username__in=mails).values_list("email", flat=True)
+    # )
+    # ratings = candidate_obj.candidate_rating.all()
+    # documents = CandidateDocument.objects.filter(candidate_id=cand_id)
+    # rating_list = []
+    # avg_rate = 0
+    # for rating in ratings:
+    #     rating_list.append(rating.rating)
+    # if len(rating_list) != 0:
+    #     avg_rate = round(sum(rating_list) / len(rating_list))
 
-    # Retrieve the filtered candidate from the session
-    filtered_candidate_ids = request.session.get("filtered_candidates", [])
+    # # Retrieve the filtered candidate from the session
+    # filtered_candidate_ids = request.session.get("filtered_candidates", [])
 
-    # Convert the string to an actual list of integers
-    requests_ids = (
-        ast.literal_eval(filtered_candidate_ids)
-        if isinstance(filtered_candidate_ids, str)
-        else filtered_candidate_ids
-    )
+    # # Convert the string to an actual list of integers
+    # requests_ids = (
+    #     ast.literal_eval(filtered_candidate_ids)
+    #     if isinstance(filtered_candidate_ids, str)
+    #     else filtered_candidate_ids
+    # )
 
-    next_id = None
-    previous_id = None
+    # next_id = None
+    # previous_id = None
 
-    for index, req_id in enumerate(requests_ids):
-        if req_id == cand_id:
+    # for index, req_id in enumerate(requests_ids):
+    #     if req_id == cand_id:
 
-            if index == len(requests_ids) - 1:
-                next_id = None
-            else:
-                next_id = requests_ids[index + 1]
-            if index == 0:
-                previous_id = None
-            else:
-                previous_id = requests_ids[index - 1]
-            break
+    #         if index == len(requests_ids) - 1:
+    #             next_id = None
+    #         else:
+    #             next_id = requests_ids[index + 1]
+    #         if index == 0:
+    #             previous_id = None
+    #         else:
+    #             previous_id = requests_ids[index - 1]
+    #         break
 
-    now = timezone.now()
+    # now = timezone.now()
 
     return render(
         request,
         "candidate/individual.html",
-        {
-            "candidate": candidate_obj,
-            "previous": previous_id,
-            "next": next_id,
-            "requests_ids": requests_ids,
-            "emp_list": existing_emails,
-            "average_rate": avg_rate,
-            "documents": documents,
-            "now": now,
-        },
+        # {
+        #     "candidate": candidate_obj,
+        #     "previous": previous_id,
+        #     "next": next_id,
+        #     "requests_ids": requests_ids,
+        #     "emp_list": existing_emails,
+        #     "average_rate": avg_rate,
+        #     "documents": documents,
+        #     "now": now,
+        # },
+    )
+
+
+def _query_param_truthy(get_dict, key):
+    val = get_dict.get(key)
+    if val is None:
+        return False
+    return str(val).lower() in ("true", "1", "yes")
+
+
+def _onboarding_container_request(request):
+    return request.GET.get("container") == "true" and _query_param_truthy(
+        request.GET, "onboarding"
     )
 
 
@@ -1639,6 +1963,9 @@ def candidate_update(request, cand_id, **kwargs):
         candidate_obj = Candidate.objects.get(id=cand_id)
         form = CandidateCreationForm(instance=candidate_obj)
         path = "/recruitment/candidate-view"
+        template_name = "candidate/candidate_create_form.html"
+        if request.META.get("HTTP_HX_REQUEST") == "true":
+            template_name = "candidate/candidate_create_modal_form.html"
         if request.method == "POST":
             form = CandidateCreationForm(
                 request.POST, request.FILES, instance=candidate_obj
@@ -1660,13 +1987,63 @@ def candidate_update(request, cand_id, **kwargs):
                                 stage_type="initial"
                             ).first()
                         )
-                if request.GET.get("onboarding") == "True":
+                if _query_param_truthy(request.GET, "onboarding"):
                     candidate_obj.hired = True
                     path = "/onboarding/candidates-view"
                 candidate_obj.save()
                 messages.success(request, _("Candidate Updated Successfully."))
+                if request.META.get("HTTP_HX_REQUEST") == "true":
+                    close_modal_script = ""
+                    if request.GET.get("container") != "true":
+                        close_modal_script = (
+                            "$('#objectCreateModal').removeClass('oh-modal--show');"
+                        )
+                    if request.GET.get("container") == "true":
+                        if _query_param_truthy(request.GET, "onboarding"):
+                            _onboarding_candidates_url = reverse("candidates-view")
+                            container_reload_script = (
+                                "if (window.history && history.pushState) { "
+                                f"history.pushState({{}}, '', '{_onboarding_candidates_url}'); "
+                                "}"
+                                "document.body.classList.remove('onboarding-list-hide-toolbar');"
+                                "var nav = document.getElementById('onboardingCandidatesNavBar');"
+                                "if (nav) { nav.style.display = ''; }"
+                                "var tagRow = nav && nav.querySelector('#filterTagContainerSectionNav');"
+                                "if (tagRow) { tagRow.innerHTML = ''; }"
+                                "var list = document.getElementById('listContainer');"
+                                "if (list) { list.innerHTML = '<div class=\"animated-background\"></div>'; }"
+                                "setTimeout(function () { "
+                                "var b = document.getElementById('applyFilter'); "
+                                "if (b) { b.click(); } }, 100);"
+                            )
+                        else:
+                            container_reload_script = (
+                                "$('#candidateMainContainer').html("
+                                '\'<div hx-get="/recruitment/nav-candidate/?" hx-trigger="load"></div>\' + '
+                                '\'<div class="oh-checkpoint-badge mb-2" id="selectedInstances" data-ids="[]" data-clicked="" style="display: none"></div>\' + '
+                                '\'<div class="oh-wrapper" id="listContainer"><div class="animated-background"></div></div>\''
+                                ");"
+                                "htmx.process($('#candidateMainContainer')[0]);"
+                            )
+                    else:
+                        container_reload_script = "$('#applyFilter').click();"
+                    return HttpResponse(
+                        "<script>"
+                        + close_modal_script
+                        + container_reload_script
+                        + "$('#reloadMessagesButton').click();"
+                        + "</script>"
+                    )
                 return redirect(path)
-        return render(request, "candidate/candidate_create_form.html", {"form": form})
+        onboarding_container_mode = _onboarding_container_request(request)
+        return render(
+            request,
+            template_name,
+            {
+                "form": form,
+                "onboarding_container_mode": onboarding_container_mode,
+            },
+        )
     except (Candidate.DoesNotExist, OverflowError):
         messages.error(request, _("Candidate Does not exists.."))
     return SkylinxRedirect(request)
@@ -1676,17 +2053,22 @@ def candidate_update(request, cand_id, **kwargs):
 @login_required
 @manager_can_enter(perm="recruitment.change_candidate")
 def candidate_conversion(request, cand_id, **kwargs):
+    container_request = request.GET.get("container") == "true"
     candidate_obj = Candidate.find(cand_id)
 
     if not candidate_obj:
         messages.error(request, ("Candidate not found"))
+        if container_request:
+            return JsonResponse({"message": "Candidate not found"}, status=404)
         return SkylinxRedirect(request)
 
     if candidate_obj.converted_employee_id:
         messages.info(request, "This candidate is already converted to an employee.")
+        if container_request:
+            return JsonResponse({"message": "Already converted"}, status=200)
         return SkylinxRedirect(request)
 
-    user_exists = User.objects.filter(username=candidate_obj.email).exists()
+    user_exists = SkylinxUser.objects.filter(username=candidate_obj.email).exists()
     employee_exists = Employee.objects.filter(
         employee_user_id__username=candidate_obj.email
     ).exists()
@@ -1735,6 +2117,9 @@ def candidate_conversion(request, cand_id, **kwargs):
     else:
         messages.info(request, "An employee with this email already exists")
 
+    if container_request:
+        return JsonResponse({"message": "Success"}, status=200)
+
     if "HTTP_HX_REQUEST" in request.META:
         return HttpResponse(status=204, headers={"HX-Refresh": "true"})
 
@@ -1749,7 +2134,12 @@ def delete_profile_image(request, obj_id):
     Args:
         obj_id : candidate instance id
     """
-    candidate_obj = Candidate.objects.get(id=obj_id)
+    candidate_obj = Candidate.find(obj_id)
+    if not candidate_obj:
+        return SkylinxRedirect(
+            request, message=_("No Candidate found matching the query.")
+        )
+
     try:
         if candidate_obj.profile:
             file_path = candidate_obj.profile.path
@@ -1771,7 +2161,12 @@ def candidate_history(request, cand_id):
     Args:
         id : candidate_id
     """
-    candidate_obj = Candidate.objects.get(id=cand_id)
+    candidate_obj = Candidate.find(cand_id)
+    if not candidate_obj:
+        return SkylinxRedirect(
+            request, message=_("No Candidate found matching the query.")
+        )
+
     candidate_history_queryset = candidate_obj.history.all()
     return render(
         request,
@@ -1799,6 +2194,37 @@ def form_send_mail(request, cand_id=None):
     else:
         stage_id = None
 
+    SkylinxMailTemplate.objects.get_or_create(
+        title="Candidate Portal Login",
+        defaults={
+            "body": (
+                "<div style=\"font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f6f9; padding: 24px;\">"
+                '<div style="max-width: 640px; margin: auto; background: #ffffff; border-radius: 12px; padding: 28px; '
+                'box-shadow: 0 4px 14px rgba(0,0,0,0.08); border: 1px solid #eceff3;">'
+                '<h2 style="margin: 0 0 18px 0; color: #1f2937; font-size: 22px;">Candidate Portal Login Details</h2>'
+                '<p style="font-size: 14px; color: #374151; line-height: 1.7; margin: 0 0 14px 0;">'
+                "Hi {{instance.get_full_name}},</p>"
+                '<p style="font-size: 14px; color: #374151; line-height: 1.7; margin: 0 0 16px 0;">'
+                "You can track your application status from the candidate portal using the credentials below.</p>"
+                '<div style="margin: 18px 0; padding: 16px; background: #f9fafb; border-left: 4px solid hsl(8, 77%, 56%); border-radius: 8px;">'
+                '<p style="margin: 0 0 8px 0; font-size: 14px; color: #111827;">'
+                "<strong>Portal Link:</strong> "
+                '<a href="{{ request.scheme }}://{{ request.get_host }}/recruitment/candidate-login/" target="_blank" '
+                'style="color: hsl(8, 77%, 56%); text-decoration: none;">'
+                "{{ request.scheme }}://{{ request.get_host }}/recruitment/candidate-login/"
+                "</a></p>"
+                '<p style="margin: 0 0 8px 0; font-size: 14px; color: #111827;"><strong>Username (Email):</strong> {{instance.email}}</p>'
+                '<p style="margin: 0; font-size: 14px; color: #111827;"><strong>Password (Mobile Number):</strong> {{instance.mobile}}</p>'
+                "</div>"
+                '<p style="font-size: 13px; color: #6b7280; margin: 0 0 18px 0;">'
+                "For security, please keep these credentials private.</p>"
+                '<hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">'
+                '<p style="font-size: 13px; color: #6b7280; margin: 0;">Regards,</p>'
+                '<p style="font-size: 13px; color: #111827; margin: 6px 0 0 0;"><strong>{{self.get_full_name}} | {{self.get_department}} | {{self.get_company}}</strong></p>'
+                "</div></div>"
+            )
+        },
+    )
     templates = SkylinxMailTemplate.objects.all()
     return render(
         request,
@@ -1900,19 +2326,19 @@ def interview_delete(request, interview_id):
     Args:
         interview_id: InterviewSchedule instance ID
     """
-    view = request.GET.get("view", "false")
-
     try:
         InterviewSchedule.objects.get(id=interview_id).delete()
         messages.success(request, _("Interview deleted successfully."))
     except:
         messages.error(request, _("Scheduled Interview not found"))
-
-    return HttpResponse(
-        "<script>$('.filterButton')[0].click()</script>"
-        if view == "true"
-        else "<script>window.location.reload()</script>"
-    )
+    if request.META.get("HTTP_HX_REQUEST") == "true":
+        return HttpResponse(
+            "<script>"
+            "$('#applyFilter').click();"
+            "$('#reloadMessagesButton').click();"
+            "</script>"
+        )
+    return SkylinxRedirect(request)
 
 
 @login_required
@@ -1968,9 +2394,43 @@ def interview_edit(request, interview_id):
     )
 
 
+@login_required
+def get_interview_managers(request):
+    cand_id = request.GET.get("candidate_id")
+    form = ScheduleInterviewForm()
+    candidate_obj = Candidate.find(cand_id) if cand_id else None
+    if candidate_obj:
+        recruitment_managers = candidate_obj.recruitment_id.recruitment_managers.all()
+        stage_managers = (
+            candidate_obj.stage_id.stage_managers.all()
+            if candidate_obj.stage_id
+            else recruitment_managers.none()
+        )
+        managers = (recruitment_managers | stage_managers).distinct()
+        form.fields["employee_id"].queryset = managers
+    else:
+        form.fields["employee_id"].queryset = form.fields["employee_id"].queryset.none()
+    pk = request.GET.get("pk")
+    if pk:
+        try:
+            interviewer = InterviewSchedule.objects.get(id=pk)
+            form.fields["employee_id"].initial = interviewer.employee_id.all()
+        except InterviewSchedule.DoesNotExist:
+            pass
+    return render(
+        request,
+        "candidate/interview_form.html",
+        {"form": form, "CBV": True},
+    )
+
+
+@login_required
 def get_managers(request):
     cand_id = request.GET.get("cand_id")
-    candidate_obj = Candidate.objects.get(id=cand_id)
+    candidate_obj = Candidate.find(cand_id)
+    if not candidate_obj:
+        return JsonResponse({"employees": {}})
+
     stage_obj = Stage.objects.filter(recruitment_id=candidate_obj.recruitment_id.id)
 
     # Combine the querysets into a single iterable
@@ -2023,7 +2483,11 @@ def send_acknowledgement(request):
             # due to not having solid template we first need to pass the context
             template_bdy = template.Template(html)
             context = template.Context(
-                {"instance": candidate, "self": request.user.employee_get}
+                {
+                    "instance": candidate,
+                    "self": request.user.employee_get,
+                    "request": request,
+                }
             )
             render_bdy = template_bdy.render(context)
             attachments.append(
@@ -2036,7 +2500,11 @@ def send_acknowledgement(request):
 
         template_bdy = template.Template(bdy)
         context = template.Context(
-            {"instance": candidate, "self": request.user.employee_get}
+            {
+                "instance": candidate,
+                "self": request.user.employee_get,
+                "request": request,
+            }
         )
         render_bdy = template_bdy.render(context)
         to = candidate.email
@@ -2063,7 +2531,7 @@ def candidate_sequence_update(request):
     """
     This method is used to update the sequence of candidate
     """
-    sequence_data = json.loads(request.POST["sequenceData"])
+    sequence_data = json.loads(request.POST.get("sequenceData", "{}"))
     for cand_id, seq in sequence_data.items():
         cand = Candidate.objects.get(id=cand_id)
         cand.sequence = seq
@@ -2078,7 +2546,10 @@ def stage_sequence_update(request):
     """
     This method is used to update the sequence of the stages
     """
-    sequence_data = json.loads(request.POST["sequence"])
+    sequence_data = json.loads(request.POST.get("sequence", "{}"))
+    if not sequence_data:
+        return JsonResponse({"type": "error", "message": _("Missing Sequence")})
+
     for stage_id, seq in sequence_data.items():
         stage = Stage.objects.get(id=stage_id)
         stage.sequence = seq
@@ -2114,6 +2585,7 @@ def candidate_select_filter(request):
     page_number = request.GET.get("page")
     filtered = request.GET.get("filter")
     filters = json.loads(filtered) if filtered else {}
+    context = {}
 
     if page_number == "all":
         candidate_filter = CandidateFilter(filters, queryset=Candidate.objects.all())
@@ -2121,12 +2593,12 @@ def candidate_select_filter(request):
         # Get the filtered queryset
         filtered_candidates = candidate_filter.qs
 
-        employee_ids = [str(emp.id) for emp in filtered_candidates]
+        candidate_ids = [str(cand.id) for cand in filtered_candidates]
         total_count = filtered_candidates.count()
 
-        context = {"employee_ids": employee_ids, "total_count": total_count}
+        context = {"employee_ids": candidate_ids, "total_count": total_count}
 
-        return JsonResponse(context)
+    return JsonResponse(context)
 
 
 @login_required
@@ -2136,13 +2608,16 @@ def create_candidate_rating(request, cand_id):
     Args:
         cand_id : candidate instance id
     """
-    cand_id = cand_id
-    candidate = Candidate.objects.get(id=cand_id)
-    employee_id = request.user.employee_get
-    rating = request.POST.get("rating")
-    CandidateRating.objects.create(
-        candidate_id=candidate, rating=rating, employee_id=employee_id
-    )
+    candidate = Candidate.find(cand_id)
+    if candidate:
+        employee_id = request.user.employee_get
+        rating = request.POST.get("rating")
+        CandidateRating.objects.create(
+            candidate_id=candidate, rating=rating, employee_id=employee_id
+        )
+    else:
+        messages.error(request, _("No Candidate found matching the query"))
+
     return redirect(recruitment_pipeline)
 
 
@@ -2268,6 +2743,10 @@ def skill_zone_delete(request, sz_id):
             messages.error(request, _("Skill zone not found."))
     except ProtectedError:
         messages.error(request, _("Related entries exists"))
+    if request.META.get("HTTP_HX_REQUEST") == "true":
+        response = HttpResponse(status=204)
+        response["HX-Trigger"] = "skillZoneContainerReload"
+        return response
     return HttpResponse(
         "<script>$('.filterButton')[0].click();reloadMessage();</script>"
     )
@@ -2310,6 +2789,10 @@ def skill_zone_archive(request, sz_id):
         skill_zone.save()
     else:
         messages.error(request, _("Skill zone not found."))
+    if request.META.get("HTTP_HX_REQUEST") == "true":
+        response = HttpResponse(status=204)
+        response["HX-Trigger"] = "skillZoneContainerReload"
+        return response
     return redirect(skill_zone_view)
 
 
@@ -2472,10 +2955,15 @@ def skill_zone_cand_delete(request, sz_cand_id):
         messages.error(request, _("Skill zone not found."))
     except ProtectedError:
         messages.error(request, _("Related entries exists"))
+    if request.META.get("HTTP_HX_REQUEST") == "true":
+        response = HttpResponse(status=204)
+        response["HX-Trigger"] = "skillZoneContainerReload"
+        return response
     return redirect(skill_zone_view)
 
 
 @login_required
+@hx_request_required
 @manager_can_enter(perm="recruitment.view_skillzonecandidate")
 def skill_zone_cand_filter(request):
     """
@@ -2528,8 +3016,8 @@ def skill_zone_cand_archive(request, sz_cand_id):
             messages.success(request, _("Candidate unarchived successfully.."))
 
         skill_zone_cand.save()
-    except SkillZone.DoesNotExist:
-        messages.error(request, _("Candidate not found."))
+    except SkillZoneCandidate.DoesNotExist:
+        messages.error(request, _("No Candidate found matching the query."))
     return redirect(skill_zone_view)
 
 
@@ -2553,6 +3041,10 @@ def skill_zone_cand_delete(request, sz_cand_id):
         messages.error(request, _("Candidate not found."))
     except ProtectedError:
         messages.error(request, _("Related entries exists"))
+    if request.META.get("HTTP_HX_REQUEST") == "true":
+        response = HttpResponse(status=204)
+        response["HX-Trigger"] = "skillZoneContainerReload"
+        return response
     return redirect(skill_zone_view)
 
 
@@ -2606,13 +3098,18 @@ def update_candidate_rating(request, cand_id):
     Args:
         id : candidate rating instance id
     """
-    cand_id = cand_id
-    candidate = Candidate.objects.get(id=cand_id)
-    employee_id = request.user.employee_get
-    rating = request.POST.get("rating")
-    rate = CandidateRating.objects.get(candidate_id=candidate, employee_id=employee_id)
-    rate.rating = int(rating)
-    rate.save()
+    candidate = Candidate.find(cand_id)
+    if candidate:
+        employee_id = request.user.employee_get
+        rating = request.POST.get("rating")
+        rate = CandidateRating.objects.get(
+            candidate_id=candidate, employee_id=employee_id
+        )
+        rate.rating = int(rating)
+        rate.save()
+    else:
+        messages.error(request, _("No Candidate found matching the query"))
+
     return redirect(recruitment_pipeline)
 
 
@@ -2632,6 +3129,7 @@ def open_recruitments(request):
     return response
 
 
+@login_required
 @hx_request_required
 def recruitment_details(request, id):
     """
@@ -2646,16 +3144,23 @@ def recruitment_details(request, id):
 
 @login_required
 @manager_can_enter("recruitment.view_candidate")
-def get_mail_log(request):
+def get_mail_log(request, pk):
     """
     This method is used to track mails sent along with the status
     """
-    candidate_id = request.GET["candidate_id"]
-    candidate = Candidate.objects.get(id=candidate_id)
-    tracked_mails = EmailLog.objects.filter(to__icontains=candidate.email).order_by(
+
+    candidate_obj = Candidate.find(pk)
+    tracked_mails = EmailLog.objects.filter(to__icontains=candidate_obj.email).order_by(
         "-created_at"
     )
-    return render(request, "candidate/mail_log.html", {"tracked_mails": tracked_mails})
+    return render(
+        request,
+        "candidate/mail_log.html",
+        {
+            "candidate": candidate_obj,
+            "tracked_mails": tracked_mails,
+        },
+    )
 
 
 @login_required
@@ -2665,11 +3170,22 @@ def candidate_self_tracking(request):
     """
     This method is used to update the recruitment general setting
     """
-    settings = RecruitmentGeneralSetting.objects.first()
-    settings = settings if settings else RecruitmentGeneralSetting()
-    settings.candidate_self_tracking = "candidate_self_tracking" in request.GET.keys()
+    selected_company = request.session.get("selected_company")
+    company_id = (
+        None if not selected_company or selected_company == "all" else selected_company
+    )
+    settings, created = RecruitmentGeneralSetting.objects.get_or_create(
+        company_id_id=company_id
+    )
+    if request.GET.get("candidate_self_tracking") == "true":
+        settings.candidate_self_tracking = True
+        message = _("Application Tracking is enabled ")
+    else:
+        settings.candidate_self_tracking = False
+        message = _("Application Tracking is disabled ")
     settings.save()
-    return HttpResponse("success")
+    messages.success(request, message)
+    return HttpResponse("<script>$('#reloadMessagesButton').click()</script>")
 
 
 @login_required
@@ -2679,17 +3195,28 @@ def candidate_self_tracking_rating_option(request):
     """
     This method is used to enable/disable the selt tracking rating field
     """
-    settings = RecruitmentGeneralSetting.objects.first()
-    settings = settings if settings else RecruitmentGeneralSetting()
-    settings.show_overall_rating = "candidate_self_tracking" in request.GET.keys()
+    selected_company = request.session.get("selected_company")
+    company_id = (
+        None if not selected_company or selected_company == "all" else selected_company
+    )
+    settings, created = RecruitmentGeneralSetting.objects.get_or_create(
+        company_id_id=company_id
+    )
+    if request.GET.get("candidate_self_tracking") == "true":
+        settings.show_overall_rating = True
+        message = _("Rating visibility is enabled ")
+    else:
+        settings.show_overall_rating = False
+        message = _("Rating visibility is disabled ")
     settings.save()
-    return HttpResponse("success")
+    messages.success(request, message)
+    return HttpResponse("<script>$('#reloadMessagesButton').click()</script>")
 
 
 def candidate_login(request):
     if request.method == "POST":
-        email = request.POST["email"]
-        mobile = request.POST["phone"]
+        email = request.POST.get("email", "").strip()
+        mobile = request.POST.get("phone", "").strip()
 
         backend = CandidateAuthenticationBackend()
         candidate = backend.authenticate(request, username=email, password=mobile)
@@ -2727,7 +3254,7 @@ def candidate_self_status_tracking(request):
         candidate_id = request.session.get("candidate_id")
 
         if not candidate_id:
-            return redirect("candidate-login")
+            return redirect("candidate-login/")
 
         candidate = Candidate.objects.get(pk=candidate_id)
         interviews = candidate.candidate_interview.annotate(
@@ -2767,7 +3294,7 @@ def candidate_self_status_tracking_managers_view(request, cand_id):
             candidate_id = cand_id
 
         if not candidate_id:
-            return redirect("candidate-login")
+            return redirect("candidate-login/")
 
         candidate = Candidate.objects.get(pk=candidate_id)
         interviews = candidate.candidate_interview.annotate(
@@ -2817,17 +3344,26 @@ def self_tracking_feature(request):
 
 
 @login_required
+@hx_request_required
 @permission_required("recruitment.delete_rejectreason")
 def delete_reject_reason(request):
     """
     This method is used to delete the reject reasons
     """
-    ids = request.GET.getlist("ids")
-    reasons = RejectReason.objects.filter(id__in=ids)
-    for reason in reasons:
-        reasons.delete()
-        messages.success(request, f"{reason.title} is deleted.")
-    return SkylinxRedirect(request)
+    id = request.GET.get("id")
+    if not (reason := RejectReason.find(id)):
+        messages.error(request, _("No Reject Reason found matching the query."))
+        return HttpResponse("<script>$('.reload-record').click();</script>")
+
+    is_last = RejectReason.objects.count() == 1
+    reason.delete()
+    messages.success(request, _(f"{reason.title} is deleted."))
+    script = (
+        "$('.reload-record').click();"
+        if is_last
+        else "$('#reloadMessagesButton').click();"
+    )
+    return HttpResponse(f"<script>{script}</script>")
 
 
 def extract_text_with_font_info(pdf):
@@ -2915,17 +3451,6 @@ def extract_info(pdf):
     Args:
         pdf_file: pdf file
     """
-
-    text_info = extract_text_with_font_info(pdf)
-    ranked_text = rank_text(text_info)
-
-    phone_pattern = re.compile(r"\b\+?\d{1,2}\s?\d{9,10}\b")
-    dob_pattern = re.compile(
-        r"\b(?:\d{1,2}|\d{4})[-/.,]\d{1,2}[-/.,](?:\d{1,2}|\d{4})\b"
-    )
-    email_pattern = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
-    zip_code_pattern = re.compile(r"\b\d{5,6}(?:-\d{4})?\b")
-
     extracted_info = {
         "full_name": "",
         "address": "",
@@ -2936,6 +3461,18 @@ def extract_info(pdf):
         "email_id": "",
         "zip": "",
     }
+    if not pdf:
+        return extracted_info
+
+    text_info = extract_text_with_font_info(pdf)
+    ranked_text = rank_text(text_info)
+
+    phone_pattern = re.compile(r"\b\+?\d{1,2}\s?\d{9,10}\b")
+    dob_pattern = re.compile(
+        r"\b(?:\d{1,2}|\d{4})[-/.,]\d{1,2}[-/.,](?:\d{1,2}|\d{4})\b"
+    )
+    email_pattern = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
+    zip_code_pattern = re.compile(r"\b\d{5,6}(?:-\d{4})?\b")
 
     name_candidates = [
         item["text"]
@@ -2990,7 +3527,7 @@ def resume_completion(request):
     """
     This function is returns the data for completing the candidate creation form
     """
-    resume_file = request.FILES["resume"]
+    resume_file = request.FILES.get("resume")
     contact_info = extract_info(resume_file)
 
     return JsonResponse(contact_info)
@@ -3002,7 +3539,7 @@ def check_vaccancy(request):
     """
     stage_id = request.GET.get("stageId")
     stage = Stage.objects.get(id=stage_id)
-    message = "No message"
+    message = _("No message")
     if stage and stage.recruitment_id.is_vacancy_filled():
         message = _("Vaccancy is filled")
     return JsonResponse({"message": message})
@@ -3018,6 +3555,7 @@ def skills_view(request):
 
 
 @login_required
+@hx_request_required
 def create_skills(request):
     """
     This method is used to create the skills
@@ -3036,7 +3574,6 @@ def create_skills(request):
             messages.success(request, "Skill created successfully")
 
             if request.GET.get("dynamic") == "True":
-                from django.urls import reverse
 
                 url = reverse("recruitment-create")
                 instance = Skill.objects.all().last()
@@ -3054,7 +3591,7 @@ def create_skills(request):
                     pass
                 return redirect(f"{url}?{data}")
 
-            return SkylinxRedirect(request)
+            return HttpResponse("<script>window.location.reload()</script>")
 
     context = {
         "form": form,
@@ -3066,17 +3603,27 @@ def create_skills(request):
 
 
 @login_required
+@hx_request_required
 @permission_required("recruitment.delete_rejectreason")
-def delete_skills(request):
+def delete_skills(request, id=None):
     """
     This method is used to delete the skills
     """
     ids = request.GET.getlist("ids")
+
     skills = Skill.objects.filter(id__in=ids)
-    for skill in skills:
-        skill.delete()
-        messages.success(request, f"{skill.title} is deleted.")
-    return SkylinxRedirect(request)
+    titles = list(skills.values_list("title", flat=True))
+
+    count_before = skills.count()
+    deleted_count, d = skills.delete()
+
+    for title in titles:
+        messages.success(request, f"{title} is deleted.")
+
+    if count_before - deleted_count == 0:
+        return HttpResponse("<script>$('#reloadMessagesButton').click()</script>")
+
+    return HttpResponse("<script>$('.reload-record').click()</script>")
 
 
 @login_required
@@ -3275,6 +3822,7 @@ def hired_candidate_chart(request):
 
 
 @login_required
+@hx_request_required
 def candidate_document_request(request):
     """
     This function is used to create document requests of an employee in employee requests view.
@@ -3293,7 +3841,13 @@ def candidate_document_request(request):
         if form.is_valid():
             form.save()
             messages.success(request, _("Document request created successfully"))
-            return SkylinxRedirect(request)
+            return HttpResponse(
+                "<script>"
+                "$('.oh-modal--show').removeClass('oh-modal--show');"
+                "$('#applyFilter').click();"
+                "$('#reloadMessagesButton').click();"
+                "</script>"
+            )
 
     context = {
         "form": form,
@@ -3527,7 +4081,12 @@ def candidate_add_notes(request, cand_id):
     This method renders template component to add candidate remark
     """
 
-    candidate = Candidate.objects.get(id=cand_id)
+    candidate = Candidate.find(cand_id)
+    if not candidate:
+        return SkylinxRedirect(
+            request, message=_("No Candidate found matching the query.")
+        )
+
     updated_by = request.user.employee_get if request.user.is_authenticated else None
     label = (
         request.user.employee_get.get_full_name()
@@ -3598,3 +4157,22 @@ def employee_profile_interview_tab(request):
     ).order_by("is_today", "-interview_date", "interview_time")
 
     return render(request, "tabs/scheduled_interview.html", {"interviews": interviews})
+
+
+@login_required
+@hx_request_required
+@permission_required("recruitment.delete_rejectedcandidate")
+def delete_candidate_rejection(request, rej_id):
+    """
+    This method is used to delete candidate rejection
+    """
+    try:
+        instance = RejectedCandidate.objects.filter(id=rej_id).first()
+        if instance:
+            instance.delete()
+            messages.success(request, "Candidate rejection deleted successfully")
+        else:
+            messages.error(request, "Candidate rejection not found")
+    except Exception as e:
+        messages.error(request, "Error occurred while deleting candidate rejection")
+    return SkylinxRedirect(request)

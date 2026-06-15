@@ -14,6 +14,7 @@ from urllib.parse import parse_qs
 
 import pandas as pd
 from django.apps import apps
+from django.conf import settings
 from django.contrib import messages
 from django.db.models import Sum
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, QueryDict
@@ -26,6 +27,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, Side
 from openpyxl.utils import get_column_letter
 
+import payroll.models.models
 from base.backends import ConfiguredEmailBackend
 from base.methods import (
     closest_numbers,
@@ -45,7 +47,6 @@ from skylinx.decorators import (
     permission_required,
 )
 from skylinx.group_by import group_by_queryset
-from skylinx.skylinx_settings import SKYLINX_DATE_FORMATS
 from skylinx.http.response import SkylinxRedirect
 from skylinx.methods import dynamic_attr, get_skylinx_model_class, get_urlencode
 
@@ -89,6 +90,8 @@ from payroll.models.models import (
 )
 from payroll.threadings.mail import MailSendThread
 
+# from asset.models import Asset
+
 
 def return_none(a, b):
     return None
@@ -122,10 +125,13 @@ def payroll_calculation(employee, start_date, end_date):
     """
 
     basic_pay_details = compute_salary_on_period(employee, start_date, end_date)
+    if not basic_pay_details:
+        return None
     contract = basic_pay_details["contract"]
     contract_wage = basic_pay_details["contract_wage"]
     basic_pay = basic_pay_details["basic_pay"]
     loss_of_pay = basic_pay_details["loss_of_pay"]
+    custom_leave_deduction = basic_pay_details.get("custom_leave_deduction", 0.0)
     paid_days = basic_pay_details["paid_days"]
     unpaid_days = basic_pay_details["unpaid_days"]
 
@@ -240,6 +246,7 @@ def payroll_calculation(employee, start_date, end_date):
         "net_deductions": net_pay_deduction_list,
         "total_deductions": total_deductions,
         "loss_of_pay": loss_of_pay,
+        "custom_leave_deduction": custom_leave_deduction,
         "federal_tax": federal_tax,
         "start_date": start_date,
         "end_date": end_date,
@@ -391,14 +398,32 @@ def create_allowance(request):
     This method is used to create allowance condition template
     """
     form = forms.AllowanceForm()
+    is_htmx = request.headers.get("HX-Request") is not None
     if request.method == "POST":
         form = forms.AllowanceForm(request.POST)
         if form.is_valid():
             form.save()
             form = forms.AllowanceForm()
             messages.success(request, _("Allowance created."))
-            return redirect(view_allowance)
-    return render(request, "payroll/common/form.html", {"form": form})
+            if is_htmx:
+                response = HttpResponse("", status=200)
+                response["HX-Trigger"] = json.dumps(
+                    {"reloadPayrollAllowances": {"target": "body"}}
+                )
+                return response
+            return redirect(reverse("view-allowance"))
+    template_name = (
+        "payroll/common/form_fragment.html" if is_htmx else "payroll/common/form.html"
+    )
+    return render(
+        request,
+        template_name,
+        {
+            "form": form,
+            "post_url": request.get_full_path(),
+            "back_url": reverse("allowances-list-view"),
+        },
+    )
 
 
 @login_required
@@ -407,7 +432,10 @@ def view_allowance(request):
     """
     This method is used render template to view all the allowance instances
     """
-    allowances = Allowance.objects.exclude(only_show_under_employee=True)
+
+    allowances = payroll.models.models.Allowance.objects.exclude(
+        only_show_under_employee=True
+    )
     allowance_filter = AllowanceFilter(request.GET)
     allowances = paginator_qry(allowances, request.GET.get("page"))
     allowance_ids = json.dumps([instance.id for instance in allowances.object_list])
@@ -487,53 +515,121 @@ def update_allowance(request, allowance_id, **kwargs):
     Args:
         id : allowance instance id
     """
-    instance = Allowance.objects.get(id=allowance_id)
+    instance = Allowance.find(allowance_id)
+    is_htmx = request.headers.get("HX-Request") is not None
+    if not instance:
+        return SkylinxRedirect(request, message=_("Allowance not found."))
     form = forms.AllowanceForm(instance=instance)
     if request.method == "POST":
         form = forms.AllowanceForm(request.POST, instance=instance)
         if form.is_valid():
             form.save()
             messages.success(request, _("Allowance updated."))
-            return redirect(view_allowance)
-    return render(request, "payroll/common/form.html", {"form": form})
+            if is_htmx:
+                response = HttpResponse("", status=200)
+                response["HX-Trigger"] = json.dumps(
+                    {"reloadPayrollAllowances": {"target": "body"}}
+                )
+                return response
+            return redirect(reverse("view-allowance"))
+    template_name = (
+        "payroll/common/form_fragment.html" if is_htmx else "payroll/common/form.html"
+    )
+    return render(
+        request,
+        template_name,
+        {
+            "form": form,
+            "post_url": request.get_full_path(),
+            "back_url": reverse("allowances-list-view"),
+        },
+    )
+
+
+# @login_required
+# @hx_request_required
+# @permission_required("payroll.delete_allowance")
+# def delete_allowance(request, allowance_id):
+#     """
+#     This method is used to delete the allowance instance
+#     """
+#     target = request.META.get("HTTP_HX_TARGET")
+
+
+#     try:
+#         allowance = payroll.models.models.Allowance.objects.filter(
+#             id=allowance_id
+#         ).first()
+#         if allowance:
+#             # allowance.delete()
+#             messages.success(request, _("Allowance deleted successfully"))
+#         else:
+#             messages.error(request, _("Allowance not found"))
+
+#     except ValidationError as validation_error:
+#         messages.error(
+#             request, _("Validation error occurred while deleting the allowance")
+#         )
+#         messages.error(request, str(validation_error))
+#     except Exception as exception:
+#         messages.error(request, _("An error occurred while deleting the allowance"))
+#         messages.error(request, str(exception))
+#     if target and target == "allowance_id":
+#         return redirect(reverse("allowances-list-view"))
+#         # return HttpResponse("<script>location.reload();</script>")
+#     if target and target == "allowance_tab_id":
+#         # return redirect(reverse("allowance-tab-list"))
+#         return HttpResponse("<script>location.reload();</script>")
+
+#     if (
+#         request.path.split("/")[2] == "delete-employee-allowance"
+#         or not payroll.models.models.Allowance.objects.filter()
+#     ):
+#         return return SkylinxRedirect(request)
+#     return redirect(filter_allowance)
 
 
 @login_required
 @hx_request_required
 @permission_required("payroll.delete_allowance")
-def delete_allowance(request, allowance_id):
-    """
-    This method is used to delete the allowance instance
-    """
-    previous_data = get_urlencode(request)
-    try:
-        allowance = Allowance.objects.filter(id=allowance_id).first()
-        if allowance:
-            allowance.delete()
-            messages.success(request, _("Allowance deleted successfully"))
-        else:
-            messages.error(request, _("Allowance not found"))
-    except Exception as e:
-        messages.error(request, _("An error occurred while deleting the allowance"))
-        messages.error(request, str(e))
-
-    if (
-        request.path.split("/")[2] == "delete-employee-allowance"
-        or not Allowance.objects.exists()
-    ):
-        return SkylinxRedirect(request)
-
+def delete_allowance(request, allowance_id, emp_id=None):
+    target = request.META.get("HTTP_HX_TARGET")
     instances_ids = request.GET.get("instances_ids")
+    next_instance = None
+    instances_list = None
     if instances_ids:
         instances_list = json.loads(instances_ids)
         previous_instance, next_instance = closest_numbers(instances_list, allowance_id)
-        if allowance_id in instances_list:
-            instances_list.remove(allowance_id)
-            url = f"/payroll/single-allowance-view/{next_instance}"
-            params = f"?{previous_data}&instances_ids={instances_list}"
-            return redirect(url + params)
+        instances_list.remove(allowance_id)
+    allowance = payroll.models.models.Allowance.objects.filter(id=allowance_id).first()
+    if allowance:
+        allowance.delete()
+        messages.success(request, _("Allowance deleted successfully"))
+    else:
+        messages.error(request, _("Allowance not found"))
 
-    return redirect(f"/payroll/filter-allowance?{previous_data}")
+    paths = {
+        "payroll-deduction-container": f"/payroll/filter_allowance?{request.GET.urlencode()}",
+        "allowance_tab_id": f"/payroll/allowance-tab-list/{emp_id}?deleted=true",
+        "allowance_id": "/payroll/allowances-list-view/",
+        "allowance_card": "/payroll/allowances-card-view/",
+        "genericModalBody": f"/payroll/allowance-detail-view/{next_instance}?instance_ids={instances_list}&deleted=true",
+    }
+    http_hx_target = request.META.get("HTTP_HX_TARGET")
+    redirected_path = paths.get(http_hx_target)
+    if http_hx_target:
+        if (
+            http_hx_target == "payroll-deduction-container"
+            and not Deduction.objects.filter()
+        ):
+            return SkylinxRedirect(request)
+        if redirected_path:
+            return redirect(redirected_path)
+
+    default_redirect = (
+        request.path if http_hx_target else request.META.get("HTTP_REFERER", "/")
+    )
+    return HttpResponseRedirect(default_redirect)
 
 
 @login_required
@@ -543,13 +639,31 @@ def create_deduction(request):
     This method is used to create deduction
     """
     form = forms.DeductionForm()
+    is_htmx = request.headers.get("HX-Request") is not None
     if request.method == "POST":
         form = forms.DeductionForm(request.POST)
         if form.is_valid():
             form.save()
             messages.success(request, _("Deduction created."))
-            return redirect(view_deduction)
-    return render(request, "payroll/common/form.html", {"form": form})
+            if is_htmx:
+                response = HttpResponse("", status=200)
+                response["HX-Trigger"] = json.dumps(
+                    {"reloadPayrollDeductions": {"target": "body"}}
+                )
+                return response
+            return redirect(reverse("view-deduction"))
+    template_name = (
+        "payroll/common/form_fragment.html" if is_htmx else "payroll/common/form.html"
+    )
+    return render(
+        request,
+        template_name,
+        {
+            "form": form,
+            "post_url": request.get_full_path(),
+            "back_url": reverse("deduction-view-list"),
+        },
+    )
 
 
 @login_required
@@ -664,15 +778,35 @@ def update_deduction(request, deduction_id, **kwargs):
     """
     This method is used to update the deduction instance
     """
-    instance = Deduction.objects.get(id=deduction_id)
+    instance = Deduction.find(deduction_id)
+    is_htmx = request.headers.get("HX-Request") is not None
+    if not instance:
+        return SkylinxRedirect(request, message=_("Deduction not found."))
     form = forms.DeductionForm(instance=instance)
     if request.method == "POST":
         form = forms.DeductionForm(request.POST, instance=instance)
         if form.is_valid():
             form.save()
             messages.success(request, _("Deduction updated."))
-            return redirect(view_deduction)
-    return render(request, "payroll/common/form.html", {"form": form})
+            if is_htmx:
+                response = HttpResponse("", status=200)
+                response["HX-Trigger"] = json.dumps(
+                    {"reloadPayrollDeductions": {"target": "body"}}
+                )
+                return response
+            return redirect(reverse("view-deduction"))
+    template_name = (
+        "payroll/common/form_fragment.html" if is_htmx else "payroll/common/form.html"
+    )
+    return render(
+        request,
+        template_name,
+        {
+            "form": form,
+            "post_url": request.get_full_path(),
+            "back_url": reverse("deduction-view-list"),
+        },
+    )
 
 
 @login_required
@@ -696,9 +830,12 @@ def delete_deduction(request, deduction_id, emp_id=None):
         messages.error(request, _("Deduction not found"))
 
     paths = {
+        "deduct-container": f"/payroll/deduction-view-list?{request.GET.urlencode()}",
         "payroll-deduction-container": f"/payroll/filter-deduction?{request.GET.urlencode()}",
-        "allowance_deduction": f"/payroll/allowances-deductions-tab/{emp_id}",
-        "objectDetailsModalTarget": f"/payroll/single-deduction-view/{next_instance}?{previous_data}&instances_ids={instances_list}",
+        "allowance_deduction": f"/employee/allowances-deductions-tab/{emp_id}",
+        "deduct-div": f"/payroll/deduction-tab-list/{emp_id}?deleted=true",
+        "objectDetailsModalTarget": f"/payroll/single-deduction-view/{next_instance}?instances_ids={instances_list}",
+        "genericModalBody": f"/payroll/deduction-detail-view/{next_instance}?instance_ids={instances_list}&deleted=true",
     }
     http_hx_target = request.META.get("HTTP_HX_TARGET")
     redirected_path = paths.get(http_hx_target)
@@ -710,10 +847,11 @@ def delete_deduction(request, deduction_id, emp_id=None):
             return SkylinxRedirect(request)
         if redirected_path:
             return redirect(redirected_path)
+
     default_redirect = (
         request.path if http_hx_target else request.META.get("HTTP_REFERER", "/")
     )
-    return SkylinxRedirect(request)
+    return HttpResponseRedirect(default_redirect)
 
 
 def get_month_start_end(year):
@@ -764,12 +902,21 @@ def generate_payslip(request):
             end_date = form.cleaned_data["end_date"]
 
             group_name = form.cleaned_data["group_name"]
+            emp_count = employees.count()
             for employee in employees:
                 contract = Contract.objects.filter(
                     employee_id=employee, contract_status="active"
                 ).first()
                 if start_date < contract.contract_start_date:
                     start_date = contract.contract_start_date
+
+                if end_date < start_date:
+                    messages.error(
+                        request, _(f"{employee}'s contract has not started yet.")
+                    )
+                    emp_count -= 1
+                    continue
+
                 payslip = payroll_calculation(employee, start_date, end_date)
                 payslips.append(payslip)
                 json_data.append(payslip["json_data"])
@@ -804,9 +951,9 @@ def generate_payslip(request):
                     ),
                     icon="close",
                 )
-            messages.success(request, f"{employees.count()} payslip saved as draft")
+            messages.success(request, f"{emp_count} payslip saved as draft")
             return redirect(
-                f"/payroll/view-payslip?group_by=group_name&active_group={group_name}"
+                f"/payroll/view-payslip/?group_by=group_name&active_group={group_name}"
             )
 
     return render(request, "payroll/common/form.html", {"form": form})
@@ -818,6 +965,7 @@ def check_contract_start_date(request):
     """
     Check if the employee's contract start date is after the provided payslip start date.
     """
+
     employee_id = request.GET.get("employee_id")
     start_date = request.GET.get("start_date")
 
@@ -852,6 +1000,7 @@ def check_contract_start_date(request):
 
 
 @login_required
+@hx_request_required
 @permission_required("payroll.add_payslip")
 def create_payslip(request, new_post_data=None):
     """
@@ -942,7 +1091,6 @@ def create_payslip(request, new_post_data=None):
                         "view-payslip", kwargs={"payslip_id": payslip.pk}
                     ),
                 )
-
     return render(
         request,
         "payroll/payslip/create_payslip.html",
@@ -951,6 +1099,7 @@ def create_payslip(request, new_post_data=None):
 
 
 @login_required
+@hx_request_required
 @permission_required("payroll.add_payslip")
 def validate_start_date(request):
     """
@@ -958,8 +1107,8 @@ def validate_start_date(request):
     """
     end_datetime = None
     start_datetime = None
-    errors = []
     valid = True
+    errors = []
     start_date = request.GET.get("start_date")
     end_date = request.GET.get("end_date")
     try:
@@ -1021,6 +1170,13 @@ def view_individual_payslip(request, employee_id, start_date, end_date):
     """
 
     payslip_data = payroll_calculation(employee_id, start_date, end_date)
+    if not payslip_data:
+        return SkylinxRedirect(
+            request,
+            message=_(
+                "Payslip data not found for the specified employee and date range."
+            ),
+        )
     return render(
         request,
         "payroll/payslip/individual_payslip.html",
@@ -1143,7 +1299,7 @@ def payslip_export(request):
 
     if not selected_fields:
         selected_fields = form.fields["selected_fields"].initial
-        ids = request.GET.get("ids")
+        ids = request.GET.get("ids", "[]")
         id_list = json.loads(ids)
         payslips = Payslip.objects.filter(id__in=id_list)
 
@@ -1170,7 +1326,7 @@ def payslip_export(request):
                 date_format = request.user.employee_get.get_date_format()
                 start_date = datetime.strptime(str(value), "%Y-%m-%d").date()
 
-                for format_name, format_string in SKYLINX_DATE_FORMATS.items():
+                for format_name, format_string in settings.SKYLINX_DATE_FORMATS.items():
                     if format_name == date_format:
                         data = start_date.strftime(format_string)
             else:
@@ -1194,6 +1350,7 @@ def payslip_export(request):
 
 
 @login_required
+@hx_request_required
 @permission_required("payroll.add_allowance")
 def hx_create_allowance(request):
     """
@@ -1204,14 +1361,18 @@ def hx_create_allowance(request):
 
 
 @login_required
+# @hx_request_required
 @permission_required("payroll.add_payslip")
 def send_slip(request):
     """
     Send payslip method
     """
+
     email_backend = ConfiguredEmailBackend()
     view = request.GET.get("view")
     payslip_ids = request.GET.getlist("id")
+
+    # payslip_ids = request.GET.get("id")
     payslips = Payslip.objects.filter(id__in=payslip_ids)
     if not getattr(
         email_backend, "dynamic_from_email_with_display_name", None
@@ -1220,7 +1381,7 @@ def send_slip(request):
         if view:
             return SkylinxRedirect(request)
         else:
-            return redirect(filter_payslip)
+            return redirect(reverse("payslip-list"))
 
     result_dict = defaultdict(
         lambda: {"employee_id": None, "instances": [], "count": 0}
@@ -1230,27 +1391,33 @@ def send_slip(request):
         result_dict[employee_id]["employee_id"] = employee_id
         result_dict[employee_id]["instances"].append(payslip)
         result_dict[employee_id]["count"] += 1
+
     mail_thread = MailSendThread(request, result_dict=result_dict, ids=payslip_ids)
     mail_thread.start()
     messages.info(request, "Mail processing")
     if view:
         return SkylinxRedirect(request)
     else:
-        return redirect(filter_payslip)
+        return redirect(reverse("payslip-list"))
 
 
 @login_required
 @permission_required("payroll.add_allowance")
 def add_bonus(request):
-    employee_id = request.GET["employee_id"]
+    employee_id = request.GET.get("employee_id")
     payslip_id = request.GET.get("payslip_id")
+    if not employee_id or not payslip_id:
+        return SkylinxRedirect(request, message=_("Missing required parameters."))
     if payslip_id != "None" and payslip_id:
-        instance = Payslip.objects.get(id=payslip_id)
+        instance = Payslip.find(payslip_id)
+        if not instance:
+            return SkylinxRedirect(request, _("Payslip not found"))
         form = forms.PayslipAllowanceForm(
             initial={"employee_id": employee_id, "date": instance.start_date}
         )
     else:
         form = forms.BonusForm(initial={"employee_id": employee_id})
+
     if request.method == "POST":
         form = forms.BonusForm(request.POST, initial={"employee_id": employee_id})
         contract = Contract.objects.filter(
@@ -1278,8 +1445,11 @@ def add_bonus(request):
                         start_date=instance.start_date,
                         end_date=instance.end_date,
                     ).first()
-                    return HttpResponse(
-                        f"<script>window.location.href='/payroll/view-payslip/{payslip.id}'</script>"
+                    return SkylinxRedirect(
+                        request,
+                        redirect_to=reverse(
+                            "view-payslip", kwargs={"payslip_id": payslip.id}
+                        ),
                     )
                 else:
                     messages.warning(
@@ -1289,6 +1459,7 @@ def add_bonus(request):
                         ).format(employee),
                     )
             return SkylinxRedirect(request)
+
     return render(
         request,
         "payroll/bonus/form.html",
@@ -1299,8 +1470,10 @@ def add_bonus(request):
 @login_required
 @permission_required("payroll.add_deduction")
 def add_deduction(request):
-    employee_id = request.GET["employee_id"]
+    employee_id = request.GET.get("employee_id")
     payslip_id = request.GET.get("payslip_id")
+    if not employee_id or not payslip_id:
+        return SkylinxRedirect(request, message=_("Missing required parameters."))
     instance = Payslip.objects.get(id=payslip_id)
 
     if request.method == "POST":
@@ -1335,8 +1508,10 @@ def add_deduction(request):
                 start_date=instance.start_date,
                 end_date=instance.end_date,
             ).first()
-            return HttpResponse(
-                f"<script>window.location.href='/payroll/view-payslip/{payslip.id}'</script>"
+
+            return SkylinxRedirect(
+                request,
+                redirect_to=reverse("view-payslip", kwargs={"payslip_id": payslip.id}),
             )
 
     else:
@@ -1411,11 +1586,16 @@ def view_installments(request):
     """
     View install ments
     """
-    loan_id = request.GET["loan_id"]
-    loan = LoanAccount.objects.get(id=loan_id)
+    loan_id = request.GET.get("loan_id")
+    if not loan_id:
+        return SkylinxRedirect(request, message=_("Missing required parameters."))
+    loan = LoanAccount.find(loan_id)
+    if not loan:
+        return SkylinxRedirect(request, message=_("Loan not found."))
     installments = loan.deduction_ids.all()
 
     requests_ids_json = request.GET.get("instances_ids")
+    previous_id, next_id = None, None
     if requests_ids_json:
         requests_ids = json.loads(requests_ids_json)
         previous_id, next_id = closest_numbers(requests_ids, int(loan_id))
@@ -1455,7 +1635,13 @@ def delete_loan(request):
             messages.success(request, "Loan account deleted")
         else:
             messages.error(request, "Loan account cannot be deleted")
-    return redirect(view_loans)
+    if request.headers.get("HX-Request"):
+        response = HttpResponse("", status=200)
+        response["HX-Trigger"] = json.dumps(
+            {"reloadPayrollLoanTabs": {"target": "body"}}
+        )
+        return response
+    return redirect(reverse("view-loan"))
 
 
 @login_required
@@ -1464,6 +1650,8 @@ def edit_installment_amount(request):
     loan_id = request.GET.get("loan_id")
     ded_id = request.GET.get("ded_id")
     amount_raw = request.POST.get("amount")
+    if not loan_id or not ded_id or not amount_raw:
+        return SkylinxRedirect(request, message=_("Missing required parameters."))
     try:
         value = float(amount_raw) if amount_raw else 0.0
         if not math.isfinite(value):
@@ -1471,7 +1659,10 @@ def edit_installment_amount(request):
     except (TypeError, ValueError):
         value = 0.0
 
-    loan = LoanAccount.objects.filter(id=loan_id).first()
+    loans = LoanAccount.objects.filter(id=loan_id)
+    loan = loans.first()
+    if not loan:
+        return SkylinxRedirect(request, message=_("Loan not found."))
     deductions = loan.deduction_ids.all().order_by("one_time_date")
     deduction = deductions.filter(id=ded_id).first()
     deductions_before = deductions.filter(one_time_date__lt=deduction.one_time_date)
@@ -1491,20 +1682,27 @@ def edit_installment_amount(request):
         deduction.save()
 
         for item in deductions.filter(one_time_date__gt=deduction.one_time_date):
-            item.amount = new_installment
-            item.save()
+            if new_installment > 0:
+                item.amount = new_installment
+                item.save()
+            else:
+                item.delete()
+                loan.deduction_ids.remove(item)
 
+        # If there are no deductions after the current one and a new installment amount is calculated,
         if len(deductions_after) == 0 and new_installment != 0:
             date = get_next_month_same_date(deduction.one_time_date)
             installment = create_deductions(loan, new_installment, date)
             loan.deduction_ids.add(installment)
 
+        loans.update(installments=len(loan.deduction_ids.all()))
         messages.success(request, "Installment amount updated successfully")
     else:
         messages.error(request, "Cannot change paid installments ")
 
     return render(
         request,
+        # "cbv/loan/loan_detail_view.html",
         "payroll/loan/installments.html",
         {
             "installments": loan.deduction_ids.all(),
@@ -1710,6 +1908,12 @@ def get_assigned_leaves(request):
     This method is used to return assigned leaves of the employee
     in Json
     """
+    emp_id = request.GET.get("employeeId")
+    if not emp_id:
+        messages.error(request, "Missing required parameters.")
+        return JsonResponse(
+            {"error": "Missing required parameters: employeeId"}, status=400
+        )
     if apps.is_installed("leave"):
         AvailableLeave = get_skylinx_model_class(
             app_label="leave", model="availableleave"
@@ -1739,7 +1943,9 @@ def approve_reimbursements(request):
     This method is used to approve or reject the reimbursement request
     """
     ids = request.GET.getlist("ids")
-    status = request.GET["status"]
+    status = request.GET.get("status")
+    if not status:
+        return SkylinxRedirect(request, message=_("Missing required parameters."))
     if status == "canceled":
         status = "rejected"
     amount = (
@@ -1789,7 +1995,13 @@ def approve_reimbursements(request):
                 redirect=reverse("view-reimbursement") + f"?id={reimbursement.id}",
                 icon="checkmark",
             )
-    return redirect(view_reimbursement)
+    if request.headers.get("HX-Request"):
+        response = HttpResponse("", status=200)
+        response["HX-Trigger"] = json.dumps(
+            {"reloadPayrollReimbursements": {"target": "body"}}
+        )
+        return response
+    return redirect(reverse("view-reimbursement"))
 
 
 @login_required
@@ -1799,24 +2011,38 @@ def delete_reimbursements(request):
     This method is used to delete the reimbursements
     """
     ids = request.GET.getlist("ids")
-    reimbursements = Reimbursement.objects.filter(id__in=ids)
+    reimbursements = Reimbursement.objects.filter(id__in=ids).select_related(
+        "employee_id__employee_user_id"
+    )
+    recipients = []
+    seen_user_ids = set()
     for reimbursement in reimbursements:
-        user = reimbursement.employee_id.employee_user_id
+        recipient = getattr(reimbursement.employee_id, "employee_user_id", None)
+        if recipient and recipient.id not in seen_user_ids:
+            recipients.append(recipient)
+            seen_user_ids.add(recipient.id)
     reimbursements.delete()
     messages.success(request, "Reimbursements deleted")
-    notify.send(
-        request.user.employee_get,
-        recipient=user,
-        verb="Your reimbursement request has been deleted.",
-        verb_ar="تم حذف طلب استرداد نفقاتك.",
-        verb_de="Ihr Rückerstattungsantrag wurde gelöscht.",
-        verb_es="Tu solicitud de reembolso ha sido eliminada.",
-        verb_fr="Votre demande de remboursement a été supprimée.",
-        redirect="/",
-        icon="trash",
-    )
+    if recipients:
+        notify.send(
+            request.user.employee_get,
+            recipient=recipients,
+            verb="Your reimbursement request has been deleted.",
+            verb_ar="تم حذف طلب استرداد نفقاتك.",
+            verb_de="Ihr Rückerstattungsantrag wurde gelöscht.",
+            verb_es="Tu solicitud de reembolso ha sido eliminada.",
+            verb_fr="Votre demande de remboursement a été supprimée.",
+            redirect="/",
+            icon="trash",
+        )
 
-    return redirect(view_reimbursement)
+    if request.headers.get("HX-Request"):
+        response = HttpResponse("", status=200)
+        response["HX-Trigger"] = json.dumps(
+            {"reloadPayrollReimbursements": {"target": "body"}}
+        )
+        return response
+    return redirect("view-reimbursement")
 
 
 @login_required
@@ -1825,7 +2051,9 @@ def reimbursement_individual_view(request, instance_id):
     """
     This method is used to render the individual view of reimbursement object
     """
-    reimbursement = Reimbursement.objects.get(id=instance_id)
+    reimbursement = Reimbursement.find(instance_id)
+    if not reimbursement:
+        return SkylinxRedirect(request, message=_("Reimbursement request not found."))
     requests_ids_json = request.GET.get("instances_ids")
     if requests_ids_json:
         requests_ids = json.loads(requests_ids_json)
@@ -1849,7 +2077,9 @@ def reimbursement_attachments(request, instance_id):
     """
     This method is used to render all the attachements under the reimbursement object
     """
-    reimbursement = Reimbursement.objects.get(id=instance_id)
+    reimbursement = Reimbursement.find(instance_id)
+    if not reimbursement:
+        return SkylinxRedirect(request, message=_("Reimbursement request not found."))
     return render(
         request,
         "payroll/reimbursement/attachments.html",
@@ -1866,10 +2096,11 @@ def delete_attachments(request, _reimbursement_id):
     ids = request.GET.getlist("ids")
     ReimbursementMultipleAttachment.objects.filter(id__in=ids).delete()
     messages.success(request, "Attachment deleted")
-    return redirect(view_reimbursement)
+    return redirect("view-reimbursement")
 
 
 @login_required
+@hx_request_required
 @permission_required("payroll.view_payslip")
 def get_contribution_report(request):
     """
@@ -2089,7 +2320,7 @@ def payslip_detailed_export_data(request):
                 date_format = request.user.employee_get.get_date_format()
                 start_date = datetime.strptime(str(value), "%Y-%m-%d").date()
 
-                for format_name, format_string in SKYLINX_DATE_FORMATS.items():
+                for format_name, format_string in settings.SKYLINX_DATE_FORMATS.items():
                     if format_name == date_format:
                         data = start_date.strftime(format_string)
             else:

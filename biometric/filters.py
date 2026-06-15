@@ -10,9 +10,10 @@ import django_filters
 
 from base.filters import FilterSet
 from biometric.models import BiometricDevices
+from skylinx.filters import SkylinxFilterSet
 
 
-class BiometricDeviceFilter(FilterSet):
+class BiometricDeviceFilter(SkylinxFilterSet):
     """
     Filter class for querying biometric devices.
 
