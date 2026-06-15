@@ -2206,11 +2206,11 @@ def form_send_mail(request, cand_id=None):
                 "Hi {{instance.get_full_name}},</p>"
                 '<p style="font-size: 14px; color: #374151; line-height: 1.7; margin: 0 0 16px 0;">'
                 "You can track your application status from the candidate portal using the credentials below.</p>"
-                '<div style="margin: 18px 0; padding: 16px; background: #f9fafb; border-left: 4px solid hsl(8, 77%, 56%); border-radius: 8px;">'
+                '<div style="margin: 18px 0; padding: 16px; background: #f9fafb; border-left: 4px solid hsl(258, 84%, 58%); border-radius: 8px;">'
                 '<p style="margin: 0 0 8px 0; font-size: 14px; color: #111827;">'
                 "<strong>Portal Link:</strong> "
                 '<a href="{{ request.scheme }}://{{ request.get_host }}/recruitment/candidate-login/" target="_blank" '
-                'style="color: hsl(8, 77%, 56%); text-decoration: none;">'
+                'style="color: hsl(258, 84%, 58%); text-decoration: none;">'
                 "{{ request.scheme }}://{{ request.get_host }}/recruitment/candidate-login/"
                 "</a></p>"
                 '<p style="margin: 0 0 8px 0; font-size: 14px; color: #111827;"><strong>Username (Email):</strong> {{instance.email}}</p>'

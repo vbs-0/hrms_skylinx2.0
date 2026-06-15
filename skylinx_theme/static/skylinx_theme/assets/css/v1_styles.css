@@ -1154,7 +1154,7 @@ input[type="file"] {
 .oh-btn--secondary:hover,
 .oh-btn--secondary:focus,
 .oh-btn--secondary:focus-visible {
-  background-color: hsl(8, 77%, 48%);
+  background-color: hsl(258, 84%, 50%);
   color: white;
 }
 
@@ -1169,7 +1169,7 @@ input[type="file"] {
 .oh-btn--secondary-outline:hover,
 .oh-btn--secondary-outline:focus,
 .oh-btn--secondary-outline:focus-visible {
-  color: hsl(8, 77%, 48%);
+  color: hsl(258, 84%, 50%);
 }
 
 .oh-btn--success {
@@ -1335,7 +1335,7 @@ input[type="file"] {
 .oh-btn--secondary-link:hover,
 .oh-btn--secondary-link:focus,
 .oh-btn--secondary-link:focus-visible {
-  color: hsl(8, 77%, 48%);
+  color: hsl(258, 84%, 50%);
   background-color: transparent;
 }
 
@@ -1359,7 +1359,7 @@ input[type="file"] {
 .oh-btn--light:hover,
 .oh-btn--light:focus,
 .oh-btn--light:focus-visible {
-  color: hsl(8, 77%, 48%);
+  color: hsl(258, 84%, 50%);
   background-color: hsl(213, 22%, 93%);
 }
 
