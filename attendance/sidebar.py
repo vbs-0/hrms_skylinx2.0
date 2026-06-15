@@ -12,7 +12,7 @@ from base.context_processors import enable_late_come_early_out_tracking
 from base.templatetags.basefilters import is_reportingmanager
 from skylinx.menu import settings_menu
 
-MENU = _("Attendance")
+MENU = _("Time & Attendance")
 IMG_SRC = "images/ui/attendances.svg"
 
 

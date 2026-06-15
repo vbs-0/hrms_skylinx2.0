@@ -8,7 +8,7 @@ from django.utils.translation import gettext_lazy as _
 
 from skylinx.menu import settings_menu
 
-MENU = _("Help Desk")
+MENU = _("Support")
 IMG_SRC = "images/ui/headset-solid.svg"
 
 SUBMENUS = [

@@ -80,6 +80,16 @@ def sidebar(request):
                                 PermWrapper(request.user),
                             ):
                                 MENU["submenu"].append(submenu)
+
+        # Skylinx: explicit module ordering for the main navigation
+        SIDEBAR_ORDER = [
+            "employee", "recruitment", "onboarding", "attendance", "leave",
+            "payroll", "pms", "project", "asset", "helpdesk", "offboarding",
+            "report",
+        ]
+        order_index = {app: i for i, app in enumerate(SIDEBAR_ORDER)}
+        MENUS.sort(key=lambda m: order_index.get(m.get("app"), len(SIDEBAR_ORDER)))
+
         ALL_MENUS[request.session.session_key] = MENUS
 
 

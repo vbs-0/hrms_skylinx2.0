@@ -16,7 +16,7 @@ from project.methods import (
     has_subordinates,
 )
 
-MENU = _("Project")
+MENU = _("Projects")
 IMG_SRC = "images/ui/project.png"
 ACCESSIBILITY = "project.sidebar.menu_accessibilty"
 

@@ -9,7 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from base.templatetags.basefilters import is_reportingmanager
 from skylinx.menu import settings_menu
 
-MENU = _("Performance")
+MENU = _("Growth & OKRs")
 IMG_SRC = "images/ui/pms.svg"
 
 

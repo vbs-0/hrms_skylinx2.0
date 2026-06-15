@@ -1,0 +1,213 @@
+/* =====================================================================
+   SKYLINX HRMS — Redesign theme (loaded last; overrides legacy oh- styles)
+   Violet / Indigo · modern · rounded · light + dark
+   ===================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+  /* Brand */
+  --sx-primary: #6d28d9;
+  --sx-primary-600: #7c3aed;
+  --sx-primary-500: #8b5cf6;
+  --sx-primary-300: #c4b5fd;
+  --sx-primary-100: #ede9fe;
+  --sx-primary-grad: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+
+  /* Neutrals (light) */
+  --sx-bg: #f6f6fb;
+  --sx-surface: #ffffff;
+  --sx-surface-2: #f3f1fb;
+  --sx-text: #1e1b2e;
+  --sx-text-muted: #6b6880;
+  --sx-border: #e7e4f3;
+
+  /* Sidebar (dark slate in light mode for contrast) */
+  --sx-side-bg: #1c1530;
+  --sx-side-bg-2: #251b41;
+  --sx-side-text: #c9c4dd;
+  --sx-side-active: #ffffff;
+
+  /* Status */
+  --sx-success: #10b981;
+  --sx-warning: #f59e0b;
+  --sx-danger:  #f43f5e;
+  --sx-info:    #38bdf8;
+
+  --sx-radius: 14px;
+  --sx-radius-sm: 10px;
+  --sx-shadow: 0 4px 20px rgba(31, 22, 64, .08);
+  --sx-shadow-sm: 0 2px 8px rgba(31, 22, 64, .06);
+}
+
+/* Dark theme */
+body.skylinx-dark {
+  --sx-bg: #0f0b1e;
+  --sx-surface: #181229;
+  --sx-surface-2: #211a36;
+  --sx-text: #ece9f7;
+  --sx-text-muted: #9b95b3;
+  --sx-border: #2c2444;
+  --sx-side-bg: #140f24;
+  --sx-side-bg-2: #1c1535;
+  --sx-side-text: #b9b3cf;
+  --sx-shadow: 0 6px 26px rgba(0, 0, 0, .45);
+  --sx-shadow-sm: 0 2px 10px rgba(0, 0, 0, .4);
+}
+
+/* ---------- Global typography & canvas ---------- */
+body,
+.oh-main,
+.oh-wrapper,
+.oh-wrapper-main,
+input, select, textarea, button,
+.oh-sidebar, .oh-navbar {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+}
+body { background: var(--sx-bg) !important; color: var(--sx-text) !important; }
+.oh-main, .oh-main__topbar, .oh-wrapper-main { background: var(--sx-bg) !important; }
+
+/* ---------- Sidebar: dark, rounded pills, violet active ---------- */
+.oh-sidebar {
+  background: linear-gradient(180deg, var(--sx-side-bg) 0%, var(--sx-side-bg-2) 100%) !important;
+  border-right: none !important;
+  padding: 8px 10px !important;
+}
+.oh-sidebar__company {
+  background: rgba(255,255,255,.04) !important;
+  border-radius: var(--sx-radius) !important;
+  margin: 6px 4px 12px !important;
+}
+.oh-sidebar__company-title, .oh-sidebar__company-link { color: #fff !important; }
+.oh-sidebar__menu-items { gap: 4px; display: flex; flex-direction: column; }
+.oh-sidebar__menu-link {
+  color: var(--sx-side-text) !important;
+  border-radius: 12px !important;
+  margin: 1px 2px !important;
+  padding: 11px 14px !important;
+  transition: background .18s ease, color .18s ease, transform .12s ease;
+  position: relative;
+}
+.oh-sidebar__menu-link:hover {
+  background: rgba(139, 92, 246, .16) !important;
+  color: #fff !important;
+  transform: translateX(2px);
+}
+.oh-sidebar__menu-link--active,
+.oh-sidebar__menu-link.active {
+  background: var(--sx-primary-grad) !important;
+  color: #fff !important;
+  box-shadow: 0 6px 16px rgba(109, 40, 217, .45);
+}
+.oh-sidebar__menu-link--active::before,
+.oh-sidebar__menu-link.active::before {
+  content: ""; position: absolute; left: -10px; top: 18%; height: 64%;
+  width: 4px; border-radius: 4px; background: var(--sx-primary-500);
+}
+.oh-sidebar__menu-icon img { filter: brightness(0) invert(1) !important; opacity: .9; }
+.oh-sidebar__submenu-items_re li::before { color: var(--sx-primary-500) !important; content: "•" !important; }
+/* sidebar scrollbar */
+.oh-sidebar::-webkit-scrollbar { width: 6px; }
+.oh-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.14); border-radius: 6px; }
+
+/* ---------- Navbar ---------- */
+.oh-navbar {
+  background: var(--sx-surface) !important;
+  border-bottom: 1px solid var(--sx-border) !important;
+  box-shadow: var(--sx-shadow-sm);
+}
+.oh-navbar__search, .oh-input--search, .oh-navbar input[type="search"] {
+  background: var(--sx-surface-2) !important;
+  border: 1px solid var(--sx-border) !important;
+  border-radius: 999px !important;
+  color: var(--sx-text) !important;
+}
+
+/* ---------- Buttons ---------- */
+.oh-btn { border-radius: 11px !important; font-weight: 600 !important; transition: transform .12s ease, box-shadow .18s ease; }
+.oh-btn:hover { transform: translateY(-1px); }
+.oh-btn--secondary, .oh-btn--primary, .btn-primary, .oh-btn--shadow {
+  background: var(--sx-primary-grad) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 6px 16px rgba(109,40,217,.32);
+}
+.oh-btn--light-bkg, .oh-btn--light {
+  background: var(--sx-primary-100) !important;
+  color: var(--sx-primary) !important;
+  border-color: transparent !important;
+}
+.oh-btn--danger-outline, .oh-btn--danger { color: var(--sx-danger) !important; }
+
+/* ---------- Cards / panels ---------- */
+.oh-card, .oh-card-dashboard, .oh-sticky-table, .card, .oh-kanban-card, .oh-profile-section,
+.oh-dropdown__menu, .oh-modal__dialog, .oh-accordion {
+  background: var(--sx-surface) !important;
+  border: 1px solid var(--sx-border) !important;
+  border-radius: var(--sx-radius) !important;
+  box-shadow: var(--sx-shadow-sm) !important;
+}
+.oh-card-dashboard__title, .oh-card__title { color: var(--sx-text) !important; }
+
+/* ---------- Inputs ---------- */
+.oh-input, .oh-select, select.oh-input, textarea.oh-input, .select2-selection,
+input.form-control, select.form-control, textarea.form-control {
+  background: var(--sx-surface) !important;
+  border: 1.5px solid var(--sx-border) !important;
+  border-radius: var(--sx-radius-sm) !important;
+  color: var(--sx-text) !important;
+}
+.oh-input:focus, .oh-select:focus, input.form-control:focus, textarea.form-control:focus {
+  border-color: var(--sx-primary-500) !important;
+  box-shadow: 0 0 0 4px var(--sx-primary-100) !important;
+}
+.oh-label, label { color: var(--sx-text-muted) !important; font-weight: 600; }
+
+/* ---------- Tables ---------- */
+.oh-sticky-table__th, table thead th, .oh-table thead th {
+  background: var(--sx-surface-2) !important;
+  color: var(--sx-text-muted) !important;
+  text-transform: uppercase; font-size: 11px; letter-spacing: .04em;
+  border-bottom: 1px solid var(--sx-border) !important;
+}
+.oh-sticky-table__tr:hover, table tbody tr:hover { background: var(--sx-primary-100) !important; }
+.oh-sticky-table__td, table td { color: var(--sx-text) !important; border-color: var(--sx-border) !important; }
+
+/* ---------- Badges / chips / tabs ---------- */
+.oh-badge, .badge, .oh-chip {
+  border-radius: 999px !important; font-weight: 600 !important;
+}
+.oh-tabs__tab--active, .oh-tabs__link--active, .nav-tabs .active {
+  color: var(--sx-primary) !important; border-color: var(--sx-primary) !important;
+}
+
+/* ---------- Titlebar / headings ---------- */
+.oh-titlebar__title, h1, h2, h3, h4, .oh-title { color: var(--sx-text) !important; font-weight: 700 !important; }
+
+/* ---------- Dark-mode surface fixes for legacy white blocks ---------- */
+body.skylinx-dark .oh-navbar,
+body.skylinx-dark .oh-modal__dialog,
+body.skylinx-dark .oh-dropdown__menu,
+body.skylinx-dark .oh-card,
+body.skylinx-dark .oh-card-dashboard,
+body.skylinx-dark .oh-sticky-table,
+body.skylinx-dark .oh-profile-section { background: var(--sx-surface) !important; color: var(--sx-text) !important; }
+body.skylinx-dark .oh-main,
+body.skylinx-dark .oh-wrapper-main { background: var(--sx-bg) !important; }
+body.skylinx-dark .oh-sticky-table__th,
+body.skylinx-dark table thead th { background: var(--sx-surface-2) !important; }
+body.skylinx-dark p, body.skylinx-dark span, body.skylinx-dark td, body.skylinx-dark div { color: inherit; }
+
+/* ---------- Theme toggle button ---------- */
+.sx-theme-toggle {
+  width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--sx-border);
+  background: var(--sx-surface); color: var(--sx-text); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 20px;
+  transition: background .15s ease, transform .12s ease;
+}
+.sx-theme-toggle:hover { background: var(--sx-primary-100); transform: translateY(-1px); }
+
+/* Global scrollbars */
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-thumb { background: var(--sx-primary-300); border-radius: 8px; }
+body.skylinx-dark *::-webkit-scrollbar-thumb { background: #3a2f59; }

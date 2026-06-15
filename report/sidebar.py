@@ -2,7 +2,7 @@ from django.apps import apps
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 
-MENU = _("Reports")
+MENU = _("Insights")
 IMG_SRC = "images/ui/report.svg"
 ACCESSIBILITY = "report.sidebar.menu_accessibility"
 

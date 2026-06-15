@@ -9,7 +9,7 @@ from django.utils.translation import gettext_lazy as _
 
 from skylinx.menu import settings_menu
 
-MENU = _("Payroll")
+MENU = _("Pay & Benefits")
 IMG_SRC = "images/ui/wallet-outline.svg"
 
 SUBMENUS = [

@@ -38,6 +38,17 @@
     <link rel="stylesheet" href="{% static 'build/css/orgChart.css' %}" />
     <link rel="stylesheet" href="{% static '/jquery/jqueryui.css' %}">
     <link rel="stylesheet" href="{% static 'build/css/pivottable.min.css' %}" />
+    <link rel="stylesheet" type="text/css" href="{% static 'css/skylinx-redesign.css' %}">
+    <script>
+        // Apply saved Skylinx theme before paint to avoid flash
+        (function () {
+            try {
+                if (localStorage.getItem('skylinx-theme') === 'dark') {
+                    document.documentElement.classList.add('skylinx-dark-pre');
+                }
+            } catch (e) {}
+        })();
+    </script>
     <script src="{% static '/jquery/ajax.js' %}"></script>
     <script src="{% static '/jquery/jquery.min.js' %}"></script>
     <script src="{% static '/jquery/jqueryui.js' %}"></script>
@@ -152,6 +163,14 @@
                             </div>
                             <!-- End of check in/out button in nav bar -->
                         {% endif %}
+
+                        <!-- Start of Skylinx theme toggle -->
+                        <div class="oh-navbar__action-icons" title="{% trans 'Toggle theme' %}">
+                            <button type="button" id="skylinxThemeToggle" class="sx-theme-toggle" aria-label="{% trans 'Toggle dark mode' %}">
+                                <ion-icon name="moon-outline" id="skylinxThemeIcon"></ion-icon>
+                            </button>
+                        </div>
+                        <!-- End of Skylinx theme toggle -->
 
                         {% if show_section %}
                             <!-- Start of settings button in nav bar -->
@@ -328,6 +347,34 @@
             }
         </script>
     {% endif %}
+    <script>
+        // Skylinx light/dark theme toggle
+        (function () {
+            var body = document.body;
+            document.documentElement.classList.remove('skylinx-dark-pre');
+            function apply(mode) {
+                var icon = document.getElementById('skylinxThemeIcon');
+                if (mode === 'dark') {
+                    body.classList.add('skylinx-dark');
+                    if (icon) icon.setAttribute('name', 'sunny-outline');
+                } else {
+                    body.classList.remove('skylinx-dark');
+                    if (icon) icon.setAttribute('name', 'moon-outline');
+                }
+            }
+            var saved = 'light';
+            try { saved = localStorage.getItem('skylinx-theme') || 'light'; } catch (e) {}
+            apply(saved);
+            var btn = document.getElementById('skylinxThemeToggle');
+            if (btn) {
+                btn.addEventListener('click', function () {
+                    var next = body.classList.contains('skylinx-dark') ? 'light' : 'dark';
+                    try { localStorage.setItem('skylinx-theme', next); } catch (e) {}
+                    apply(next);
+                });
+            }
+        })();
+    </script>
 </body>
 
 </html>
