@@ -49,8 +49,8 @@ from employee.models import (
     Policy,
     PolicyMultipleFile,
 )
-from horilla import horilla_middlewares
-from horilla_audit.models import AccountBlockUnblock
+from skylinx import skylinx_middlewares
+from skylinx_audit.models import AccountBlockUnblock
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ class ModelForm(forms.ModelForm):
 
         reload_queryset(self.fields)
 
-        request = getattr(horilla_middlewares._thread_locals, "request", None)
+        request = getattr(skylinx_middlewares._thread_locals, "request", None)
 
         today = date.today()
         now = datetime.now()

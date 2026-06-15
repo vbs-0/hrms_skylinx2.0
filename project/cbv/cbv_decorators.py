@@ -1,5 +1,5 @@
-from horilla.horilla_middlewares import _thread_locals
-from horilla.methods import handle_no_permission
+from skylinx.skylinx_middlewares import _thread_locals
+from skylinx.methods import handle_no_permission
 from project.methods import (
     any_project_manager,
     any_project_member,

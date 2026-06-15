@@ -51,20 +51,20 @@ from base.methods import (
     get_key_instances,
     sortby,
 )
-from base.models import EmailLog, HorillaMailTemplate, JobPosition, clear_messages
+from base.models import EmailLog, SkylinxMailTemplate, JobPosition, clear_messages
 from employee.models import Employee, EmployeeWorkInformation
 from employee.views import get_content_type
-from horilla import settings
-from horilla.decorators import (
+from skylinx import settings
+from skylinx.decorators import (
     any_permission_required,
     hx_request_required,
     logger,
     login_required,
     permission_required,
 )
-from horilla.group_by import group_by_queryset
-from horilla.http import HorillaRedirect
-from horilla_documents.models import Document
+from skylinx.group_by import group_by_queryset
+from skylinx.http import SkylinxRedirect
+from skylinx_documents.models import Document
 from notifications.signals import notify
 from recruitment.auth import CandidateAuthenticationBackend
 from recruitment.decorators import (
@@ -280,7 +280,7 @@ def recruitment(request):
                     icon="people-circle",
                     redirect=reverse("pipeline"),
                 )
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(
         request, "recruitment/recruitment_form.html", {"form": form, "dynamic": dynamic}
     )
@@ -339,7 +339,7 @@ def recruitment_update(request, rec_id):
         messages.error(
             request, _("The recruitment entry you are trying to edit does not exist.")
         )
-        return HorillaRedirect(request)
+        return SkylinxRedirect(request)
     survey_template_list = []
     survey_templates = RecruitmentSurvey.objects.filter(
         recruitment_ids=rec_id
@@ -742,7 +742,7 @@ def recruitment_archive(request, rec_id):
         recruitment.save()
     except (Recruitment.DoesNotExist, OverflowError):
         messages.error(request, _("Recruitment Does not exists.."))
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @login_required
@@ -779,7 +779,7 @@ def stage_update_pipeline(request, stage_id):
                     redirect=reverse("pipeline"),
                 )
 
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
 
     return render(request, "pipeline/form/stage_update.html", {"form": form})
 
@@ -818,7 +818,7 @@ def recruitment_update_pipeline(request, rec_id):
                     redirect=reverse("pipeline"),
                 )
 
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(request, "pipeline/form/recruitment_update.html", {"form": form})
 
 
@@ -835,7 +835,7 @@ def recruitment_close_pipeline(request, rec_id):
         messages.success(request, "Recruitment closed successfully")
     except (Recruitment.DoesNotExist, OverflowError):
         messages.error(request, _("Recruitment Does not exists.."))
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @login_required
@@ -849,7 +849,7 @@ def recruitment_reopen_pipeline(request, rec_id):
     recruitment_obj.save()
 
     messages.success(request, "Recruitment reopend successfully")
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @login_required
@@ -1031,7 +1031,7 @@ def note_update_individual(request, note_id):
         if form.is_valid():
             form.save()
             messages.success(request, _("Note updated successfully..."))
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(
         request,
         "pipeline/pipeline_components/update_note_individual.html",
@@ -1185,7 +1185,7 @@ def stage(request):
                     redirect=reverse("pipeline"),
                 )
 
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(request, "stage/stage_form.html", {"form": form})
 
 
@@ -1282,7 +1282,7 @@ def add_candidate(request):
         if form.is_valid():
             form.save()
             messages.success(request, "Candidate Added")
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(request, "pipeline/form/candidate_form.html", {"form": form})
 
 
@@ -1565,7 +1565,7 @@ def candidate_view_individual(request, cand_id, **kwargs):
     candidate_obj = Candidate.find(cand_id)
     if not candidate_obj:
         messages.error(request, _("Candidate not found"))
-        return HorillaRedirect(request)
+        return SkylinxRedirect(request)
 
     mails = list(Candidate.objects.values_list("email", flat=True))
     # Query the User model to check if any email is present
@@ -1669,7 +1669,7 @@ def candidate_update(request, cand_id, **kwargs):
         return render(request, "candidate/candidate_create_form.html", {"form": form})
     except (Candidate.DoesNotExist, OverflowError):
         messages.error(request, _("Candidate Does not exists.."))
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @transaction.atomic
@@ -1680,11 +1680,11 @@ def candidate_conversion(request, cand_id, **kwargs):
 
     if not candidate_obj:
         messages.error(request, ("Candidate not found"))
-        return HorillaRedirect(request)
+        return SkylinxRedirect(request)
 
     if candidate_obj.converted_employee_id:
         messages.info(request, "This candidate is already converted to an employee.")
-        return HorillaRedirect(request)
+        return SkylinxRedirect(request)
 
     user_exists = User.objects.filter(username=candidate_obj.email).exists()
     employee_exists = Employee.objects.filter(
@@ -1738,7 +1738,7 @@ def candidate_conversion(request, cand_id, **kwargs):
     if "HTTP_HX_REQUEST" in request.META:
         return HttpResponse(status=204, headers={"HX-Refresh": "true"})
 
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @login_required
@@ -1799,7 +1799,7 @@ def form_send_mail(request, cand_id=None):
     else:
         stage_id = None
 
-    templates = HorillaMailTemplate.objects.all()
+    templates = SkylinxMailTemplate.objects.all()
     return render(
         request,
         "pipeline/pipeline_components/send_mail.html",
@@ -1849,7 +1849,7 @@ def interview_schedule(request, cand_id):
             )
 
             messages.success(request, "Interview Scheduled successfully.")
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(request, template, {"form": form, "cand_id": cand_id})
 
 
@@ -1956,7 +1956,7 @@ def interview_edit(request, interview_id):
                 redirect=reverse("interview-view"),
             )
             messages.success(request, "Interview updated successfully.")
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(
         request,
         template,
@@ -2015,7 +2015,7 @@ def send_acknowledgement(request):
             (file.name, file.read(), file.content_type) for file in other_attachments
         ]
         bodys = list(
-            HorillaMailTemplate.objects.filter(
+            SkylinxMailTemplate.objects.filter(
                 id__in=template_attachment_ids
             ).values_list("body", flat=True)
         )
@@ -2054,7 +2054,7 @@ def send_acknowledgement(request):
         except Exception as e:
             logger.exception(e)
             messages.error(request, "Something went wrong")
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @login_required
@@ -2420,7 +2420,7 @@ def skill_zone_candidate_create(request, sz_id):
         if form.is_valid():
             form.save()
             messages.success(request, _("Candidate added successfully."))
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
 
     return render(request, template, {"form": form, "sz_id": sz_id})
 
@@ -2447,7 +2447,7 @@ def skill_zone_cand_edit(request, sz_cand_id):
         if form.is_valid():
             form.save()
             messages.success(request, _("Candidate edited successfully."))
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(request, template, {"form": form, "sz_cand_id": sz_cand_id})
 
 
@@ -2569,7 +2569,7 @@ def to_skill_zone(request, cand_id):
         or request.user.has_perm("recruitment.add_skillzonecandidate")
     ):
         messages.info(request, "You dont have permission.")
-        return HorillaRedirect(request)
+        return SkylinxRedirect(request)
 
     candidate = Candidate.objects.get(id=cand_id)
     template = "skill_zone_cand/to_skill_zone_form.html"
@@ -2595,7 +2595,7 @@ def to_skill_zone(request, cand_id):
                     zone_candidate.reason = form.cleaned_data["reason"]
                     zone_candidate.save()
             messages.success(request, "Candidate Added to skill zone successfully")
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(request, template, {"form": form, "cand_id": cand_id})
 
 
@@ -2803,7 +2803,7 @@ def create_reject_reason(request):
         if form.is_valid():
             form.save()
             messages.success(request, "Reject reason saved")
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(request, "settings/reject_reason_form.html", {"form": form})
 
 
@@ -2827,7 +2827,7 @@ def delete_reject_reason(request):
     for reason in reasons:
         reasons.delete()
         messages.success(request, f"{reason.title} is deleted.")
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 def extract_text_with_font_info(pdf):
@@ -3054,7 +3054,7 @@ def create_skills(request):
                     pass
                 return redirect(f"{url}?{data}")
 
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
 
     context = {
         "form": form,
@@ -3076,7 +3076,7 @@ def delete_skills(request):
     for skill in skills:
         skill.delete()
         messages.success(request, f"{skill.title} is deleted.")
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @login_required
@@ -3293,7 +3293,7 @@ def candidate_document_request(request):
         if form.is_valid():
             form.save()
             messages.success(request, _("Document request created successfully"))
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
 
     context = {
         "form": form,
@@ -3323,7 +3323,7 @@ def document_create(request, id):
         if form.is_valid():
             form.save()
             messages.success(request, _("Document created successfully."))
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
 
     context = {
         "form": form,
@@ -3392,7 +3392,7 @@ def document_delete(request, id):
         clear_messages(request)
         return HttpResponse()
     else:
-        return HorillaRedirect(request)
+        return SkylinxRedirect(request)
 
 
 @candidate_login_required
@@ -3416,7 +3416,7 @@ def file_upload(request, id):
         if form.is_valid():
             form.save()
             messages.success(request, _("Document uploaded successfully"))
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
 
     context = {
         "form": form,
@@ -3481,7 +3481,7 @@ def document_approve(request, id):
     else:
         messages.error(request, _("No document uploaded"))
 
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @login_required
@@ -3509,10 +3509,10 @@ def document_reject(request, id):
                 document_obj.save()
                 messages.error(request, _("Document request rejected"))
 
-                return HorillaRedirect(request)
+                return SkylinxRedirect(request)
     else:
         messages.error(request, _("No document uploaded"))
-        return HorillaRedirect(request)
+        return SkylinxRedirect(request)
 
     return render(
         request,

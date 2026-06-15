@@ -4,7 +4,7 @@ This module defines the configuration for the 'attendance' app within the Skylin
 
 from django.apps import AppConfig
 
-from horilla.horilla_settings import APP_URLS
+from skylinx.skylinx_settings import APP_URLS
 
 
 class AttendanceConfig(AppConfig):
@@ -22,9 +22,9 @@ class AttendanceConfig(AppConfig):
         from django.urls import include, path
 
         from attendance import scheduler, signals
-        from horilla.horilla_settings import APPS
-        from horilla.settings import MIDDLEWARE
-        from horilla.urls import urlpatterns
+        from skylinx.skylinx_settings import APPS
+        from skylinx.settings import MIDDLEWARE
+        from skylinx.urls import urlpatterns
 
         APPS.append("attendance")
         urlpatterns.append(

@@ -36,9 +36,9 @@ from base.context_processors import (
     timerunner_enabled,
 )
 from base.models import AttendanceAllowedIP, Company, EmployeeShiftDay
-from horilla.decorators import hx_request_required, login_required
-from horilla.horilla_middlewares import _thread_locals
-from horilla.http import HorillaRedirect
+from skylinx.decorators import hx_request_required, login_required
+from skylinx.skylinx_middlewares import _thread_locals
+from skylinx.http import SkylinxRedirect
 
 
 def late_come_create(attendance):
@@ -345,7 +345,7 @@ def clock_in(request):
         )
     else:
         messages.error(request, _("Check in/Check out feature is not enabled."))
-        return HorillaRedirect(request)
+        return SkylinxRedirect(request)
 
 
 def clock_out_attendance_and_activity(employee, date_today, now, out_datetime=None):
@@ -602,4 +602,4 @@ def clock_out(request):
         )
     else:
         messages.error(request, _("Check in/Check out feature is not enabled."))
-        return HorillaRedirect(request)
+        return SkylinxRedirect(request)

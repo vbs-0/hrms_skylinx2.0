@@ -10,7 +10,7 @@ services:
       DATABASE_URL: "postgres://postgres:postgres@db:5432/skylinx"
     command: sh ./entrypoint.sh
     volumes:
-      - ./horilla:/app/horilla
+      - ./skylinx:/app/skylinx
       - ./media:/app/media
     depends_on:
       db:

@@ -1,6 +1,6 @@
 [
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 1,
     "fields": {
       "created_at": "2025-07-05T09:39:13.733Z",
@@ -13,7 +13,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 2,
     "fields": {
       "created_at": "2025-07-12T10:23:52.188Z",
@@ -26,7 +26,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 3,
     "fields": {
       "created_at": "2025-07-24T07:30:08.679Z",
@@ -39,7 +39,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 4,
     "fields": {
       "created_at": "2025-07-24T07:30:08.701Z",
@@ -52,7 +52,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 5,
     "fields": {
       "created_at": "2025-07-24T07:30:08.716Z",
@@ -65,7 +65,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 6,
     "fields": {
       "created_at": "2025-07-24T07:30:08.729Z",
@@ -78,7 +78,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 7,
     "fields": {
       "created_at": "2025-07-24T07:30:08.741Z",
@@ -91,7 +91,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 8,
     "fields": {
       "created_at": "2025-07-24T07:30:08.756Z",
@@ -104,7 +104,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 9,
     "fields": {
       "created_at": "2025-07-24T07:30:08.769Z",
@@ -117,7 +117,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 10,
     "fields": {
       "created_at": "2025-07-24T07:30:08.783Z",
@@ -130,7 +130,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 11,
     "fields": {
       "created_at": "2025-07-24T07:30:08.795Z",
@@ -143,7 +143,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 12,
     "fields": {
       "created_at": "2025-07-24T07:30:08.810Z",
@@ -156,7 +156,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 13,
     "fields": {
       "created_at": "2025-07-24T07:30:08.824Z",
@@ -169,7 +169,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 14,
     "fields": {
       "created_at": "2025-07-24T07:30:08.840Z",
@@ -182,7 +182,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 15,
     "fields": {
       "created_at": "2025-07-24T07:30:08.858Z",
@@ -195,7 +195,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 16,
     "fields": {
       "created_at": "2025-07-24T07:30:08.874Z",
@@ -208,7 +208,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 17,
     "fields": {
       "created_at": "2025-08-26T03:36:27.757Z",
@@ -221,7 +221,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 18,
     "fields": {
       "created_at": "2025-08-27T11:05:50.289Z",
@@ -234,7 +234,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 19,
     "fields": {
       "created_at": "2025-09-11T08:42:00.946Z",
@@ -247,7 +247,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 20,
     "fields": {
       "created_at": "2025-09-11T06:35:00.562Z",
@@ -260,7 +260,7 @@
     }
   },
   {
-    "model": "base.horillamailtemplate",
+    "model": "base.skylinxmailtemplate",
     "pk": 21,
     "fields": {
       "created_at": "2025-09-25T10:02:50.259Z",

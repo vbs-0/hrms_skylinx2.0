@@ -19,11 +19,11 @@ from base.forms import Form, ModelForm
 from base.methods import reload_queryset
 from employee.filters import EmployeeFilter
 from employee.models import BonusPoint, Employee
-from horilla import horilla_middlewares
-from horilla.methods import get_horilla_model_class
-from horilla_widgets.forms import HorillaForm, default_select_option_template
-from horilla_widgets.widgets.horilla_multi_select_field import HorillaMultiSelectField
-from horilla_widgets.widgets.select_widgets import HorillaMultiSelectWidget
+from skylinx import skylinx_middlewares
+from skylinx.methods import get_skylinx_model_class
+from skylinx_widgets.forms import SkylinxForm, default_select_option_template
+from skylinx_widgets.widgets.skylinx_multi_select_field import SkylinxMultiSelectField
+from skylinx_widgets.widgets.select_widgets import SkylinxMultiSelectWidget
 from notifications.signals import notify
 from payroll.models import tax_models as models
 from payroll.models.models import (
@@ -75,9 +75,9 @@ class AllowanceForm(ModelForm):
             kwargs["initial"] = initial
         super().__init__(*args, **kwargs)
 
-        self.fields["specific_employees"] = HorillaMultiSelectField(
+        self.fields["specific_employees"] = SkylinxMultiSelectField(
             queryset=Employee.objects.all(),
-            widget=HorillaMultiSelectWidget(
+            widget=SkylinxMultiSelectWidget(
                 filter_route_name="employee-widget-filter",
                 filter_class=EmployeeFilter,
                 filter_instance_contex_name="f",
@@ -110,7 +110,7 @@ class AllowanceForm(ModelForm):
         condition_based = self.data.get("is_condition_based")
 
         for field_name, field_instance in self.fields.items():
-            if isinstance(field_instance, HorillaMultiSelectField):
+            if isinstance(field_instance, SkylinxMultiSelectField):
                 self.errors.pop(field_name, None)
                 if (
                     not specific_employees
@@ -215,9 +215,9 @@ class DeductionForm(ModelForm):
             kwargs["initial"] = initial
         super().__init__(*args, **kwargs)
 
-        self.fields["specific_employees"] = HorillaMultiSelectField(
+        self.fields["specific_employees"] = SkylinxMultiSelectField(
             queryset=Employee.objects.all(),
-            widget=HorillaMultiSelectWidget(
+            widget=SkylinxMultiSelectWidget(
                 filter_route_name="employee-widget-filter",
                 filter_class=EmployeeFilter,
                 filter_instance_contex_name="f",
@@ -245,7 +245,7 @@ class DeductionForm(ModelForm):
         condition_based = self.data.get("is_condition_based")
 
         for field_name, field_instance in self.fields.items():
-            if isinstance(field_instance, HorillaMultiSelectField):
+            if isinstance(field_instance, SkylinxMultiSelectField):
                 self.errors.pop(field_name, None)
                 if (
                     not specific_employees
@@ -404,7 +404,7 @@ class PayslipForm(ModelForm):
         }
 
 
-class GeneratePayslipForm(HorillaForm):
+class GeneratePayslipForm(SkylinxForm):
     """
     Form for Payslip
     """
@@ -414,9 +414,9 @@ class GeneratePayslipForm(HorillaForm):
         required=True,
         # help_text="Enter +-something if you want to generate payslips by batches",
     )
-    employee_id = HorillaMultiSelectField(
+    employee_id = SkylinxMultiSelectField(
         queryset=Employee.objects.none(),
-        widget=HorillaMultiSelectWidget(
+        widget=SkylinxMultiSelectWidget(
             filter_route_name="employee-widget-filter",
             filter_class=EmployeeFilter,
             filter_instance_contex_name="f",
@@ -798,7 +798,7 @@ class ReimbursementForm(ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.request = getattr(horilla_middlewares._thread_locals, "request", None)
+        self.request = getattr(skylinx_middlewares._thread_locals, "request", None)
         self.employee = self.get_employee()  # 819
 
         if not self.instance.pk:
@@ -828,7 +828,7 @@ class ReimbursementForm(ModelForm):
         return employee_qs.first()
 
     def get_encashable_leaves(self, employee):
-        LeaveType = get_horilla_model_class(app_label="leave", model="leavetype")
+        LeaveType = get_skylinx_model_class(app_label="leave", model="leavetype")
         return LeaveType.objects.filter(
             employee_available_leave__employee_id=employee,
             employee_available_leave__total_leave_days__gte=1,
@@ -861,7 +861,7 @@ class ReimbursementForm(ModelForm):
         if not apps.is_installed("leave") or not self.employee:
             return
 
-        AvailableLeave = get_horilla_model_class(
+        AvailableLeave = get_skylinx_model_class(
             app_label="leave", model="availableleave"
         )
         assigned_leaves = self.get_encashable_leaves(self.employee)
@@ -959,7 +959,7 @@ class ReimbursementForm(ModelForm):
                 if leave_type not in encashable:
                     self.add_error("leave_type_id", "This leave type is not encashable")
                 else:
-                    AvailableLeave = get_horilla_model_class("leave", "availableleave")
+                    AvailableLeave = get_skylinx_model_class("leave", "availableleave")
                     available_leave = AvailableLeave.objects.filter(
                         leave_type_id=leave_type, employee_id=employee
                     ).first()

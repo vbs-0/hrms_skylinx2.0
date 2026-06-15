@@ -14,14 +14,14 @@ from django.utils.translation import gettext_lazy as _
 from django.views.generic import ListView
 
 from employee.models import Employee
-from horilla.horilla_middlewares import _thread_locals
-from horilla.http import HorillaRedirect
-from horilla_views.cbv_methods import login_required, permission_required
-from horilla_views.generic.cbv.views import (
-    HorillaCardView,
-    HorillaFormView,
-    HorillaListView,
-    HorillaNavView,
+from skylinx.skylinx_middlewares import _thread_locals
+from skylinx.http import SkylinxRedirect
+from skylinx_views.cbv_methods import login_required, permission_required
+from skylinx_views.generic.cbv.views import (
+    SkylinxCardView,
+    SkylinxFormView,
+    SkylinxListView,
+    SkylinxNavView,
     TemplateView,
 )
 from project.cbv.cbv_decorators import is_projectmanager_or_member_or_perms
@@ -47,7 +47,7 @@ class ProjectsView(TemplateView):
 @method_decorator(
     is_projectmanager_or_member_or_perms("project.view_project"), name="dispatch"
 )
-class ProjectsNavView(HorillaNavView):
+class ProjectsNavView(SkylinxNavView):
     """
     Nav bar
     """
@@ -145,7 +145,7 @@ class ProjectsNavView(HorillaNavView):
 @method_decorator(
     is_projectmanager_or_member_or_perms("project.view_project"), name="dispatch"
 )
-class ProjectsList(HorillaListView):
+class ProjectsList(SkylinxListView):
     """
     Projects list view
     """
@@ -270,7 +270,7 @@ class ProjectsList(HorillaListView):
 
 @method_decorator(login_required, name="dispatch")
 # @method_decorator(permission_required("project.add_project"), name="dispatch")
-class ProjectFormView(HorillaFormView):
+class ProjectFormView(SkylinxFormView):
     """
     form view for create project
     """
@@ -302,7 +302,7 @@ class ProjectFormView(HorillaFormView):
                 if HTTP_REFERER and "task-view/" in HTTP_REFERER:
                     form.save()
                     messages.success(self.request, message)
-                    return HorillaRedirect(self.request)
+                    return SkylinxRedirect(self.request)
 
             else:
                 message = _("New project created")
@@ -321,7 +321,7 @@ class DynamicProjectCreationFormView(ProjectFormView):
 @method_decorator(
     is_projectmanager_or_member_or_perms("project.view_project"), name="dispatch"
 )
-class ProjectCardView(HorillaCardView):
+class ProjectCardView(SkylinxCardView):
     """
     For card view
     """
@@ -511,7 +511,7 @@ class ProjectsTabView(ListView):
         return context
 
 
-# Remove the command lines after horilla converted into CBV
+# Remove the command lines after skylinx converted into CBV
 # from employee.cbv.employee_profile import EmployeeProfileView
 # EmployeeProfileView.add_tab(
 #     tabs=[

@@ -1,4 +1,4 @@
-{% load i18n %}{% load horillafilters %}
+{% load i18n %}{% load skylinxfilters %}
 {% if messages %}
     <span hx-get="{% url 'user-request-filter' %}?{{pd}}" hx-target="#userRequest" hx-trigger="load"
         hx-on-htmx-after-request="setTimeout(function () { reloadMessage(this); $('.oh-modal__close').click(); }, 1000);"></span>

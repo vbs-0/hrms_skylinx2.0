@@ -22,10 +22,10 @@ from base.methods import filtersubordinatesemployeemodel, reload_queryset
 from employee.filters import EmployeeFilter
 from employee.forms import MultipleFileField
 from employee.models import Employee
-from horilla import horilla_middlewares
-from horilla_widgets.forms import HorillaForm, HorillaModelForm
-from horilla_widgets.widgets.horilla_multi_select_field import HorillaMultiSelectField
-from horilla_widgets.widgets.select_widgets import HorillaMultiSelectWidget
+from skylinx import skylinx_middlewares
+from skylinx_widgets.forms import SkylinxForm, SkylinxModelForm
+from skylinx_widgets.widgets.skylinx_multi_select_field import SkylinxMultiSelectField
+from skylinx_widgets.widgets.select_widgets import SkylinxMultiSelectWidget
 from leave.methods import get_leave_day_attendance
 from leave.models import (
     AvailableLeave,
@@ -45,7 +45,7 @@ LEAVE_MAX_LIMIT = 1e5
 class ConditionForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        request = getattr(horilla_middlewares._thread_locals, "request", None)
+        request = getattr(skylinx_middlewares._thread_locals, "request", None)
         reload_queryset(self.fields)
         for field_name, field in self.fields.items():
             widget = field.widget
@@ -102,7 +102,7 @@ class LeaveTypeAdminForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         if f := self.fields.get("company_id"):
-            from horilla_widgets.forms import default_select_option_template
+            from skylinx_widgets.forms import default_select_option_template
 
             w = getattr(f.widget, "widget", f.widget)
             if isinstance(w, forms.Select):
@@ -111,9 +111,9 @@ class LeaveTypeAdminForm(forms.ModelForm):
 
 class LeaveTypeForm(ConditionForm):
 
-    employee_id = HorillaMultiSelectField(
+    employee_id = SkylinxMultiSelectField(
         queryset=Employee.objects.all(),
-        widget=HorillaMultiSelectWidget(
+        widget=SkylinxMultiSelectWidget(
             filter_route_name="employee-widget-filter",
             filter_class=EmployeeFilter,
             filter_instance_contex_name="f",
@@ -253,7 +253,7 @@ class LeaveRequestCreationForm(BaseModelForm):
         Render the form fields as HTML table rows with Bootstrap styling.
         """
         context = {"form": self}
-        table_html = render_to_string("horilla_form.html", context)
+        table_html = render_to_string("skylinx_form.html", context)
         return table_html
 
     class Meta:
@@ -325,7 +325,7 @@ class LeaveRequestUpdationForm(BaseModelForm):
         Render the form fields as HTML table rows with Bootstrap styling.
         """
         context = {"form": self}
-        table_html = render_to_string("horilla_form.html", context)
+        table_html = render_to_string("skylinx_form.html", context)
         return table_html
 
     class Meta:
@@ -370,7 +370,7 @@ class AvailableLeaveForm(BaseModelForm):
         fields = ["leave_type_id", "employee_id", "is_active"]
 
 
-class LeaveOneAssignForm(HorillaModelForm):
+class LeaveOneAssignForm(SkylinxModelForm):
     """
     Form for assigning available leave to employees.
 
@@ -378,12 +378,12 @@ class LeaveOneAssignForm(HorillaModelForm):
     by specifying the employee and setting the is_active flag.
 
     Attributes:
-        - employee_id: A HorillaMultiSelectField representing the employee to assign leave to.
+        - employee_id: A SkylinxMultiSelectField representing the employee to assign leave to.
     """
 
-    employee_id = HorillaMultiSelectField(
+    employee_id = SkylinxMultiSelectField(
         queryset=Employee.objects.all(),
-        widget=HorillaMultiSelectWidget(
+        widget=SkylinxMultiSelectWidget(
             filter_route_name="employee-widget-filter",
             filter_class=EmployeeFilter,
             filter_instance_contex_name="f",
@@ -454,7 +454,7 @@ class UserLeaveRequestForm(BaseModelForm):
         Render the form fields as HTML table rows with Bootstrap styling.
         """
         context = {"form": self}
-        table_html = render_to_string("horilla_form.html", context)
+        table_html = render_to_string("skylinx_form.html", context)
         return table_html
 
     class Meta:
@@ -554,7 +554,7 @@ class UserLeaveRequestCreationForm(BaseModelForm):
         Render the form fields as HTML table rows with Bootstrap styling.
         """
         context = {"form": self}
-        table_html = render_to_string("horilla_form.html", context)
+        table_html = render_to_string("skylinx_form.html", context)
         return table_html
 
     def __init__(self, *args, **kwargs):
@@ -617,7 +617,7 @@ class LeaveAllocationRequestForm(BaseModelForm):
         Render the form fields as HTML table rows with Bootstrap styling.
         """
         context = {"form": self}
-        table_html = render_to_string("horilla_form.html", context)
+        table_html = render_to_string("skylinx_form.html", context)
         return table_html
 
     class Meta:
@@ -696,7 +696,7 @@ class LeaveRequestExportForm(forms.Form):
     )
 
 
-class AssignLeaveForm(HorillaForm):
+class AssignLeaveForm(SkylinxForm):
     """
     Form for Payslip
     """
@@ -710,9 +710,9 @@ class AssignLeaveForm(HorillaForm):
         label=_("Leave Type"),
         required=False,
     )
-    employee_id = HorillaMultiSelectField(
+    employee_id = SkylinxMultiSelectField(
         queryset=Employee.objects.all(),
-        widget=HorillaMultiSelectWidget(
+        widget=SkylinxMultiSelectWidget(
             filter_route_name="employee-widget-filter",
             filter_class=EmployeeFilter,
             filter_instance_contex_name="f",
@@ -926,7 +926,7 @@ if apps.is_installed("attendance"):
         def __init__(self, *args, **kwargs):
             super(CompensatoryLeaveForm, self).__init__(*args, **kwargs)
 
-            request = getattr(horilla_middlewares._thread_locals, "request", None)
+            request = getattr(skylinx_middlewares._thread_locals, "request", None)
             instance_id = None
             if self.instance:
                 instance_id = self.instance.id
@@ -965,7 +965,7 @@ if apps.is_installed("attendance"):
             Render the form fields as HTML table rows with Bootstrap styling.
             """
             context = {"form": self}
-            table_html = render_to_string("horilla_form.html", context)
+            table_html = render_to_string("skylinx_form.html", context)
             return table_html
 
         def clean(self):

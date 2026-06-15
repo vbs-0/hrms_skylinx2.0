@@ -64,9 +64,9 @@ from base.methods import (
 from base.models import Company, EmployeeShift
 from employee.filters import EmployeeFilter
 from employee.models import Employee
-from horilla import horilla_middlewares
-from horilla_widgets.widgets.horilla_multi_select_field import HorillaMultiSelectField
-from horilla_widgets.widgets.select_widgets import HorillaMultiSelectWidget
+from skylinx import skylinx_middlewares
+from skylinx_widgets.widgets.skylinx_multi_select_field import SkylinxMultiSelectField
+from skylinx_widgets.widgets.select_widgets import SkylinxMultiSelectWidget
 
 logger = logging.getLogger(__name__)
 
@@ -202,9 +202,9 @@ class AttendanceForm(BaseModelForm):
     Model form for Attendance model
     """
 
-    employee_id = HorillaMultiSelectField(
+    employee_id = SkylinxMultiSelectField(
         queryset=Employee.objects.filter(employee_work_info__isnull=False),
-        widget=HorillaMultiSelectWidget(
+        widget=SkylinxMultiSelectWidget(
             filter_route_name="employee-widget-filter",
             filter_class=EmployeeFilter,
             filter_instance_contex_name="f",
@@ -794,7 +794,7 @@ excluded_fields = [
     "request_type",
     "month_sequence",
     "objects",
-    "horilla_history",
+    "skylinx_history",
 ]
 
 
@@ -1113,7 +1113,7 @@ class BulkAttendanceRequestForm(BaseModelForm):
         )
 
     def __init__(self, *args, **kwargs):
-        request = getattr(horilla_middlewares._thread_locals, "request", None)
+        request = getattr(skylinx_middlewares._thread_locals, "request", None)
         employee = request.user.employee_get
         super().__init__(*args, **kwargs)
         if employee and hasattr(employee, "employee_work_info"):

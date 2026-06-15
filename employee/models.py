@@ -23,7 +23,7 @@ from django.utils.translation import gettext_lazy as trans
 from PIL import Image
 
 from accessibility.accessibility import ACCESSBILITY_FEATURE
-from base.horilla_company_manager import HorillaCompanyManager
+from base.skylinx_company_manager import SkylinxCompanyManager
 from base.models import (
     Company,
     Department,
@@ -35,11 +35,11 @@ from base.models import (
     validate_time_format,
 )
 from employee.methods.duration_methods import format_time, strtime_seconds
-from horilla import horilla_middlewares
-from horilla.methods import get_horilla_model_class
-from horilla.models import HorillaModel, has_xss, upload_path
-from horilla_audit.methods import get_diff
-from horilla_audit.models import HorillaAuditInfo, HorillaAuditLog
+from skylinx import skylinx_middlewares
+from skylinx.methods import get_skylinx_model_class
+from skylinx.models import SkylinxModel, has_xss, upload_path
+from skylinx_audit.methods import get_diff
+from skylinx_audit.models import SkylinxAuditInfo, SkylinxAuditLog
 
 # create your model
 
@@ -112,7 +112,7 @@ class Employee(models.Model):
     is_directly_converted = models.BooleanField(
         default=False, null=True, blank=True, editable=False
     )
-    objects = HorillaCompanyManager(
+    objects = SkylinxCompanyManager(
         related_company_field="employee_work_info__company_id"
     )
 
@@ -345,16 +345,16 @@ class Employee(models.Model):
         a dictionary is returned with a list of related models of that employee.
         """
         if apps.is_installed("onboarding"):
-            OnboardingStage = get_horilla_model_class("onboarding", "onboardingstage")
-            OnboardingTask = get_horilla_model_class("onboarding", "onboardingtask")
+            OnboardingStage = get_skylinx_model_class("onboarding", "onboardingstage")
+            OnboardingTask = get_skylinx_model_class("onboarding", "onboardingtask")
             onboarding_stage_query = OnboardingStage.objects.filter(employee_id=self.pk)
             onboarding_task_query = OnboardingTask.objects.filter(employee_id=self.pk)
         else:
             onboarding_stage_query = None
             onboarding_task_query = None
         if apps.is_installed("recruitment"):
-            Recruitment = get_horilla_model_class("recruitment", "recruitment")
-            Stage = get_horilla_model_class("recruitment", "stage")
+            Recruitment = get_skylinx_model_class("recruitment", "recruitment")
+            Stage = get_skylinx_model_class("recruitment", "stage")
             recruitment_stage_query = Stage.objects.filter(stage_managers=self.pk)
             recruitment_manager_query = Recruitment.objects.filter(
                 recruitment_managers=self.pk
@@ -441,8 +441,8 @@ class Employee(models.Model):
         This method is used to check if the user is in the list of online users.
         """
         if apps.is_installed("attendance"):
-            Attendance = get_horilla_model_class("attendance", "attendance")
-            request = getattr(horilla_middlewares._thread_locals, "request", None)
+            Attendance = get_skylinx_model_class("attendance", "attendance")
+            request = getattr(skylinx_middlewares._thread_locals, "request", None)
 
             if request is not None:
                 if (
@@ -551,7 +551,7 @@ class Employee(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
-        request = getattr(horilla_middlewares._thread_locals, "request", None)
+        request = getattr(skylinx_middlewares._thread_locals, "request", None)
         if request and not self.is_active and self.get_archive_condition() is not False:
             self.is_active = True
             super().save(*args, **kwargs)
@@ -586,7 +586,7 @@ class Employee(models.Model):
         return self
 
 
-class EmployeeTag(HorillaModel):
+class EmployeeTag(SkylinxModel):
     """
     EmployeeTag Model
     """
@@ -696,13 +696,13 @@ class EmployeeWorkInformation(models.Model):
     )
     additional_info = models.JSONField(null=True, blank=True)
     experience = models.FloatField(null=True, blank=True, default=0)
-    history = HorillaAuditLog(
+    history = SkylinxAuditLog(
         related_name="history_set",
         bases=[
-            HorillaAuditInfo,
+            SkylinxAuditInfo,
         ],
     )
-    objects = HorillaCompanyManager()
+    objects = SkylinxCompanyManager()
 
     def __str__(self) -> str:
         return f"{self.employee_id} - {self.job_position_id}"
@@ -743,7 +743,7 @@ class EmployeeWorkInformation(models.Model):
         return self
 
 
-class EmployeeBankDetails(HorillaModel):
+class EmployeeBankDetails(SkylinxModel):
     """
     EmployeeBankDetails model
     """
@@ -773,7 +773,7 @@ class EmployeeBankDetails(HorillaModel):
         max_length=50, null=True, blank=True, verbose_name="Bank Code #2"
     )
     additional_info = models.JSONField(null=True, blank=True)
-    objects = HorillaCompanyManager(
+    objects = SkylinxCompanyManager(
         related_company_field="employee_id__employee_work_info__company_id"
     )
 
@@ -799,7 +799,7 @@ class EmployeeBankDetails(HorillaModel):
                 )
 
 
-class NoteFiles(HorillaModel):
+class NoteFiles(SkylinxModel):
     files = models.FileField(upload_to=upload_path, blank=True, null=True)
     objects = models.Manager()
 
@@ -807,7 +807,7 @@ class NoteFiles(HorillaModel):
         return self.files.name.split("/")[-1]
 
 
-class EmployeeNote(HorillaModel):
+class EmployeeNote(SkylinxModel):
     """
     EmployeeNote model
     """
@@ -820,7 +820,7 @@ class EmployeeNote(HorillaModel):
     description = models.TextField(verbose_name=_("Description"), null=True)  # 905
     note_files = models.ManyToManyField(NoteFiles, blank=True)
     updated_by = models.ForeignKey(Employee, on_delete=models.CASCADE)
-    objects = HorillaCompanyManager(
+    objects = SkylinxCompanyManager(
         related_company_field="employee_id__employee_work_info__company_id"
     )
 
@@ -828,7 +828,7 @@ class EmployeeNote(HorillaModel):
         return f"{self.description}"
 
 
-class PolicyMultipleFile(HorillaModel):
+class PolicyMultipleFile(SkylinxModel):
     """
     PoliciesMultipleFile model
     """
@@ -836,7 +836,7 @@ class PolicyMultipleFile(HorillaModel):
     attachment = models.FileField(upload_to=upload_path)
 
 
-class Policy(HorillaModel):
+class Policy(SkylinxModel):
     """
     Policies model
     """
@@ -850,7 +850,7 @@ class Policy(HorillaModel):
     attachments = models.ManyToManyField(PolicyMultipleFile, blank=True)
     company_id = models.ManyToManyField(Company, blank=True, verbose_name=_("Company"))
 
-    objects = HorillaCompanyManager("company_id")
+    objects = SkylinxCompanyManager("company_id")
 
     class Meta:
         verbose_name = _("Policy")
@@ -861,7 +861,7 @@ class Policy(HorillaModel):
         self.attachments.all().delete()
 
 
-class BonusPoint(HorillaModel):
+class BonusPoint(SkylinxModel):
     """
     Model representing bonus points for employees with associated conditions.
     """
@@ -888,13 +888,13 @@ class BonusPoint(HorillaModel):
     )
     redeeming_points = models.IntegerField(blank=True, null=True)
     reason = models.TextField(blank=True, null=True, max_length=255)
-    history = HorillaAuditLog(
+    history = SkylinxAuditLog(
         related_name="history_set",
         bases=[
-            HorillaAuditInfo,
+            SkylinxAuditInfo,
         ],
     )
-    objects = HorillaCompanyManager(
+    objects = SkylinxCompanyManager(
         related_company_field="employee_id__employee_work_info__company_id"
     )
 
@@ -922,7 +922,7 @@ class BonusPoint(HorillaModel):
             BonusPoint.objects.create(employee_id=instance)
 
 
-class Actiontype(HorillaModel):
+class Actiontype(SkylinxModel):
     """
     Action type model
     """
@@ -951,7 +951,7 @@ class Actiontype(HorillaModel):
         verbose_name_plural = _("Action Types")
 
 
-class DisciplinaryAction(HorillaModel):
+class DisciplinaryAction(SkylinxModel):
     """
     Disciplinary model
     """
@@ -970,7 +970,7 @@ class DisciplinaryAction(HorillaModel):
     )
     start_date = models.DateField(null=True)
     attachment = models.FileField(upload_to=upload_path, null=True, blank=True)
-    objects = HorillaCompanyManager("employee_id__employee_work_info__company_id")
+    objects = SkylinxCompanyManager("employee_id__employee_work_info__company_id")
 
     def __str__(self) -> str:
         return f"{self.action}"
@@ -979,17 +979,17 @@ class DisciplinaryAction(HorillaModel):
         ordering = ["-id"]
 
 
-class EmployeeGeneralSetting(HorillaModel):
+class EmployeeGeneralSetting(SkylinxModel):
     """
     EmployeeGeneralSetting
     """
 
     badge_id_prefix = models.CharField(max_length=5, default="PEP")
     company_id = models.ForeignKey(Company, null=True, on_delete=models.CASCADE)
-    objects = HorillaCompanyManager("company_id")
+    objects = SkylinxCompanyManager("company_id")
 
 
-class ProfileEditFeature(HorillaModel):
+class ProfileEditFeature(SkylinxModel):
     """
     ProfileEditFeature
     """

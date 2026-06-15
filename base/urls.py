@@ -20,7 +20,7 @@ from base.models import (
     EmployeeShiftSchedule,
     EmployeeType,
     Holidays,
-    HorillaMailTemplate,
+    SkylinxMailTemplate,
     JobPosition,
     JobRole,
     RotatingShift,
@@ -32,7 +32,7 @@ from base.models import (
     WorkType,
     WorkTypeRequest,
 )
-from horilla_audit.models import AuditTag
+from skylinx_audit.models import AuditTag
 
 urlpatterns = [
     path("", views.home, name="home-page"),
@@ -82,7 +82,7 @@ urlpatterns = [
     path("login/", views.login_user, name="login"),
     path(
         "forgot-password",
-        views.HorillaPasswordResetView.as_view(),
+        views.SkylinxPasswordResetView.as_view(),
         name="forgot-password",
     ),
     path(
@@ -184,7 +184,7 @@ urlpatterns = [
         views.object_duplicate,
         name="duplicate-mail-template",
         kwargs={
-            "model": HorillaMailTemplate,
+            "model": SkylinxMailTemplate,
             "form": MailTemplateForm,
             "template": "mail/htmx/form.html",
         },
@@ -1004,9 +1004,9 @@ urlpatterns = [
         name="emp-workinfo-complete",
     ),
     path(
-        "get-horilla-installed-apps/",
-        views.get_horilla_installed_apps,
-        name="get-horilla-installed-apps",
+        "get-skylinx-installed-apps/",
+        views.get_skylinx_installed_apps,
+        name="get-skylinx-installed-apps",
     ),
     path("configuration/holiday-view", views.holiday_view, name="holiday-view"),
     path(

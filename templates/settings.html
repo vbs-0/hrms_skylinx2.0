@@ -1,4 +1,4 @@
-{% extends 'index.html' %} {% block content %} {% load static %} {% load i18n %} {% load horillafilters %}
+{% extends 'index.html' %} {% block content %} {% load static %} {% load i18n %} {% load skylinxfilters %}
 <style>
 	.settings-label {
 		font-weight: bold;
@@ -101,7 +101,7 @@
 												{% endif %}
 											</div>
 											<div class="oh-input-group">
-												{% if perms.base.view_tags or perms.employee.view_emplyeetag or perms.horilla_audit.view_audittag %}
+												{% if perms.base.view_tags or perms.employee.view_emplyeetag or perms.skylinx_audit.view_audittag %}
 													<a
 														id="ticket_type"
 														href="{% url 'tag-view' %}"
@@ -133,7 +133,7 @@
 												{% endif %}
 											{% endif %}
 											<div class="oh-input-group">
-												{% if perms.horilla_backup.view_googledrivebackup %}
+												{% if perms.skylinx_backup.view_googledrivebackup %}
 													<a
 														id="date"
 														href="{% url 'gdrive' %}"
@@ -142,8 +142,8 @@
 													>
 												{% endif %}
 											</div>
-											{% if "horilla_ldap"|app_installed %}
-												{% if perms.horilla_ldap.add_ldapsettings or perms.horilla_ldap.update_ldapsettings %}
+											{% if "skylinx_ldap"|app_installed %}
+												{% if perms.skylinx_ldap.add_ldapsettings or perms.skylinx_ldap.update_ldapsettings %}
 													<div class="oh-input-group">
 														<a
 															id="date"

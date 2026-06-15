@@ -8,8 +8,8 @@ class LeaveConfig(AppConfig):
     def ready(self):
         from django.urls import include, path
 
-        from horilla.horilla_settings import APPS
-        from horilla.urls import urlpatterns
+        from skylinx.skylinx_settings import APPS
+        from skylinx.urls import urlpatterns
         from leave import signals
 
         APPS.append("leave")

@@ -43,7 +43,6 @@ google-crc32c
 google-resumable-media
 googleapis-common-protos
 gunicorn
-horillasetup
 html5lib
 Jinja2
 idna

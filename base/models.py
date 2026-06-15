@@ -16,11 +16,11 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from base.horilla_company_manager import HorillaCompanyManager
-from horilla import horilla_middlewares
-from horilla.horilla_middlewares import _thread_locals
-from horilla.models import HorillaModel, upload_path
-from horilla_audit.models import HorillaAuditInfo, HorillaAuditLog
+from base.skylinx_company_manager import SkylinxCompanyManager
+from skylinx import skylinx_middlewares
+from skylinx.skylinx_middlewares import _thread_locals
+from skylinx.models import SkylinxModel, upload_path
+from skylinx_audit.models import SkylinxAuditInfo, SkylinxAuditLog
 
 # Create your models here.
 WEEKS = [
@@ -65,7 +65,7 @@ def clear_messages(request):
         pass
 
 
-class Company(HorillaModel):
+class Company(SkylinxModel):
     """
     Company model
     """
@@ -99,7 +99,7 @@ class Company(HorillaModel):
         return str(self.company)
 
 
-class Department(HorillaModel):
+class Department(SkylinxModel):
     """
     Department model
     """
@@ -109,7 +109,7 @@ class Department(HorillaModel):
     )
     company_id = models.ManyToManyField(Company, blank=True, verbose_name=_("Company"))
 
-    objects = HorillaCompanyManager()
+    objects = SkylinxCompanyManager()
 
     class Meta:
         verbose_name = _("Department")
@@ -140,7 +140,7 @@ class Department(HorillaModel):
         return str(self.department)
 
 
-class JobPosition(HorillaModel):
+class JobPosition(SkylinxModel):
     """
     JobPosition model
     """
@@ -156,7 +156,7 @@ class JobPosition(HorillaModel):
     )
     company_id = models.ManyToManyField(Company, blank=True, verbose_name=_("Company"))
 
-    objects = HorillaCompanyManager("department_id__company_id")
+    objects = SkylinxCompanyManager("department_id__company_id")
 
     class Meta:
         """
@@ -170,7 +170,7 @@ class JobPosition(HorillaModel):
         return str(self.job_position + " - (" + self.department_id.department) + ")"
 
 
-class JobRole(HorillaModel):
+class JobRole(SkylinxModel):
     """JobRole model"""
 
     job_position_id = models.ForeignKey(
@@ -181,7 +181,7 @@ class JobRole(HorillaModel):
     )
     company_id = models.ManyToManyField(Company, blank=True, verbose_name=_("Company"))
 
-    objects = HorillaCompanyManager("job_position_id__department_id__company_id")
+    objects = SkylinxCompanyManager("job_position_id__department_id__company_id")
 
     class Meta:
         """
@@ -196,7 +196,7 @@ class JobRole(HorillaModel):
         return f"{self.job_role} - {self.job_position_id.job_position}"
 
 
-class WorkType(HorillaModel):
+class WorkType(SkylinxModel):
     """
     WorkType model
     """
@@ -204,7 +204,7 @@ class WorkType(HorillaModel):
     work_type = models.CharField(max_length=50, verbose_name=_("Work Type"))
     company_id = models.ManyToManyField(Company, blank=True, verbose_name=_("Company"))
 
-    objects = HorillaCompanyManager()
+    objects = SkylinxCompanyManager()
 
     class Meta:
         """
@@ -237,7 +237,7 @@ class WorkType(HorillaModel):
         return self
 
 
-class RotatingWorkType(HorillaModel):
+class RotatingWorkType(SkylinxModel):
     """
     RotatingWorkType model
     """
@@ -265,7 +265,7 @@ class RotatingWorkType(HorillaModel):
         blank=True,
         null=True,
     )
-    objects = HorillaCompanyManager("employee_id__employee_work_info__company_id")
+    objects = SkylinxCompanyManager("employee_id__employee_work_info__company_id")
 
     class Meta:
         """
@@ -339,7 +339,7 @@ BASED_ON = [
 ]
 
 
-class RotatingWorkTypeAssign(HorillaModel):
+class RotatingWorkTypeAssign(SkylinxModel):
     """
     RotatingWorkTypeAssign model
     """
@@ -400,13 +400,13 @@ class RotatingWorkTypeAssign(HorillaModel):
         blank=True,
         null=True,
     )
-    history = HorillaAuditLog(
+    history = SkylinxAuditLog(
         related_name="history_set",
         bases=[
-            HorillaAuditInfo,
+            SkylinxAuditInfo,
         ],
     )
-    objects = HorillaCompanyManager("employee_id__employee_work_info__company_id")
+    objects = SkylinxCompanyManager("employee_id__employee_work_info__company_id")
 
     class Meta:
         """
@@ -429,7 +429,7 @@ class RotatingWorkTypeAssign(HorillaModel):
             raise ValidationError(_("Date must be greater than or equal to today"))
 
 
-class EmployeeType(HorillaModel):
+class EmployeeType(SkylinxModel):
     """
     EmployeeType model
     """
@@ -437,7 +437,7 @@ class EmployeeType(HorillaModel):
     employee_type = models.CharField(max_length=50)
     company_id = models.ManyToManyField(Company, blank=True, verbose_name=_("Company"))
 
-    objects = HorillaCompanyManager("employee_id__employee_work_info__company_id")
+    objects = SkylinxCompanyManager("employee_id__employee_work_info__company_id")
 
     class Meta:
         """
@@ -482,7 +482,7 @@ class EmployeeShiftDay(models.Model):
     day = models.CharField(max_length=20, choices=DAY)
     company_id = models.ManyToManyField(Company, blank=True, verbose_name=_("Company"))
 
-    objects = HorillaCompanyManager()
+    objects = SkylinxCompanyManager()
 
     class Meta:
         """
@@ -496,7 +496,7 @@ class EmployeeShiftDay(models.Model):
         return str(_(self.day).capitalize())
 
 
-class EmployeeShift(HorillaModel):
+class EmployeeShift(SkylinxModel):
     """
     EmployeeShift model
     """
@@ -528,7 +528,7 @@ class EmployeeShift(HorillaModel):
             verbose_name=_("Grace Time"),
         )
 
-    objects = HorillaCompanyManager("employee_shift__company_id")
+    objects = SkylinxCompanyManager("employee_shift__company_id")
 
     class Meta:
         """
@@ -568,7 +568,7 @@ class EmployeeShift(HorillaModel):
 from django.db.models import Case, When
 
 
-class EmployeeShiftSchedule(HorillaModel):
+class EmployeeShiftSchedule(SkylinxModel):
     """
     EmployeeShiftSchedule model
     """
@@ -601,12 +601,12 @@ class EmployeeShiftSchedule(HorillaModel):
         blank=True,
         verbose_name=_("Automatic Check Out Time"),
         help_text=_(
-            "Time at which the horilla will automatically check out the employee attendance if they forget."
+            "Time at which the skylinx will automatically check out the employee attendance if they forget."
         ),
     )
     company_id = models.ManyToManyField(Company, blank=True, verbose_name=_("Company"))
 
-    objects = HorillaCompanyManager("shift_id__employee_shift__company_id")
+    objects = SkylinxCompanyManager("shift_id__employee_shift__company_id")
 
     class Meta:
         """
@@ -638,7 +638,7 @@ class EmployeeShiftSchedule(HorillaModel):
         super().save(*args, **kwargs)
 
 
-class RotatingShift(HorillaModel):
+class RotatingShift(SkylinxModel):
     """
     RotatingShift model
     """
@@ -668,7 +668,7 @@ class RotatingShift(HorillaModel):
         blank=True,
         null=True,
     )
-    objects = HorillaCompanyManager("employee_id__employee_work_info__company_id")
+    objects = SkylinxCompanyManager("employee_id__employee_work_info__company_id")
 
     class Meta:
         """
@@ -736,7 +736,7 @@ class RotatingShift(HorillaModel):
         return total_shifts
 
 
-class RotatingShiftAssign(HorillaModel):
+class RotatingShiftAssign(SkylinxModel):
     """
     RotatingShiftAssign model
     """
@@ -796,13 +796,13 @@ class RotatingShiftAssign(HorillaModel):
         blank=True,
         null=True,
     )
-    history = HorillaAuditLog(
+    history = SkylinxAuditLog(
         related_name="history_set",
         bases=[
-            HorillaAuditInfo,
+            SkylinxAuditInfo,
         ],
     )
-    objects = HorillaCompanyManager("employee_id__employee_work_info__company_id")
+    objects = SkylinxCompanyManager("employee_id__employee_work_info__company_id")
 
     class Meta:
         """
@@ -830,7 +830,7 @@ class BaserequestFile(models.Model):
     objects = models.Manager()
 
 
-class WorkTypeRequest(HorillaModel):
+class WorkTypeRequest(SkylinxModel):
     """
     WorkTypeRequest model
     """
@@ -869,13 +869,13 @@ class WorkTypeRequest(HorillaModel):
     approved = models.BooleanField(default=False, verbose_name=_("Approved"))
     canceled = models.BooleanField(default=False, verbose_name=_("Canceled"))
     work_type_changed = models.BooleanField(default=False)
-    history = HorillaAuditLog(
+    history = SkylinxAuditLog(
         related_name="history_set",
         bases=[
-            HorillaAuditInfo,
+            SkylinxAuditInfo,
         ],
     )
-    objects = HorillaCompanyManager("employee_id__employee_work_info__company_id")
+    objects = SkylinxCompanyManager("employee_id__employee_work_info__company_id")
 
     class Meta:
         """
@@ -941,7 +941,7 @@ class WorkTypeRequest(HorillaModel):
         return False
 
     def clean(self):
-        request = getattr(horilla_middlewares._thread_locals, "request", None)
+        request = getattr(skylinx_middlewares._thread_locals, "request", None)
         if not request.user.is_superuser:
             if self.requested_date < django.utils.timezone.now().date():
                 raise ValidationError(_("Date must be greater than or equal to today"))
@@ -969,7 +969,7 @@ class WorkTypeRequest(HorillaModel):
             {self.employee_id.employee_last_name} - {self.requested_date}"
 
 
-class WorkTypeRequestComment(HorillaModel):
+class WorkTypeRequestComment(SkylinxModel):
     """
     WorkTypeRequestComment Model
     """
@@ -986,7 +986,7 @@ class WorkTypeRequestComment(HorillaModel):
         return f"{self.comment}"
 
 
-class ShiftRequest(HorillaModel):
+class ShiftRequest(SkylinxModel):
     """
     ShiftRequest model
     """
@@ -1035,13 +1035,13 @@ class ShiftRequest(HorillaModel):
     approved = models.BooleanField(default=False, verbose_name=_("Approved"))
     canceled = models.BooleanField(default=False, verbose_name=_("Canceled"))
     shift_changed = models.BooleanField(default=False)
-    history = HorillaAuditLog(
+    history = SkylinxAuditLog(
         related_name="history_set",
         bases=[
-            HorillaAuditInfo,
+            SkylinxAuditInfo,
         ],
     )
-    objects = HorillaCompanyManager("employee_id__employee_work_info__company_id")
+    objects = SkylinxCompanyManager("employee_id__employee_work_info__company_id")
 
     class Meta:
         """
@@ -1060,7 +1060,7 @@ class ShiftRequest(HorillaModel):
 
     def clean(self):
 
-        request = getattr(horilla_middlewares._thread_locals, "request", None)
+        request = getattr(skylinx_middlewares._thread_locals, "request", None)
         if not request.user.is_superuser:
             if not self.pk and self.requested_date < django.utils.timezone.now().date():
                 raise ValidationError(_("Date must be greater than or equal to today"))
@@ -1132,7 +1132,7 @@ class ShiftRequest(HorillaModel):
             {self.employee_id.employee_last_name} - {self.requested_date}"
 
 
-class ShiftRequestComment(HorillaModel):
+class ShiftRequestComment(SkylinxModel):
     """
     ShiftRequestComment Model
     """
@@ -1149,13 +1149,13 @@ class ShiftRequestComment(HorillaModel):
         return f"{self.comment}"
 
 
-class Tags(HorillaModel):
+class Tags(SkylinxModel):
     title = models.CharField(max_length=30)
     color = models.CharField(max_length=30)
     company_id = models.ForeignKey(
         Company, null=True, editable=False, on_delete=models.PROTECT
     )
-    objects = HorillaCompanyManager(related_company_field="company_id")
+    objects = SkylinxCompanyManager(related_company_field="company_id")
 
     class Meta:
         verbose_name = _("Tag")
@@ -1165,7 +1165,7 @@ class Tags(HorillaModel):
         return self.title
 
 
-class HorillaMailTemplate(HorillaModel):
+class SkylinxMailTemplate(SkylinxModel):
     title = models.CharField(max_length=100, unique=True)
     body = models.TextField()
     company_id = models.ForeignKey(
@@ -1175,13 +1175,13 @@ class HorillaMailTemplate(HorillaModel):
         on_delete=models.CASCADE,
         verbose_name=_("Company"),
     )
-    objects = HorillaCompanyManager(related_company_field="company_id")
+    objects = SkylinxCompanyManager(related_company_field="company_id")
 
     def __str__(self) -> str:
         return f"{self.title}"
 
 
-class DynamicEmailConfiguration(HorillaModel):
+class DynamicEmailConfiguration(SkylinxModel):
     """
     SingletonModel to keep the mail server configurations
     """
@@ -1285,7 +1285,7 @@ CONDITION_CHOICE = [
 ]
 
 
-class MultipleApprovalCondition(HorillaModel):
+class MultipleApprovalCondition(SkylinxModel):
     department = models.ForeignKey(Department, on_delete=models.CASCADE)
     condition_field = models.CharField(
         max_length=255,
@@ -1501,7 +1501,7 @@ class AnnouncementExpire(models.Model):
     objects = models.Manager()
 
 
-class Announcement(HorillaModel):
+class Announcement(SkylinxModel):
     """
     Announcement Model for storing all announcements.
     """
@@ -1538,7 +1538,7 @@ class Announcement(HorillaModel):
     filtered_employees = models.ManyToManyField(
         Employee, related_name="announcement_filtered_employees", editable=False
     )
-    objects = HorillaCompanyManager(related_company_field="company_id")
+    objects = SkylinxCompanyManager(related_company_field="company_id")
 
     class Meta:
         verbose_name = _("Announcement")
@@ -1572,7 +1572,7 @@ class Announcement(HorillaModel):
         return self.title
 
 
-class AnnouncementComment(HorillaModel):
+class AnnouncementComment(SkylinxModel):
     """
     AnnouncementComment Model
     """
@@ -1635,7 +1635,7 @@ class DriverViewed(models.Model):
         return self.user.driverviewed_set.values_list("viewed", flat=True)
 
 
-class DashboardEmployeeCharts(HorillaModel):
+class DashboardEmployeeCharts(SkylinxModel):
     from employee.models import Employee
 
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
@@ -1698,7 +1698,7 @@ class AttendanceAllowedIP(models.Model):
         return f"AttendanceAllowedIP - {self.is_enabled}"
 
 
-class TrackLateComeEarlyOut(HorillaModel):
+class TrackLateComeEarlyOut(SkylinxModel):
     is_enable = models.BooleanField(
         default=True,
         verbose_name=_("Enable"),
@@ -1723,7 +1723,7 @@ class TrackLateComeEarlyOut(HorillaModel):
         return super().save(*args, **kwargs)
 
 
-class Holidays(HorillaModel):
+class Holidays(SkylinxModel):
     name = models.CharField(max_length=30, null=False, verbose_name=_("Name"))
     start_date = models.DateField(verbose_name=_("Start Date"))
     end_date = models.DateField(null=True, blank=True, verbose_name=_("End Date"))
@@ -1734,7 +1734,7 @@ class Holidays(HorillaModel):
         on_delete=models.PROTECT,
         verbose_name=_("Company"),
     )
-    objects = HorillaCompanyManager(related_company_field="company_id")
+    objects = SkylinxCompanyManager(related_company_field="company_id")
 
     class Meta:
         verbose_name = _("Holiday")
@@ -1758,7 +1758,7 @@ class Holidays(HorillaModel):
         return Holidays.objects.filter(start_date__lte=today, end_date__gte=today)
 
 
-class CompanyLeaves(HorillaModel):
+class CompanyLeaves(SkylinxModel):
     based_on_week = models.CharField(
         max_length=100,
         choices=WEEKS,
@@ -1772,7 +1772,7 @@ class CompanyLeaves(HorillaModel):
     company_id = models.ForeignKey(
         Company, null=True, on_delete=models.PROTECT, verbose_name=_("Company")
     )
-    objects = HorillaCompanyManager()
+    objects = SkylinxCompanyManager()
 
     class Meta:
         unique_together = ("based_on_week", "based_on_week_day")
@@ -1783,7 +1783,7 @@ class CompanyLeaves(HorillaModel):
         return f"{dict(WEEK_DAYS).get(self.based_on_week_day)} | {dict(WEEKS).get(self.based_on_week)}"
 
 
-class PenaltyAccounts(HorillaModel):
+class PenaltyAccounts(SkylinxModel):
     """
     LateComeEarlyOutPenaltyAccount
     """

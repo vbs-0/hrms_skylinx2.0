@@ -29,16 +29,16 @@ from attendance.models import AttendanceActivity
 from attendance.views.clock_in_out import clock_in, clock_out
 from base.methods import get_key_instances, get_pagination
 from employee.models import Employee, EmployeeWorkInformation
-from horilla.decorators import (
+from skylinx.decorators import (
     hx_request_required,
     install_required,
     login_required,
     permission_required,
 )
-from horilla.filters import HorillaPaginator
-from horilla.horilla_settings import BIO_DEVICE_THREADS
-from horilla.http.response import HorillaRedirect
-from horilla.settings import TIME_ZONE
+from skylinx.filters import SkylinxPaginator
+from skylinx.skylinx_settings import BIO_DEVICE_THREADS
+from skylinx.http.response import SkylinxRedirect
+from skylinx.settings import TIME_ZONE
 
 from .anviz import CrossChexCloudAPI
 from .cosec import COSECBiometric
@@ -74,7 +74,7 @@ def paginator_qry(qryset, page_number):
     """
     This method is used to paginate query set
     """
-    paginator = HorillaPaginator(qryset, get_pagination())
+    paginator = SkylinxPaginator(qryset, get_pagination())
     qryset = paginator.get_page(page_number)
     return qryset
 
@@ -437,7 +437,7 @@ def biometric_device_schedule(request, device_id):
                         seconds=str_time_seconds(device.scheduler_duration),
                     )
                     scheduler.start()
-                    return HorillaRedirect(request)
+                    return SkylinxRedirect(request)
                 except Exception as error:
                     logger.error("An error comes in biometric_device_schedule ", error)
                     script = """
@@ -467,7 +467,7 @@ def biometric_device_schedule(request, device_id):
                     seconds=str_time_seconds(device.scheduler_duration),
                 )
                 scheduler.start()
-                return HorillaRedirect(request)
+                return SkylinxRedirect(request)
             elif device.machine_type == "dahua":
                 device.is_scheduler = True
                 device.is_live = False
@@ -480,7 +480,7 @@ def biometric_device_schedule(request, device_id):
                     seconds=str_time_seconds(device.scheduler_duration),
                 )
                 scheduler.start()
-                return HorillaRedirect(request)
+                return SkylinxRedirect(request)
             elif device.machine_type == "cosec":
                 device.is_scheduler = True
                 device.is_live = False
@@ -497,7 +497,7 @@ def biometric_device_schedule(request, device_id):
                     seconds=str_time_seconds(device.scheduler_duration),
                 )
                 scheduler.start()
-                return HorillaRedirect(request)
+                return SkylinxRedirect(request)
             elif device.machine_type == "etimeoffice":
                 device.is_scheduler = True
                 device.is_live = False
@@ -510,9 +510,9 @@ def biometric_device_schedule(request, device_id):
                     seconds=str_time_seconds(device.scheduler_duration),
                 )
                 scheduler.start()
-                return HorillaRedirect(request)
+                return SkylinxRedirect(request)
             else:
-                return HorillaRedirect(request)
+                return SkylinxRedirect(request)
 
         context["scheduler_form"] = scheduler_form
         response = render(request, "biometric/scheduler_device_form.html", context)
@@ -1527,7 +1527,7 @@ def edit_cosec_user(request, user_id, device_id):
                     messages.success(
                         request, _("Biometric user data updated successfully")
                     )
-                    return HorillaRedirect(request)
+                    return SkylinxRedirect(request)
                 if update_user.get("error"):
                     error = update_user.get("error")
                     if "validity-date-yyyy" in error:
@@ -1548,7 +1548,7 @@ def edit_cosec_user(request, user_id, device_id):
 @login_required
 @install_required
 @permission_required("biometric.delete_biometricemployees")
-def delete_horilla_cosec_user(request, user_id, device_id):
+def delete_skylinx_cosec_user(request, user_id, device_id):
     """
     View function to delete a user from a COSEC biometric device and database.
 
@@ -1809,7 +1809,7 @@ def add_biometric_user(request, device_id):
             if device.machine_type == "zk":
                 conn.disable_device()
                 logger.error("An error occurred: ", str(error))
-        return HorillaRedirect(request)
+        return SkylinxRedirect(request)
     return render(
         request,
         "biometric/add_biometric_user.html",
@@ -1822,7 +1822,7 @@ def add_biometric_user(request, device_id):
 @hx_request_required
 def map_biometric_users(request, device_id):
     """
-    Maps an horilla employee to a biometric user on a specified biometric device.
+    Maps an skylinx employee to a biometric user on a specified biometric device.
     """
     device = BiometricDevices.find(device_id)
     form = MapBioUsers(request.POST or None)

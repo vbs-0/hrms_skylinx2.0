@@ -21,13 +21,13 @@ from django.templatetags.static import static
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 
-from base.horilla_company_manager import HorillaCompanyManager
+from base.skylinx_company_manager import SkylinxCompanyManager
 from base.models import Company, JobPosition
 from employee.models import Employee
-from horilla.models import HorillaModel, upload_path
-from horilla_audit.methods import get_diff
-from horilla_audit.models import HorillaAuditInfo, HorillaAuditLog
-from horilla_views.cbv_methods import render_template
+from skylinx.models import SkylinxModel, upload_path
+from skylinx_audit.methods import get_diff
+from skylinx_audit.models import SkylinxAuditInfo, SkylinxAuditLog
+from skylinx_views.cbv_methods import render_template
 
 # Create your models here.
 
@@ -71,7 +71,7 @@ def candidate_photo_upload_path(instance, filename):
     return os.path.join("recruitment/profile/", filename)
 
 
-class SurveyTemplate(HorillaModel):
+class SurveyTemplate(SkylinxModel):
     """
     SurveyTemplate Model
     """
@@ -86,7 +86,7 @@ class SurveyTemplate(HorillaModel):
         blank=True,
         verbose_name=_("Company"),
     )
-    objects = HorillaCompanyManager("company_id")
+    objects = SkylinxCompanyManager("company_id")
 
     def __str__(self) -> str:
         return self.title
@@ -96,7 +96,7 @@ class SurveyTemplate(HorillaModel):
         verbose_name_plural = _("Survey Templates")
 
 
-class Skill(HorillaModel):
+class Skill(SkylinxModel):
     title = models.CharField(max_length=100)
 
     def __str__(self):
@@ -112,7 +112,7 @@ class Skill(HorillaModel):
         verbose_name_plural = _("Skills")
 
 
-class Recruitment(HorillaModel):
+class Recruitment(SkylinxModel):
     """
     Recruitment model
     """
@@ -189,7 +189,7 @@ class Recruitment(HorillaModel):
         ),
         verbose_name=_("Post on LinkedIn"),
     )
-    objects = HorillaCompanyManager()
+    objects = SkylinxCompanyManager()
     default = models.manager.Manager()
     optional_profile_image = models.BooleanField(
         default=False,
@@ -283,7 +283,7 @@ class Recruitment(HorillaModel):
                 return True
 
 
-class Stage(HorillaModel):
+class Stage(SkylinxModel):
     """
     Stage model
     """
@@ -311,7 +311,7 @@ class Stage(HorillaModel):
         verbose_name=_("Stage Type"),
     )
     sequence = models.IntegerField(null=True, default=0)
-    objects = HorillaCompanyManager(related_company_field="recruitment_id__company_id")
+    objects = SkylinxCompanyManager(related_company_field="recruitment_id__company_id")
 
     def __str__(self):
         return f"{self.stage}"
@@ -351,7 +351,7 @@ def candidate_upload_path(instance, filename):
     return f"recruitment/{name_slug}/{unique_filename}"
 
 
-class Candidate(HorillaModel):
+class Candidate(SkylinxModel):
     """
     Candidate model
     """
@@ -463,10 +463,10 @@ class Candidate(HorillaModel):
     joining_date = models.DateField(
         blank=True, null=True, verbose_name=_("Joining Date")
     )
-    history = HorillaAuditLog(
+    history = SkylinxAuditLog(
         related_name="history_set",
         bases=[
-            HorillaAuditInfo,
+            SkylinxAuditInfo,
         ],
     )
     sequence = models.IntegerField(null=True, default=0)
@@ -479,7 +479,7 @@ class Candidate(HorillaModel):
         editable=False,
         verbose_name=_("Offer Letter Status"),
     )
-    objects = HorillaCompanyManager(related_company_field="recruitment_id__company_id")
+    objects = SkylinxCompanyManager(related_company_field="recruitment_id__company_id")
     last_updated = models.DateField(null=True, auto_now=True)
 
     converted_employee_id.exclude_from_automation = True
@@ -646,7 +646,7 @@ class Candidate(HorillaModel):
         verbose_name_plural = _("Candidates")
 
 
-class RejectReason(HorillaModel):
+class RejectReason(SkylinxModel):
     """
     RejectReason
     """
@@ -662,7 +662,7 @@ class RejectReason(HorillaModel):
         blank=True,
         verbose_name=_("Company"),
     )
-    objects = HorillaCompanyManager()
+    objects = SkylinxCompanyManager()
 
     def __str__(self) -> str:
         return self.title
@@ -672,7 +672,7 @@ class RejectReason(HorillaModel):
         verbose_name_plural = _("Reject Reasons")
 
 
-class RejectedCandidate(HorillaModel):
+class RejectedCandidate(SkylinxModel):
     """
     RejectedCandidate
     """
@@ -687,13 +687,13 @@ class RejectedCandidate(HorillaModel):
         RejectReason, verbose_name="Reject reason", blank=True
     )
     description = models.TextField(max_length=255)
-    objects = HorillaCompanyManager(
+    objects = SkylinxCompanyManager(
         related_company_field="candidate_id__recruitment_id__company_id"
     )
-    history = HorillaAuditLog(
+    history = SkylinxAuditLog(
         related_name="history_set",
         bases=[
-            HorillaAuditInfo,
+            SkylinxAuditInfo,
         ],
     )
 
@@ -706,14 +706,14 @@ class RejectedCandidate(HorillaModel):
         return f"{self.candidate_id} - {reasons if reasons else 'No Reason'}"
 
 
-class StageFiles(HorillaModel):
+class StageFiles(SkylinxModel):
     files = models.FileField(upload_to=upload_path, blank=True, null=True)
 
     def __str__(self):
         return self.files.name.split("/")[-1]
 
 
-class StageNote(HorillaModel):
+class StageNote(SkylinxModel):
     """
     StageNote model
     """
@@ -726,7 +726,7 @@ class StageNote(HorillaModel):
         Employee, on_delete=models.CASCADE, null=True, blank=True
     )
     candidate_can_view = models.BooleanField(default=False)
-    objects = HorillaCompanyManager(
+    objects = SkylinxCompanyManager(
         related_company_field="candidate_id__recruitment_id__company_id"
     )
 
@@ -740,7 +740,7 @@ class StageNote(HorillaModel):
             return self.candidate_id
 
 
-class RecruitmentSurvey(HorillaModel):
+class RecruitmentSurvey(SkylinxModel):
     """
     RecruitmentSurvey model
     """
@@ -778,7 +778,7 @@ class RecruitmentSurvey(HorillaModel):
     options = models.TextField(
         null=True, default="", help_text=_("Separate choices by ',  '"), max_length=255
     )
-    objects = HorillaCompanyManager(related_company_field="recruitment_ids__company_id")
+    objects = SkylinxCompanyManager(related_company_field="recruitment_ids__company_id")
 
     def __str__(self) -> str:
         return str(self.question)
@@ -805,7 +805,7 @@ class RecruitmentSurvey(HorillaModel):
         ]
 
 
-class QuestionOrdering(HorillaModel):
+class QuestionOrdering(SkylinxModel):
     """
     Survey Template model
     """
@@ -813,10 +813,10 @@ class QuestionOrdering(HorillaModel):
     question_id = models.ForeignKey(RecruitmentSurvey, on_delete=models.CASCADE)
     recruitment_id = models.ForeignKey(Recruitment, on_delete=models.CASCADE)
     sequence = models.IntegerField(default=0)
-    objects = HorillaCompanyManager(related_company_field="recruitment_ids__company_id")
+    objects = SkylinxCompanyManager(related_company_field="recruitment_ids__company_id")
 
 
-class RecruitmentSurveyAnswer(HorillaModel):
+class RecruitmentSurveyAnswer(SkylinxModel):
     """
     RecruitmentSurveyAnswer
     """
@@ -836,7 +836,7 @@ class RecruitmentSurveyAnswer(HorillaModel):
     )
     answer_json = models.JSONField()
     attachment = models.FileField(upload_to=upload_path, null=True, blank=True)
-    objects = HorillaCompanyManager(related_company_field="recruitment_id__company_id")
+    objects = SkylinxCompanyManager(related_company_field="recruitment_id__company_id")
 
     @property
     def answer(self):
@@ -853,7 +853,7 @@ class RecruitmentSurveyAnswer(HorillaModel):
         return f"{self.candidate_id.name}-{self.recruitment_id}"
 
 
-class SkillZone(HorillaModel):
+class SkillZone(SkylinxModel):
     """ "
     Model for talent pool
     """
@@ -867,7 +867,7 @@ class SkillZone(HorillaModel):
         on_delete=models.CASCADE,
         verbose_name=_("Company"),
     )
-    objects = HorillaCompanyManager()
+    objects = SkylinxCompanyManager()
 
     class Meta:
         verbose_name = _("Skill Zone")
@@ -880,7 +880,7 @@ class SkillZone(HorillaModel):
         return self.title
 
 
-class SkillZoneCandidate(HorillaModel):
+class SkillZoneCandidate(SkylinxModel):
     """
     Model for saving candidate data's for future recruitment
     """
@@ -909,7 +909,7 @@ class SkillZoneCandidate(HorillaModel):
 
     reason = models.CharField(max_length=200, verbose_name=_("Reason"))
     added_on = models.DateField(auto_now_add=True)
-    objects = HorillaCompanyManager(
+    objects = SkylinxCompanyManager(
         related_company_field="candidate_id__recruitment_id__company_id"
     )
 
@@ -936,7 +936,7 @@ class SkillZoneCandidate(HorillaModel):
         return str(self.candidate_id.get_full_name())
 
 
-class CandidateRating(HorillaModel):
+class CandidateRating(SkylinxModel):
     employee_id = models.ForeignKey(
         Employee, on_delete=models.PROTECT, related_name="candidate_rating"
     )
@@ -954,7 +954,7 @@ class CandidateRating(HorillaModel):
         return f"{self.employee_id} - {self.candidate_id} rating {self.rating}"
 
 
-class RecruitmentGeneralSetting(HorillaModel):
+class RecruitmentGeneralSetting(SkylinxModel):
     """
     RecruitmentGeneralSettings model
     """
@@ -964,7 +964,7 @@ class RecruitmentGeneralSetting(HorillaModel):
     company_id = models.ForeignKey(Company, on_delete=models.CASCADE, null=True)
 
 
-class InterviewSchedule(HorillaModel):
+class InterviewSchedule(SkylinxModel):
     """
     Interview Scheduling Model
     """
@@ -985,7 +985,7 @@ class InterviewSchedule(HorillaModel):
     completed = models.BooleanField(
         default=False, verbose_name=_("Is Interview Completed")
     )
-    objects = HorillaCompanyManager("candidate_id__recruitment_id__company_id")
+    objects = SkylinxCompanyManager("candidate_id__recruitment_id__company_id")
 
     def __str__(self) -> str:
         return f"{self.candidate_id} -Interview."
@@ -1029,13 +1029,13 @@ FORMATS = [
 ]
 
 
-class CandidateDocumentRequest(HorillaModel):
+class CandidateDocumentRequest(SkylinxModel):
     title = models.CharField(max_length=100)
     candidate_id = models.ManyToManyField(Candidate)
     format = models.CharField(choices=FORMATS, max_length=10)
     max_size = models.IntegerField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)
-    objects = HorillaCompanyManager(
+    objects = SkylinxCompanyManager(
         related_company_field="employee_id__employee_work_info__company_id"
     )
 
@@ -1043,7 +1043,7 @@ class CandidateDocumentRequest(HorillaModel):
         return self.title
 
 
-class CandidateDocument(HorillaModel):
+class CandidateDocument(SkylinxModel):
     title = models.CharField(max_length=250)
     candidate_id = models.ForeignKey(
         Candidate, on_delete=models.PROTECT, verbose_name="Candidate"
@@ -1083,7 +1083,7 @@ class CandidateDocument(HorillaModel):
                 )
 
 
-class LinkedInAccount(HorillaModel):
+class LinkedInAccount(SkylinxModel):
     username = models.CharField(max_length=250, verbose_name=_("App Name"))
     email = models.EmailField(max_length=254, verbose_name=_("Email"))
     api_token = models.CharField(max_length=500, verbose_name=_("API Token"))

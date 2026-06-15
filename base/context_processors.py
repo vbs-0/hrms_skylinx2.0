@@ -20,10 +20,10 @@ from employee.models import (
     EmployeeWorkInformation,
     ProfileEditFeature,
 )
-from horilla import horilla_apps
-from horilla.decorators import hx_request_required, login_required, permission_required
-from horilla.http.response import HorillaRedirect
-from horilla.methods import get_horilla_model_class
+from skylinx import skylinx_apps
+from skylinx.decorators import hx_request_required, login_required, permission_required
+from skylinx.http.response import SkylinxRedirect
+from skylinx.methods import get_skylinx_model_class
 
 
 class AllCompany:
@@ -145,7 +145,7 @@ def update_selected_company(request):
         "id": company.id,
     }
     request.session["selected_company_instance"] = company
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 urlpatterns.append(
@@ -158,7 +158,7 @@ urlpatterns.append(
 
 
 def white_labelling_company(request):
-    white_labelling = getattr(horilla_apps, "WHITE_LABELLING", False)
+    white_labelling = getattr(skylinx_apps, "WHITE_LABELLING", False)
     if white_labelling:
         hq = Company.objects.filter(hq=True).last()
         try:
@@ -188,7 +188,7 @@ def resignation_request_enabled(request):
     enabled_resignation_request = False
     first = None
     if apps.is_installed("offboarding"):
-        OffboardingGeneralSetting = get_horilla_model_class(
+        OffboardingGeneralSetting = get_skylinx_model_class(
             app_label="offboarding", model="offboardinggeneralsetting"
         )
         first = OffboardingGeneralSetting.objects.first()
@@ -204,7 +204,7 @@ def timerunner_enabled(request):
     first = None
     enabled_timerunner = True
     if apps.is_installed("attendance"):
-        AttendanceGeneralSetting = get_horilla_model_class(
+        AttendanceGeneralSetting = get_skylinx_model_class(
             app_label="attendance", model="attendancegeneralsetting"
         )
         first = AttendanceGeneralSetting.objects.first()
@@ -220,7 +220,7 @@ def intial_notice_period(request):
     initial = 30
     first = None
     if apps.is_installed("payroll"):
-        PayrollGeneralSetting = get_horilla_model_class(
+        PayrollGeneralSetting = get_skylinx_model_class(
             app_label="payroll", model="payrollgeneralsetting"
         )
         first = PayrollGeneralSetting.objects.first()
@@ -236,7 +236,7 @@ def check_candidate_self_tracking(request):
 
     candidate_self_tracking = False
     if apps.is_installed("recruitment"):
-        RecruitmentGeneralSetting = get_horilla_model_class(
+        RecruitmentGeneralSetting = get_skylinx_model_class(
             app_label="recruitment", model="recruitmentgeneralsetting"
         )
         first = RecruitmentGeneralSetting.objects.first()
@@ -253,7 +253,7 @@ def check_candidate_self_tracking_rating(request):
     """
     rating_option = False
     if apps.is_installed("recruitment"):
-        RecruitmentGeneralSetting = get_horilla_model_class(
+        RecruitmentGeneralSetting = get_skylinx_model_class(
             app_label="recruitment", model="recruitmentgeneralsetting"
         )
         first = RecruitmentGeneralSetting.objects.first()

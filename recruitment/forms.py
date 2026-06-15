@@ -38,10 +38,10 @@ from base.forms import ModelForm as BaseModelForm
 from base.methods import reload_queryset
 from employee.filters import EmployeeFilter
 from employee.models import Employee
-from horilla import horilla_middlewares
-from horilla.horilla_middlewares import _thread_locals
-from horilla_widgets.widgets.horilla_multi_select_field import HorillaMultiSelectField
-from horilla_widgets.widgets.select_widgets import HorillaMultiSelectWidget
+from skylinx import skylinx_middlewares
+from skylinx.skylinx_middlewares import _thread_locals
+from skylinx_widgets.widgets.skylinx_multi_select_field import SkylinxMultiSelectField
+from skylinx_widgets.widgets.select_widgets import SkylinxMultiSelectWidget
 from recruitment import widgets
 from recruitment.models import (
     Candidate,
@@ -77,7 +77,7 @@ class ModelForm(forms.ModelForm):
 
         reload_queryset(self.fields)
 
-        request = getattr(horilla_middlewares._thread_locals, "request", None)
+        request = getattr(skylinx_middlewares._thread_locals, "request", None)
 
         today = date.today()
         now = datetime.now()
@@ -306,7 +306,7 @@ class RecruitmentCreationForm(BaseModelForm):
         Render the form fields as HTML table rows with Bootstrap styling.
         """
         context = {"form": self}
-        table_html = render_to_string("horilla_form.html", context)
+        table_html = render_to_string("skylinx_form.html", context)
         return table_html
 
     def __init__(self, *args, **kwargs):
@@ -314,9 +314,9 @@ class RecruitmentCreationForm(BaseModelForm):
 
         reload_queryset(self.fields)
         if not self.instance.pk:
-            self.fields["recruitment_managers"] = HorillaMultiSelectField(
+            self.fields["recruitment_managers"] = SkylinxMultiSelectField(
                 queryset=Employee.objects.filter(is_active=True),
-                widget=HorillaMultiSelectWidget(
+                widget=SkylinxMultiSelectWidget(
                     filter_route_name="employee-widget-filter",
                     filter_class=EmployeeFilter,
                     filter_instance_contex_name="f",
@@ -347,7 +347,7 @@ class RecruitmentCreationForm(BaseModelForm):
     #     return option
 
     def clean(self):
-        if isinstance(self.fields["recruitment_managers"], HorillaMultiSelectField):
+        if isinstance(self.fields["recruitment_managers"], SkylinxMultiSelectField):
             ids = self.data.getlist("recruitment_managers")
             if ids:
                 self.errors.pop("recruitment_managers", None)
@@ -392,9 +392,9 @@ class StageCreationForm(BaseModelForm):
         super().__init__(*args, **kwargs)
         reload_queryset(self.fields)
         if not self.instance.pk:
-            self.fields["stage_managers"] = HorillaMultiSelectField(
+            self.fields["stage_managers"] = SkylinxMultiSelectField(
                 queryset=Employee.objects.filter(is_active=True),
-                widget=HorillaMultiSelectWidget(
+                widget=SkylinxMultiSelectWidget(
                     filter_route_name="employee-widget-filter",
                     filter_class=EmployeeFilter,
                     filter_instance_contex_name="f",
@@ -405,7 +405,7 @@ class StageCreationForm(BaseModelForm):
             )
 
     def clean(self):
-        if isinstance(self.fields["stage_managers"], HorillaMultiSelectField):
+        if isinstance(self.fields["stage_managers"], SkylinxMultiSelectField):
             ids = self.data.getlist("stage_managers")
             if ids:
                 self.errors.pop("stage_managers", None)
@@ -1002,7 +1002,7 @@ exclude_fields = [
     "modified_by",
     "is_active",
     "last_updated",
-    "horilla_history",
+    "skylinx_history",
 ]
 
 

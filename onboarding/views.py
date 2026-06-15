@@ -44,18 +44,18 @@ from base.methods import (
     get_pagination,
     sortby,
 )
-from base.models import HorillaMailTemplate, JobPosition
+from base.models import SkylinxMailTemplate, JobPosition
 from employee.models import Employee, EmployeeBankDetails, EmployeeWorkInformation
-from horilla import settings
-from horilla.decorators import (
+from skylinx import settings
+from skylinx.decorators import (
     hx_request_required,
     logger,
     login_required,
     permission_required,
 )
-from horilla.group_by import group_by_queryset as general_group_by
-from horilla.http.response import HorillaRedirect
-from horilla_documents.models import Document
+from skylinx.group_by import group_by_queryset as general_group_by
+from skylinx.http.response import SkylinxRedirect
+from skylinx_documents.models import Document
 from notifications.signals import notify
 from onboarding.decorators import (
     all_manager_can_enter,
@@ -189,7 +189,7 @@ def stage_update(request, stage_id, recruitment_id):
                 icon="people-circle",
                 redirect=reverse("onboarding-view"),
             )
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(
         request,
         "onboarding/stage_update.html",
@@ -219,7 +219,7 @@ def stage_delete(request, stage_id):
         messages.error(request, _("Stage not found."))
     except ProtectedError:
         messages.error(request, _("There are candidates in this stage..."))
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @login_required
@@ -275,7 +275,7 @@ def task_creation(request):
                 redirect=reverse("onboarding-view"),
             )
             messages.success(request, _("New task created successfully..."))
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(
         request, "onboarding/task_form.html", {"form": form, "stage_id": stage_id}
     )
@@ -326,7 +326,7 @@ def task_update(
                 icon="people-circle",
                 redirect=reverse("onboarding-view"),
             )
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(
         request,
         "onboarding/task_update.html",
@@ -537,7 +537,7 @@ def candidates_view(request):
     previous_data = request.GET.urlencode()
     page_number = request.GET.get("page")
     page_obj = paginator_qry(candidate_filter_obj.qs, page_number)
-    mail_templates = HorillaMailTemplate.objects.all()
+    mail_templates = SkylinxMailTemplate.objects.all()
     data_dict = parse_qs(previous_data)
     get_key_instances(Candidate, data_dict)
     return render(
@@ -635,10 +635,10 @@ def email_send(request):
     email_backend = ConfiguredEmailBackend()
     if not candidates:
         messages.info(request, "Please choose candidates")
-        return HorillaRedirect(request)
+        return SkylinxRedirect(request)
 
     bodys = list(
-        HorillaMailTemplate.objects.filter(id__in=template_attachment_ids).values_list(
+        SkylinxMailTemplate.objects.filter(id__in=template_attachment_ids).values_list(
             "body", flat=True
         )
     )
@@ -720,7 +720,7 @@ def email_send(request):
         except Exception as e:
             logger.error(e)
 
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 def onboarding_query_grouper(request, queryset):
@@ -1792,7 +1792,7 @@ def add_to_rejected_candidates(request):
             form.save()
             form = RejectedCandidateForm()
             messages.success(request, "Candidate reject reason saved")
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(request, "onboarding/rejection/form.html", {"form": form})
 
 
@@ -1812,7 +1812,7 @@ def delete_candidate_rejection(request, rej_id):
             messages.error(request, "Candidate rejection not found")
     except Exception as e:
         messages.error(request, "Error occurred while deleting candidate rejection")
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @login_required

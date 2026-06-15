@@ -16,15 +16,15 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from base.methods import get_subordinates
-from horilla.http import HorillaRedirect
-from horilla.methods import handle_no_permission
-from horilla_views.cbv_methods import login_required
-from horilla_views.generic.cbv.views import (
-    HorillaCardView,
-    HorillaDetailedView,
-    HorillaFormView,
-    HorillaListView,
-    HorillaNavView,
+from skylinx.http import SkylinxRedirect
+from skylinx.methods import handle_no_permission
+from skylinx_views.cbv_methods import login_required
+from skylinx_views.generic.cbv.views import (
+    SkylinxCardView,
+    SkylinxDetailedView,
+    SkylinxFormView,
+    SkylinxListView,
+    SkylinxNavView,
     TemplateView,
 )
 from project.cbv.project_stage import StageDynamicCreateForm
@@ -47,7 +47,7 @@ class TasksTemplateView(TemplateView):
 
 
 @method_decorator(login_required, name="dispatch")
-class TaskListView(HorillaListView):
+class TaskListView(SkylinxListView):
     """
     list view of the page
     """
@@ -166,7 +166,7 @@ class TaskListView(HorillaListView):
 
 
 @method_decorator(login_required, name="dispatch")
-class TasksNavBar(HorillaNavView):
+class TasksNavBar(SkylinxNavView):
     """
     navbar of teh page
     """
@@ -247,7 +247,7 @@ class TasksNavBar(HorillaNavView):
 
 
 @method_decorator(login_required, name="dispatch")
-class TaskCreateForm(HorillaFormView):
+class TaskCreateForm(SkylinxFormView):
     """
     Form view for create and update tasks
     """
@@ -298,7 +298,7 @@ class TaskCreateForm(HorillaFormView):
         # except Exception as e:
         #     logger.error(e)
         #     messages.error(request, _("Something went wrong!"))
-        #     return HorillaRedirect(self.request)
+        #     return SkylinxRedirect(self.request)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -379,7 +379,7 @@ class TaskCreateForm(HorillaFormView):
             form.save()
             messages.success(self.request, _(message))
             if stage_id or self.request.GET.get("project_task"):
-                return HorillaRedirect(self.request)
+                return SkylinxRedirect(self.request)
             return self.HttpResponse("<script>$('#taskFilterButton').click();</script>")
         return super().form_valid(form)
 
@@ -403,7 +403,7 @@ class DynamicTaskCreateFormView(TaskCreateForm):
 
 
 @method_decorator(login_required, name="dispatch")
-class TaskDetailView(HorillaDetailedView):
+class TaskDetailView(SkylinxDetailedView):
     """
     detail view of the task page
     """
@@ -430,7 +430,7 @@ class TaskDetailView(HorillaDetailedView):
 
 
 @method_decorator(login_required, name="dispatch")
-class TaskCardView(HorillaCardView):
+class TaskCardView(SkylinxCardView):
     """
     card view of the page
     """
@@ -575,7 +575,7 @@ class TasksInIndividualView(TaskListView):
                 """
 
     def get_queryset(self):
-        queryset = HorillaListView.get_queryset(self)
+        queryset = SkylinxListView.get_queryset(self)
         employee_id = self.request.GET.get("employee_id")
         project_id = self.request.GET.get("project_id")
         queryset = queryset.filter(

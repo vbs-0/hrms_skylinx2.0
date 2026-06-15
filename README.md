@@ -46,7 +46,7 @@ cp .env.dist .env
 python3 manage.py migrate
 
 # 6. Create an admin user
-python3 manage.py createhorillauser \
+python3 manage.py createskylinxuser \
   --first_name admin --last_name admin --username admin \
   --password admin --email admin@example.com --phone 1234567890
 
@@ -54,7 +54,7 @@ python3 manage.py createhorillauser \
 python3 manage.py runserver
 ```
 
-> Note: some internal management command and Python package names are kept unchanged to preserve compatibility with the underlying application structure and database migrations.
+> Note: the `createskylinxuser` command initializes an admin user along with default company, department, and job position records.
 
 ## **Accessing the application**
 

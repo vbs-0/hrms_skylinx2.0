@@ -36,8 +36,8 @@ from base.forms import ModelForm
 from base.methods import reload_queryset
 from employee.filters import EmployeeFilter
 from employee.models import Employee, EmployeeBankDetails
-from horilla_widgets.widgets.horilla_multi_select_field import HorillaMultiSelectField
-from horilla_widgets.widgets.select_widgets import HorillaMultiSelectWidget
+from skylinx_widgets.widgets.skylinx_multi_select_field import SkylinxMultiSelectField
+from skylinx_widgets.widgets.select_widgets import SkylinxMultiSelectWidget
 from onboarding.models import CandidateTask, OnboardingStage, OnboardingTask
 from recruitment.models import Candidate
 
@@ -174,7 +174,7 @@ class OnboardingViewTaskForm(ModelForm):
 
     def clean(self):
         for field_name, field_instance in self.fields.items():
-            if isinstance(field_instance, HorillaMultiSelectField):
+            if isinstance(field_instance, SkylinxMultiSelectField):
                 self.errors.pop(field_name, None)
                 if len(self.data.getlist(field_name)) < 1:
                     raise forms.ValidationError({field_name: "Thif field is required"})
@@ -188,9 +188,9 @@ class OnboardingViewTaskForm(ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["managers"] = HorillaMultiSelectField(
+        self.fields["managers"] = SkylinxMultiSelectField(
             queryset=Employee.objects.all(),
-            widget=HorillaMultiSelectWidget(
+            widget=SkylinxMultiSelectWidget(
                 filter_route_name="employee-widget-filter",
                 filter_class=EmployeeFilter,
                 filter_instance_contex_name="f",
@@ -231,9 +231,9 @@ class OnboardingTaskForm(ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["employee_id"] = HorillaMultiSelectField(
+        self.fields["employee_id"] = SkylinxMultiSelectField(
             queryset=Employee.objects.all(),
-            widget=HorillaMultiSelectWidget(
+            widget=SkylinxMultiSelectWidget(
                 filter_route_name="employee-widget-filter",
                 filter_class=EmployeeFilter,
                 filter_instance_contex_name="f",
@@ -256,7 +256,7 @@ class OnboardingTaskForm(ModelForm):
             self.fields["candidates"].queryset = cand_queryset
 
     def clean(self):
-        if isinstance(self.fields["employee_id"], HorillaMultiSelectField):
+        if isinstance(self.fields["employee_id"], SkylinxMultiSelectField):
             ids = self.data.getlist("employee_id")
             if ids:
                 self.errors.pop("employee_id", None)
@@ -282,9 +282,9 @@ class OnboardingViewStageForm(ModelForm):
         """
         super().__init__(*args, **kwargs)
         reload_queryset(self.fields)
-        self.fields["employee_id"] = HorillaMultiSelectField(
+        self.fields["employee_id"] = SkylinxMultiSelectField(
             queryset=Employee.objects.filter(is_active=True),
-            widget=HorillaMultiSelectWidget(
+            widget=SkylinxMultiSelectWidget(
                 filter_route_name="employee-widget-filter",
                 filter_class=EmployeeFilter,
                 filter_instance_contex_name="f",
@@ -307,11 +307,11 @@ class OnboardingViewStageForm(ModelForm):
         Render the form fields as HTML table rows with Bootstrap styling.
         """
         context = {"form": self}
-        table_html = render_to_string("horilla_form.html", context)
+        table_html = render_to_string("skylinx_form.html", context)
         return table_html
 
     def clean(self):
-        if isinstance(self.fields["employee_id"], HorillaMultiSelectField):
+        if isinstance(self.fields["employee_id"], SkylinxMultiSelectField):
             ids = self.data.getlist("employee_id")
             if ids:
                 self.errors.pop("employee_id", None)

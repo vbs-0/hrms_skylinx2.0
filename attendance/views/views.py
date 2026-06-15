@@ -14,9 +14,9 @@ provide the main entry points for interacting with the application's functionali
 import logging
 import uuid
 
-from horilla.horilla_settings import DYNAMIC_URL_PATTERNS, HORILLA_DATE_FORMATS
-from horilla.http import HorillaRedirect
-from horilla.methods import remove_dynamic_url
+from skylinx.skylinx_settings import DYNAMIC_URL_PATTERNS, SKYLINX_DATE_FORMATS
+from skylinx.http import SkylinxRedirect
+from skylinx.methods import remove_dynamic_url
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +116,7 @@ from base.models import (
 )
 from employee.filters import EmployeeFilter
 from employee.models import Employee, EmployeeWorkInformation
-from horilla.decorators import (
+from skylinx.decorators import (
     hx_request_required,
     install_required,
     login_required,
@@ -226,7 +226,7 @@ def attendance_create(request):
         if form.is_valid():
             form.save()
             messages.success(request, _("Attendance added."))
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(request, "attendance/attendance/form.html", {"form": form})
 
 
@@ -444,7 +444,7 @@ def attendance_update(request, obj_id):
             messages.success(request, _("Attendance Updated."))
             urlencode = request.GET.urlencode()
             modified_url = f"/attendance/attendance-view/?{urlencode}"
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(
         request,
         "attendance/attendance/update_form.html",
@@ -497,7 +497,7 @@ def attendance_delete(request, obj_id):
                 )
     except (Attendance.DoesNotExist, OverflowError):
         messages.error(request, _("Attendance Does not exists.."))
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @login_required
@@ -605,7 +605,7 @@ def attendance_overtime_create(request):
         if form.is_valid():
             form.save()
             messages.success(request, _("Attendance account added."))
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(request, "attendance/attendance_account/form.html", {"form": form})
 
 
@@ -683,7 +683,7 @@ def attendance_overtime_update(request, obj_id):
         if form.is_valid():
             form.save()
             messages.success(request, _("Attendance account updated successfully."))
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(
         request, "attendance/attendance_account/update_form.html", {"form": form}
     )
@@ -716,7 +716,7 @@ def attendance_overtime_delete(request, obj_id):
         if hour_account.exists():
             return redirect(f"/attendance/attendance-overtime-search?{previous_data}")
         else:
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     elif hx_target:
         return HttpResponse()
 
@@ -1292,7 +1292,7 @@ def validate_bulk_attendance(request):
             attendance.attendance_validated = True
             # Recalculate worked hours from attendance activities before validation
             # to ensure Hours Account reflects actual worked time.
-            # Fixes: https://github.com/horilla/horilla-hr/issues/1055
+            # Fixes: https://github.com/skylinx/skylinx-hr/issues/1055
             if not attendance.attendance_worked_hour or attendance.attendance_worked_hour == "00:00":
                 at_work_seconds = attendance.get_at_work_from_activities()
                 if at_work_seconds > 0:
@@ -1345,7 +1345,7 @@ def validate_this_attendance(request, obj_id):
         attendance.attendance_validated = True
         # Recalculate worked hours from attendance activities before validation
         # to ensure Hours Account reflects actual worked time.
-        # Fixes: https://github.com/horilla/horilla-hr/issues/1055
+        # Fixes: https://github.com/skylinx/skylinx-hr/issues/1055
         if not attendance.attendance_worked_hour or attendance.attendance_worked_hour == "00:00":
             at_work_seconds = attendance.get_at_work_from_activities()
             if at_work_seconds > 0:
@@ -1375,7 +1375,7 @@ def validate_this_attendance(request, obj_id):
     except (Attendance.DoesNotExist, ValueError):
         messages.error(request, _("Attendance not found"))
 
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @login_required
@@ -1411,7 +1411,7 @@ def revalidate_this_attendance(request, obj_id):
                 redirect=reverse("view-my-attendance") + f"?id={attendance.id}",
                 icon="refresh",
             )
-        return HorillaRedirect(request)
+        return SkylinxRedirect(request)
     return HttpResponse("You Cannot Request for others attendance")
 
 
@@ -1452,7 +1452,7 @@ def approve_overtime(request, obj_id):
             )
     except (Attendance.DoesNotExist, OverflowError):
         messages.error(request, _("Attendance not found"))
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @login_required
@@ -1513,12 +1513,12 @@ def attendance_add_to_batch(request):
                 except Exception as e:
                     logger.error(e)
                     messages.error(request, _("Something went wrong."))
-                    return HorillaRedirect(request)
+                    return SkylinxRedirect(request)
             messages.success(request, _(f"Attendances added to {batch}."))
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
         else:
             messages.error(request, _("Something went wrong."))
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(
         request,
         "attendance/attendance/attendance_add_batch.html",
@@ -1927,7 +1927,7 @@ def create_grace_time(request):
                 shift.grace_time_id = gracetime
                 shift.save()
             messages.success(request, _("Grace time created successfully."))
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(
         request,
         "attendance/grace_time/grace_time_form.html",
@@ -1951,7 +1951,7 @@ def assign_shift(request, grace_id):
                     shift.grace_time_id = gracetime
                     shift.save()
                 messages.success(request, _("Grace time added to shifts successfully."))
-                return HorillaRedirect(request)
+                return SkylinxRedirect(request)
         return render(
             request,
             "attendance/grace_time/assign_shift.html",
@@ -1980,7 +1980,7 @@ def update_grace_time(request, grace_id):
             instance = form.save(commit=False)
             instance.save()
             messages.success(request, _("Grace time updated successfully."))
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     context = {
         "form": form,
         "grace_id": grace_id,
@@ -2358,7 +2358,7 @@ def work_record_export(request):
             record_lookup[record_key] = record.work_record_type
 
     date_format = request.user.employee_get.get_date_format()
-    format_string = HORILLA_DATE_FORMATS.get(date_format)
+    format_string = SKYLINX_DATE_FORMATS.get(date_format)
     formatted_dates = [day.strftime(format_string) for day in all_date_objects]
     data_rows = []
 
@@ -2463,7 +2463,7 @@ def enable_disable_tracking_late_come_early_out(request):
         messages.success(
             request, _("Tracking late come early out {} successfully").format(message)
         )
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @login_required
@@ -2612,7 +2612,7 @@ def enable_ip_restriction(request):
 
         if not ip_restiction:
             ip_restiction = AttendanceAllowedIP.objects.create(is_enabled=True)
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
 
         if not ip_restiction.is_enabled:
             ip_restiction.is_enabled = True
@@ -2620,7 +2620,7 @@ def enable_ip_restriction(request):
             ip_restiction.is_enabled = False
 
         ip_restiction.save()
-        return HorillaRedirect(request)
+        return SkylinxRedirect(request)
 
 
 def validate_ip_address(self, value):
@@ -2678,7 +2678,7 @@ def create_allowed_ips(request):
                 )
                 messages.success(request, "IP addresses saved successfully")
 
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     else:
         form = AttendanceAllowedIPForm()
 
@@ -2747,7 +2747,7 @@ def edit_allowed_ips(request):
                     allowed_ips.additional_data["allowed_ips"] = list(existing_ips)
                     allowed_ips.save()
                     messages.success(request, "IP address updated successfully")
-                return HorillaRedirect(request)
+                return SkylinxRedirect(request)
 
     except (ValueError, IndexError):
         messages.error(request, "Invalid ID provided.")

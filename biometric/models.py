@@ -12,10 +12,10 @@ from django.core.validators import MaxValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from base.horilla_company_manager import HorillaCompanyManager
+from base.skylinx_company_manager import SkylinxCompanyManager
 from base.models import Company
 from employee.models import Employee
-from horilla.models import HorillaModel
+from skylinx.models import SkylinxModel
 
 
 def validate_schedule_time_format(value):
@@ -36,7 +36,7 @@ def validate_schedule_time_format(value):
         raise ValidationError(_("Invalid format, it should be HH:MM format")) from error
 
 
-class BiometricDevices(HorillaModel):
+class BiometricDevices(SkylinxModel):
     """
     Model: BiometricDevices
 
@@ -116,7 +116,7 @@ class BiometricDevices(HorillaModel):
         verbose_name=_("Company"),
     )
 
-    objects = HorillaCompanyManager()
+    objects = SkylinxCompanyManager()
 
     def __str__(self):
         return f"{self.name} - {self.machine_type}"

@@ -11,13 +11,13 @@ from django.db import models
 from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
 
-from base.horilla_company_manager import HorillaCompanyManager
+from base.skylinx_company_manager import SkylinxCompanyManager
 from base.models import Company
-from horilla.models import HorillaModel
+from skylinx.models import SkylinxModel
 from payroll.models.models import FilingStatus
 
 
-class PayrollSettings(HorillaModel):
+class PayrollSettings(SkylinxModel):
     """
     Payroll settings model
     """
@@ -33,7 +33,7 @@ class PayrollSettings(HorillaModel):
     )
 
     company_id = models.ForeignKey(Company, null=True, on_delete=models.PROTECT)
-    objects = HorillaCompanyManager("company_id")
+    objects = SkylinxCompanyManager("company_id")
 
     class Meta:
         verbose_name = _("Payroll Settings")
@@ -43,7 +43,7 @@ class PayrollSettings(HorillaModel):
         return f"Payroll Settings {self.currency_symbol}"
 
 
-class TaxBracket(HorillaModel):
+class TaxBracket(SkylinxModel):
     """
     TaxBracket model
     """

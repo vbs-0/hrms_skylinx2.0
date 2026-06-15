@@ -108,7 +108,7 @@ from employee.models import (
     EmployeeWorkInformation,
     NoteFiles,
 )
-from horilla.decorators import (
+from skylinx.decorators import (
     hx_request_required,
     logger,
     login_required,
@@ -116,19 +116,19 @@ from horilla.decorators import (
     owner_can_enter,
     permission_required,
 )
-from horilla.filters import HorillaPaginator
-from horilla.group_by import group_by_queryset
-from horilla.horilla_settings import HORILLA_DATE_FORMATS
-from horilla.http import HorillaRedirect
-from horilla.methods import get_horilla_model_class
-from horilla_audit.models import AccountBlockUnblock, HistoryTrackingFields
-from horilla_documents.forms import (
+from skylinx.filters import SkylinxPaginator
+from skylinx.group_by import group_by_queryset
+from skylinx.skylinx_settings import SKYLINX_DATE_FORMATS
+from skylinx.http import SkylinxRedirect
+from skylinx.methods import get_skylinx_model_class
+from skylinx_audit.models import AccountBlockUnblock, HistoryTrackingFields
+from skylinx_documents.forms import (
     DocumentForm,
     DocumentRejectForm,
     DocumentRequestForm,
     DocumentUpdateForm,
 )
-from horilla_documents.models import Document, DocumentRequest
+from skylinx_documents.models import Document, DocumentRequest
 from notifications.signals import notify
 
 
@@ -312,7 +312,7 @@ def profile_edit_access(request, emp_id):
                 cache.delete(user_cache_key[-1])
                 update_employee_accessibility_cache(user_cache_key[-1], employee)
 
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @login_required
@@ -471,7 +471,7 @@ def shift_tab(request, emp_id):
 
 
 @login_required
-@manager_can_enter("horilla_documents.view_documentrequest")
+@manager_can_enter("skylinx_documents.view_documentrequest")
 def document_request_view(request):
     """
     This function is used to view and filter document requests of employees.
@@ -488,7 +488,7 @@ def document_request_view(request):
     documents = Document.objects.filter(document_request_id__isnull=False)
     documents = filtersubordinates(
         request=request,
-        perm="horilla_documents.view_documentrequest",
+        perm="skylinx_documents.view_documentrequest",
         queryset=documents,
     )
 
@@ -514,7 +514,7 @@ def document_request_view(request):
 
 @login_required
 @hx_request_required
-@manager_can_enter("horilla_documents.view_documentrequest")
+@manager_can_enter("skylinx_documents.view_documentrequest")
 def document_filter_view(request):
     """
     This method is used to filter employee.
@@ -547,7 +547,7 @@ def document_filter_view(request):
 
 @login_required
 @hx_request_required
-@manager_can_enter("horilla_documents.add_documentrequest")
+@manager_can_enter("skylinx_documents.add_documentrequest")
 def document_request_create(request):
     """
     This function is used to create document requests of an employee in employee requests view.
@@ -558,11 +558,11 @@ def document_request_create(request):
     Returns: return document_request_create_form template
     """
     form = DocumentRequestForm()
-    form = choosesubordinates(request, form, "horilla_documents.add_documentrequest")
+    form = choosesubordinates(request, form, "skylinx_documents.add_documentrequest")
     if request.method == "POST":
         form = DocumentRequestForm(request.POST)
         form = choosesubordinates(
-            request, form, "horilla_documents.add_documentrequest"
+            request, form, "skylinx_documents.add_documentrequest"
         )
         if form.is_valid():
             form = form.save()
@@ -580,7 +580,7 @@ def document_request_create(request):
                 redirect=reverse("employee-profile"),
                 icon="chatbox-ellipses",
             )
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
 
     context = {
         "form": form,
@@ -592,7 +592,7 @@ def document_request_create(request):
 
 @login_required
 @hx_request_required
-@manager_can_enter("horilla_documents.change_documentrequest")
+@manager_can_enter("skylinx_documents.change_documentrequest")
 def document_request_update(request, id):
     """
     This function is used to update document requests of an employee in employee requests view.
@@ -613,7 +613,7 @@ def document_request_update(request, id):
                 Employee.objects.filter(id__in=form.data.getlist("employee_id"))
             )
             documents.exclude(employee_id__in=doc_obj.employee_id.all()).delete()
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
 
     context = {
         "form": form,
@@ -626,7 +626,7 @@ def document_request_update(request, id):
 
 @login_required
 @hx_request_required
-@owner_can_enter("horilla_documents.view_document", Employee)
+@owner_can_enter("skylinx_documents.view_document", Employee)
 def document_tab(request, emp_id):
     """
     This function is used to view documents tab of an employee in employee individual
@@ -652,7 +652,7 @@ def document_tab(request, emp_id):
 
 @login_required
 @hx_request_required
-@owner_can_enter("horilla_documents.add_document", Employee)
+@owner_can_enter("skylinx_documents.add_document", Employee)
 def document_create(request, emp_id):
     """
     This function is used to create documents from employee individual & profile view.
@@ -670,7 +670,7 @@ def document_create(request, emp_id):
         if form.is_valid():
             form.save()
             messages.success(request, _("Document created successfully."))
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
 
     context = {
         "form": form,
@@ -714,7 +714,7 @@ def document_delete(request, id):
     """
     try:
         document = Document.objects.filter(id=id)
-        if not request.user.has_perm("horilla_documents.delete_document"):
+        if not request.user.has_perm("skylinx_documents.delete_document"):
             document = document.filter(
                 employee_id__employee_user_id=request.user
             ).exclude(document_request_id__isnull=False)
@@ -757,7 +757,7 @@ def document_delete(request, id):
             messages.error(request, _("Document not found"))
     except ProtectedError:
         messages.error(request, _("You cannot delete this document."))
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 def can_access_document(request, document, perm):
@@ -787,14 +787,14 @@ def file_upload(request, id):
 
     document_item = Document.find(id)
     if document_item is None:
-        return HorillaRedirect(
+        return SkylinxRedirect(
             request, message=_("No Document found matching the query.")
         )
 
     if not can_access_document(
-        request, document_item, "horilla_documents.change_document"
+        request, document_item, "skylinx_documents.change_document"
     ):
-        return HorillaRedirect(
+        return SkylinxRedirect(
             request, message=_("You do not have permission to update this document.")
         )
 
@@ -821,7 +821,7 @@ def file_upload(request, id):
                 )
             except:
                 pass
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
         else:
             logger.error(f"Document upload form errors: {form.errors}")
     context = {"form": form, "document": document_item}
@@ -843,14 +843,14 @@ def view_file(request, id):
 
     document_obj = Document.objects.filter(id=id).first()
     if document_obj is None:
-        return HorillaRedirect(
+        return SkylinxRedirect(
             request, message=_("No Document found matching the query.")
         )
 
     if not can_access_document(
-        request, document_obj, "horilla_documents.view_document"
+        request, document_obj, "skylinx_documents.view_document"
     ):
-        return HorillaRedirect(
+        return SkylinxRedirect(
             request, message=_("You do not have permission to view this document.")
         )
 
@@ -902,7 +902,7 @@ def get_content_type(file_extension):
 
 @login_required
 @hx_request_required
-@manager_can_enter("horilla_documents.add_document")
+@manager_can_enter("skylinx_documents.add_document")
 def document_approve(request, id):
     """
     This function used to view the approve uploaded document.
@@ -945,12 +945,12 @@ def document_approve(request, id):
         """
         return HttpResponse(span)
 
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @login_required
 @hx_request_required
-@manager_can_enter("horilla_documents.add_document")
+@manager_can_enter("skylinx_documents.add_document")
 def document_reject(request, id):
     """
     This function used to view the reject uploaded document.
@@ -972,10 +972,10 @@ def document_reject(request, id):
                 document_obj.save()
                 messages.error(request, _("Document request rejected"))
 
-                return HorillaRedirect(request)
+                return SkylinxRedirect(request)
     else:
         messages.error(request, _("No document uploaded"))
-        return HorillaRedirect(request)
+        return SkylinxRedirect(request)
 
     return render(
         request,
@@ -985,7 +985,7 @@ def document_reject(request, id):
 
 
 @login_required
-@manager_can_enter("horilla_documents.add_document")
+@manager_can_enter("skylinx_documents.add_document")
 def document_bulk_approve(request):
     """
     This function is used to bulk-approve uploaded documents.
@@ -1016,11 +1016,11 @@ def document_bulk_approve(request):
                 request, _(f"{not_uploaded_count} document(s) skipped (not uploaded)")
             )
 
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @login_required
-@manager_can_enter("horilla_documents.add_document")
+@manager_can_enter("skylinx_documents.add_document")
 def document_bulk_reject(request):
     """
     Handle bulk rejection of documents.
@@ -1046,7 +1046,7 @@ def document_bulk_reject(request):
         messages.success(
             request, _("{} Document request rejected").format(updated_count)
         )
-        return HorillaRedirect(request)
+        return SkylinxRedirect(request)
 
     return render(
         request, "documents/document_reject_reason.html", {"ids": ids, "form": form}
@@ -1067,7 +1067,7 @@ def employee_profile_bank_details(request):
         bank_info.employee_id = employee
         bank_info.save()
         messages.success(request, _("Bank details updated"))
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @login_required
@@ -1104,7 +1104,7 @@ def paginator_qry(qryset, page_number):
     """
     This method is used to paginate query set
     """
-    paginator = HorillaPaginator(qryset, get_pagination())
+    paginator = SkylinxPaginator(qryset, get_pagination())
     qryset = paginator.get_page(page_number)
     return qryset
 
@@ -1594,7 +1594,7 @@ def employee_view_update(request, obj_id, **kwargs):
                 "work_info_history": work_info_history,
             },
         )
-    return HorillaRedirect(request, fallback_url="/employee/employee-view")
+    return SkylinxRedirect(request, fallback_url="/employee/employee-view")
 
 
 @login_required
@@ -2045,7 +2045,7 @@ def employee_delete(request, obj_id):
         error_message = str(error_message)
         request.session["error_message"] = error_message
         return redirect(employee_view)
-    return HorillaRedirect(request, fallback_url=f"/view={view}")
+    return SkylinxRedirect(request, fallback_url=f"/view={view}")
 
 
 @login_required
@@ -2161,7 +2161,7 @@ def employee_archive(request, obj_id):
         messages.success(request, message)
         key = "HTTP_HX_REQUEST"
         if key not in request.META.keys():
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
         else:
             return HttpResponse("<script>$('#filterEmployee').click();</script>")
     else:
@@ -2204,7 +2204,7 @@ def replace_employee(request, emp_id):
                     and field_name == "recruitment_managers"
                     and str(emp_id) != replace_emp_id
                 ):
-                    Recruitment = get_horilla_model_class(
+                    Recruitment = get_skylinx_model_class(
                         app_label="recruitment", model="recruitment"
                     )
                     recruitment_query = Recruitment.objects.filter(
@@ -2219,7 +2219,7 @@ def replace_employee(request, emp_id):
                     and field_name == "recruitment_stage_managers"
                     and str(emp_id) != replace_emp_id
                 ):
-                    Stage = get_horilla_model_class(
+                    Stage = get_skylinx_model_class(
                         app_label="recruitment", model="stage"
                     )
                     recruitment_stage_query = Stage.objects.filter(
@@ -2234,7 +2234,7 @@ def replace_employee(request, emp_id):
                     and field_name == "onboarding_stage_manager"
                     and str(emp_id) != replace_emp_id
                 ):
-                    OnboardingStage = get_horilla_model_class(
+                    OnboardingStage = get_skylinx_model_class(
                         app_label="onboarding", model="onboardingstage"
                     )
                     onboarding_stage_query = OnboardingStage.objects.filter(
@@ -2249,7 +2249,7 @@ def replace_employee(request, emp_id):
                     and field_name == "onboarding_task_manager"
                     and str(emp_id) != replace_emp_id
                 ):
-                    OnboardingTask = get_horilla_model_class(
+                    OnboardingTask = get_skylinx_model_class(
                         app_label="onboarding", model="onboardingtask"
                     )
                     onboarding_task_query = OnboardingTask.objects.filter(
@@ -2298,7 +2298,7 @@ def get_manager_in(request):
     if save:
         employee.save()
         messages.success(request, message)
-        return HorillaRedirect(request)
+        return SkylinxRedirect(request)
     else:
         return render(
             request,
@@ -2809,7 +2809,7 @@ def work_info_export(request):
             if isinstance(value, date):
                 try:
                     data = value.strftime(
-                        HORILLA_DATE_FORMATS.get(date_format, "%Y-%m-%d")
+                        SKYLINX_DATE_FORMATS.get(date_format, "%Y-%m-%d")
                     )
                 except Exception:
                     data = str(value)
@@ -2927,7 +2927,7 @@ def total_employees_count(request):
 def joining_today_count(request):
     newbies_today = 0
     if apps.is_installed("recruitment"):
-        Candidate = get_horilla_model_class(app_label="recruitment", model="candidate")
+        Candidate = get_skylinx_model_class(app_label="recruitment", model="candidate")
         newbies_today = Candidate.objects.filter(
             joining_date__range=[date.today(), date.today() + timedelta(days=1)],
             is_active=True,
@@ -2939,7 +2939,7 @@ def joining_today_count(request):
 def joining_week_count(request):
     newbies_week = 0
     if apps.is_installed("recruitment"):
-        Candidate = get_horilla_model_class(app_label="recruitment", model="candidate")
+        Candidate = get_skylinx_model_class(app_label="recruitment", model="candidate")
         newbies_week = Candidate.objects.filter(
             joining_date__range=[
                 date.today() - timedelta(days=date.today().weekday()),
@@ -3254,7 +3254,7 @@ def bonus_points_tab(request, emp_id):
     try:
         points = BonusPoint.objects.get(employee_id=emp_id)
         if apps.is_installed("payroll"):
-            Reimbursement = get_horilla_model_class(
+            Reimbursement = get_skylinx_model_class(
                 app_label="payroll", model="reimbursement"
             )
             requested_bonus_points = Reimbursement.objects.filter(
@@ -3340,7 +3340,7 @@ def add_bonus_points(request, emp_id):
                     form.cleaned_data["points"]
                 ),
             )
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
 
     return render(
         request,
@@ -3375,7 +3375,7 @@ def redeem_points(request, emp_id):
 
     amount_for_bonus_point = 0
     if apps.is_installed("payroll"):
-        EncashmentGeneralSettings = get_horilla_model_class(
+        EncashmentGeneralSettings = get_skylinx_model_class(
             app_label="payroll", model="encashmentgeneralsettings"
         )
         amount_for_bonus_point = (
@@ -3391,7 +3391,7 @@ def redeem_points(request, emp_id):
             points = form.cleaned_data["points"]
             amount = amount_for_bonus_point * points
             if apps.is_installed("payroll"):
-                Reimbursement = get_horilla_model_class(
+                Reimbursement = get_skylinx_model_class(
                     app_label="payroll", model="reimbursement"
                 )
                 Reimbursement.objects.create(
@@ -3403,7 +3403,7 @@ def redeem_points(request, emp_id):
                     description=f"{employee} want to redeem {points} points",
                     allowance_on=date.today(),
                 )
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(
         request,
         "tabs/forms/redeem_points_form.html",
@@ -3542,7 +3542,7 @@ def encashment_condition_create(request):
     if apps.is_installed("payroll"):
         from payroll.forms.forms import EncashmentGeneralSettingsForm
 
-        EncashmentGeneralSettings = get_horilla_model_class(
+        EncashmentGeneralSettings = get_skylinx_model_class(
             app_label="payroll", model="encashmentgeneralsettings"
         )
         instance = (
@@ -3558,7 +3558,7 @@ def encashment_condition_create(request):
             if encashment_form.is_valid():
                 encashment_form.save()
                 messages.success(request, _("Settings updated."))
-                return HorillaRedirect(request)
+                return SkylinxRedirect(request)
         else:
             encashment_form = EncashmentGeneralSettingsForm(instance=instance)
 
@@ -3569,7 +3569,7 @@ def encashment_condition_create(request):
         )
 
     messages.warning(request, _("Payroll app not installed"))
-    return HorillaRedirect(request)
+    return SkylinxRedirect(request)
 
 
 @login_required
@@ -3587,7 +3587,7 @@ def initial_prefix(request):
         if form.is_valid():
             form.save()
             messages.success(request, _("Initial prefix updated successfully."))
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
         else:
             messages.error(request, "There was an error updating the prefix.")
     else:
@@ -3714,7 +3714,7 @@ def employee_tag_update(request, tag_id):
             form.save()
             form = EmployeeTagForm()
             messages.success(request, _("Tag has been updated successfully!"))
-            return HorillaRedirect(request)
+            return SkylinxRedirect(request)
     return render(
         request,
         "base/employee_tag/employee_tag_form.html",

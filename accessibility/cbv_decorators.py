@@ -7,8 +7,8 @@ from django.utils.translation import gettext_lazy as _
 
 from accessibility.methods import check_is_accessible
 from base.decorators import decorator_with_arguments
-from horilla.horilla_middlewares import _thread_locals
-from horilla.http.response import HorillaRedirect
+from skylinx.skylinx_middlewares import _thread_locals
+from skylinx.http.response import SkylinxRedirect
 
 
 @decorator_with_arguments
@@ -38,6 +38,6 @@ def enter_if_accessible(function, feature, perm=None, method=None):
 
         messages.info(request, _("You dont have access to the feature"))
 
-        return HorillaRedirect(request)
+        return SkylinxRedirect(request)
 
     return check_accessible

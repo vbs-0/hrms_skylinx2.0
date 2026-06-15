@@ -51,7 +51,7 @@ from base.models import (
     EmployeeShiftSchedule,
     EmployeeType,
     Holidays,
-    HorillaMailTemplate,
+    SkylinxMailTemplate,
     JobPosition,
     JobRole,
     MultipleApprovalCondition,
@@ -71,12 +71,12 @@ from base.models import (
 from employee.filters import EmployeeFilter
 from employee.forms import MultipleFileField
 from employee.models import Employee
-from horilla import horilla_middlewares
-from horilla.horilla_middlewares import _thread_locals
-from horilla.methods import get_horilla_model_class
-from horilla_audit.models import AuditTag
-from horilla_widgets.widgets.horilla_multi_select_field import HorillaMultiSelectField
-from horilla_widgets.widgets.select_widgets import HorillaMultiSelectWidget
+from skylinx import skylinx_middlewares
+from skylinx.skylinx_middlewares import _thread_locals
+from skylinx.methods import get_skylinx_model_class
+from skylinx_audit.models import AuditTag
+from skylinx_widgets.widgets.skylinx_multi_select_field import SkylinxMultiSelectField
+from skylinx_widgets.widgets.select_widgets import SkylinxMultiSelectWidget
 
 # your form here
 
@@ -189,7 +189,7 @@ class ModelForm(forms.ModelForm):
 
         reload_queryset(self.fields)
 
-        request = getattr(horilla_middlewares._thread_locals, "request", None)
+        request = getattr(skylinx_middlewares._thread_locals, "request", None)
 
         today = date.today()
         now = datetime.now()
@@ -443,9 +443,9 @@ class AssignPermission(Form):
     Forms to assign user permision
     """
 
-    employee = HorillaMultiSelectField(
+    employee = SkylinxMultiSelectField(
         queryset=Employee.objects.all(),
-        widget=HorillaMultiSelectWidget(
+        widget=SkylinxMultiSelectWidget(
             filter_route_name="employee-widget-filter",
             filter_class=EmployeeFilter,
             filter_instance_contex_name="f",
@@ -559,7 +559,7 @@ class JobPositionMultiForm(ModelForm):
     JobPosition model's form
     """
 
-    department_id = HorillaMultiSelectField(
+    department_id = SkylinxMultiSelectField(
         queryset=Department.objects.all(),
         label=JobPosition._meta.get_field("department_id").verbose_name,
         widget=forms.SelectMultiple(
@@ -796,9 +796,9 @@ class RotatingWorkTypeAssignForm(ModelForm):
     RotatingWorkTypeAssign model's form
     """
 
-    employee_id = HorillaMultiSelectField(
+    employee_id = SkylinxMultiSelectField(
         queryset=Employee.objects.filter(employee_work_info__isnull=False),
-        widget=HorillaMultiSelectWidget(
+        widget=SkylinxMultiSelectWidget(
             filter_route_name="employee-widget-filter",
             filter_class=EmployeeFilter,
             filter_instance_contex_name="f",
@@ -1160,7 +1160,7 @@ class EmployeeShiftScheduleUpdateForm(ModelForm):
         """
 
         context = {"form": self}
-        table_html = render_to_string("horilla_form.html", context)
+        table_html = render_to_string("skylinx_form.html", context)
         return table_html
 
     def clean(self):
@@ -1246,7 +1246,7 @@ class EmployeeShiftScheduleForm(ModelForm):
         """
 
         context = {"form": self}
-        table_html = render_to_string("horilla_form.html", context)
+        table_html = render_to_string("skylinx_form.html", context)
         return table_html
 
     def clean(self):
@@ -1417,9 +1417,9 @@ class RotatingShiftAssignForm(ModelForm):
     RotatingShiftAssign model's form
     """
 
-    employee_id = HorillaMultiSelectField(
+    employee_id = SkylinxMultiSelectField(
         queryset=Employee.objects.filter(employee_work_info__isnull=False),
-        widget=HorillaMultiSelectWidget(
+        widget=SkylinxMultiSelectWidget(
             filter_route_name="employee-widget-filter",
             filter_class=EmployeeFilter,
             filter_instance_contex_name="f",
@@ -1720,7 +1720,7 @@ class ShiftRequestForm(ModelForm):
         Render the form fields as HTML table rows with Bootstrap styling.
         """
         context = {"form": self}
-        table_html = render_to_string("horilla_form.html", context)
+        table_html = render_to_string("skylinx_form.html", context)
         return table_html
 
     def save(self, commit: bool = ...):
@@ -1781,7 +1781,7 @@ class ShiftAllocationForm(ModelForm):
         Render the form fields as HTML table rows with Bootstrap styling.
         """
         context = {"form": self}
-        table_html = render_to_string("horilla_form.html", context)
+        table_html = render_to_string("skylinx_form.html", context)
         return table_html
 
     def save(self, commit: bool = ...):
@@ -1826,7 +1826,7 @@ class WorkTypeRequestForm(ModelForm):
         Render the form fields as HTML table rows with Bootstrap styling.
         """
         context = {"form": self}
-        table_html = render_to_string("horilla_form.html", context)
+        table_html = render_to_string("skylinx_form.html", context)
         return table_html
 
     def save(self, commit: bool = ...):
@@ -2017,7 +2017,7 @@ excluded_fields = [
     "created_by",
     "modified_by",
     "additional_data",
-    "horilla_history",
+    "skylinx_history",
     "additional_data",
 ]
 
@@ -2128,7 +2128,7 @@ class TagsForm(ModelForm):
         Render the form fields as HTML table rows with Bootstrap styling.
         """
         context = {"form": self}
-        table_html = render_to_string("horilla_form.html", context)
+        table_html = render_to_string("skylinx_form.html", context)
         return table_html
 
 
@@ -2192,7 +2192,7 @@ class DynamicMailConfForm(ModelForm):
         Render the form fields as HTML table rows with Bootstrap styling.
         """
         context = {"form": self}
-        table_html = render_to_string("horilla_form.html", context)
+        table_html = render_to_string("skylinx_form.html", context)
         return table_html
 
 
@@ -2210,7 +2210,7 @@ class MailTemplateForm(ModelForm):
     """
 
     class Meta:
-        model = HorillaMailTemplate
+        model = SkylinxMailTemplate
         fields = "__all__"
         widgets = {
             "body": forms.Textarea(
@@ -2380,9 +2380,9 @@ class AnnouncementForm(ModelForm):
     Announcement Form
     """
 
-    employees = HorillaMultiSelectField(
+    employees = SkylinxMultiSelectField(
         queryset=Employee.objects.all(),
-        widget=HorillaMultiSelectWidget(
+        widget=SkylinxMultiSelectWidget(
             filter_route_name="employee-widget-filter",
             filter_class=EmployeeFilter,
             filter_instance_contex_name="f",
@@ -2447,7 +2447,7 @@ class AnnouncementForm(ModelForm):
         cleaned_data = super().clean()
 
         # Remove 'employees' field error if it's handled manually
-        if isinstance(self.fields["employees"], HorillaMultiSelectField):
+        if isinstance(self.fields["employees"], SkylinxMultiSelectField):
             self.errors.pop("employees", None)
             employee_data = self.fields["employees"].queryset.filter(
                 id__in=self.data.getlist("employees")
@@ -2813,7 +2813,7 @@ class CompanyLeaveForm(ModelForm):
         choices = [("", "All")] + list(self.fields["based_on_week"].choices[1:])
         self.fields["based_on_week"].choices = choices
         self.fields["based_on_week"].widget.option_template_name = (
-            "horilla_widgets/select_option.html"
+            "skylinx_widgets/select_option.html"
         )
 
 
@@ -2831,7 +2831,7 @@ class PenaltyAccountForm(ModelForm):
         employee = kwargs.pop("employee", None)
         super().__init__(*args, **kwargs)
         if apps.is_installed("leave") and employee:
-            LeaveType = get_horilla_model_class(app_label="leave", model="leavetype")
+            LeaveType = get_skylinx_model_class(app_label="leave", model="leavetype")
             available_leaves = employee.available_leave.all()
             assigned_leave_types = LeaveType.objects.filter(
                 id__in=available_leaves.values_list("leave_type_id", flat=True)
