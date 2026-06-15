@@ -1,11 +1,7 @@
 <svg width="75" height="58" viewBox="0 0 75 58" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="sxg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8b5cf6"/>
-      <stop offset="1" stop-color="#6d28d9"/>
-    </linearGradient>
-  </defs>
+  <defs><linearGradient id="sxg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#29abe2"/><stop offset="1" stop-color="#1c3d6e"/>
+  </linearGradient></defs>
   <rect x="8.5" y="0" width="58" height="58" rx="16" fill="url(#sxg)"/>
-  <text x="37.5" y="41" font-family="Plus Jakarta Sans, Arial, sans-serif" font-size="38"
-        font-weight="800" fill="#ffffff" text-anchor="middle">S</text>
+  <text x="37.5" y="41" font-family="Plus Jakarta Sans, Arial, sans-serif" font-size="38" font-weight="800" fill="#ffffff" text-anchor="middle">S</text>
 </svg>

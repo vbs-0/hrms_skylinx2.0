@@ -6,24 +6,24 @@
 
 :root {
   /* Brand */
-  --sx-primary: #6d28d9;
-  --sx-primary-600: #7c3aed;
-  --sx-primary-500: #8b5cf6;
-  --sx-primary-300: #c4b5fd;
-  --sx-primary-100: #ede9fe;
-  --sx-primary-grad: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  --sx-primary: #1a5f9e;
+  --sx-primary-600: #1c75bc;
+  --sx-primary-500: #29abe2;
+  --sx-primary-300: #93c5fd;
+  --sx-primary-100: #dbeafe;
+  --sx-primary-grad: linear-gradient(135deg, #1c75bc 0%, #1a5f9e 100%);
 
   /* Neutrals (light) */
-  --sx-bg: #f6f6fb;
+  --sx-bg: #f4f8fc;
   --sx-surface: #ffffff;
-  --sx-surface-2: #f3f1fb;
-  --sx-text: #1e1b2e;
+  --sx-surface-2: #eef4fb;
+  --sx-text: #14253a;
   --sx-text-muted: #6b6880;
-  --sx-border: #e7e4f3;
+  --sx-border: #dce6f2;
 
   /* Sidebar (dark slate in light mode for contrast) */
-  --sx-side-bg: #1c1530;
-  --sx-side-bg-2: #251b41;
+  --sx-side-bg: #0f2438;
+  --sx-side-bg-2: #16314c;
   --sx-side-text: #c9c4dd;
   --sx-side-active: #ffffff;
 
@@ -41,14 +41,14 @@
 
 /* Dark theme */
 body.skylinx-dark {
-  --sx-bg: #0f0b1e;
-  --sx-surface: #181229;
-  --sx-surface-2: #211a36;
+  --sx-bg: #0b1626;
+  --sx-surface: #122033;
+  --sx-surface-2: #18293f;
   --sx-text: #ece9f7;
   --sx-text-muted: #9b95b3;
-  --sx-border: #2c2444;
-  --sx-side-bg: #140f24;
-  --sx-side-bg-2: #1c1535;
+  --sx-border: #243549;
+  --sx-side-bg: #0c1a2b;
+  --sx-side-bg-2: #122740;
   --sx-side-text: #b9b3cf;
   --sx-shadow: 0 6px 26px rgba(0, 0, 0, .45);
   --sx-shadow-sm: 0 2px 10px rgba(0, 0, 0, .4);
@@ -89,7 +89,7 @@ body { background: var(--sx-bg) !important; color: var(--sx-text) !important; }
   position: relative;
 }
 .oh-sidebar__menu-link:hover {
-  background: rgba(139, 92, 246, .16) !important;
+  background: rgba(41, 171, 226, .16) !important;
   color: #fff !important;
   transform: translateX(2px);
 }
@@ -97,7 +97,7 @@ body { background: var(--sx-bg) !important; color: var(--sx-text) !important; }
 .oh-sidebar__menu-link.active {
   background: var(--sx-primary-grad) !important;
   color: #fff !important;
-  box-shadow: 0 6px 16px rgba(109, 40, 217, .45);
+  box-shadow: 0 6px 16px rgba(28, 117, 188, .45);
 }
 .oh-sidebar__menu-link--active::before,
 .oh-sidebar__menu-link.active::before {
@@ -130,7 +130,7 @@ body { background: var(--sx-bg) !important; color: var(--sx-text) !important; }
   background: var(--sx-primary-grad) !important;
   border-color: transparent !important;
   color: #fff !important;
-  box-shadow: 0 6px 16px rgba(109,40,217,.32);
+  box-shadow: 0 6px 16px rgba(28,117,188,.32);
 }
 .oh-btn--light-bkg, .oh-btn--light {
   background: var(--sx-primary-100) !important;

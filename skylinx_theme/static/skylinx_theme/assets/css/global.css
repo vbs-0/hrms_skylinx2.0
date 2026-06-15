@@ -74,7 +74,7 @@
   font-family: "Font Awesome 6 Free";
   font-weight: 600;
   font-size: 12px;
-  color: #2d7ff9;
+  color: #1c75bc;
   position: absolute;
   left: 0;
 }
@@ -176,7 +176,7 @@
   background: rgb(227 78 56 / 10%);
   /* Comment this line for dynamic theme  */
   /* color: #e34e38; */
-  /* border-right: 2px solid #2d7ff9; */
+  /* border-right: 2px solid #1c75bc; */
 }
 
 .sidebox ul li a:hover:after,
@@ -220,7 +220,7 @@
 }
 
 .breadcrumb li:last-child {
-  color: #2d7ff9;
+  color: #1c75bc;
   font-weight: 500;
 }
 
@@ -229,7 +229,7 @@
 }
 
 .breadcrumb li a:hover {
-  color: #2d7ff9;
+  color: #1c75bc;
 }
 
 .stickyleft {
@@ -323,7 +323,7 @@
 .myform select:focus,
 .myform textarea:focus {
   outline: unset;
-  border: 1px solid #2d7ff9;
+  border: 1px solid #1c75bc;
 }
 
 .myform label {
@@ -333,7 +333,7 @@
 }
 
 .btn {
-  background: #2d7ff9;
+  background: #1c75bc;
   color: white;
   font-size: 13px;
   min-width: max-content;
@@ -400,7 +400,7 @@
 
 .select2-container--default .select2-selection--multiple .select2-selection__choice {
   /* Comment this line for dynamic theme */
-  /* background-color: #2d7ff9; */
+  /* background-color: #1c75bc; */
   color: white;
   border: unset;
   height: 23px;
@@ -423,12 +423,12 @@
 
 .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
   background-color: #fff5f1;
-  color: #2d7ff9;
+  color: #1c75bc;
 }
 
 .select2-container--default .select2-results__option--selected {
   background-color: #fff5f1;
-  color: #2d7ff9;
+  color: #1c75bc;
 }
 
 .select2-container--default.select2-container--focus .select2-selection--multiple {
@@ -557,8 +557,8 @@
 
 .usertablist li button.active,
 .usertablist li button:hover {
-  background-color: #2d7ff9;
-  border: 1px solid #2d7ff9;
+  background-color: #1c75bc;
+  border: 1px solid #1c75bc;
   color: white;
 }
 
@@ -900,8 +900,8 @@ input[type="radio"].red-radio {
 }
 
 input[type="radio"].red-radio:checked {
-  border-color: #2d7ff9;
-  background-color: #2d7ff9;
+  border-color: #1c75bc;
+  background-color: #1c75bc;
 }
 
 input[type="radio"].red-radio:checked::after {
@@ -933,8 +933,8 @@ table input[type="checkbox"] {
 }
 
 input[type="checkbox"].custom-checkbox:checked {
-  background-color: #2d7ff9;
-  border-color: #2d7ff9;
+  background-color: #1c75bc;
+  border-color: #1c75bc;
 }
 
 input[type="checkbox"].custom-checkbox:checked::after {
@@ -950,7 +950,7 @@ input[type="checkbox"].custom-checkbox:checked::after {
 }
 
 input[type="checkbox"].custom-checkbox:hover {
-  border-color: #2d7ff9;
+  border-color: #1c75bc;
 }
 
 .tooltip {
@@ -998,7 +998,7 @@ input[type="checkbox"].custom-checkbox:hover {
 }
 
 .progress li.active .sec::before {
-  background-color: #2d7ff9;
+  background-color: #1c75bc;
 }
 
 .progress li span {
@@ -1036,37 +1036,37 @@ input[type="checkbox"].custom-checkbox:hover {
 }
 
 /* .bg-primary-900 {
-  background-color: #4C1D95;
+  background-color: #13294A;
 }
 .bg-primary-800 {
-  background-color: #5B21B6;
+  background-color: #1C3D6E;
 }
 .bg-primary-700 {
-  background-color: #6D28D9;
+  background-color: #1A5F9E;
 }
 .bg-primary-600 {
-  background-color: #2D7FF9;
+  background-color: #1C75BC;
 }
 .bg-primary-500 {
-  background-color: #A78BFA;
+  background-color: #60A5FA;
 }
 .bg-primary-400 {
-  background-color: #C4B5FD;
+  background-color: #93C5FD;
 }
 .bg-primary-300 {
-  background-color: #DDD6FE;
+  background-color: #BFDBFE;
 }
 .bg-primary-200 {
-  background-color: #EDE9FE;
+  background-color: #DBEAFE;
 }
 .bg-primary-100 {
-  background-color: #F5F3FF;
+  background-color: #EFF6FF;
 }
 .bg-primary-50 {
   background-color: #f6f6f6;
 }
 .text-primary-600 {
-  color: #2d7ff9;
+  color: #1c75bc;
 } */
 .dropdown-wrapper:focus-within .dropdown-content {
   opacity: 1;

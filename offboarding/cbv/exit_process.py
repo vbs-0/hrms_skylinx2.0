@@ -757,7 +757,7 @@ class OffboardingEmployeeList(SkylinxListView):
                                     data-target="#genericModal"
                                     class="oh-hover-btn__small"
                                     style="
-                                        border:1px hsl(258,84%,58%) solid;
+                                        border:1px hsl(204,73%,43%) solid;
                                     "
                                     title="{_('Edit')}"
                                 >
@@ -770,7 +770,7 @@ class OffboardingEmployeeList(SkylinxListView):
                                     data-toggle="oh-modal-toggle"
                                     class="oh-hover-btn__small"
                                     style="
-                                        border:1px hsl(258,84%,58%) solid;
+                                        border:1px hsl(204,73%,43%) solid;
                                     "
                                     title="{_('Delete')}"
                                 >

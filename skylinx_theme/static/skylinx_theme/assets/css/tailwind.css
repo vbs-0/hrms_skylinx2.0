@@ -1724,12 +1724,12 @@ video {
     background-color: rgb(219 219 219/var(--tw-bg-opacity))
 }
 
-.bg-\[\#ddd6fe\] {
+.bg-\[\#bfdbfe\] {
     --tw-bg-opacity: 1;
     background-color: rgb(221 214 254/var(--tw-bg-opacity))
 }
 
-.bg-\[\#2d7ff9\] {
+.bg-\[\#1c75bc\] {
     --tw-bg-opacity: 1;
     background-color: rgb(229 79 56/var(--tw-bg-opacity))
 }
@@ -2330,7 +2330,7 @@ video {
     color: rgb(158 158 158/var(--tw-text-opacity))
 }
 
-.text-\[\#2D7FF9\] {
+.text-\[\#1C75BC\] {
     --tw-text-opacity: 1;
     color: rgb(229 79 56/var(--tw-text-opacity))
 }
@@ -2350,7 +2350,7 @@ video {
     color: rgb(223 223 223/var(--tw-text-opacity))
 }
 
-.text-\[\#2d7ff9\] {
+.text-\[\#1c75bc\] {
     --tw-text-opacity: 1;
     color: rgb(229 79 56/var(--tw-text-opacity))
 }
@@ -2803,7 +2803,7 @@ video {
     filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)
 }
 
-.peer:checked~.peer-checked\:bg-\[\#2d7ff9\] {
+.peer:checked~.peer-checked\:bg-\[\#1c75bc\] {
     --tw-bg-opacity: 1;
     background-color: rgb(229 79 56/var(--tw-bg-opacity))
 }

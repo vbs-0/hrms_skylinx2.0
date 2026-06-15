@@ -66,23 +66,23 @@
             .select2-container--default
             .select2-selection--multiple
             .select2-selection__choice {
-                background-color: {{ theme.primary_600|default:"#7C3AED" }};
+                background-color: {{ theme.primary_600|default:"#1C75BC" }};
             }
 
             .oh-titlebar__tag--custom{
-                background-color: {{ theme.primary_600|default:"#7C3AED" }} !important;
+                background-color: {{ theme.primary_600|default:"#1C75BC" }} !important;
                 color: {{theme_obj.secondary_100|default:"#F0F0F0"}} !important;
             }
 
             .usertablist li button.active,
             .usertablist li button:hover{
-                border: 1px solid {{ theme_obj.primary_600|default:"#7C3AED" }};
+                border: 1px solid {{ theme_obj.primary_600|default:"#1C75BC" }};
             }
 
             .myform input:focus, .myform select:focus, .myform textarea:focus,
             .oh-input:focus, .oh-input:focus-visible, .oh-select:focus, .oh-select:focus-visible
             {
-                border: 1px solid {{ theme_obj.primary_600|default:"#7C3AED" }} !important;
+                border: 1px solid {{ theme_obj.primary_600|default:"#1C75BC" }} !important;
             }
 
             {% comment %} .oh-activity-sidebar {
@@ -95,25 +95,25 @@
             .oh-btn--secondary:focus-visible,
             .oh-switch .oh-switch__checkbox:checked:hover
             {
-                background-color: {{ theme_obj.primary_800 | default:"#5B21B6" }};
+                background-color: {{ theme_obj.primary_800 | default:"#1C3D6E" }};
             }
 
             /* Primary 300 background */
             .sidebox ul li a:after,
             .sidebox ul li a:hover,
             .oh-accordion-header:hover {
-                background-color: {{ theme.primary_300|default:"#DDD6FE" }};
+                background-color: {{ theme.primary_300|default:"#BFDBFE" }};
             }
 
             /* Accordion base */
             .oh-accordion-header {
-                background-color: {{ theme.primary_200|default:"#EDE9FE" }};
-                color: {{ theme.primary_600|default:"#7C3AED" }};
+                background-color: {{ theme.primary_200|default:"#DBEAFE" }};
+                color: {{ theme.primary_600|default:"#1C75BC" }};
             }
 
             .oh-tabs__movable-header,
             .oh-tabs__movable:hover {
-                background-color: {{ theme.primary_100|default:"#EDE9FE" }};
+                background-color: {{ theme.primary_100|default:"#DBEAFE" }};
             }
 
             /* Text color */
@@ -121,7 +121,7 @@
             .sidebox ul li a:hover,
             .breadcrumb li:last-child,
             .breadcrumb li a:hover {
-                color: {{ theme.primary_600|default:"#7C3AED" }};
+                color: {{ theme.primary_600|default:"#1C75BC" }};
             }
         </style>
         {% endwith %}
