@@ -1840,6 +1840,12 @@ def create_reimbursement(request):
 
     if instance_id:
         instance = Reimbursement.objects.filter(id=instance_id).first()
+        if instance and not (
+            request.user.is_superuser
+            or request.user.has_perm("payroll.change_reimbursement")
+            or instance.employee_id == request.user.employee_get
+        ):
+            return render(request, "no_perm.html")
 
     if request.method == "POST":
         form = forms.ReimbursementForm(request.POST, request.FILES, instance=instance)

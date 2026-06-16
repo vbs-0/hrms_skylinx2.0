@@ -1855,6 +1855,16 @@ def delete_payrollrequest_comment(request, comment_id):
     if not comment.exists():
         messages.error(request, _("Comment not found."))
         return SkylinxRedirect(request)
+    
+    comment_obj = comment.first()
+    if not (
+        request.user.is_superuser
+        or request.user.has_perm("payroll.change_reimbursement")
+        or comment_obj.employee_id == request.user.employee_get
+    ):
+        messages.error(request, _("You don't have permission to delete this comment."))
+        return SkylinxRedirect(request)
+
     comment.delete()
     return SkylinxRedirect(request, message=_("Comment deleted successfully!"))
 
