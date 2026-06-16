@@ -7885,15 +7885,44 @@ def protected_media(request, path):
     if not os.path.exists(media_path) or not os.path.isfile(media_path):
         raise Http404("File not found")
 
+    # Media paths follow "app_label/model_name/field_name/...". These prefixes
+    # hold sensitive employee data (payslips, biometric face templates, HR
+    # documents/notes, disciplinary records). Direct /media/ access to them
+    # requires the corresponding view permission — ordinary employees reach
+    # their own copies through the dedicated, ownership-checked views that
+    # stream the file rather than linking to /media/.
+    sensitive_media_prefixes = {
+        "payroll/": "payroll.view_payslip",
+        "facedetection/": "facedetection.view_employeefacedetection",
+        "skylinx_documents/": "skylinx_documents.view_document",
+        "employee/employeenote/": "employee.view_employeenote",
+        "employee/notefiles/": "employee.view_employeenote",
+        "employee/disciplinaryaction/": "employee.view_disciplinaryaction",
+    }
+
     is_public_asset = any(path.startswith(prefix) for prefix in public_media_prefixes)
 
     if not is_public_asset:
         jwt_user = is_jwt_token_valid(request.META.get("HTTP_AUTHORIZATION", ""))
-        if not request.user.is_authenticated and not jwt_user:
+        auth_user = request.user if request.user.is_authenticated else jwt_user
+        if not auth_user:
             messages.error(
                 request,
                 "You must be logged in or provide a valid token to access this file.",
             )
             return redirect("login")
+
+        required_perm = next(
+            (
+                perm
+                for prefix, perm in sensitive_media_prefixes.items()
+                if path.startswith(prefix)
+            ),
+            None,
+        )
+        if required_perm and not (
+            getattr(auth_user, "is_superuser", False) or auth_user.has_perm(required_perm)
+        ):
+            raise Http404("File not found")
 
     return FileResponse(open(media_path, "rb"))

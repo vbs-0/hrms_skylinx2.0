@@ -82,10 +82,6 @@ class FaceDetectionConfigAPIView(APIView):
 class EmployeeFaceDetectionGetPostAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    @method_decorator(csrf_exempt)
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
     def get_company(self, request):
         try:
             company = request.user.employee_get.get_company()
@@ -114,8 +110,10 @@ class EmployeeFaceDetectionGetPostAPIView(APIView):
         current_employee = request.user.employee_get
         
         # Determine target employee
-        if target_employee_id:
-            if request.user.is_superuser or request.user.has_perm("geofencing.add_localbackup"):
+        if target_employee_id and str(target_employee_id) != str(current_employee.id):
+            if request.user.is_superuser or request.user.has_perm(
+                "facedetection.delete_employeefacedetection"
+            ):
                 employee_id = target_employee_id
             else:
                 return Response({"error": "Permission denied to delete other employee's face data"}, status=status.HTTP_403_FORBIDDEN)
@@ -166,7 +164,7 @@ def get_facedetection(request):
 
 
 @login_required
-@permission_required("geofencing.add_localbackup")
+@permission_required("facedetection.add_facedetection")
 @hx_request_required
 def face_detection_config(request):
     try:
@@ -197,7 +195,7 @@ def face_detection_config(request):
 
 
 @login_required
-@permission_required("geofencing.add_localbackup")
+@permission_required("facedetection.delete_employeefacedetection")
 def reset_employee_face(request, employee_id):
     try:
         EmployeeFaceDetection.objects.filter(employee_id=employee_id).delete()

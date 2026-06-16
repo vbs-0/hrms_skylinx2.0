@@ -29,6 +29,7 @@ from skylinx.group_by import group_by_queryset
 from skylinx.http import SkylinxRedirect
 from notifications.signals import notify
 from recruitment.decorators import (
+    candidate_can_access,
     candidate_login_required,
     manager_can_enter,
     recruitment_manager_can_enter,
@@ -167,12 +168,15 @@ def note_delete_individual(request, note_id):
     This method is used to delete the stage note
     """
     note = StageNote.find(note_id)
-    note.delete() if note else None
-    (
-        messages.success(request, _("Note deleted."))
-        if note
-        else messages.error(request, _("No Stage Note found matching the query."))
-    )
+    if not note:
+        messages.error(request, _("No Stage Note found matching the query."))
+        return HttpResponse("")
+    if not candidate_can_access(
+        request, note.candidate_id_id, perm="recruitment.delete_stagenote"
+    ):
+        return render(request, "no_perm.html")
+    note.delete()
+    messages.success(request, _("Note deleted."))
     return HttpResponse("")
 
 

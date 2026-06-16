@@ -8,7 +8,6 @@ from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 
 from base.models import MultipleApprovalManagers
-from employee.models import EmployeeWorkInformation
 from skylinx.skylinx_middlewares import _thread_locals
 from skylinx_views.cbv_methods import decorator_with_arguments
 
@@ -30,11 +29,7 @@ class ManagerPermission(BasePermission):
             if is_approval_manager:
                 return True
 
-        is_manager = EmployeeWorkInformation.objects.filter(
-            reporting_manager_id=employee
-        ).exists()
-
-        if user.has_perm(perm) or is_manager:
+        if user.has_perm(perm):
             return True
         return False
 

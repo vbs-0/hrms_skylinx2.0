@@ -51,28 +51,60 @@ def get_last_section(path):
 
 def get_companies(request):
     """
-    This method will return the history additional field form
+    Build the company switcher options.
+
+    Only superusers (or users holding ``base.view_company``) may see every
+    company and the "All Company" option. Every other user is limited to their
+    own company so they cannot view or switch into other companies' data.
     """
+    user = getattr(request, "user", None)
+    # Only the superuser (admin) may view every company and switch to
+    # "All Company"; everyone else is limited to their own company.
+    is_privileged = bool(user and user.is_authenticated and user.is_superuser)
+
+    if is_privileged:
+        company_qs = Company.objects.all()
+    else:
+        # Restrict ordinary users to their own company only.
+        company_qs = Company.objects.none()
+        try:
+            own_company = request.user.employee_get.employee_work_info.company_id
+            if own_company:
+                company_qs = Company.objects.filter(id=own_company.id)
+        except Exception:
+            company_qs = Company.objects.none()
+
     companies = list(
         [company.id, company.company, company.icon.url, False]
-        for company in Company.objects.all()
+        for company in company_qs
     )
-    companies = [
-        [
-            "all",
-            "All Company",
-            "https://ui-avatars.com/api/?name=All+Company&background=random",
-            False,
-        ],
-    ] + companies
+
+    if is_privileged:
+        companies = [
+            [
+                "all",
+                "All Company",
+                "https://ui-avatars.com/api/?name=All+Company&background=random",
+                False,
+            ],
+        ] + companies
+
     selected_company = request.session.get("selected_company")
+
+    # Non-privileged users must never be scoped to "all" or another company.
+    if not is_privileged:
+        allowed_ids = {str(c[0]) for c in companies}
+        if str(selected_company) not in allowed_ids:
+            selected_company = str(companies[0][0]) if companies else None
+            request.session["selected_company"] = selected_company
+
     company_selected = False
-    if selected_company and selected_company == "all":
+    if is_privileged and selected_company == "all":
         companies[0][3] = True
         company_selected = True
     else:
         for company in companies:
-            if str(company[0]) == selected_company:
+            if str(company[0]) == str(selected_company):
                 company[3] = True
                 company_selected = True
     return {"all_companies": companies, "company_selected": company_selected}
@@ -90,7 +122,12 @@ def update_selected_company(request):
     user_company = getattr(
         getattr(user, "employee_work_info", None), "company_id", None
     )
-    request.session["selected_company"] = company_id
+    # Only the superuser may switch to "All Company" or into a company other
+    # than their own. Everyone else is pinned to their own company.
+    if not request.user.is_superuser:
+        own_id = getattr(user_company, "id", None)
+        if company_id == "all" or (own_id is not None and str(company_id) != str(own_id)):
+            return HttpResponse(status=403)
     company = (
         AllCompany()
         if company_id == "all"

@@ -1011,6 +1011,12 @@ def create_resignation_request(request):
     instance = None
     if instance_id:
         instance = ResignationLetter.objects.get(id=instance_id)
+        # IDOR guard: a non-permitted user may only edit their own resignation.
+        if (
+            not request.user.has_perm("offboarding.change_resignationletter")
+            and instance.employee_id != request.user.employee_get
+        ):
+            return HttpResponse("You don't have permission")
     form = ResignationLetterForm(instance=instance)
     if request.method == "POST":
         form = ResignationLetterForm(request.POST, instance=instance)

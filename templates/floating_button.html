@@ -111,6 +111,7 @@
 </style>
 
 <div class="inner-fabs">
+    {% if perms.employee.view_employee %}
     <div id="fab9" class="fab round" data-tooltip="Dashboard Charts">
         <a
             class="text-light"
@@ -122,6 +123,7 @@
             <i class="material-icons mt-2">leaderboard</i>
         </a>
     </div>
+    {% endif %}
     {% if "helpdesk"|app_installed %}
         <div id="fab8" class="fab round" data-tooltip="Create Ticket">
             <a

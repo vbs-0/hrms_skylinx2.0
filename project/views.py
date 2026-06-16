@@ -933,6 +933,16 @@ def task_details(request, task_id):
     task = Task.objects.filter(id=task_id).first()
     if not task:
         return SkylinxRedirect(request, message=_("Task not found"))
+    project = task.project
+    if not (
+        request.user.has_perm("project.view_task")
+        or request.user.has_perm("project.change_project")
+        or request.user.employee_get in task.task_managers.all()
+        or request.user.employee_get in task.task_members.all()
+        or request.user.employee_get in project.managers.all()
+        or request.user.employee_get in project.members.all()
+    ):
+        return render(request, "no_perm.html")
     return render(request, "task/new/task_details.html", context={"task": task})
 
 
@@ -986,6 +996,21 @@ def task_stage_change(request):
     if not stage:
         messages.error(request, _("Stage not found"))
         return JsonResponse({"error": "Stage not found"}, status=404)
+    task = Task.objects.filter(id=task_id).first()
+    if not task:
+        messages.error(request, _("Task not found"))
+        return JsonResponse({"error": "Task not found"}, status=404)
+    project = task.project
+    if not (
+        request.user.has_perm("project.change_task")
+        or request.user.has_perm("project.change_project")
+        or request.user.employee_get in task.task_managers.all()
+        or request.user.employee_get in task.task_members.all()
+        or request.user.employee_get in project.managers.all()
+        or request.user.employee_get in project.members.all()
+    ):
+        messages.info(request, _("You dont have permission."))
+        return JsonResponse({"error": "Permission denied"}, status=403)
     Task.objects.filter(id=task_id).update(stage=stage)
     return JsonResponse(
         {
@@ -1166,6 +1191,17 @@ def update_project_task_status(request, task_id):
     if not task:
         return SkylinxRedirect(request, message=_("Task not found"))
 
+    project = task.project
+    if not (
+        request.user.has_perm("project.change_task")
+        or request.user.has_perm("project.change_project")
+        or request.user.employee_get in task.task_managers.all()
+        or request.user.employee_get in task.task_members.all()
+        or request.user.employee_get in project.managers.all()
+        or request.user.employee_get in project.members.all()
+    ):
+        return render(request, "no_perm.html")
+
     if task.end_date and task.end_date < date.today():
         messages.warning(request, _("Cannot update status. Task has already expired."))
         return HttpResponse("<script>$('#reloadMessagesButton').click();</script>")
@@ -1281,7 +1317,7 @@ def task_all_bulk_delete(request):
 
 
 @login_required
-# @permission_required("project.change_task")
+@permission_required("project.change_task")
 def task_all_archive(request, task_id):
     """
     This method is used to archive project instance
@@ -1985,6 +2021,17 @@ def time_sheet_single_view(request, time_sheet_id):
     if not timesheet:
         messages.error(request, _("Timesheet doesn't exist."))
         return SkylinxRedirect(request)
+    employee = request.user.employee_get
+    project = timesheet.project_id
+    task = timesheet.task_id
+    if not (
+        request.user.has_perm("project.view_timesheet")
+        or request.user.has_perm("project.view_project")
+        or timesheet.employee_id == employee
+        or (project and employee in project.managers.all())
+        or (task and employee in task.task_managers.all())
+    ):
+        return render(request, "no_perm.html")
     context = {"time_sheet": timesheet}
     return render(request, "time_sheet/time_sheet_single_view.html", context)
 

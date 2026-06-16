@@ -510,6 +510,7 @@ def update_payslip_status(request, payslip_id):
 
 
 @login_required
+@permission_required("payroll.change_payslip")
 @hx_request_required
 def update_payslip_status_no_id(request):
     """
@@ -933,6 +934,7 @@ def contract_ending(request):
 
 
 @login_required
+@permission_required("payroll.view_payslip")
 def payslip_export(request):
     """
     payroll dashboard exporting to excell data

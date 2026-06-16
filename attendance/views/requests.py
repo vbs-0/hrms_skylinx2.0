@@ -38,6 +38,7 @@ from attendance.models import (
 )
 from attendance.views.clock_in_out import early_out, late_come
 from base.methods import (
+    check_manager,
     choosesubordinates,
     closest_numbers,
     eval_validate,
@@ -308,6 +309,14 @@ def attendance_request_changes(request, attendance_id):
             request, message=_("No Attendance found matching the query.")
         )
 
+    employee = attendance.employee_id
+    if not (
+        request.user.has_perm("attendance.change_attendance")
+        or employee == request.user.employee_get
+        or check_manager(request.user.employee_get, employee)
+    ):
+        return render(request, "no_perm.html")
+
     if request.GET.get("previous_url"):
         form = AttendanceRequestForm(initial=request.GET.dict())
     else:
@@ -405,6 +414,14 @@ def validate_attendance_request(request, attendance_id):
         return SkylinxRedirect(
             request, message=_("No Attendance found matching the query.")
         )
+
+    employee = attendance.employee_id
+    if not (
+        request.user.has_perm("attendance.view_attendance")
+        or employee == request.user.employee_get
+        or check_manager(request.user.employee_get, employee)
+    ):
+        return render(request, "no_perm.html")
 
     first_dict = attendance.serialize()
     empty_data = {

@@ -19,7 +19,7 @@ from django.utils.translation import gettext_lazy as _
 from accessibility.cbv_decorators import enter_if_accessible
 from accessibility.models import DefaultAccessibility
 from base.context_processors import enable_profile_edit
-from base.methods import is_reportingmanager
+from base.methods import filtersubordinatesemployeemodel, is_reportingmanager
 from employee.filters import EmployeeFilter
 from employee.forms import BulkUpdateFieldForm, EmployeeExportExcelForm
 from employee.models import Employee, EmployeeBankDetails, EmployeeWorkInformation
@@ -331,6 +331,18 @@ class EmployeesList(SkylinxListView):
         ),
         (_("Date of Joining"), "employee_work_info__date_joining"),
     ]
+
+    def get_queryset(self):
+        """
+        Scope the directory to what the user is allowed to see: holders of
+        ``employee.view_employee`` (HR/admin) see everyone, reporting managers
+        see their reporting chain, and ordinary employees do not see other
+        employees' records.
+        """
+        queryset = super().get_queryset()
+        return filtersubordinatesemployeemodel(
+            self.request, queryset, "employee.view_employee"
+        )
 
 
 def get_detailed_work_url(self):
@@ -756,6 +768,16 @@ class EmployeeCard(SkylinxCardView):
                 hx-swap="innerHTML"
                 hx-push-url="{get_individual_url}"
                 """
+
+    def get_queryset(self):
+        """
+        Scope the card view to what the user is allowed to see (see
+        ``EmployeesList.get_queryset``).
+        """
+        queryset = super().get_queryset()
+        return filtersubordinatesemployeemodel(
+            self.request, queryset, "employee.view_employee"
+        )
 
 
 @receiver(post_generic_delete, sender=Employee)

@@ -6,11 +6,42 @@ Accessible at /dashboard/modern/ alongside the existing dashboard.
 
 import json
 from datetime import date, timedelta
+from functools import wraps
 
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
+
+
+def can_view_company_analytics(user, perm="employee.view_employee"):
+    """
+    Whether `user` may see company-wide analytics gated by `perm`.
+
+    Superusers and holders of the relevant permission qualify; ordinary
+    employees do not. Reporting managers are intentionally excluded from the
+    company-wide aggregates (they get subordinate-scoped data elsewhere).
+    """
+    return bool(
+        getattr(user, "is_authenticated", False)
+        and (user.is_superuser or user.has_perm(perm))
+    )
+
+
+def analytics_permission_required(perm="employee.view_employee"):
+    """Gate a dashboard JSON endpoint behind login + company-analytics permission."""
+
+    def decorator(view):
+        @login_required
+        @wraps(view)
+        def _wrapped(request, *args, **kwargs):
+            if not can_view_company_analytics(request.user, perm):
+                return JsonResponse({"error": "forbidden"}, status=403)
+            return view(request, *args, **kwargs)
+
+        return _wrapped
+
+    return decorator
 
 
 def _parse_period(request):
@@ -31,10 +62,20 @@ def _parse_period(request):
 
 @login_required
 def main_dashboard_view(request):
-    """Render the modern dashboard page."""
+    """Render the modern dashboard page.
+
+    The company-wide analytics dashboard is reserved for users who can view
+    company analytics (HR/admin). Everyone else is sent to their personal
+    Employee Self-Service dashboard, which shows only their own attendance,
+    leave, payslips and requests.
+    """
     from django.apps import apps
+    from django.shortcuts import redirect
 
     from skylinx.methods import get_skylinx_model_class
+
+    if not can_view_company_analytics(request.user):
+        return redirect("ess-dashboard")
 
     enabled_timerunner = True
     get_forecasted_at_work = None
@@ -74,11 +115,22 @@ def main_dashboard_view(request):
             "enabled_timerunner": enabled_timerunner,
             "get_forecasted_at_work": get_forecasted_at_work,
             "employee_chart_prefs": employee_chart_prefs,
+            # Drives visibility of company-wide analytics cards in the template.
+            # The JSON endpoints enforce this server-side regardless; this flag
+            # only prevents non-privileged users from rendering empty cards and
+            # firing requests that would 403.
+            "can_view_company_analytics": can_view_company_analytics(request.user),
+            "can_view_payroll_analytics": can_view_company_analytics(
+                request.user, "payroll.view_payslip"
+            ),
+            "can_view_recruitment_analytics": can_view_company_analytics(
+                request.user, "recruitment.view_candidate"
+            ),
         },
     )
 
 
-@login_required
+@analytics_permission_required("employee.view_employee")
 def dashboard_kpi_data(request):
     """Return KPI summary data as JSON."""
     from employee.models import Employee
@@ -170,7 +222,7 @@ def dashboard_kpi_data(request):
     )
 
 
-@login_required
+@analytics_permission_required("attendance.view_attendance")
 def dashboard_attendance_trend(request):
     """Weekly attendance trend.
 
@@ -218,7 +270,7 @@ def dashboard_attendance_trend(request):
     return JsonResponse({"weeks": weeks})
 
 
-@login_required
+@analytics_permission_required("leave.view_leaverequest")
 def dashboard_leave_breakdown(request):
     """Leave type breakdown for the selected period."""
     from_date, to_date = _parse_period(request)
@@ -255,7 +307,7 @@ def dashboard_leave_breakdown(request):
     return JsonResponse({"breakdown": breakdown, "month": today.strftime("%B %Y")})
 
 
-@login_required
+@analytics_permission_required("employee.view_employee")
 def dashboard_department_headcount(request):
     """Department-wise headcount."""
     departments = []
@@ -282,7 +334,7 @@ def dashboard_department_headcount(request):
     return JsonResponse({"departments": departments})
 
 
-@login_required
+@analytics_permission_required("employee.view_employee")
 def dashboard_gender_split(request):
     """Gender distribution."""
     genders = []
@@ -495,7 +547,7 @@ def dashboard_upcoming_holidays(request):
     return JsonResponse({"holidays": holidays_data})
 
 
-@login_required
+@analytics_permission_required("employee.view_employee")
 def dashboard_birthdays_anniversaries(request):
     """Upcoming birthdays and work anniversaries in the next 7 days."""
     today = date.today()
@@ -569,7 +621,7 @@ def dashboard_birthdays_anniversaries(request):
     )
 
 
-@login_required
+@analytics_permission_required("recruitment.view_candidate")
 def dashboard_recruitment_pipeline(request):
     """Recruitment pipeline funnel — candidates aggregated by stage type."""
     stages = []
@@ -641,7 +693,7 @@ def dashboard_recruitment_pipeline(request):
     return response
 
 
-@login_required
+@analytics_permission_required("payroll.view_payslip")
 def dashboard_payroll_summary(request):
     """Payroll summary — selected period vs previous period."""
     from_date, to_date = _parse_period(request)
@@ -708,16 +760,32 @@ def dashboard_payroll_summary(request):
 
 @login_required
 def dashboard_pending_approvals(request):
-    """Pending items awaiting the logged-in user's approval."""
-    user = request.user
+    """
+    Pending items the logged-in user is actually entitled to approve.
+
+    Each queryset is passed through ``filtersubordinates`` so that:
+      * permission holders (HR/admin) see the full company queue,
+      * reporting managers see only their subordinates' requests,
+      * ordinary employees see nothing.
+    """
+    from base.methods import filtersubordinates
+
     pending = {}
+
+    def _scoped_count(queryset, perm, field="employee_id"):
+        try:
+            return filtersubordinates(request, queryset, perm, field=field).count()
+        except Exception:
+            return 0
 
     # Leave requests
     try:
         from leave.models import LeaveRequest
 
-        leave_count = LeaveRequest.objects.filter(status="requested").count()
-        pending["leave_requests"] = leave_count
+        pending["leave_requests"] = _scoped_count(
+            LeaveRequest.objects.filter(status="requested"),
+            "leave.change_leaverequest",
+        )
     except Exception:
         pending["leave_requests"] = 0
 
@@ -725,11 +793,13 @@ def dashboard_pending_approvals(request):
     try:
         from attendance.models import Attendance
 
-        att_count = Attendance.objects.filter(
-            is_validate_request=True,
-            is_validate_request_approved=False,
-        ).count()
-        pending["attendance_requests"] = att_count
+        pending["attendance_requests"] = _scoped_count(
+            Attendance.objects.filter(
+                is_validate_request=True,
+                is_validate_request_approved=False,
+            ),
+            "attendance.change_attendance",
+        )
     except Exception:
         pending["attendance_requests"] = 0
 
@@ -737,10 +807,11 @@ def dashboard_pending_approvals(request):
     try:
         from asset.models import AssetRequest
 
-        asset_count = AssetRequest.objects.filter(
-            asset_request_status="Requested",
-        ).count()
-        pending["asset_requests"] = asset_count
+        pending["asset_requests"] = _scoped_count(
+            AssetRequest.objects.filter(asset_request_status="Requested"),
+            "asset.change_assetrequest",
+            field="requested_employee_id",
+        )
     except Exception:
         pending["asset_requests"] = 0
 
@@ -748,11 +819,10 @@ def dashboard_pending_approvals(request):
     try:
         from base.models import ShiftRequest
 
-        shift_count = ShiftRequest.objects.filter(
-            approved=False,
-            canceled=False,
-        ).count()
-        pending["shift_requests"] = shift_count
+        pending["shift_requests"] = _scoped_count(
+            ShiftRequest.objects.filter(approved=False, canceled=False),
+            "base.change_shiftrequest",
+        )
     except Exception:
         pending["shift_requests"] = 0
 
@@ -760,11 +830,10 @@ def dashboard_pending_approvals(request):
     try:
         from base.models import WorkTypeRequest
 
-        wt_count = WorkTypeRequest.objects.filter(
-            approved=False,
-            canceled=False,
-        ).count()
-        pending["work_type_requests"] = wt_count
+        pending["work_type_requests"] = _scoped_count(
+            WorkTypeRequest.objects.filter(approved=False, canceled=False),
+            "base.change_worktyperequest",
+        )
     except Exception:
         pending["work_type_requests"] = 0
 
@@ -772,8 +841,10 @@ def dashboard_pending_approvals(request):
     try:
         from payroll.models.models import Reimbursement
 
-        reimb_count = Reimbursement.objects.filter(status="requested").count()
-        pending["reimbursements"] = reimb_count
+        pending["reimbursements"] = _scoped_count(
+            Reimbursement.objects.filter(status="requested"),
+            "payroll.change_reimbursement",
+        )
     except Exception:
         pending["reimbursements"] = 0
 
@@ -818,7 +889,7 @@ def load_dashboard_prefs(request):
         return JsonResponse({"prefs": []})
 
 
-@login_required
+@analytics_permission_required("employee.view_employee")
 def dashboard_turnover(request):
     """Employee turnover — new hires vs exits over the last 6 months ending at selected period."""
     _, to_date = _parse_period(request)

@@ -10,6 +10,7 @@ from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 
+from skylinx.methods import handle_no_permission
 from skylinx_views.cbv_methods import (
     check_feature_enabled,
     login_required,
@@ -180,7 +181,10 @@ class ResinationLettersNav(SkylinxNavView):
 
 
 @method_decorator(login_required, name="dispatch")
-# @method_decorator(check_feature_enabled("resignation_request",OffboardingGeneralSetting),name="dispatch")
+@method_decorator(
+    check_feature_enabled("resignation_request", OffboardingGeneralSetting),
+    name="dispatch",
+)
 class ResignationLettersFormView(SkylinxFormView):
     """
     Create and edit form for resignations
@@ -189,6 +193,20 @@ class ResignationLettersFormView(SkylinxFormView):
     model = ResignationLetter
     form_class = ResignationLetterForm
     new_display_title = _("Create Resignation Letter")
+
+    def dispatch(self, request, *args, **kwargs):
+        """
+        Guard against IDOR: on update, only the owning employee or a user with
+        the offboarding permission may edit a resignation letter. On create,
+        non-permitted users are restricted to filing their own resignation
+        (the form forces employee_id to the requesting employee).
+        """
+        pk = kwargs.get("pk")
+        if pk and not request.user.has_perm("offboarding.change_resignationletter"):
+            letter = ResignationLetter.objects.filter(pk=pk).first()
+            if letter is None or letter.employee_id != request.user.employee_get:
+                return handle_no_permission(request)
+        return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form: ResignationLetterForm) -> HttpResponse:
         """

@@ -29,6 +29,7 @@ from xhtml2pdf import pisa
 from base.filters import PenaltyFilter
 from base.forms import PenaltyAccountForm
 from base.methods import (
+    check_manager,
     choosesubordinates,
     closest_numbers,
     eval_validate,
@@ -814,7 +815,7 @@ def create_leave_report(request):
 
 @login_required
 @hx_request_required
-# @manager_can_enter("leave.view_leaverequest")
+@manager_can_enter("leave.view_leaverequest")
 def leave_request_filter(request):
     """
     function used to filter leave request.
@@ -2854,6 +2855,13 @@ def user_request_one(request, id):
     GET : return one user leave request view template
     """
     leave_request = LeaveRequest.objects.get(id=id)
+    employee = request.user.employee_get
+    if not (
+        request.user.has_perm("leave.view_leaverequest")
+        or leave_request.employee_id == employee
+        or check_manager(employee, leave_request.employee_id)
+    ):
+        return render(request, "no_perm.html")
     try:
         requests_ids_json = request.GET.get("instances_ids")
         if requests_ids_json:
@@ -3510,6 +3518,18 @@ def leave_allocation_request_single_view(request, req_id):
         requests_ids = json.loads(requests_ids_json)
         previous_id, next_id = closest_numbers(requests_ids, req_id)
     leave_allocation_request = LeaveAllocationRequest.find(req_id)
+    employee = request.user.employee_get
+    if not (
+        request.user.has_perm("leave.view_leaveallocationrequest")
+        or (
+            leave_allocation_request is not None
+            and (
+                leave_allocation_request.employee_id == employee
+                or check_manager(employee, leave_allocation_request.employee_id)
+            )
+        )
+    ):
+        return render(request, "no_perm.html")
     context = {
         "leave_allocation_request": leave_allocation_request,
         "my_request": my_request,
@@ -4123,6 +4143,23 @@ def employee_available_leave_count(request):
     if not employee_id and "user-request-view" in referer:
         employee_id = request.user.employee_get
 
+    requesting_employee = request.user.employee_get
+
+    def _restrict_employee_id(emp_id):
+        if emp_id and not request.user.has_perm("leave.view_availableleave"):
+            requested = Employee.objects.filter(id=emp_id).first()
+            if not (
+                requested is not None
+                and (
+                    requested == requesting_employee
+                    or check_manager(requesting_employee, requested)
+                )
+            ):
+                return requesting_employee.id
+        return emp_id
+
+    employee_id = _restrict_employee_id(employee_id)
+
     available_leave = (
         AvailableLeave.objects.filter(
             leave_type_id=leave_type_id, employee_id=employee_id
@@ -4142,6 +4179,7 @@ def employee_available_leave_count(request):
 
     employee_id = request.GET.getlist("employee_id")
     employee_id = employee_id[0] if employee_id else None
+    employee_id = _restrict_employee_id(employee_id)
 
     available_leave = (
         AvailableLeave.objects.select_related("leave_type_id", "employee_id")
@@ -4239,6 +4277,17 @@ def create_leaverequest_comment(request, leave_id):
     """
     leave = LeaveRequest.objects.filter(id=leave_id).first()
     emp = request.user.employee_get
+    if not (
+        request.user.has_perm("leave.view_leaverequest")
+        or (
+            leave is not None
+            and (
+                leave.employee_id == emp
+                or check_manager(emp, leave.employee_id)
+            )
+        )
+    ):
+        return render(request, "no_perm.html")
     form = LeaverequestcommentForm(
         initial={"employee_id": emp.id, "request_id": leave_id}
     )
@@ -4407,6 +4456,17 @@ def create_allocationrequest_comment(request, leave_id):
     previous_data = request.GET.urlencode()
     leave = LeaveAllocationRequest.objects.filter(id=leave_id).first()
     emp = request.user.employee_get
+    if not (
+        request.user.has_perm("leave.view_leaveallocationrequest")
+        or (
+            leave is not None
+            and (
+                leave.employee_id == emp
+                or check_manager(emp, leave.employee_id)
+            )
+        )
+    ):
+        return render(request, "no_perm.html")
     form = LeaveallocationrequestcommentForm(
         initial={"employee_id": emp.id, "request_id": leave_id}
     )
@@ -4620,6 +4680,13 @@ def view_clashes(request, leave_request_id):
     This method is used to filter or view the leave clashes
     """
     record = get_object_or_404(LeaveRequest, id=leave_request_id)
+    employee = request.user.employee_get
+    if not (
+        request.user.has_perm("leave.view_leaverequest")
+        or record.employee_id == employee
+        or check_manager(employee, record.employee_id)
+    ):
+        return render(request, "no_perm.html")
 
     if record.status == "rejected" or record.status == "cancelled":
         overlapping_requests = LeaveRequest.objects.none()

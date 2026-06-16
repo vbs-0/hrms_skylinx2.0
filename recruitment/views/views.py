@@ -69,6 +69,7 @@ from notifications.signals import notify
 from recruitment.auth import CandidateAuthenticationBackend
 from recruitment.decorators import (
     all_manager_can_enter,
+    candidate_can_access,
     candidate_login_required,
     manager_can_enter,
     recruitment_manager_can_enter,
@@ -3887,6 +3888,7 @@ def document_create(request, id):
 
 
 @login_required
+@manager_can_enter("recruitment.change_candidatedocument")
 def update_document_title(request, id):
     """
     This function is used to create documents from employee individual & profile view.
@@ -3962,6 +3964,8 @@ def file_upload(request, id):
     Returns: return document_form template
     """
     document_item = CandidateDocument.objects.get(id=id)
+    if not candidate_can_access(request, document_item.candidate_id_id):
+        return render(request, "no_perm.html")
     form = CandidateDocumentUpdateForm(instance=document_item)
     if request.method == "POST":
         form = CandidateDocumentUpdateForm(
@@ -3992,6 +3996,10 @@ def view_file(request, id):
     Returns: return view_file template
     """
     document_obj = CandidateDocument.objects.filter(id=id).first()
+    if document_obj is None or not candidate_can_access(
+        request, document_obj.candidate_id_id
+    ):
+        return render(request, "no_perm.html")
     context = {
         "document": document_obj,
     }
@@ -4086,6 +4094,9 @@ def candidate_add_notes(request, cand_id):
         return SkylinxRedirect(
             request, message=_("No Candidate found matching the query.")
         )
+
+    if not candidate_can_access(request, candidate.pk):
+        return render(request, "no_perm.html")
 
     updated_by = request.user.employee_get if request.user.is_authenticated else None
     label = (

@@ -54,15 +54,11 @@ class LoginAPIView(APIView):
         tags=["auth"],
     )
     def post(self, request):
-        import sys
-        print(f"DEBUG LOGIN API: request.data = {request.data}", flush=True)
         username = request.data.get("username") or request.data.get("email")
         password = request.data.get("password")
-        print(f"DEBUG LOGIN API: Extracted username/email: '{username}', password: '{password}'", flush=True)
         if username and password:
             username = username.strip() # Strip trailing spaces just in case
             user = authenticate(username=username, password=password)
-            print(f"DEBUG LOGIN API: Authenticated user: {user}", flush=True)
             if user:
                 refresh = RefreshToken.for_user(user)
                 employee = user.employee_get

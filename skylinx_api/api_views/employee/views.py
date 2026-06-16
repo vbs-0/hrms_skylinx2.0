@@ -81,8 +81,15 @@ class EmployeeTypeAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk=None):
+        if not permission_check(request, "employee.view_employeetype"):
+            return Response({"error": "No permission"}, status=401)
         if pk:
-            employee_type = EmployeeType.objects.get(id=pk)
+            employee_type = object_check(EmployeeType, pk)
+            if employee_type is None:
+                return Response(
+                    {"error": "EmployeeType not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
             serializer = EmployeeTypeSerializer(employee_type)
             return Response(serializer.data, status=200)
         employee_type = EmployeeType.objects.all()
@@ -264,18 +271,14 @@ class EmployeeBankDetailsAPIView(APIView):
         return queryset
 
     def get(self, request, pk=None):
-        bank_detail = EmployeeBankDetails.objects.get(pk=pk)
-        if (
-            request.user.employee_get
-            in [
-                bank_detail.employee_id,
-                bank_detail.employee_id.get_reporting_manager(),
-            ]
-        ) or request.user.has_perm("employee.view_employeebankdetails"):
-            serializer = EmployeeBankDetailsSerializer(bank_detail)
-            return Response(serializer.data)
-
-        return Response({"message": "No permission"}, status=400)
+        bank_detail = self.get_queryset().filter(pk=pk).first()
+        if bank_detail is None:
+            return Response(
+                {"error": "Bank details do not exist"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = EmployeeBankDetailsSerializer(bank_detail)
+        return Response(serializer.data)
 
     @manager_or_owner_permission_required(
         EmployeeBankDetails, "employee.add_employeebankdetails"
@@ -339,15 +342,31 @@ class EmployeeWorkInformationAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, pk):
-        work_info = EmployeeWorkInformation.objects.get(pk=pk)
-        if (
-            request.user.employee_get
-            in [work_info.employee_id, work_info.reporting_manager_id]
-        ) or request.user.has_perm("employee.view_employeeworkinformation"):
-            serializer = EmployeeWorkInformationSerializer(work_info)
+    def get(self, request, pk=None):
+        if pk:
+            try:
+                work_info = EmployeeWorkInformation.objects.get(pk=pk)
+            except EmployeeWorkInformation.DoesNotExist:
+                return Response({"error": "Work information not found"}, status=status.HTTP_404_NOT_FOUND)
+            if (
+                request.user.employee_get
+                in [work_info.employee_id, work_info.reporting_manager_id]
+            ) or request.user.has_perm("employee.view_employeeworkinformation"):
+                serializer = EmployeeWorkInformationSerializer(work_info)
+                return Response(serializer.data, status=200)
+            return Response({"message": "No permission"}, status=400)
+        else:
+            if request.user.has_perm("employee.view_employeeworkinformation"):
+                queryset = EmployeeWorkInformation.objects.all()
+            else:
+                queryset = EmployeeWorkInformation.objects.filter(employee_id=request.user.employee_get.id)
+            
+            employee_id = request.query_params.get("employee_id")
+            if employee_id:
+                queryset = queryset.filter(employee_id=employee_id)
+                
+            serializer = EmployeeWorkInformationSerializer(queryset, many=True)
             return Response(serializer.data, status=200)
-        return Response({"message": "No permission"}, status=400)
 
     @manager_permission_required("employee.add_employeeworkinformation")
     def post(self, request):

@@ -47,6 +47,7 @@ from accessibility.middlewares import ACCESSIBILITY_CACHE_USER_KEYS
 from accessibility.models import DefaultAccessibility
 from base.forms import ModelForm
 from base.methods import (
+    check_manager,
     choosesubordinates,
     filtersubordinates,
     filtersubordinatesemployeemodel,
@@ -281,6 +282,8 @@ def self_info_update(request):
     )
 
 
+@login_required
+@permission_required("accessibility.change_defaultaccessibility")
 def profile_edit_access(request, emp_id):
     feature = request.GET.get("feature", None)
     accessibility = DefaultAccessibility.objects.filter(feature=feature).first()
@@ -391,7 +394,9 @@ def about_tab(request, pk, **kwargs):
     """
     This method is used to view profile of an employee.
     """
-    employee = Employee.objects.get(id=pk)
+    employee = Employee.objects.filter(id=pk).first()
+    if not can_view_employee_profile(request, employee):
+        return render(request, "no_perm.html")
     contracts = employee.contract_set.all() if apps.is_installed("payroll") else None
     employee_leaves = (
         employee.available_leave.all() if apps.is_installed("leave") else None
@@ -409,7 +414,7 @@ def about_tab(request, pk, **kwargs):
 
 @login_required
 @hx_request_required
-def allowances_deductions_tab(request, pk):
+def allowances_deductions_tab(request, pk=None, emp_id=None):
     """
     Retrieve and render the allowances and deductions applicable to an employee.
 
@@ -419,7 +424,10 @@ def allowances_deductions_tab(request, pk):
     condition-based rules. The results are then rendered in the allowance and
     deduction tab template.
     """
-    employee = Employee.objects.get(id=pk)
+    pk = pk or emp_id
+    employee = Employee.objects.filter(id=pk).first()
+    if not can_view_employee_profile(request, employee):
+        return render(request, "no_perm.html")
     active_contracts = (
         employee.contract_set.filter(contract_status="active").first()
         if apps.is_installed("payroll")
@@ -874,6 +882,27 @@ def can_access_document(request, document, perm):
         document.employee_id == employee
         or document.employee_id.get_reporting_manager() == employee
         or request.user.has_perm(perm)
+    )
+
+
+def can_view_employee_profile(request, employee, perm="employee.view_employee"):
+    """
+    Whether the requesting user may view the given employee's profile data.
+
+    True for: the employee themselves, their reporting manager, or a user
+    holding ``perm`` (HR/admin). Used to guard the per-employee profile tabs
+    so one employee cannot read another's personal / salary information by id.
+    """
+    if employee is None:
+        return False
+    try:
+        current = request.user.employee_get
+    except Exception:
+        current = None
+    return bool(
+        request.user.has_perm(perm)
+        or (current is not None and current == employee)
+        or (current is not None and check_manager(current, employee))
     )
 
 
@@ -3063,6 +3092,7 @@ def dashboard(request):
 
 
 @login_required
+@permission_required("employee.view_employee")
 @hx_request_required
 def total_employees_count(request):
     employees = Employee.objects.all().count()
@@ -3070,6 +3100,7 @@ def total_employees_count(request):
 
 
 @login_required
+@permission_required("employee.view_employee")
 @hx_request_required
 def joining_today_count(request):
     newbies_today = 0
@@ -3083,6 +3114,7 @@ def joining_today_count(request):
 
 
 @login_required
+@permission_required("employee.view_employee")
 @hx_request_required
 def joining_week_count(request):
     newbies_week = 0
@@ -3100,6 +3132,7 @@ def joining_week_count(request):
 
 
 @login_required
+@permission_required("employee.view_employee")
 @hx_request_required
 def leave_today_count(request):
     leave_today = 0
@@ -3114,6 +3147,7 @@ def leave_today_count(request):
 
 
 @login_required
+@permission_required("employee.view_employee")
 def dashboard_employee(request):
     """
     Active and in-active employee dashboard
@@ -3139,6 +3173,7 @@ def dashboard_employee(request):
 
 
 @login_required
+@permission_required("employee.view_employee")
 def dashboard_employee_gender(request):
     """
     This method is used to filter out gender vise employees
@@ -3163,6 +3198,7 @@ def dashboard_employee_gender(request):
 
 
 @login_required
+@permission_required("employee.view_employee")
 def dashboard_employee_department(request):
     """
     This method is used to find the count of employees corresponding to the departments
@@ -3203,7 +3239,9 @@ def widget_filter(request):
         # Remove keys with only empty string values
         if all(not v.strip() for v in cleaned_get.getlist(key)):
             del cleaned_get[key]
-    ids = EmployeeFilter(data=cleaned_get).qs.values_list("id", flat=True)
+    qs = EmployeeFilter(data=cleaned_get).qs
+    qs = filtersubordinatesemployeemodel(request, qs, "employee.view_employee")
+    ids = qs.values_list("id", flat=True)
     return JsonResponse({"ids": list(ids)})
 
 
@@ -3216,6 +3254,10 @@ def employee_select(request):
     employees = Employee.objects.filter()
     if page_number == "all":
         employees = Employee.objects.filter(is_active=True)
+
+    employees = filtersubordinatesemployeemodel(
+        request, employees, "employee.view_employee"
+    )
 
     employee_ids = [str(emp.id) for emp in employees]
     total_count = employees.count()
@@ -3265,7 +3307,11 @@ def note_tab(request, pk):
     Returns: return note-tab template
 
     """
-    employee_obj = Employee.objects.get(id=pk)
+    employee_obj = Employee.objects.filter(id=pk).first()
+    if not can_view_employee_profile(
+        request, employee_obj, perm="employee.view_employeenote"
+    ):
+        return render(request, "no_perm.html")
     notes = EmployeeNote.objects.filter(employee_id=pk).order_by("-id")
 
     return render(

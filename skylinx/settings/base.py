@@ -19,9 +19,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 import os
 
 env = environ.Env(
-    DEBUG=(bool, True),
-    SECRET_KEY=(str, "django-insecure-default-key"),
-    ALLOWED_HOSTS=(list, ["*"]),
+    # Secure-by-default: production must explicitly opt into DEBUG and provide
+    # its own SECRET_KEY / ALLOWED_HOSTS via the environment.
+    DEBUG=(bool, False),
+    ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1"]),
     CSRF_TRUSTED_ORIGINS=(list, ["http://localhost:8000"]),
 )
 
@@ -30,10 +31,33 @@ env.read_env(os.path.join(BASE_DIR, ".env"), overwrite=True)
 # ========================================
 # CORE DJANGO SETTINGS
 # ========================================
+# No insecure fallback: if SECRET_KEY is unset the app fails to start rather
+# than silently signing sessions/CSRF tokens with a predictable key.
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
 CSRF_TRUSTED_ORIGINS = env("CSRF_TRUSTED_ORIGINS")
+
+# ----------------------------------------
+# Cookie / transport hardening
+# ----------------------------------------
+# Always keep session/CSRF cookies out of reach of JS.
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False  # CSRF cookie must be readable by the JS that sends the header
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
+# In production (DEBUG off) require HTTPS for cookies and enable HSTS. Left
+# relaxed under DEBUG so local http://localhost development keeps working.
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=31536000)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
 
 THEME_APP = "skylinx_theme"
 
@@ -333,9 +357,7 @@ DB_INIT_PASSWORD: str
 The password used for database setup and initialization. This password is a
 48-character alphanumeric string generated using a UUID to ensure high entropy and security.
 """
-DB_INIT_PASSWORD = env(
-    "DB_INIT_PASSWORD", default="d3f6a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d"
-)
+DB_INIT_PASSWORD = env("DB_INIT_PASSWORD", default="")
 
 # ========================================
 # PERMISSIONS / CUSTOM LOGIC
