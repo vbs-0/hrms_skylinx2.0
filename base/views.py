@@ -237,7 +237,7 @@ def is_reportingmanger(request, instance):
             instance.employee_id.employee_work_info.reporting_manager_id
         )
     except Exception:
-        return HttpResponse("This Employee Dont Have any work information")
+        return False
     return manager == employee_work_info_manager
 
 
@@ -5417,7 +5417,8 @@ def delete_notification(request, id):
 @login_required
 def mark_as_read_notification(request, notification_id):
     script = ""
-    notification_id = request.GET.get("notification_id")
+    if not notification_id:
+        notification_id = request.GET.get("notification_id")
     if not notification_id:
         return SkylinxRedirect(
             request, message=_("No notification found matching the query.")

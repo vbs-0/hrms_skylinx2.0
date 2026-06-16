@@ -29,7 +29,7 @@
     {% if notifications %}
         <ul class="oh-navbar__nofication-list">
             {% for notification in notifications %}
-                <a class="oh-navbar__notification-item" href="{{notification.data.redirect}}#"
+                <a class="oh-navbar__notification-item" href="{{notification.data.redirect}}"
                     id="notificationItem{{notification.id}}" data-id="{{notification.id}}">
                     <div>
                         {% if notification.unread %}

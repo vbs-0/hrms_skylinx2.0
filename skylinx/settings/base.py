@@ -172,6 +172,10 @@ else:
         }
     }
 
+if DATABASES.get("default", {}).get("ENGINE") == "django.db.backends.sqlite3":
+    DATABASES["default"].setdefault("OPTIONS", {})["timeout"] = 20
+
+
 # ========================================
 # STATIC & MEDIA FILES
 # ========================================

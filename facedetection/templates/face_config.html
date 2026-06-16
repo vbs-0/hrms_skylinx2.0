@@ -2,3 +2,76 @@
     {% csrf_token %}
     {{form.as_p}}
 </form>
+
+<div class="oh-general__tab-target oh-profile-section mt-4" id="face-enrollment-section">
+    <div class="oh-payslip__header">
+        <div class="oh-payslip__header-left">
+            <div class="oh-payroll__component-title" style="font-weight: bold; font-size: 1.25rem;">Employee Face Enrollment Status</div>
+        </div>
+    </div>
+    
+    <div class="oh-profile-section__card">
+        <!-- Search field -->
+        <div class="mb-3">
+            <input type="text" id="faceEmployeeSearch" class="form-control" placeholder="Search employee by name..." style="max-width: 300px;">
+        </div>
+
+        <div class="oh-table" style="max-height: 425px; overflow-y: auto;">
+            <table class="table w-100" id="faceEnrollmentTable">
+                <thead>
+                    <tr>
+                        <th style="font-weight:bold; font-size:15px; color:black;">Employee</th>
+                        <th style="font-weight:bold; font-size:15px; color:black;">Status</th>
+                        <th style="font-weight:bold; font-size:15px; color:black; text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for employee in employees %}
+                    <tr>
+                        <td class="employee-name">{{ employee.get_full_name }}</td>
+                        <td>
+                            {% if employee.face_detection %}
+                                <span class="badge badge-success text-success" style="font-size: 0.9rem; background-color: #d4edda; padding: 5px 10px; border-radius: 4px; border: 1px solid #c3e6cb;">Enrolled</span>
+                            {% else %}
+                                <span class="badge badge-secondary text-muted" style="font-size: 0.9rem; background-color: #f8f9fa; padding: 5px 10px; border-radius: 4px; border: 1px solid #e2e3e5;">Not Enrolled</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right;">
+                            {% if employee.face_detection %}
+                                <a href="{% url 'reset-employee-face' employee.id %}" class="oh-btn oh-btn--danger oh-btn--small" onclick="return confirm('Are you sure you want to reset face data for {{ employee.get_full_name }}?');">
+                                    Reset Face Data
+                                </a>
+                            {% else %}
+                                <button class="oh-btn oh-btn--light oh-btn--small" disabled style="opacity: 0.5; cursor: not-allowed;">
+                                    Reset Face Data
+                                </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const searchInput = document.getElementById("faceEmployeeSearch");
+        if (searchInput) {
+            searchInput.addEventListener("input", function() {
+                var searchValue = this.value.toLowerCase();
+                var rows = document.querySelectorAll("#faceEnrollmentTable tbody tr");
+                rows.forEach(function(row) {
+                    var employeeName = row.querySelector(".employee-name").textContent.toLowerCase();
+                    if (employeeName.includes(searchValue)) {
+                        row.style.display = "";
+                    } else {
+                        row.style.display = "none";
+                    }
+                });
+            });
+        }
+    })();
+</script>
+

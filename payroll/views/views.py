@@ -1508,6 +1508,11 @@ def generate_payslip_pdf(template_path, context, html=False):
         response = HttpResponse(pdf, content_type="application/pdf")
         response["Content-Disposition"] = "inline; filename=payslip.pdf"
         return response
+    except OSError as e:
+        if "wkhtmltopdf" in str(e):
+            # Fallback to HTML if wkhtmltopdf is not installed
+            return HttpResponse(html_content, content_type="text/html")
+        return HttpResponse(f"Error generating PDF: {str(e)}", status=500)
     except Exception as e:
         # Handle errors gracefully
         return HttpResponse(f"Error generating PDF: {str(e)}", status=500)

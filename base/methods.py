@@ -1421,6 +1421,10 @@ def template_pdf(template, context={}, html=False, filename="payslip.pdf"):
         response = HttpResponse(pdf, content_type="application/pdf")
         response["Content-Disposition"] = f"inline; filename={filename}"
         return response
+    except OSError as e:
+        if "wkhtmltopdf" in str(e):
+            return HttpResponse(html_content, content_type="text/html")
+        return HttpResponse(f"Error generating PDF: {str(e)}", status=500)
     except Exception as e:
         return HttpResponse(f"Error generating PDF: {str(e)}", status=500)
 

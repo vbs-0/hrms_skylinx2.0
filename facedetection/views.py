@@ -101,6 +101,32 @@ class EmployeeFaceDetectionGetPostAPIView(APIView):
         except Exception as e:
             raise serializers.ValidationError(e)
 
+    def get(self, request):
+        employee_id = request.user.employee_get.id
+        instance = EmployeeFaceDetection.objects.filter(employee_id=employee_id).first()
+        if instance:
+            serializer = EmployeeFaceDetectionSerializer(instance)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"message": "No face data found"}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request):
+        target_employee_id = request.query_params.get("employee_id") or request.data.get("employee_id")
+        current_employee = request.user.employee_get
+        
+        # Determine target employee
+        if target_employee_id:
+            if request.user.is_superuser or request.user.has_perm("geofencing.add_localbackup"):
+                employee_id = target_employee_id
+            else:
+                return Response({"error": "Permission denied to delete other employee's face data"}, status=status.HTTP_403_FORBIDDEN)
+        else:
+            employee_id = current_employee.id
+            
+        deleted_count = EmployeeFaceDetection.objects.filter(employee_id=employee_id).delete()[0]
+        if deleted_count > 0:
+            return Response({"message": "Face data reset successfully"}, status=status.HTTP_200_OK)
+        return Response({"message": "No face data found to reset"}, status=status.HTTP_404_NOT_FOUND)
+
     def post(self, request):
         if self.get_facedetection(request).start:
             employee_id = request.user.employee_get.id
@@ -164,4 +190,19 @@ def face_detection_config(request):
             messages.success(request, _("facedetection config created successfully."))
         else:
             messages.info(request, "Not valid")
-    return render(request, "face_config.html", {"form": form})
+    
+    from employee.models import Employee
+    employees = Employee.objects.all()
+    return render(request, "face_config.html", {"form": form, "employees": employees})
+
+
+@login_required
+@permission_required("geofencing.add_localbackup")
+def reset_employee_face(request, employee_id):
+    try:
+        EmployeeFaceDetection.objects.filter(employee_id=employee_id).delete()
+        messages.success(request, _("Face data reset successfully."))
+    except Exception as e:
+        messages.error(request, _(f"Failed to reset face data: {str(e)}"))
+    return redirect("geo-face-config")
+
