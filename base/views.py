@@ -7912,6 +7912,16 @@ def protected_media(request, path):
             )
             return redirect("login")
 
+        # Check if the user is accessing their own face detection data
+        is_own_resource = False
+        if path.startswith("facedetection/"):
+            try:
+                emp_face = auth_user.employee_get.face_detection
+                if emp_face and emp_face.image and emp_face.image.name == path:
+                    is_own_resource = True
+            except Exception:
+                pass
+
         required_perm = next(
             (
                 perm
