@@ -218,7 +218,9 @@ if DATABASES.get("default", {}).get("ENGINE") == "django.db.backends.sqlite3":
 # ========================================
 # STATIC & MEDIA FILES
 # ========================================
-STATIC_URL = "static/"
+# ponytail: leading slash is required — without it, {% static %} URLs render
+# relative and 404 on any page not served from "/" (e.g. /login/).
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
