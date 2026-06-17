@@ -30,7 +30,7 @@ def refresh_outlook_auth_token():
 
 if not any(
     cmd in sys.argv
-    for cmd in ["makemigrations", "migrate", "compilemessages", "flush", "shell"]
+    for cmd in ["makemigrations", "migrate", "compilemessages", "flush", "shell", "test"]
 ):
     scheduler = BackgroundScheduler()
     scheduler.add_job(

@@ -49,6 +49,9 @@ class Choice(models.Model):
 
     title = models.CharField(max_length=25)
 
+    class Meta:
+        app_label = 'dynamic_fields'
+
     def __str__(self):
         return self.title
 

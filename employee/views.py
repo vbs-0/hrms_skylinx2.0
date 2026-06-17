@@ -3350,6 +3350,9 @@ def add_note(request, emp_id=None):
     Handles the addition of a note to a specific employee, including file attachments.
     Saves the note and redirects to the employee's note tab upon successful submission.
     """
+    employee_obj = get_object_or_404(Employee, id=emp_id)
+    if not can_view_employee_profile(request, employee_obj, perm="employee.add_employeenote"):
+        return render(request, "no_perm.html")
 
     form = EmployeeNoteForm(initial={"employee_id": emp_id})
     if request.method == "POST":
@@ -3393,6 +3396,8 @@ def employee_note_update(request, note_id):
         return SkylinxRedirect(
             request, message=_("No Employee Note found matching the query.")
         )
+    if not can_view_employee_profile(request, note.employee_id, perm="employee.change_employeenote"):
+        return render(request, "no_perm.html")
 
     form = EmployeeNoteForm(instance=note)
     if request.POST:
@@ -3429,6 +3434,8 @@ def employee_note_delete(request, note_id):
         return SkylinxRedirect(
             request, message=_("No Employee Note found matching the query.")
         )
+    if not can_view_employee_profile(request, note.employee_id, perm="employee.delete_employeenote"):
+        return render(request, "no_perm.html")
 
     emp_id = note.employee_id.id
     note.delete()
@@ -3446,6 +3453,8 @@ def add_more_employee_files(request, note_id):
         id : stage note instance id
     """
     note = EmployeeNote.objects.get(id=note_id)
+    if not can_view_employee_profile(request, note.employee_id, perm="employee.add_notefiles"):
+        return render(request, "no_perm.html")
     employee_id = note.employee_id.id
 
     if request.method == "POST":
@@ -3884,6 +3893,8 @@ def employee_get_mail_log(request, pk):
     This method is used to track mails sent along with the status
     """
     employee = Employee.objects.get(id=pk)
+    if not can_view_employee_profile(request, employee, perm="employee.view_employee"):
+        return render(request, "no_perm.html")
     tracked_mails = EmailLog.objects.filter(to__icontains=employee.email)
     try:
         if employee.employee_work_info and employee.employee_work_info.email:

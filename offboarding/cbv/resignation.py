@@ -23,6 +23,7 @@ from skylinx_views.generic.cbv.views import (
     SkylinxNavView,
     TemplateView,
 )
+from employee.models import Employee
 from offboarding.filters import LetterFilter
 from offboarding.forms import ResignationLetterForm
 from offboarding.models import Offboarding, OffboardingGeneralSetting, ResignationLetter
@@ -208,12 +209,26 @@ class ResignationLettersFormView(SkylinxFormView):
                 return handle_no_permission(request)
         return super().dispatch(request, *args, **kwargs)
 
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        request = self.request
+        if not request.user.has_perm("offboarding.add_resignationletter"):
+            if "employee_id" in form.fields:
+                form.fields["employee_id"].queryset = Employee.objects.filter(id=request.user.employee_get.id)
+                form.fields["employee_id"].initial = request.user.employee_get
+        return form
+
     def form_valid(self, form: ResignationLetterForm) -> HttpResponse:
         """
         Handle a valid form submission.
         If the form is valid, save the instance and display a success message.
         """
         if form.is_valid():
+            if not self.request.user.has_perm("offboarding.add_resignationletter"):
+                form.instance.employee_id = self.request.user.employee_get
+            if not self.request.user.has_perm("offboarding.change_resignationletter"):
+                form.instance.status = "requested"
+
             if form.instance.pk:
                 message = _("Resignation updated successfully")
             else:

@@ -1977,22 +1977,31 @@ class CandidateDocument(SkylinxModel):
         if len(self.title) < 3:
             raise ValidationError({"title": _("Title must be at least 3 characters")})
 
-        if file and self.document_request_id:
-            format = self.document_request_id.format
-            max_size = self.document_request_id.max_size
-            if max_size:
-                if file.size > max_size * 1024 * 1024:
-                    raise ValidationError(
-                        {"document": _("File size exceeds the limit")}
-                    )
-
-            ext = file.name.split(".")[1].lower()
-            if format == "any":
-                pass
-            elif ext != format:
+        if file:
+            import os
+            raw_ext = os.path.splitext(file.name)[1].lower()
+            blocked_extensions = {".html", ".htm", ".js", ".svg", ".xml", ".php", ".py", ".sh", ".exe"}
+            if raw_ext in blocked_extensions:
                 raise ValidationError(
-                    {"document": _("Please upload {} file only.").format(format)}
+                    {"document": _("File type is not allowed for security reasons.")}
                 )
+            
+            if self.document_request_id:
+                format = self.document_request_id.format
+                max_size = self.document_request_id.max_size
+                if max_size:
+                    if file.size > max_size * 1024 * 1024:
+                        raise ValidationError(
+                            {"document": _("File size exceeds the limit")}
+                        )
+
+                ext = raw_ext.lstrip('.')
+                if format == "any":
+                    pass
+                elif ext != format.lower():
+                    raise ValidationError(
+                        {"document": _("Please upload {} file only.").format(format)}
+                    )
 
 
 class LinkedInAccount(SkylinxModel):

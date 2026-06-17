@@ -11,7 +11,9 @@ from datetime import timezone as dt_timezone
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group
+from django.contrib.auth import get_user_model
+User = get_user_model()
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
 from django.template import Context, Template
@@ -238,6 +240,7 @@ class NotificationManagersTest(TestCase):
         Notification.objects.filter(recipient=self.to_user).mark_all_as_unread()
         self.assertEqual(Notification.objects.unread().count(), self.message_count)
 
+    @override_settings(NOTIFICATIONS_SOFT_DELETE=False)
     def test_mark_all_deleted_manager_without_soft_delete(
         self,
     ):  # pylint: disable=invalid-name
@@ -296,11 +299,9 @@ class NotificationTestPages(TestCase):
 
     def login(self, username, password):
         self.logout()
-        response = self.client.post(
-            reverse("login"), {"username": username, "password": password}
-        )
-        self.assertEqual(response.status_code, 302)
-        return response
+        logged_in = self.client.login(username=username, password=password)
+        self.assertTrue(logged_in)
+        return None
 
     def test_all_messages_page(self):
         self.login("to", "pwd")
@@ -384,7 +385,7 @@ class NotificationTestPages(TestCase):
             response, reverse("notifications:unread") + query_parameters
         )
 
-    @override_settings(ALLOWED_HOSTS=["www.notifications.com"])
+    @override_settings(ALLOWED_HOSTS=["www.notifications.com", "testserver"])
     def test_malicious_next_pages(self):
         self.client.force_login(self.to_user)
         query_parameters = "?var1=hello&var2=world"
@@ -638,10 +639,10 @@ class NotificationTestPages(TestCase):
         """
         self.login("to", "pwd")
         Notification.objects.filter(recipient=self.to_user).mark_all_as_read()
-        to_customer = Customer.objects.create(name="to_customer")
-        action_customer = Customer.objects.create(name="action_customer")
-        from_customer = Customer.objects.create(name="from_customer")
-        target_object = TargetObject.objects.create(name="target_object")
+        to_customer = Group.objects.create(name="to_customer")
+        action_customer = Group.objects.create(name="action_customer")
+        from_customer = Group.objects.create(name="from_customer")
+        target_object = Group.objects.create(name="target_object")
         notify.send(
             from_customer,
             recipient=self.to_user,
@@ -803,7 +804,7 @@ class AdminTest(TestCase):
             )
 
     def test_list(self):
-        self.client.login(username="to", password="pwd")
+        self.client.force_login(self.to_user)
 
         with self.assertNumQueries(7):
             response = self.client.get(

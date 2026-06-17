@@ -35,7 +35,12 @@ env.read_env(os.path.join(BASE_DIR, ".env"), overwrite=True)
 # than silently signing sessions/CSRF tokens with a predictable key.
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
+import sys
+
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
+if "test" in sys.argv:
+    ALLOWED_HOSTS.append("testserver")
+    MIGRATION_MODULES = {"notifications": None}
 CSRF_TRUSTED_ORIGINS = env("CSRF_TRUSTED_ORIGINS")
 
 # ----------------------------------------

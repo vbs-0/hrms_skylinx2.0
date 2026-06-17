@@ -90,13 +90,15 @@ def sidebar(request):
         order_index = {app: i for i, app in enumerate(SIDEBAR_ORDER)}
         MENUS.sort(key=lambda m: order_index.get(m.get("app"), len(SIDEBAR_ORDER)))
 
-        ALL_MENUS[request.session.session_key] = MENUS
+        session_key = getattr(request.session, "session_key", None) if hasattr(request, "session") else None
+        ALL_MENUS[session_key] = MENUS
 
 
 def get_MENUS(request):
-    ALL_MENUS[request.session.session_key] = []
+    session_key = getattr(request.session, "session_key", None) if hasattr(request, "session") else None
+    ALL_MENUS[session_key] = []
     sidebar(request)
-    return {"sidebar": ALL_MENUS.get(request.session.session_key)}
+    return {"sidebar": ALL_MENUS.get(session_key)}
 
 
 def load_ldap_settings():

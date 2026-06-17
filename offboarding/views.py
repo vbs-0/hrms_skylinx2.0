@@ -1018,9 +1018,21 @@ def create_resignation_request(request):
         ):
             return HttpResponse("You don't have permission")
     form = ResignationLetterForm(instance=instance)
+    if not request.user.has_perm("offboarding.add_resignationletter"):
+        if "employee_id" in form.fields:
+            form.fields["employee_id"].queryset = Employee.objects.filter(id=request.user.employee_get.id)
+            form.fields["employee_id"].initial = request.user.employee_get
+
     if request.method == "POST":
         form = ResignationLetterForm(request.POST, instance=instance)
+        if not request.user.has_perm("offboarding.add_resignationletter"):
+            if "employee_id" in form.fields:
+                form.fields["employee_id"].queryset = Employee.objects.filter(id=request.user.employee_get.id)
         if form.is_valid():
+            if not request.user.has_perm("offboarding.add_resignationletter"):
+                form.instance.employee_id = request.user.employee_get
+            if not request.user.has_perm("offboarding.change_resignationletter"):
+                form.instance.status = "requested"
             form.save()
             messages.success(request, _("Resignation letter saved"))
             return SkylinxRedirect(request)

@@ -123,7 +123,8 @@ TIME_PERIOD = [("day", _("Day")), ("month", _("Month")), ("year", _("Year"))]
 PAYMENT = [("paid", _("Paid")), ("unpaid", _("Unpaid"))]
 
 PAYMENT_TYPE = [
-    ("paid", _("Paid")),
+    ("fully_paid", _("Fully Paid")),
+    ("half_paid", _("Half Paid")),
     ("unpaid", _("Unpaid")),
     ("custom", _("Custom")),
 ]
@@ -419,7 +420,8 @@ class LeaveType(SkylinxModel):
 
     def save(self, *args, **kwargs):
         request = getattr(skylinx_middlewares._thread_locals, "request", None)
-        selected_company = request.session.get("selected_company")
+        session = getattr(request, "session", None)
+        selected_company = session.get("selected_company") if session else None
         if (
             not self.id
             and not self.company_id
@@ -554,7 +556,12 @@ class LeaveType(SkylinxModel):
         Falls back to legacy payment field for backward compatibility.
         """
         if self.payment_type:
-            mapping = {"paid": 100.0, "unpaid": 0.0}
+            mapping = {
+                "fully_paid": 100.0,
+                "half_paid": 50.0,
+                "unpaid": 0.0,
+                "paid": 100.0,
+            }
             if self.payment_type == "custom":
                 return float(self.payment_percentage or 0)
             return mapping.get(self.payment_type, 0.0)

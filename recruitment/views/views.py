@@ -1629,6 +1629,7 @@ def interview_employee_remove(request, interview_id, employee_id):
 
 
 @login_required
+@manager_can_enter("recruitment.view_candidate")
 def candidate_export(request):
     """
     This method is used to Export candidate data
@@ -2559,6 +2560,7 @@ def stage_sequence_update(request):
 
 
 @login_required
+@manager_can_enter("recruitment.view_candidate")
 def candidate_select(request):
     """
     This method is used for select all in candidate
@@ -2579,6 +2581,7 @@ def candidate_select(request):
 
 
 @login_required
+@manager_can_enter("recruitment.view_candidate")
 def candidate_select_filter(request):
     """
     This method is used to select all filtered candidates

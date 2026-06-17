@@ -25,6 +25,7 @@ class SkylinxAutomationConfig(AppConfig):
                 "compilemessages",
                 "flush",
                 "shell",
+                "test",
             ]
         ):
             return ready

@@ -17,16 +17,12 @@ from leave.services import evaluate_leave_type_conditions
 
 
 def _make_leave_type(**kwargs):
-    lt = LeaveType.__new__(LeaveType)
-    lt.pk = 1
-    lt.id = 1
-    lt.name = kwargs.get("name", "Test Leave")
-    lt.payment = kwargs.get("payment", "paid")
-    lt.payment_type = kwargs.get("payment_type", "fully_paid")
-    lt.payment_percentage = kwargs.get("payment_percentage", None)
-    # Stub conditions as empty queryset by default
-    lt.conditions = MagicMock()
-    lt.conditions.all.return_value = []
+    lt = LeaveType.objects.create(
+        name=kwargs.get("name", "Test Leave"),
+        payment=kwargs.get("payment", "paid"),
+        payment_type=kwargs.get("payment_type", "fully_paid"),
+        payment_percentage=kwargs.get("payment_percentage", None)
+    )
     return lt
 
 
@@ -144,14 +140,11 @@ class LeaveTypeConditionModelTest(TestCase):
 
 class GenderConditionTest(TestCase):
     def _gender_condition(self, value):
-        cond = MagicMock()
-        cond.condition_type = "gender"
-        cond.value = value
-        return cond
+        return LeaveTypeCondition.objects.create(condition_type="gender", value=value)
 
     def test_matching_gender_passes(self):
         lt = _make_leave_type()
-        lt.conditions.all.return_value = [self._gender_condition("female")]
+        lt.conditions.add(self._gender_condition("female"))
         employee = _make_employee(gender="female")
         is_eligible, msg = evaluate_leave_type_conditions(lt, employee)
         self.assertTrue(is_eligible)
@@ -159,7 +152,7 @@ class GenderConditionTest(TestCase):
 
     def test_wrong_gender_fails(self):
         lt = _make_leave_type()
-        lt.conditions.all.return_value = [self._gender_condition("female")]
+        lt.conditions.add(self._gender_condition("female"))
         employee = _make_employee(gender="male")
         is_eligible, msg = evaluate_leave_type_conditions(lt, employee)
         self.assertFalse(is_eligible)
@@ -167,21 +160,21 @@ class GenderConditionTest(TestCase):
 
     def test_case_insensitive_gender_match(self):
         lt = _make_leave_type()
-        lt.conditions.all.return_value = [self._gender_condition("Female")]
+        lt.conditions.add(self._gender_condition("Female"))
         employee = _make_employee(gender="female")
         is_eligible, _ = evaluate_leave_type_conditions(lt, employee)
         self.assertTrue(is_eligible)
 
     def test_maternity_female_only(self):
         lt = _make_leave_type(name="Maternity Leave")
-        lt.conditions.all.return_value = [self._gender_condition("female")]
+        lt.conditions.add(self._gender_condition("female"))
         male = _make_employee(gender="male")
         is_eligible, msg = evaluate_leave_type_conditions(lt, male)
         self.assertFalse(is_eligible)
 
     def test_paternity_male_only(self):
         lt = _make_leave_type(name="Paternity Leave")
-        lt.conditions.all.return_value = [self._gender_condition("male")]
+        lt.conditions.add(self._gender_condition("male"))
         female = _make_employee(gender="female")
         is_eligible, msg = evaluate_leave_type_conditions(lt, female)
         self.assertFalse(is_eligible)
@@ -189,25 +182,24 @@ class GenderConditionTest(TestCase):
 
 class OncePerEmploymentConditionTest(TestCase):
     def _once_condition(self):
-        cond = MagicMock()
-        cond.condition_type = "once_per_employment"
-        cond.value = None
-        return cond
+        return LeaveTypeCondition.objects.create(
+            condition_type="once_per_employment", value=None
+        )
 
-    @patch("leave.services.AvailableLeave")
+    @patch("leave.models.AvailableLeave")
     def test_not_yet_assigned_passes(self, MockAL):
         MockAL.objects.filter.return_value.exists.return_value = False
         lt = _make_leave_type()
-        lt.conditions.all.return_value = [self._once_condition()]
+        lt.conditions.add(self._once_condition())
         employee = _make_employee()
         is_eligible, msg = evaluate_leave_type_conditions(lt, employee)
         self.assertTrue(is_eligible)
 
-    @patch("leave.services.AvailableLeave")
+    @patch("leave.models.AvailableLeave")
     def test_already_assigned_blocks(self, MockAL):
         MockAL.objects.filter.return_value.exists.return_value = True
         lt = _make_leave_type()
-        lt.conditions.all.return_value = [self._once_condition()]
+        lt.conditions.add(self._once_condition())
         employee = _make_employee()
         is_eligible, msg = evaluate_leave_type_conditions(lt, employee)
         self.assertFalse(is_eligible)
@@ -216,21 +208,20 @@ class OncePerEmploymentConditionTest(TestCase):
 
 class MaritalStatusConditionTest(TestCase):
     def _marital_condition(self, value):
-        cond = MagicMock()
-        cond.condition_type = "marital_status"
-        cond.value = value
-        return cond
+        return LeaveTypeCondition.objects.create(
+            condition_type="marital_status", value=value
+        )
 
     def test_matching_marital_passes(self):
         lt = _make_leave_type()
-        lt.conditions.all.return_value = [self._marital_condition("married")]
+        lt.conditions.add(self._marital_condition("married"))
         employee = _make_employee(marital_status="married")
         is_eligible, _ = evaluate_leave_type_conditions(lt, employee)
         self.assertTrue(is_eligible)
 
     def test_wrong_marital_fails(self):
         lt = _make_leave_type()
-        lt.conditions.all.return_value = [self._marital_condition("married")]
+        lt.conditions.add(self._marital_condition("married"))
         employee = _make_employee(marital_status="single")
         is_eligible, msg = evaluate_leave_type_conditions(lt, employee)
         self.assertFalse(is_eligible)
@@ -239,7 +230,6 @@ class MaritalStatusConditionTest(TestCase):
 class NoConditionsTest(TestCase):
     def test_no_conditions_always_eligible(self):
         lt = _make_leave_type()
-        lt.conditions.all.return_value = []
         employee = _make_employee()
         is_eligible, msg = evaluate_leave_type_conditions(lt, employee)
         self.assertTrue(is_eligible)
@@ -249,39 +239,39 @@ class NoConditionsTest(TestCase):
 class MultipleConditionsTest(TestCase):
     """When multiple conditions are set, all must pass."""
 
-    @patch("leave.services.AvailableLeave")
+    @patch("leave.models.AvailableLeave")
     def test_all_pass(self, MockAL):
         MockAL.objects.filter.return_value.exists.return_value = False
 
-        gender_cond = MagicMock()
-        gender_cond.condition_type = "gender"
-        gender_cond.value = "female"
-
-        once_cond = MagicMock()
-        once_cond.condition_type = "once_per_employment"
-        once_cond.value = None
+        once_cond = LeaveTypeCondition.objects.create(
+            condition_type="once_per_employment", value=None
+        )
+        gender_cond = LeaveTypeCondition.objects.create(
+            condition_type="gender", value="female"
+        )
 
         lt = _make_leave_type()
-        lt.conditions.all.return_value = [gender_cond, once_cond]
+        lt.conditions.add(gender_cond, once_cond)
         employee = _make_employee(gender="female")
 
         is_eligible, msg = evaluate_leave_type_conditions(lt, employee)
         self.assertTrue(is_eligible)
 
-    @patch("leave.services.AvailableLeave")
+    @patch("leave.models.AvailableLeave")
     def test_first_fails_short_circuits(self, MockAL):
         MockAL.objects.filter.return_value.exists.return_value = False
 
-        gender_cond = MagicMock()
-        gender_cond.condition_type = "gender"
-        gender_cond.value = "female"
-
-        once_cond = MagicMock()
-        once_cond.condition_type = "once_per_employment"
-        once_cond.value = None
+        # Created once-first so that gender (higher id) is evaluated first
+        # under the model's "-id" ordering, exercising the short-circuit.
+        once_cond = LeaveTypeCondition.objects.create(
+            condition_type="once_per_employment", value=None
+        )
+        gender_cond = LeaveTypeCondition.objects.create(
+            condition_type="gender", value="female"
+        )
 
         lt = _make_leave_type()
-        lt.conditions.all.return_value = [gender_cond, once_cond]
+        lt.conditions.add(gender_cond, once_cond)
         employee = _make_employee(gender="male")  # fails gender check
 
         is_eligible, msg = evaluate_leave_type_conditions(lt, employee)

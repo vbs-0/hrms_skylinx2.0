@@ -82,8 +82,10 @@ def get_leaves(employee, start_date, end_date):
             all_dates = instance.requested_dates()
             dates_in_range = [d for d in all_dates if start_date <= d <= end_date]
 
-            if ptype == "paid":
+            if ptype in ["paid", "fully_paid"]:
                 paid_leave_dates += dates_in_range
+            elif ptype == "half_paid":
+                custom_leave_dates += [(d, 50.0) for d in dates_in_range]
             elif ptype == "custom":
                 pct = float(leave_type.payment_percentage or 0)
                 custom_leave_dates += [(d, pct) for d in dates_in_range]

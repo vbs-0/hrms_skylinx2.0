@@ -1156,7 +1156,8 @@ def user_creation(request, token):
             },
         )
     except Exception as error:
-        return HttpResponse(error)
+        logger.error(f"Error in user_creation: {error}")
+        return render(request, "404.html")
 
 
 def user_save(form, onboarding_portal, request, token):
@@ -1473,6 +1474,7 @@ def candidate_task_update(request, taskId):
 
 
 @login_required
+@all_manager_can_enter("onboarding.view_candidatetask")
 def get_status(request, task_id):
     """
     htmx function that return the status of candidate task
@@ -1868,6 +1870,7 @@ def stage_sequence_update(request):
 @login_required
 @require_http_methods(["POST"])
 @hx_request_required
+@all_manager_can_enter("onboarding.change_onboardingstage")
 def stage_name_update(request, stage_id):
     """
     This method is used to update the name of recruitment stage
