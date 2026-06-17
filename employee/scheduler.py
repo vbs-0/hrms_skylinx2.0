@@ -107,5 +107,7 @@ if not any(
     """
     scheduler = BackgroundScheduler()
     scheduler.add_job(update_experience, "interval", hours=4)
-    scheduler.add_job(block_unblock_disciplinary, "interval", seconds=60)
+    # ponytail: was seconds=60 (debug leftover) — disciplinary block/unblock is
+    # date-range based, so hourly is ample and stops the per-minute DB load.
+    scheduler.add_job(block_unblock_disciplinary, "interval", hours=1)
     scheduler.start()
