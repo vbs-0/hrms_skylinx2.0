@@ -10,24 +10,15 @@ from django.conf import settings
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 
-IMG_SRC = "images/ui/key.png"
+IMG_SRC = "images/ui/unlock.png"
 
-if getattr(settings, "LICENSE_ROLE", "client") == "server":
-    MENU = _("Licensing")
-    SUBMENUS = [
-        {
-            "menu": _("Vendor Dashboard"),
-            "redirect": reverse_lazy("license-vendor"),
-        },
-    ]
-else:
-    MENU = _("Subscription")
-    SUBMENUS = [
-        {
-            "menu": _("My Subscription"),
-            "redirect": reverse_lazy("license-subscription"),
-        },
-    ]
+MENU = _("Subscription")
+SUBMENUS = [
+    {
+        "menu": _("My Subscription"),
+        "redirect": reverse_lazy("license-subscription"),
+    },
+]
 
 ACCESSIBILITY = "licensing.sidebar.licensing_accessibility"
 

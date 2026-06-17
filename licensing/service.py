@@ -11,10 +11,6 @@ from django.conf import settings
 from .features import ALL_FEATURE_KEYS
 
 
-def _role():
-    return getattr(settings, "LICENSE_ROLE", "client")
-
-
 def get_state(request=None):
     """
     Return a dict: {features: set, employee_limit: int|None, expired: bool,
@@ -32,15 +28,6 @@ def get_state(request=None):
 
 
 def _resolve():
-    # Vendor instance: everything on, no caps.
-    if _role() == "server":
-        return {
-            "features": set(ALL_FEATURE_KEYS),
-            "employee_limit": None,
-            "expired": False,
-            "licensed": False,
-            "config": None,
-        }
 
     from .models import LicenseConfig
 
