@@ -5423,7 +5423,8 @@ def mark_as_read_notification(request, notification_id):
         return SkylinxRedirect(
             request, message=_("No notification found matching the query.")
         )
-    notification = Notification.objects.get(id=notification_id)
+    # ponytail: scope to own notifications — else any user marks anyone's read by id.
+    notification = request.user.notifications.get(id=notification_id)
     notification.mark_as_read()
     if not request.user.notifications.unread():
         script = """<span hx-get='/notifications' hx-target='#notificationContainer' hx-trigger='load'></span>"""
@@ -5435,7 +5436,8 @@ def mark_as_read_notification_json(request):
     try:
         notification_id = request.POST["notification_id"]
         notification_id = int(notification_id)
-        notification = Notification.objects.get(id=notification_id)
+        # ponytail: scope to own notifications (IDOR otherwise).
+        notification = request.user.notifications.get(id=notification_id)
         notification.mark_as_read()
         return JsonResponse({"success": True})
     except:

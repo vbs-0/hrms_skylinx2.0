@@ -791,6 +791,13 @@ def update_document_title(request, id):
     Returns: return document_tab template
     """
     document = get_object_or_404(Document, id=id)
+    # ponytail: same gate as document_delete — change perm OR own the document,
+    # else any logged-in user could rename anyone's document by id (IDOR).
+    if not request.user.has_perm("skylinx_documents.change_document") and (
+        document.employee_id is None
+        or document.employee_id.employee_user_id_id != request.user.id
+    ):
+        return HttpResponse(status=403)
     name = request.POST.get("title")
     if request.method == "POST":
         document.title = name

@@ -6,3 +6,14 @@
   >{{form.leave_type_id.label}}</label
 >
 {{form.leave_type_id}}
+<script>
+  // ponytail: this partial is hx-swapped in on employee change; re-init select2
+  // on the fresh <select> so the new employee's leave types actually render.
+  (function () {
+    var $s = $("#id_leave_type_id");
+    if ($s.hasClass("select2-hidden-accessible")) {
+      $s.select2("destroy");
+    }
+    $s.select2({ width: "100%" });
+  })();
+</script>

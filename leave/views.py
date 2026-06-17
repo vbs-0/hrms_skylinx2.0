@@ -3176,9 +3176,14 @@ def department_leave_chart(request):
         for leave_date in leave.requested_dates():
             leave_dates.append(leave_date.strftime("%Y-%m-%d"))
 
-        for dep in departments:
-            if dep == leave.employee_id.employee_work_info.department_id:
-                department_counts[dep.department] += leave.requested_days
+        # ponytail: employee_work_info is a nullable reverse OneToOne — missing
+        # record raised DoesNotExist and 500'd the whole admin dashboard.
+        work_info = getattr(leave.employee_id, "employee_work_info", None)
+        dep_id = getattr(work_info, "department_id", None)
+        if dep_id is not None:
+            for dep in departments:
+                if dep == dep_id:
+                    department_counts[dep.department] += leave.requested_days
 
     for department, count in department_counts.items():
         if count != 0:

@@ -155,3 +155,6 @@ whoosh_index/
 
 #macOS
 .DS_Store
+
+# upstream reference copy — never commit
+referance hrms/

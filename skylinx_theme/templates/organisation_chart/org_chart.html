@@ -39,7 +39,7 @@
                             title="{% trans 'Reporting Managers' %}"
                             hx-post="{% url 'organisation-chart' %}"
                             hx-target="#chart_target"
-                            hx-swap="OuterHTML"
+                            hx-swap="innerHTML"
                             hx-trigger="load, change"
                         >
                             {% for manager_id, values in reporting_manager_dict.items %}

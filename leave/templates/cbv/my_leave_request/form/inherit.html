@@ -6,6 +6,19 @@
         $("#createTitle").on("htmx:beforeSwap",function(e){
             $('.available-leave-count').remove();
         });
+
+        // ponytail: select2 sometimes initializes before the options are in the
+        // DOM on htmx modal load, leaving an empty Leave Type dropdown. Re-init
+        // after the form HTML is present.
+        (function () {
+            var $form = $("#createTitle").closest("form");
+            $form.find("select").each(function () {
+                if ($(this).hasClass("select2-hidden-accessible")) {
+                    $(this).select2("destroy");
+                }
+            });
+            $form.find("select").select2({ width: "100%" });
+        })();
 </script>
 
 <script>

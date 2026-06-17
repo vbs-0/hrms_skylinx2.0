@@ -1,4 +1,6 @@
-tickLeaveCheckboxes();
+// ponytail: tickLeaveCheckboxes lives in leave_assign/action.js, not always loaded
+// on pages that include this file; guard so its absence doesn't abort the script.
+if (typeof tickLeaveCheckboxes === "function") tickLeaveCheckboxes();
 function makeLeaveListUnique(list) {
     return Array.from(new Set(list));
 }

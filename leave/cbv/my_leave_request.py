@@ -271,16 +271,21 @@ class MyLeaveRequestForm(SkylinxFormView):
     #     initial["employee_id"] = emp
     #     return initial
 
+    def get_form(self, form_class=None):
+        # Narrow leave types to those assigned to the employee on every render
+        # path (GET and post-error re-render); get_context_data alone missed the
+        # invalid-submit re-render, leaking unassigned leave types into the list.
+        form = super().get_form(form_class)
+        emp = self.request.user.employee_get
+        form.fields["leave_type_id"].queryset = LeaveType.objects.filter(
+            id__in=emp.available_leave.values_list("leave_type_id", flat=True)
+        )
+        form.fields["employee_id"].initial = emp
+        return form
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         self.request.my_leave_request = "my_leave_request"
-        emp = self.request.user.employee_get
-        available_leaves = emp.available_leave.all()
-        assigned_leave_types = LeaveType.objects.filter(
-            id__in=available_leaves.values_list("leave_type_id", flat=True)
-        )
-        self.form.fields["leave_type_id"].queryset = assigned_leave_types
-        self.form.fields["employee_id"].initial = emp
 
         if self.form.instance.pk:
             leave_request = LeaveRequest.objects.get(id=self.form.instance.pk)
