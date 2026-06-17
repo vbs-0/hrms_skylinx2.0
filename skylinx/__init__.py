@@ -4,6 +4,16 @@ init.py
 
 import sys
 
+# Gate all in-process APScheduler jobs behind RUN_SCHEDULERS (off in web workers,
+# on only in the dedicated `manage.py run_schedulers` process). Must run before
+# any app's scheduler module imports.
+try:
+    from skylinx.scheduler_guard import install as _install_scheduler_guard
+
+    _install_scheduler_guard()
+except ImportError:
+    pass
+
 # Patch makemigrations and migrate to use SkylinxAutodetector.
 #
 # Django stores the autodetector as a class attribute on each command
