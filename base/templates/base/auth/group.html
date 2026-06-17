@@ -1,12 +1,12 @@
 {% extends 'settings.html' %} {% load i18n %} {% block settings %}{% load basefilters %}
 <script>
   $(document).ready(function () {
-    $(".view-employees [name=permissions]").change(function (e) {
+    $(".view-groups [name=permissions]").change(function (e) {
       e.preventDefault();
       var permissions = [];
       var panelId =
         "#" +
-        $(this).closest(".panel.view-employees").closest(".panel").attr("id");
+        $(this).closest(".panel.view-groups").closest(".panel").attr("id");
       var groupId = $(panelId).attr("data-group-id");
       var name = $(panelId).attr("data-group-name");
 
