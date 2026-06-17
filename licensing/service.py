@@ -1,9 +1,9 @@
 """
 Entitlement resolution — the ONE place that decides what is unlocked.
 
-Fail-open by design until a real license is applied, so the vendor's own box
-and fresh/unactivated installs keep working. Enforcement only bites once a
-client instance has an actual license_key AND it has expired or been revoked.
+Fail-CLOSED for paid features on a client: an unactivated install runs the core
+HRMS but keeps the 7 paid features locked until a valid license enables them.
+Only LICENSE_ROLE=server stays fully open (dev/vendor box).
 """
 
 from django.conf import settings
@@ -33,10 +33,13 @@ def _resolve():
 
     cfg = LicenseConfig.get()
 
-    # Unactivated / dev install — permissive until a key is applied.
+    # Unactivated install. Fail-CLOSED on a client: the core HRMS works but the
+    # paid features stay locked until a valid license enables them. Only a box
+    # explicitly running as the vendor 'server' keeps everything open (dev).
     if not cfg.license_key:
+        server = getattr(settings, "LICENSE_ROLE", "client") == "server"
         return {
-            "features": set(ALL_FEATURE_KEYS),
+            "features": set(ALL_FEATURE_KEYS) if server else set(),
             "employee_limit": None,
             "expired": False,
             "licensed": False,
