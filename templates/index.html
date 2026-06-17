@@ -15,6 +15,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <script>
         window.CURRENT_LANGUAGE = "{{ LANGUAGE_CODE }}";
+        window.languageCode = "{{ LANGUAGE_CODE }}";
         var at_work_seconds = {{ request.user.employee_get.get_forecasted_at_work.forecasted_at_work_seconds }}
         var run = 0
     </script>
@@ -40,14 +41,14 @@
     <link rel="stylesheet" href="{% static 'build/css/pivottable.min.css' %}" />
     <link rel="stylesheet" type="text/css" href="{% static 'css/skylinx-redesign.css' %}">
     <script>
-        // Apply saved Skylinx theme before paint to avoid flash
-        (function () {
-            try {
-                if (localStorage.getItem('skylinx-theme') === 'dark') {
-                    document.documentElement.classList.add('skylinx-dark-pre');
-                }
-            } catch (e) {}
-        })();
+            // Apply saved Skylinx theme before paint to avoid flash
+            (function () {
+                try {
+                    if (localStorage.getItem('skylinx-theme') === 'dark') {
+                        document.documentElement.classList.add('skylinx-dark-pre');
+                    }
+                } catch (e) { }
+            })();
     </script>
     <script src="{% static '/jquery/ajax.js' %}"></script>
     <script src="{% static '/jquery/jquery.min.js' %}"></script>
@@ -75,21 +76,22 @@
         {% include "generic/messages.html" %}
     </div>
     {% if messages %}
-        <div class="oh-alert-container">
-            {% for message in messages %}
-                <div class="oh-alert oh-alert--animated {{message.tags}}">
-                    {{ message }}
-                </div>
-            {% endfor %}
+    <div class="oh-alert-container">
+        {% for message in messages %}
+        <div class="oh-alert oh-alert--animated {{message.tags}}">
+            {{ message }}
         </div>
+        {% endfor %}
+    </div>
     {% endif %}
     {% if is_birthday %}
-        <div class="page-wrapper">
-            <div class="blurred-background"></div>
-            <canvas id="c"></canvas>
-        </div>
+    <div class="page-wrapper">
+        <div class="blurred-background"></div>
+        <canvas id="c"></canvas>
+    </div>
     {% endif %}
-    <button id="reloadMessagesButton" hx-get="{% url 'reload-messages' %}" hx-swap="afterend" hidden hx-target="#reloadMessages"></button>
+    <button id="reloadMessagesButton" hx-get="{% url 'reload-messages' %}" hx-swap="afterend" hidden
+        hx-target="#reloadMessages"></button>
     {% include "generic/components.html" %}
 
     <div class="oh-wrapper-main">
@@ -149,37 +151,39 @@
                         </a>
 
                         {% if breadcrumbs %}
-                            <!-- Start of breadcrumb in nav bar -->
-                            {% include "base/navbar_components/breadcrumbs_view.html" %}
-                            <!-- End of breadcrumb in nav bar -->
+                        <!-- Start of breadcrumb in nav bar -->
+                        {% include "base/navbar_components/breadcrumbs_view.html" %}
+                        <!-- End of breadcrumb in nav bar -->
                         {% endif %}
                         </a>
                     </div>
                     <div class="oh-navbar__systray">
                         {% if "attendance"|app_installed %}
-                            <!-- Start of check in/out button in nav bar -->
-                            <div id="attendance-activity-container">
-                                {% include "attendance/components/in_out_component.html" %}
-                            </div>
-                            <!-- End of check in/out button in nav bar -->
+                        <!-- Start of check in/out button in nav bar -->
+                        <div id="attendance-activity-container">
+                            {% include "attendance/components/in_out_component.html" %}
+                        </div>
+                        <!-- End of check in/out button in nav bar -->
                         {% endif %}
 
                         <!-- Start of Skylinx theme toggle -->
                         <div class="oh-navbar__action-icons" title="{% trans 'Toggle theme' %}">
-                            <button type="button" id="skylinxThemeToggle" class="sx-theme-toggle" aria-label="{% trans 'Toggle dark mode' %}">
+                            <button type="button" id="skylinxThemeToggle" class="sx-theme-toggle"
+                                aria-label="{% trans 'Toggle dark mode' %}">
                                 <ion-icon name="moon-outline" id="skylinxThemeIcon"></ion-icon>
                             </button>
                         </div>
                         <!-- End of Skylinx theme toggle -->
 
                         {% if show_section %}
-                            <!-- Start of settings button in nav bar -->
-                            <div class="oh-navbar__action-icons" title="{% trans 'Settings' %}">
-                                <a href="{% url 'general-settings' %}" id="settingsMenu" class="oh-navbar__action-icons-link">
-                                    <ion-icon name="settings-outline" class="oh-navbar__icon"></ion-icon>
-                                </a>
-                            </div>
-                            <!-- End of settings button in nav bar -->
+                        <!-- Start of settings button in nav bar -->
+                        <div class="oh-navbar__action-icons" title="{% trans 'Settings' %}">
+                            <a href="{% url 'general-settings' %}" id="settingsMenu"
+                                class="oh-navbar__action-icons-link">
+                                <ion-icon name="settings-outline" class="oh-navbar__icon"></ion-icon>
+                            </a>
+                        </div>
+                        <!-- End of settings button in nav bar -->
                         {% endif %}
 
                         <!-- Start of notifications button in nav bar -->
@@ -191,9 +195,9 @@
                         <!-- End of Languages dropdown in nav bar -->
 
                         {% if perms.base.change_company %}
-                            <!-- Start of Companies dropdown in nav bar -->
-                            {% include "base/navbar_components/company_selection.html" %}
-                            <!-- End of Companies dropdown in nav bar -->
+                        <!-- Start of Companies dropdown in nav bar -->
+                        {% include "base/navbar_components/company_selection.html" %}
+                        <!-- End of Companies dropdown in nav bar -->
                         {% endif %}
 
                         <!-- Start of profile dropdown in nav bar -->
@@ -216,26 +220,32 @@
                 </div> {% endcomment %}
                 <div id="main-section-data" style="display: none;" data-lang="{{LANGUAGE_CODE}}">
                     {% block content %}
-                        {% include 'dashboard.html' %}
+                    {% include 'dashboard.html' %}
                     {% endblock content %}
-                    <div class="oh-modal" id="genericModal" role="dialog" aria-labelledby="genericModal" aria-hidden="true">
+                    <div class="oh-modal" id="genericModal" role="dialog" aria-labelledby="genericModal"
+                        aria-hidden="true">
                         <div class="oh-modal__dialog" id="genericModalBody"></div>
                     </div>
                     <div class="oh-modal" style="z-index: 100;" id="objectDetailsModal" role="dialog"
                         aria-labelledby="objectDetailsModalLabel" aria-hidden="true">
-                        <div class="oh-modal__dialog oh-modal__dialog-relative" style="max-width: 550px" id="objectDetailsModalTarget"> </div>
+                        <div class="oh-modal__dialog oh-modal__dialog-relative" style="max-width: 550px"
+                            id="objectDetailsModalTarget"> </div>
                     </div>
                     <div class="oh-modal" style="z-index: 100;" id="objectDetailsModalW25" role="dialog"
                         aria-labelledby="objectDetailsModalW25Label" aria-hidden="true">
-                        <div class="oh-modal__dialog oh-modal__dialog-relative" style="max-width: 410px" id="objectDetailsModalW25Target"> </div>
+                        <div class="oh-modal__dialog oh-modal__dialog-relative" style="max-width: 410px"
+                            id="objectDetailsModalW25Target"> </div>
                     </div>
-                    <div class="oh-modal" id="objectCreateModal" role="dialog" aria-labelledby="objectCreateModalLabel" aria-hidden="true">
+                    <div class="oh-modal" id="objectCreateModal" role="dialog" aria-labelledby="objectCreateModalLabel"
+                        aria-hidden="true">
                         <div class="oh-modal__dialog" id="objectCreateModalTarget"></div>
                     </div>
-                    <div class="oh-modal" id="objectUpdateModal" role="dialog" aria-labelledby="objectUpdateModalLabel" aria-hidden="true">
+                    <div class="oh-modal" id="objectUpdateModal" role="dialog" aria-labelledby="objectUpdateModalLabel"
+                        aria-hidden="true">
                         <div class="oh-modal__dialog" id="objectUpdateModalTarget"></div>
                     </div>
-                    <div class="oh-modal" id="dynamicCreateModal" role="dialog" aria-hidden="true" style="z-index: 1022;">
+                    <div class="oh-modal" id="dynamicCreateModal" role="dialog" aria-hidden="true"
+                        style="z-index: 1022;">
                         <div id="dynamicCreateModalTarget" class="oh-modal__dialog" style="max-width: 550px"></div>
                     </div>
                 </div>
@@ -275,7 +285,7 @@
     <script src="{% static 'build/js/pivottable_excel.min.js' %}"></script>
 
     {% if "attendance"|app_installed %}
-        <script src="{% static 'attendance/actions.js' %}"></script>
+    <script src="{% static 'attendance/actions.js' %}"></script>
     {% endif %}
     <script type="module" src="{% static 'images/ionicons/ui_icons/ionicons/ionicons.esm.js' %}"></script>
     <script src="{% static '/build/js/sweetAlert.js' %}"></script>
@@ -289,63 +299,63 @@
         }
     </script>
     {% if enabled_timerunner %}
-        <script>
-            // time-runner
-            function secondsToDuration(seconds) {
-                var hours = Math.floor(seconds / 3600);
-                var minutes = Math.floor((seconds % 3600) / 60);
-                var remainingSeconds = Math.floor(seconds % 60);
+    <script>
+        // time-runner
+        function secondsToDuration(seconds) {
+            var hours = Math.floor(seconds / 3600);
+            var minutes = Math.floor((seconds % 3600) / 60);
+            var remainingSeconds = Math.floor(seconds % 60);
 
-                // add leading zeros if necessary
-                var formattedHours = (hours < 10) ? "0" + hours : hours;
-                var formattedMinutes = (minutes < 10) ? "0" + minutes : minutes;
-                var formattedSeconds = (remainingSeconds < 10) ? "0" + remainingSeconds : remainingSeconds;
+            // add leading zeros if necessary
+            var formattedHours = (hours < 10) ? "0" + hours : hours;
+            var formattedMinutes = (minutes < 10) ? "0" + minutes : minutes;
+            var formattedSeconds = (remainingSeconds < 10) ? "0" + remainingSeconds : remainingSeconds;
 
-                return formattedHours + ":" + formattedMinutes + ":" + formattedSeconds;
+            return formattedHours + ":" + formattedMinutes + ":" + formattedSeconds;
+        }
+        // accessing initial worked hours from the user
+        $(".time-runner").not("title").html(secondsToDuration(at_work_seconds));
+        $("title.time-runner").html("{{white_label_company_name}} | " + secondsToDuration(at_work_seconds));
+        setInterval(() => {
+            if (run) {
+                at_work_seconds = at_work_seconds + 1
+                $("div.time-runner").html(secondsToDuration(at_work_seconds));
+                $("title").html("{{white_label_company_name}} | " + secondsToDuration(at_work_seconds));
             }
-            // accessing initial worked hours from the user
-            $(".time-runner").not("title").html(secondsToDuration(at_work_seconds));
-            $("title.time-runner").html("{{white_label_company_name}} | " + secondsToDuration(at_work_seconds));
-            setInterval(() => {
-                if (run) {
-                    at_work_seconds = at_work_seconds + 1
-                    $("div.time-runner").html(secondsToDuration(at_work_seconds));
-                    $("title").html("{{white_label_company_name}} | " + secondsToDuration(at_work_seconds));
-                }
-            }, 1000);
+        }, 1000);
 
-            function switchTab(e) {
-                let parentContainerEl = e.target.closest(".oh-tabs");
-                let tabElement = e.target.closest(".oh-tabs__tab");
-                let targetSelector = e.target.dataset.target;
-                let targetEl = parentContainerEl
-                    ? parentContainerEl.querySelector(targetSelector)
-                    : null;
+        function switchTab(e) {
+            let parentContainerEl = e.target.closest(".oh-tabs");
+            let tabElement = e.target.closest(".oh-tabs__tab");
+            let targetSelector = e.target.dataset.target;
+            let targetEl = parentContainerEl
+                ? parentContainerEl.querySelector(targetSelector)
+                : null;
 
-                // Highlight active tabs
-                if (tabElement && !tabElement.classList.contains("oh-tabs__tab--active")) {
-                    parentContainerEl
-                        .querySelectorAll(".oh-tabs__tab--active")
-                        .forEach(function (item) {
-                            item.classList.remove("oh-tabs__tab--active");
-                        });
+            // Highlight active tabs
+            if (tabElement && !tabElement.classList.contains("oh-tabs__tab--active")) {
+                parentContainerEl
+                    .querySelectorAll(".oh-tabs__tab--active")
+                    .forEach(function (item) {
+                        item.classList.remove("oh-tabs__tab--active");
+                    });
 
-                    if (!tabElement.classList.contains("oh-tabs__new-tab")) {
-                        tabElement.classList.add("oh-tabs__tab--active");
-                    }
-                }
-
-                // Switch tabs
-                if (targetEl && !targetEl.classList.contains("oh-tabs__content--active")) {
-                    parentContainerEl
-                        .querySelectorAll(".oh-tabs__content--active")
-                        .forEach(function (item) {
-                            item.classList.remove("oh-tabs__content--active");
-                        });
-                    targetEl.classList.add("oh-tabs__content--active");
+                if (!tabElement.classList.contains("oh-tabs__new-tab")) {
+                    tabElement.classList.add("oh-tabs__tab--active");
                 }
             }
-        </script>
+
+            // Switch tabs
+            if (targetEl && !targetEl.classList.contains("oh-tabs__content--active")) {
+                parentContainerEl
+                    .querySelectorAll(".oh-tabs__content--active")
+                    .forEach(function (item) {
+                        item.classList.remove("oh-tabs__content--active");
+                    });
+                targetEl.classList.add("oh-tabs__content--active");
+            }
+        }
+    </script>
     {% endif %}
     <script>
         // Skylinx light/dark theme toggle
@@ -363,13 +373,13 @@
                 }
             }
             var saved = 'light';
-            try { saved = localStorage.getItem('skylinx-theme') || 'light'; } catch (e) {}
+            try { saved = localStorage.getItem('skylinx-theme') || 'light'; } catch (e) { }
             apply(saved);
             var btn = document.getElementById('skylinxThemeToggle');
             if (btn) {
                 btn.addEventListener('click', function () {
                     var next = body.classList.contains('skylinx-dark') ? 'light' : 'dark';
-                    try { localStorage.setItem('skylinx-theme', next); } catch (e) {}
+                    try { localStorage.setItem('skylinx-theme', next); } catch (e) { }
                     apply(next);
                 });
             }

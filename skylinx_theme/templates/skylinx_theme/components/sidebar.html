@@ -818,8 +818,12 @@ function removeId(element, storeKey = "selectedInstances") {
      * Our plain reload below is always correct instead.
      */
     window.onpopstate = null;
+    var lastPathname = window.location.pathname;
+    var lastSearch = window.location.search;
     window.addEventListener("popstate", function () {
-      window.location.reload();
+      if (window.location.pathname !== lastPathname || window.location.search !== lastSearch) {
+        window.location.reload();
+      }
     });
 
     /*

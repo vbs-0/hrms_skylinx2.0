@@ -55,6 +55,7 @@
 		});
 
 		// Active tab script
+		var isClicking = false;
 		function activeEmpTab() {
 			var activeTab = localStorage.getItem("activeEmpTab")
 
@@ -67,8 +68,10 @@
 				$(`[data-target='${activeTab}']`).addClass("oh-general__tab-link--active");
 				$(".oh-general__tab-target").addClass("d-none");
 				$(activeTab).removeClass("d-none");
-				if ($(`[data-target="${activeTab}"]`).length > 0) {
+				if ($(`[data-target="${activeTab}"]`).length > 0 && !isClicking) {
+					isClicking = true;
 					$(`[data-target="${activeTab}"]`)[0].click();
+					isClicking = false;
 				}
 			}
 		}

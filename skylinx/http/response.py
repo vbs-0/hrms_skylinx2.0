@@ -19,6 +19,12 @@ class SkylinxRedirect(HttpResponseRedirect):
         # If redirect_to not provided, use HTTP_REFERER
         previous_url = redirect_to or request.META.get("HTTP_REFERER", fallback_url)
 
+        # Avoid redirect loops back to the same page
+        if previous_url:
+            from urllib.parse import urlparse
+            if urlparse(previous_url).path == request.path:
+                previous_url = fallback_url
+
         if message:
             messages.error(request, message)
 

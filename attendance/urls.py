@@ -645,6 +645,11 @@ urlpatterns = [
         name="get-employee-shift",
     ),
     path(
+        "get-batch-details/",
+        requests.get_batch_details,
+        name="get-batch-details",
+    ),
+    path(
         "view-my-attendance/",
         my_attendances.MyAttendances.as_view(),
         name="view-my-attendance",

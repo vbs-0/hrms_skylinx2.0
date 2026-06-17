@@ -289,12 +289,23 @@ class ObjectivesNav(SkylinxNavView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.search_url = reverse("tab-objectives-view")
-        self.create_attrs = f"""
-                        hx-get='{reverse_lazy('create-employee-objective')}'"
-                        data-toggle="oh-modal-toggle"
-                        data-target="#genericModal"
-                        hx-target="#genericModalBody"
-                        """
+        has_create_perm = False
+        user = self.request.user
+        from base.methods import is_reportingmanager
+        is_admin = user.is_superuser or user.has_perm("pms.add_objective")
+        is_manager = is_reportingmanager(self.request)
+        if is_admin or (is_manager and user.has_perm("pms.add_employeeobjective")):
+            has_create_perm = True
+
+        if has_create_perm:
+            self.create_attrs = f"""
+                            hx-get='{reverse_lazy('create-employee-objective')}'"
+                            data-toggle="oh-modal-toggle"
+                            data-target="#genericModal"
+                            hx-target="#genericModalBody"
+                            """
+        else:
+            self.create_attrs = None
 
     nav_title = _("Objectives")
     filter_instance = ActualObjectiveFilter()
@@ -314,12 +325,23 @@ class ObjectiveTemplateNav(ObjectivesNav):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.search_url = reverse("list-objective-templates-view")
-        self.create_attrs = f"""
+        has_create_perm = False
+        user = self.request.user
+        from base.methods import is_reportingmanager
+        is_admin = user.is_superuser or user.has_perm("pms.add_objective")
+        is_manager = is_reportingmanager(self.request)
+        if is_admin or (is_manager and user.has_perm("pms.add_employeeobjective")):
+            has_create_perm = True
+
+        if has_create_perm:
+            self.create_attrs = f"""
                         hx-get='{reverse_lazy('objective-template-creation')}'"
                         data-toggle="oh-modal-toggle"
                         data-target="#genericModal"
                         hx-target="#genericModalBody"
                         """
+        else:
+            self.create_attrs = None
 
 
 @method_decorator(login_required, name="dispatch")
@@ -343,6 +365,31 @@ class CreateEmployeeObjectiveForm(SkylinxFormView):
         pk = resolve(self.request.path_info).kwargs.get("pk")
         if not pk:
             self.dynamic_create_fields = [("key_result_id", DynamicKeyResultCreateForm)]
+
+    def dispatch(self, request, *args, **kwargs):
+        user = request.user
+        from base.methods import is_reportingmanager
+        is_admin = user.is_superuser or user.has_perm("pms.add_objective")
+        is_manager = is_reportingmanager(request)
+
+        # HIDE the Objective creation/update form from Employee role users
+        if not (is_admin or is_manager):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied("You do not have permission to access this page.")
+
+        # If it's a manager, restrict editing of existing employee objectives to their subordinates only
+        pk = kwargs.get("pk")
+        if pk and not is_admin:
+            from pms.models import EmployeeObjective
+            emp_obj = EmployeeObjective.objects.filter(pk=pk).first()
+            if emp_obj:
+                from base.methods import get_subordinate_employee_ids
+                sub_ids = get_subordinate_employee_ids(request)
+                if emp_obj.employee_id.id not in sub_ids:
+                    from django.core.exceptions import PermissionDenied
+                    raise PermissionDenied("You do not have permission to edit this objective.")
+
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

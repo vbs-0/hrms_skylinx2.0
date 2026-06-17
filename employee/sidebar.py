@@ -119,12 +119,9 @@ def employee_accessibility(request, submenu, user_perms, *args, **kwargs):
     """
     Employee accessibility method
     """
-    cache_key = request.session.session_key + "accessibility_filter"
-    employee = getattr(request.user, "employee_get", None)
     return (
         is_reportingmanager(request.user)
         or request.user.has_perm("employee.view_employee")
-        or check_is_accessible("employee_view", cache_key, employee)
     )
 
 

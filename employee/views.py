@@ -4119,3 +4119,10 @@ def employee_tag_update(request, tag_id):
         "base/employee_tag/employee_tag_form.html",
         {"form": form, "tag_id": tag_id},
     )
+
+
+@login_required
+def get_language_code(request):
+    from django.utils import translation
+    return JsonResponse({"language_code": translation.get_language()})
+

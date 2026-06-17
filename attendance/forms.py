@@ -650,14 +650,32 @@ class AttendanceRequestForm(BaseModelForm):
             }
         )
         self.fields["work_type_id"].widget.attrs.update({"id": str(uuid.uuid4())})
-        self.fields["batch_attendance_id"].choices = list(
-            self.fields["batch_attendance_id"].choices
-        ) + [("dynamic_create", "Dynamic create")]
+        self.fields["attendance_worked_hour"].widget.attrs["readonly"] = "readonly"
+        self.fields["request_description"].required = True
+
         self.fields["batch_attendance_id"].widget.attrs.update(
             {
-                "onchange": "dynamicBatchAttendance($(this))",
+                "class": "oh-select oh-select-2 w-100",
+                "onchange": "attendanceBatchChange($(this))",
             }
         )
+        from skylinx.skylinx_middlewares import _thread_locals
+        request = getattr(_thread_locals, "request", None)
+        has_bulk_perm = False
+        if request:
+            user = request.user
+            if user.is_superuser or user.has_perm("attendance.add_attendance"):
+                has_bulk_perm = True
+            else:
+                from employee.models import Employee, EmployeeWorkInformation
+                employee = Employee.objects.filter(employee_user_id=user).first()
+                if employee and EmployeeWorkInformation.objects.filter(reporting_manager_id=employee).exists():
+                    has_bulk_perm = True
+
+        if has_bulk_perm:
+            self.fields["batch_attendance_id"].choices = list(
+                self.fields["batch_attendance_id"].choices
+            ) + [("dynamic_create", "Dynamic create")]
 
     class Meta:
         """
@@ -719,6 +737,19 @@ class NewRequestForm(AttendanceRequestForm):
         view_initial = kwargs.pop("initial", {})
         # Add the new model choice field to the form at the beginning
         old_dict = self.fields
+        from skylinx.skylinx_middlewares import _thread_locals
+        request = getattr(_thread_locals, "request", None)
+        has_bulk_perm = False
+        if request:
+            user = request.user
+            if user.is_superuser or user.has_perm("attendance.add_attendance"):
+                has_bulk_perm = True
+            else:
+                from employee.models import Employee, EmployeeWorkInformation
+                employee = Employee.objects.filter(employee_user_id=user).first()
+                if employee and EmployeeWorkInformation.objects.filter(reporting_manager_id=employee).exists():
+                    has_bulk_perm = True
+
         new_dict = {
             "employee_id": forms.ModelChoiceField(
                 queryset=Employee.objects.filter(is_active=True),
@@ -733,7 +764,17 @@ class NewRequestForm(AttendanceRequestForm):
                 ),
                 initial=view_initial.get("employee_id"),
             ),
-            "create_bulk": forms.BooleanField(
+        }
+        if not has_bulk_perm and request:
+            from employee.models import Employee
+            employee = Employee.objects.filter(employee_user_id=request.user).first()
+            if employee:
+                new_dict["employee_id"].queryset = Employee.objects.filter(id=employee.id)
+                new_dict["employee_id"].initial = employee.id
+                new_dict["employee_id"].disabled = True
+
+        if has_bulk_perm:
+            new_dict["create_bulk"] = forms.BooleanField(
                 required=False,
                 label=_("Create Bulk"),
                 widget=forms.CheckboxInput(
@@ -744,8 +785,7 @@ class NewRequestForm(AttendanceRequestForm):
                         "hx-get": "/attendance/request-bulk-attendance/?bulk=True",
                     }
                 ),
-            ),
-        }
+            )
         new_dict.update(old_dict)
         self.fields = new_dict
         kwargs["initial"] = view_initial
@@ -787,6 +827,34 @@ class NewRequestForm(AttendanceRequestForm):
             self.cleaned_data["attendance_clock_out"] = None
         if "attendance_clock_out_date" not in self.cleaned_data:
             self.cleaned_data["attendance_clock_out_date"] = None
+
+        clock_in_date = self.cleaned_data.get("attendance_clock_in_date")
+        clock_in_time = self.cleaned_data.get("attendance_clock_in")
+        clock_out_date = self.cleaned_data.get("attendance_clock_out_date")
+        clock_out_time = self.cleaned_data.get("attendance_clock_out")
+        attendance_date = self.cleaned_data.get("attendance_date")
+        attendance_worked_hour = self.cleaned_data.get("attendance_worked_hour")
+
+        # Future date checks
+        if attendance_date and attendance_date > datetime.date.today():
+            self.add_error("attendance_date", ValidationError(_("Attendance date cannot be in the future.")))
+        if clock_in_date and clock_in_date > datetime.date.today():
+            self.add_error("attendance_clock_in_date", ValidationError(_("Check-in date cannot be in the future.")))
+        if clock_out_date and clock_out_date > datetime.date.today():
+            self.add_error("attendance_clock_out_date", ValidationError(_("Check-out date cannot be in the future.")))
+
+        # Check-out time order checks
+        if clock_in_date and clock_in_time and clock_out_date and clock_out_time:
+            clock_in_dt = datetime.datetime.combine(clock_in_date, clock_in_time)
+            clock_out_dt = datetime.datetime.combine(clock_out_date, clock_out_time)
+            if clock_out_dt < clock_in_dt:
+                self.add_error("attendance_clock_out_date", ValidationError(_("Check-out date and time cannot be before check-in date and time.")))
+
+        # Worked hours checks
+        if attendance_worked_hour:
+            h_str = str(attendance_worked_hour).strip()
+            if h_str in ["00:00", "0:00", "0", "00:00:00"]:
+                self.add_error("attendance_worked_hour", ValidationError(_("Worked hours cannot be 00:00.")))
 
         employee = self.cleaned_data["employee_id"]
         attendance_date = self.cleaned_data["attendance_date"]

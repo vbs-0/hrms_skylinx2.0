@@ -711,6 +711,11 @@ urlpatterns = [
         employee_profile.GroupAssignView.as_view(),
         name="assign-group-user",
     ),
+    path(
+        "get-language-code/",
+        views.get_language_code,
+        name="get-language-code",
+    ),
 ]
 
 

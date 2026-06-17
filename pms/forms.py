@@ -226,10 +226,25 @@ class AddAssigneesForm(BaseForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.instance:
-            self.fields["assignees"].queryset = self.fields[
-                "assignees"
-            ].queryset.exclude(id__in=self.instance.assignees.all())
+        request = getattr(skylinx_middlewares._thread_locals, "request", None)
+        user = request.user if request else None
+        if user:
+            is_admin = user.is_superuser or user.has_perm("pms.add_objective")
+            is_manager = is_reportingmanager(request)
+            if is_admin:
+                qs = Employee.objects.filter(is_active=True)
+            elif is_manager:
+                qs = filtersubordinatesemployeemodel(
+                    request,
+                    queryset=Employee.objects.filter(is_active=True),
+                    perm=None,
+                )
+            else:
+                qs = Employee.objects.none()
+
+            if self.instance:
+                qs = qs.exclude(id__in=self.instance.assignees.all())
+            self.fields["assignees"].queryset = qs
 
     def clean(self):
         cleaned_data = super().clean()
@@ -361,16 +376,25 @@ class EmployeeObjectiveCreateForm(BaseForm):
             self.fields["key_result_id"].choices.append(
                 ("create_new_key_result", "Create new Key result")
             )
-        if request.user.has_perm("pms.add_employeeobjective") or is_reportingmanager(
-            request
-        ):
+
+        user = request.user
+        is_admin = user.is_superuser or user.has_perm("pms.add_objective")
+        is_manager = is_reportingmanager(request)
+
+        if is_admin:
+            self.fields["employee_id"].queryset = Employee.objects.filter(is_active=True)
+        elif is_manager:
             employees = filtersubordinatesemployeemodel(
                 request,
                 queryset=Employee.objects.filter(is_active=True),
-                perm="pms.add_employeeobjective",
+                perm=None,
             )
             self.fields["employee_id"].queryset = employees | Employee.objects.filter(
-                employee_user_id=request.user
+                employee_user_id=user
+            )
+        else:
+            self.fields["employee_id"].queryset = Employee.objects.filter(
+                employee_user_id=user, is_active=True
             )
 
     def as_p(self):

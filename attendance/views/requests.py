@@ -942,6 +942,7 @@ def get_employee_shift(request):
         form = BulkAttendanceRequestForm()
     form.fields["shift_id"].queryset = EmployeeShift.objects.all()
     form.fields["shift_id"].widget.attrs["hx-trigger"] = "load,change"
+    form.fields["shift_id"].widget.attrs["class"] = "oh-select oh-select-2 w-100"
     form.fields["shift_id"].initial = shift
     shift_id = render_to_string(
         "requests/attendance/form_field.html",
@@ -951,3 +952,28 @@ def get_employee_shift(request):
         },
     )
     return HttpResponse(f"{shift_id}")
+
+
+@login_required
+def get_batch_details(request):
+    batch_id = request.GET.get("batch_id")
+    data = {
+        "clock_in_date": "",
+        "clock_in_time": "",
+        "clock_out_date": "",
+        "clock_out_time": "",
+        "shift_id": "",
+        "worked_hours": "",
+        "minimum_hour": "",
+    }
+    if batch_id and batch_id != "dynamic_create":
+        att = Attendance.objects.filter(batch_attendance_id=batch_id).first()
+        if att:
+            data["clock_in_date"] = att.attendance_clock_in_date.strftime("%Y-%m-%d") if att.attendance_clock_in_date else ""
+            data["clock_in_time"] = att.attendance_clock_in.strftime("%H:%M") if att.attendance_clock_in else ""
+            data["clock_out_date"] = att.attendance_clock_out_date.strftime("%Y-%m-%d") if att.attendance_clock_out_date else ""
+            data["clock_out_time"] = att.attendance_clock_out.strftime("%H:%M") if att.attendance_clock_out else ""
+            data["shift_id"] = att.shift_id.id if att.shift_id else ""
+            data["worked_hours"] = att.attendance_worked_hour if att.attendance_worked_hour else ""
+            data["minimum_hour"] = att.minimum_hour if att.minimum_hour else ""
+    return JsonResponse(data)
