@@ -8,6 +8,7 @@ from django.urls import resolve, reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 
+from base.methods import is_reportingmanager
 from employee.cbv.employee_profile import EmployeeProfileView
 from employee.models import Employee
 from skylinx.http.response import SkylinxRedirect
@@ -398,6 +399,18 @@ class CreateObjectiveFormView(SkylinxFormView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.view_id = "objectiveForm"
+
+    def dispatch(self, request, *args, **kwargs):
+        # Creating an Objective exposes the full employee list (assignees/managers)
+        # and assigns work to others — restrict to admins / reporting managers.
+        if not (
+            request.user.has_perm("pms.add_objective")
+            or is_reportingmanager(request)
+        ):
+            return SkylinxRedirect(
+                request, message=_("You don't have permission.")
+            )
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

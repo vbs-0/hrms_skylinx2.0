@@ -25,6 +25,7 @@ SUBMENUS = [
     {
         "menu": _("Objective Template"),
         "redirect": reverse_lazy("objective-template-list-view"),
+        "accessibility": "pms.sidebar.objective_template_accessibility",
     },
     {
         "menu": _("360 Feedback"),
@@ -58,6 +59,13 @@ SUBMENUS = [
 
 def key_result_accessibility(request, submenu, user_perms, *args, **kwargs):
     return request.user.has_perm("pms.view_keyresult")
+
+
+def objective_template_accessibility(request, submenu, user_perms, *args, **kwargs):
+    # Objective templates are an admin/manager construct — hide from regular staff.
+    return request.user.has_perm("pms.add_objective") or is_reportingmanager(
+        request.user
+    )
 
 
 def period_accessibility(request, submenu, user_perms, *args, **kwargs):

@@ -53,6 +53,11 @@ class HourAccountList(SkylinxListView):
         if self.request.user.has_perm("attendance.add_attendanceovertime"):
             self.action_method = "hour_actions"
             self.option_method = "hour_options"
+        else:
+            # ponytail: action_method has a class-level default of "hour_actions";
+            # without this else, non-permitted users still get edit/delete actions.
+            self.action_method = ""
+            self.option_method = ""
 
     def get_queryset(self):
         queryset = super().get_queryset()
