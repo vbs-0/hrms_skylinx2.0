@@ -82,6 +82,36 @@ sudo systemctl status hrms-client --no-pager | grep Active
 > `-w 4 --timeout 300`: heavier worker count + long timeout so one slow request
 > (e.g. demo-data import) doesn't starve the others into 502s.
 
+## 5b. Background schedulers (one dedicated process)
+
+Schedulers (leave reset, shift rotation, etc.) are **gated off in the web
+workers** — they only run in a dedicated process started with `RUN_SCHEDULERS=1`.
+Without this service, scheduled jobs never fire. With it, they run exactly once
+(not once per worker), so the app stays fast.
+
+```bash
+sudo tee /etc/systemd/system/hrms-scheduler.service >/dev/null <<'EOF'
+[Unit]
+Description=Skylinx HRMS Schedulers
+After=network.target postgresql.service
+[Service]
+User=root
+WorkingDirectory=/home/ubuntu/hrms/hrms_skylinx2.0
+Environment=RUN_SCHEDULERS=1
+ExecStart=/home/ubuntu/hrms/hrms_skylinx2.0/venv/bin/python manage.py run_schedulers
+Restart=always
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now hrms-scheduler
+sudo systemctl status hrms-scheduler --no-pager | grep Active
+```
+
+> Do **not** set `RUN_SCHEDULERS=1` on the web (`hrms-client`) service — that
+> re-introduces the per-worker job multiplication that slows the whole app.
+
 ## 6. nginx
 ```bash
 sudo tee /etc/nginx/sites-available/hrms >/dev/null <<'EOF'
@@ -146,6 +176,9 @@ sudo nginx -t && sudo systemctl restart nginx
 | `https://` won't connect / COOP warnings | no TLS configured, port 80 only | Use `http://`; add HTTPS for real production |
 | `nginx: conflicting server name` | another enabled site claims the IP/domain | `ls /etc/nginx/sites-enabled/`, remove the stray symlink |
 | `Not Found: /HNAP1 /solr/admin /sdk ...` in logs | internet bots scanning the public IP | Harmless, ignore |
+| **App slow everywhere / `... was missed` in logs** | schedulers running per web worker on short intervals | gating is built in — just run the `hrms-scheduler` service (§5b) and never set `RUN_SCHEDULERS` on `hrms-client` |
+| Scheduled jobs never run (leave reset, etc.) | no dedicated scheduler process | start the `hrms-scheduler` service (§5b) |
+| Over employee cap → ugly error on create | (fixed) now a clean form popup | `git pull` |
 | Service won't boot | bad `.env` / wrong path | `journalctl -u hrms-client -n 40 --no-pager` |
 
 ## Updating later
@@ -156,5 +189,21 @@ pip install -r requirements.txt
 python3 manage.py migrate
 python3 manage.py collectstatic --noinput
 deactivate
-sudo systemctl restart hrms-client
+sudo systemctl restart hrms-client hrms-scheduler
 ```
+
+---
+
+## Licensing behaviour (what the client enforces)
+
+| State | Core HRMS | 7 paid features | Employee cap |
+|---|---|---|---|
+| **No key** (unactivated) | dashboard-only (login + setup + subscription reachable) | locked | n/a — must license first |
+| **Valid license** | full | only those in the plan | plan's number; adding past it is blocked with a form popup |
+| **Expired license** | dashboard-only | locked | n/a |
+
+- Activation: superadmin → **`/license/subscription/`** → paste key → **Activate** (syncs entitlements from the vendor server set in `LICENSE_SERVER_URL`).
+- Blocked pages: superadmins are sent to the subscription page; other users get a "contact your administrator" message; an expired plan shows a red banner.
+- The employee cap counts only **active** employees — archived/disabled ones don't count. Re-enable an archived employee from the Employee page → **Filter → Is Active = No**.
+- `LICENSE_ROLE=server` disables all enforcement (vendor/dev only).
+
