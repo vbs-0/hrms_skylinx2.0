@@ -15,6 +15,12 @@
     {% endfor %}
   {% endif %}
 
+  {% if expired %}
+    <div class="p-3 mb-4 rounded bg-red-100 text-red-700 font-semibold">
+      {% trans "Your subscription has expired — renew or activate a valid key to restore access." %}
+    </div>
+  {% endif %}
+
   <!-- Status -->
   <div class="border rounded-lg p-4 mb-4">
     <div class="flex items-center justify-between">
@@ -72,11 +78,14 @@
       {% for f in features %}
         <div class="flex items-center gap-2">
           {% if f.enabled %}
-            <span class="text-green-600">●</span>
+            <span class="text-green-600">✓</span>
+            <span>{{ f.label }}</span>
+            <span class="text-xs text-green-600">{% trans "Active" %}</span>
           {% else %}
-            <span class="text-gray-300">○</span>
+            <span class="text-red-500">🔒</span>
+            <span class="text-gray-400">{{ f.label }}</span>
+            <span class="text-xs text-red-500">{% trans "Locked" %}</span>
           {% endif %}
-          <span class="{% if not f.enabled %}text-gray-400{% endif %}">{{ f.label }}</span>
         </div>
       {% endfor %}
     </div>
