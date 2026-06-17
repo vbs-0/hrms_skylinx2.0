@@ -24,10 +24,6 @@ env = environ.Env(
     DEBUG=(bool, False),
     ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1"]),
     CSRF_TRUSTED_ORIGINS=(list, ["http://localhost:8000"]),
-    # Licensing: "client" (deployed HRMS, enforces entitlements) or "server"
-    # (vendor's private instance — all features on, manages Plans/Licenses).
-    LICENSE_ROLE=(str, "client"),
-    LICENSE_SERVER_URL=(str, ""),
 )
 
 env.read_env(os.path.join(BASE_DIR, ".env"), overwrite=True)
@@ -46,10 +42,6 @@ if "test" in sys.argv:
     ALLOWED_HOSTS.append("testserver")
     MIGRATION_MODULES = {"notifications": None}
 CSRF_TRUSTED_ORIGINS = env("CSRF_TRUSTED_ORIGINS")
-
-# Licensing role + vendor server endpoint (see env() defaults above).
-LICENSE_ROLE = env("LICENSE_ROLE")
-LICENSE_SERVER_URL = env("LICENSE_SERVER_URL")
 
 # ----------------------------------------
 # Cookie / transport hardening
@@ -125,7 +117,6 @@ INSTALLED_APPS = [
     "whatsapp",
     "skylinx_ldap",
     "skylinx_dbtemplate",
-    "licensing",
 ]
 
 # ========================================
@@ -181,7 +172,6 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Skylinx-specific middlewares
-    "licensing.middleware.LicenseEnforcementMiddleware",
     "base.middleware.CompanyMiddleware",
     "base.middleware.ForcePasswordChangeMiddleware",
     "base.middleware.TwoFactorAuthMiddleware",

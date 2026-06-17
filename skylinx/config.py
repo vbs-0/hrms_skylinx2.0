@@ -38,13 +38,6 @@ def sidebar(request):
 
         for app in base_dir_apps:
             if apps.is_installed(app):
-                # Licensing: hide nav for paid features this instance can't use.
-                from licensing.features import APP_TO_FEATURE
-                from licensing import service as _lic
-
-                feature_key = APP_TO_FEATURE.get(app)
-                if feature_key and not _lic.is_feature_enabled(feature_key, request):
-                    continue
                 try:
                     sidebar = importlib.import_module(app + ".sidebar")
 
