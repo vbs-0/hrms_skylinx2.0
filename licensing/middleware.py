@@ -22,6 +22,8 @@ from .features import PAID_FEATURES
 _ALWAYS_ALLOW = (
     "/license/",
     "/accounts/",
+    "/login",
+    "/initialize-database",
     "/static/",
     "/media/",
     "/admin/",

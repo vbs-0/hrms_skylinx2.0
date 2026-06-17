@@ -33,15 +33,16 @@ def _resolve():
 
     cfg = LicenseConfig.get()
 
-    # Unactivated install. Fail-CLOSED on a client: the core HRMS works but the
-    # paid features stay locked until a valid license enables them. Only a box
-    # explicitly running as the vendor 'server' keeps everything open (dev).
+    # Unactivated install. A client is locked down to dashboard-only (same gate
+    # as a lapsed license) until a key is activated — login and the subscription
+    # page stay reachable via the middleware allow-list. Only LICENSE_ROLE=server
+    # stays fully open (dev/vendor box).
     if not cfg.license_key:
         server = getattr(settings, "LICENSE_ROLE", "client") == "server"
         return {
             "features": set(ALL_FEATURE_KEYS) if server else set(),
             "employee_limit": None,
-            "expired": False,
+            "expired": not server,
             "licensed": False,
             "config": cfg,
         }
