@@ -245,6 +245,20 @@ class EmployeeForm(ModelForm):
 
     def clean(self):
         super().clean()
+        # License cap: block creating a NEW active employee past the plan limit,
+        # surfaced as a normal form error (popup) instead of the cap signal's
+        # hard 403/timeout. Only on create — editing an existing one is fine.
+        if not (self.instance and self.instance.id):
+            from licensing import service
+
+            if service.employee_cap_reached():
+                raise forms.ValidationError(
+                    _(
+                        "License limit reached: your plan allows %s active "
+                        "employees. Upgrade your subscription to add more."
+                    )
+                    % service.employee_limit()
+                )
         email = self.cleaned_data["email"]
         query = Employee.objects.entire().filter(email=email)
         if self.instance and self.instance.id:
