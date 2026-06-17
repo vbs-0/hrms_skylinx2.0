@@ -1498,29 +1498,26 @@ $(".requested-attendance-row").change(function () {
 
 // ------------------------------------------------------------------------------------------------------------------------------
 
-// Dynamic batch attendance create - moved here from view-requests.html
-// so it's available when the batch form is loaded via HTMX on any page
+// Dynamic batch attendance create - defined globally so it's available
+// when the batch form is loaded via HTMX on any page
 function dynamicBatchAttendance(element){
     batch = element.val()
     if (batch === 'dynamic_create'){
-      var parentForm = element.parents().closest("form");
-      previous_url = parentForm.attr('data-url');
-      // clear hx-vals
-      $('#dynamicCreateBatchAttendanceSpan').attr("hx-vals",`{"previous_url":"${previous_url}"}`)
-      $('#dynamicCreateBatchAttendanceSpan').click();
-      // unselect the choosen value
-      element.val('').change();
-
+        var parentForm = element.parents().closest("form");
+        previous_url = parentForm.data('url');
+        $('#dynamicCreateBatchAttendanceSpan').attr("hx-vals",`{"previous_url":"${previous_url}"}`)
+        $('#dynamicCreateBatchAttendanceSpan').click();
+        element.val('').change();
     }
-  }
+}
 
-  // Batch title change
-  function batchTitleChange(element){
+// Batch title change
+function batchTitleChange(element){
     title = $(element).val()
     batchId = $(element).data('id')
     $('#updateTitleSpan').attr("hx-vals",`{"batch_id":"${batchId}","title":"${title}"}`)
     $('#updateTitleSpan').click()
-  }
+}
 
 // ******************************************************************
 // *     THIS IS FOR SWITCHING THE DATE FORMAT IN THE ALL VIEWS     *
