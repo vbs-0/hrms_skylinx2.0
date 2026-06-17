@@ -128,6 +128,7 @@ def update_selected_company(request):
         own_id = getattr(user_company, "id", None)
         if company_id == "all" or (own_id is not None and str(company_id) != str(own_id)):
             return HttpResponse(status=403)
+    request.session["selected_company"] = company_id
     company = (
         AllCompany()
         if company_id == "all"
