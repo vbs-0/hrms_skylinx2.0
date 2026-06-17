@@ -70,16 +70,31 @@ class LicenseEnforcementMiddleware:
         return None
 
     def _block(self, request, expired=False, feature=None):
+        from django.contrib.auth.views import redirect_to_login
+        from django.http import HttpResponse
+
+        msg = (
+            "Your subscription has expired."
+            if expired
+            else "This feature is not included in your plan."
+        )
+
         # htmx/ajax: send a 403 the front-end can surface without a full redirect.
         if request.headers.get("HX-Request") or request.headers.get(
             "x-requested-with"
         ) == "XMLHttpRequest":
-            from django.http import HttpResponse
-
-            msg = (
-                "Your subscription has expired."
-                if expired
-                else "This feature is not included in your plan."
-            )
             return HttpResponse(msg, status=403)
-        return redirect(reverse("license-subscription"))
+
+        user = getattr(request, "user", None)
+        # Anonymous -> login (so an admin can sign in and activate).
+        if not (user and user.is_authenticated):
+            return redirect_to_login(request.get_full_path())
+        # Only a superadmin can fix it -> the activation page. Redirecting a
+        # non-superadmin there loops, because that page is superadmin-only.
+        if user.is_superuser:
+            return redirect(reverse("license-subscription"))
+        return HttpResponse(
+            f"<h2>{msg}</h2><p>Please contact your administrator to "
+            f"activate the subscription.</p>",
+            status=403,
+        )
