@@ -27,23 +27,18 @@
       document.body.prepend(globalLoader);
     }
     
-    document.addEventListener('htmx:beforeRequest', () => {
-      if (globalLoader) {
-        globalLoader.classList.add('active');
-      }
+    document.addEventListener('htmx:beforeSend', () => {
+      if (globalLoader) globalLoader.classList.add('active');
     });
 
-    document.addEventListener('htmx:afterRequest', () => {
-      if (globalLoader) {
-        globalLoader.classList.remove('active');
-      }
-    });
+    const hideLoader = () => {
+      if (globalLoader) globalLoader.classList.remove('active');
+    };
 
-    document.addEventListener('htmx:responseError', () => {
-      if (globalLoader) {
-        globalLoader.classList.remove('active');
-      }
-    });
+    document.addEventListener('htmx:afterRequest', hideLoader);
+    document.addEventListener('htmx:sendError', hideLoader);
+    document.addEventListener('htmx:responseError', hideLoader);
+    document.addEventListener('htmx:abort', hideLoader);
   }
 </script>
 <script src="{% static '/index/index.js' %}"></script>

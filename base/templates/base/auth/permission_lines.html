@@ -21,6 +21,9 @@
       </script>
       {% if perms.auth.add_permission or perms.auth.change_permission or perms.auth.delete_permission %}
         {% include 'base/auth/permission_table.html' %}
+        <div class="d-flex justify-content-end p-3">
+            <button type="button" class="oh-btn oh-btn--secondary" onclick="saveUserPermissions('{{employee.id}}')">{% trans "Save Permissions" %}</button>
+        </div>
       {% endif %}
     </div>
   </div>
@@ -73,9 +76,8 @@
 	});
 	var timeout
 
-	function updatePermissions(elem){
-    var $panel = $(elem).closest(".panel").closest(".panel.view-employees");
-    var userId = $panel.data("user-id");
+	function saveUserPermissions(userId) {
+    var $panel = $("#panel" + userId);
     var permissions = [];
 
     $panel.find("[name=permissions]").each(function () {
@@ -107,11 +109,7 @@
 
 	$(".view-employees [name=permissions]").on("change",function (e) {
 		e.preventDefault();
-		clearTimeout(timeout);
-		timeout = setTimeout(function() {
-      updateBadge($(this));
-			updatePermissions(e.target);
-		}, 100);
+    updateBadge($(this));
 	});
 
 </script>

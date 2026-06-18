@@ -13,7 +13,7 @@ from skylinx.skylinx_middlewares import _thread_locals
 from skylinx.menu import settings_menu
 
 request = getattr(_thread_locals, "request", None)
-MENU = _("People")
+MENU = _("Employees")
 IMG_SRC = "images/ui/employees.svg"
 
 

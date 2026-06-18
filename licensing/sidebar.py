@@ -12,7 +12,7 @@ from django.utils.translation import gettext_lazy as _
 
 IMG_SRC = "images/ui/unlock.png"
 
-MENU = _("Subscription")
+MENU = _("License")
 SUBMENUS = [
     {
         "menu": _("My Subscription"),

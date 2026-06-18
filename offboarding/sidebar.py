@@ -11,7 +11,7 @@ from offboarding.templatetags.offboarding_filter import (
     is_offboarding_employee,
 )
 
-MENU = _("Exit")
+MENU = _("Offboarding")
 IMG_SRC = "images/ui/exit-outline.svg"
 ACCESSIBILITY = "offboarding.sidebar.offboarding_accessibility"
 

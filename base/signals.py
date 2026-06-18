@@ -314,3 +314,36 @@ class Fail2BanMiddleware:
 
 
 settings.MIDDLEWARE.append("base.signals.Fail2BanMiddleware")
+
+from django.contrib.auth.models import Group
+
+
+
+@receiver(m2m_changed, sender=Group.permissions.through)
+def clear_sidebar_cache_on_group_perm_change(sender, instance, action, **kwargs):
+    from django.core.cache import cache
+    if action in ["post_add", "post_remove", "post_clear"]:
+        if isinstance(instance, Group):
+            for user in instance.user_set.all():
+                cache.delete(f"sidebar_menus_user_{user.id}")
+
+from django.contrib.auth import get_user_model
+User = get_user_model()
+
+@receiver(m2m_changed, sender=User.groups.through)
+def clear_sidebar_cache_on_user_group_change(sender, instance, action, **kwargs):
+    from django.core.cache import cache
+    if action in ["post_add", "post_remove", "post_clear"]:
+        if isinstance(instance, User):
+            cache.delete(f"sidebar_menus_user_{instance.id}")
+        elif isinstance(instance, Group):
+            for user in instance.user_set.all():
+                cache.delete(f"sidebar_menus_user_{user.id}")
+
+@receiver(m2m_changed, sender=User.user_permissions.through)
+def clear_sidebar_cache_on_user_perm_change(sender, instance, action, **kwargs):
+    from django.core.cache import cache
+    if action in ["post_add", "post_remove", "post_clear"]:
+        if isinstance(instance, User):
+            cache.delete(f"sidebar_menus_user_{instance.id}")
+

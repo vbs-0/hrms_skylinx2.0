@@ -212,8 +212,17 @@ else:
     }
 
 if DATABASES.get("default", {}).get("ENGINE") == "django.db.backends.sqlite3":
-    DATABASES["default"].setdefault("OPTIONS", {})["timeout"] = 20
-
+    # Critical SQLite optimizations for concurrency to prevent "database is locked"
+    options = DATABASES["default"].setdefault("OPTIONS", {})
+    options["timeout"] = 20
+    options["transaction_mode"] = "IMMEDIATE"  # Django 5.1+ concurrency fix
+    options["init_command"] = (
+        "PRAGMA journal_mode=WAL;"
+        "PRAGMA synchronous=NORMAL;"
+        "PRAGMA mmap_size=134217728;"  # 128MB mmap
+        "PRAGMA journal_size_limit=67108864;"
+        "PRAGMA cache_size=-10000;"  # 10MB cache per connection
+    )
 
 # ========================================
 # STATIC & MEDIA FILES

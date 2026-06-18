@@ -292,7 +292,7 @@ document.addEventListener("DOMContentLoaded", function () {
       var lastType = null;
       data.results.forEach(function(item, i) {
         if (item.type !== lastType) {
-          html += '<div class="hp-sr-divider">' + (item.type === "employee" ? "People" : "Features & Pages") + '</div>';
+          html += '<div class="hp-sr-divider">' + (item.type === "employee" ? "Employees" : "Features & Pages") + '</div>';
           lastType = item.type;
         }
         var bg = item.type === "employee" ? "#eff6ff" : "#f5f3ff";

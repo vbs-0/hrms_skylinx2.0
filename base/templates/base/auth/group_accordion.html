@@ -112,11 +112,9 @@
       .change();
   }
 
-  function updateGroupPermissions(elem) {
-    var groupId = elem.attr("data-group-id");
-    var name = elem.attr("data-group-name");
+  function saveGroupPermissions(groupId, name) {
     var permissions = [];
-    var panel = elem.closest(".oh-general__tab-target.oh-profile-section");
+    var panel = $("#panel" + groupId);
     panel.find("[type=checkbox][name=permissions]").each(function () {
       if ($(this).is(":checked")) {
         var permissionValue = $(this).val();
@@ -146,7 +144,7 @@
         $("#messages").html(
           $(`
             <div class="oh-alert oh-alert--animated oh-alert--danger">
-              Sever error.
+              Server error.
             </div>
           `)
         );
@@ -193,14 +191,9 @@
   }
   $(document).ready(function () {
     updateBadge();
-    var timeout;
     $("#permissionContainer [name=permissions]").on("change", function (e) {
       e.preventDefault();
-      clearTimeout(timeout);
-      timeout = setTimeout(function () {
-        updateBadge($(this));
-        updateGroupPermissions($(e.target));
-      }, 100);
+      updateBadge($(this));
     });
   });
 </script>

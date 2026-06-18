@@ -16,7 +16,7 @@ from recruitment.templatetags.recruitmentfilters import (
     is_stagemanager,
 )
 
-MENU = _("Hiring")
+MENU = _("Recruitment")
 ACCESSIBILITY = "recruitment.sidebar.menu_accessibilty"
 IMG_SRC = "images/ui/recruitment.svg"
 

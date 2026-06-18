@@ -44,6 +44,9 @@
         });
       </script>
         {% include "base/auth/permission_table.html" %}
+        <div class="d-flex justify-content-end p-3">
+            <button type="button" class="oh-btn oh-btn--secondary" onclick="saveGroupPermissions('{{group.id}}', '{{group.name}}')">{% trans "Save Permissions" %}</button>
+        </div>
     </div>
   </div>
 {% endfor %}
