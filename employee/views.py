@@ -2734,7 +2734,7 @@ def employee_import(request):
 
 @login_required
 @permission_required("employee.add_employee")
-def employee_export(_):
+def employee_export(request):
     """
     This method is used to export employee data to xlsx
     """
@@ -2747,9 +2747,22 @@ def employee_export(_):
     field_names.remove("is_directly_converted")
     field_names.remove("is_active")
 
-    # Get the existing employee data and convert it to a DataFrame
-    employee_data = Employee.objects.values_list(*field_names)
-    data_frame = pd.DataFrame(list(employee_data), columns=field_names)
+    # Get the existing employee data
+    employee_data = list(Employee.objects.values_list(*field_names))
+
+    if "aadhaar_number" in field_names and not request.user.has_perm("employee.change_employee"):
+        idx = field_names.index("aadhaar_number")
+        # Mask the aadhaar
+        masked_data = []
+        for row in employee_data:
+            row_list = list(row)
+            aadhaar = row_list[idx]
+            if aadhaar and len(str(aadhaar)) >= 4:
+                row_list[idx] = f"XXXX XXXX {str(aadhaar)[-4:]}"
+            masked_data.append(row_list)
+        employee_data = masked_data
+
+    data_frame = pd.DataFrame(employee_data, columns=field_names)
 
     # Export the DataFrame to an Excel file
 

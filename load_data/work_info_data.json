@@ -1,4 +1,4 @@
-[
+﻿[
   {
     "model": "employee.employeeworkinformation",
     "pk": 1,
@@ -3238,7 +3238,7 @@
       "modified_by": 1,
       "is_active": true,
       "title": "Support Policy",
-      "body": "<h3 style=\"text-align: center; \"><strong>IT Support Policy</strong></h3><p><strong>Purpose:</strong><br>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; To provide employees with guidelines for receiving technical support.</p><p><strong>Body:</strong><br>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Employees encountering technical issues must submit a support ticket through the companyÆs IT service desk. Priority will be given to high-impact issues that affect business operations. IT support staff will resolve issues within a specified time frame based on severity. Employees are encouraged to check for common solutions in the knowledge base before requesting support. Any hardware issues with company devices should also be reported to IT for troubleshooting or replacement.</p>",
+      "body": "<h3 style=\"text-align: center; \"><strong>IT Support Policy</strong></h3><p><strong>Purpose:</strong><br>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; To provide employees with guidelines for receiving technical support.</p><p><strong>Body:</strong><br>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Employees encountering technical issues must submit a support ticket through the companyÃ†s IT service desk. Priority will be given to high-impact issues that affect business operations. IT support staff will resolve issues within a specified time frame based on severity. Employees are encouraged to check for common solutions in the knowledge base before requesting support. Any hardware issues with company devices should also be reported to IT for troubleshooting or replacement.</p>",
       "is_visible_to_all": true,
       "specific_employees": [],
       "attachments": [],
@@ -3286,7 +3286,7 @@
       "modified_by": 1,
       "is_active": true,
       "title": "Internet Policy",
-      "body": "<h3 style=\"text-align: center; \"><strong>Internet Usage Policy</strong></h3><p><strong>Purpose:</strong><br>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;To manage the appropriate use of the companyÆs internet and network resources.</p><p><strong>Body:</strong><br>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Employees are expected to use the companyÆs internet resources primarily for work-related activities. Access to social media, streaming services, and non-work-related websites should be limited during working hours unless part of the employee's job. Monitoring systems are in place to track internet usage, and any misuse of company bandwidth may result in restricted access. Downloading unauthorized files or software from the internet is strictly prohibited.</p>",
+      "body": "<h3 style=\"text-align: center; \"><strong>Internet Usage Policy</strong></h3><p><strong>Purpose:</strong><br>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;To manage the appropriate use of the companyÃ†s internet and network resources.</p><p><strong>Body:</strong><br>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Employees are expected to use the companyÃ†s internet resources primarily for work-related activities. Access to social media, streaming services, and non-work-related websites should be limited during working hours unless part of the employee's job. Monitoring systems are in place to track internet usage, and any misuse of company bandwidth may result in restricted access. Downloading unauthorized files or software from the internet is strictly prohibited.</p>",
       "is_visible_to_all": true,
       "specific_employees": [],
       "attachments": [],
@@ -3707,7 +3707,7 @@
       "modified_by": 1,
       "is_active": true,
       "question": "How can an employee request a shift change?",
-      "answer": "Employees can request a shift change through the 'Reallocate Shift' option in the Work Type & Shift tab. Admin approval is required for changes.",
+      "answer": "Employees can request a shift change through the 'Reallocate Shift' option in the Work Mode & Shift tab. Admin approval is required for changes.",
       "category": 3,
       "company_id": null,
       "tags": [5, 21]
@@ -3781,8 +3781,8 @@
       "created_by": null,
       "modified_by": 1,
       "is_active": true,
-      "question": "What is a Rotating Work Type Assign?",
-      "answer": "A Rotating Work Type Assign automates frequent changes in work types based on conditions like intervals, weekends, or specific dates.",
+      "question": "What is a Rotating Work Mode Assign?",
+      "answer": "A Rotating Work Mode Assign automates frequent changes in Work Modes based on conditions like intervals, weekends, or specific dates.",
       "category": 3,
       "company_id": null,
       "tags": [5]
@@ -3872,7 +3872,7 @@
       "modified_by": 1,
       "is_active": true,
       "question": "How can I create a new recruitment in Skylinx?",
-      "answer": "To create a new recruitment, click on the '+ Create' button from Recruitment > Recruitments , specify the job position, description, vacancies, managers, start and end dates, and select a recruitment survey.",
+      "answer": "To create a new recruitment, click on the '+ Create' button from Recruitment > Recruitments , specify the Designation, description, vacancies, managers, start and end dates, and select a recruitment survey.",
       "category": 5,
       "company_id": null,
       "tags": [2]
@@ -3932,7 +3932,7 @@
       "modified_by": 1,
       "is_active": true,
       "question": "What is the Skill Zone feature?",
-      "answer": "The Skill Zone categorizes candidates based on their skills, helping recruiters match them to relevant job positions more efficiently.",
+      "answer": "The Skill Zone categorizes candidates based on their skills, helping recruiters match them to relevant Designations more efficiently.",
       "category": 5,
       "company_id": null,
       "tags": [2, 27]
@@ -4254,3 +4254,4 @@
     }
   }
 ]
+

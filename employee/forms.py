@@ -239,11 +239,53 @@ class EmployeeForm(ModelForm):
         else:
             self.initial = {"badge_id": self.get_next_badge_id()}
 
+        # ── India Localization: PAN / Aadhaar / Account Type ────────────────
+        if "pan_number" in self.fields:
+            self.fields["pan_number"].widget.attrs.update({
+                "placeholder": "ABCDE1234F",
+                "style": "text-transform:uppercase",
+                "maxlength": "10",
+            })
+        if "aadhaar_number" in self.fields:
+            self.fields["aadhaar_number"].widget.attrs.update({
+                "placeholder": "xxxx xxxx xxxx",
+                "maxlength": "12",
+                "inputmode": "numeric",
+            })
+
+        if "account_type" in self.fields:
+            self.fields["account_type"].required = False
+
     def as_p(self, *args, **kwargs):
         context = {"form": self}
         return render_to_string("employee/create_form/personal_info_as_p.html", context)
 
+    def clean_pan_number(self):
+        """Validate PAN format: 5 letters, 4 digits, 1 letter (ABCDE1234F)."""
+        import re as _re
+        pan = self.cleaned_data.get("pan_number")
+        if pan:
+            pan = pan.upper().strip()
+            if not _re.match(r"^[A-Z]{5}[0-9]{4}[A-Z]$", pan):
+                raise forms.ValidationError(
+                    _("Invalid PAN format. Must be like ABCDE1234F.")
+                )
+        return pan or None
+
+    def clean_aadhaar_number(self):
+        """Validate Aadhaar: exactly 12 digits."""
+        import re as _re
+        aadhaar = self.cleaned_data.get("aadhaar_number")
+        if aadhaar:
+            aadhaar = aadhaar.replace(" ", "").strip()
+            if not _re.match(r"^\d{12}$", aadhaar):
+                raise forms.ValidationError(
+                    _("Aadhaar number must be exactly 12 digits.")
+                )
+        return aadhaar or None
+
     def clean(self):
+
         super().clean()
         # License cap: block creating a NEW active employee past the plan limit,
         # surfaced as a normal form error (popup) instead of the cap signal's
@@ -529,17 +571,27 @@ class EmployeeBankDetailsForm(ModelForm):
             "city",
             "any_other_code2",
         )
+        labels = {
+            "any_other_code1": _("IFSC Code"),
+        }
         exclude = ["employee_id", "is_active", "additional_info"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["address"].widget.attrs["autocomplete"] = "address"
+        self.fields["any_other_code2"].widget = forms.HiddenInput()
         for visible in self.visible_fields():
             visible.field.widget.attrs["class"] = "oh-input w-100"
 
     def as_p(self, *args, **kwargs):
         context = {"form": self}
         return render_to_string("employee/update_form/bank_info_as_p.html", context)
+
+    def clean_any_other_code1(self):
+        ifsc = self.cleaned_data.get("any_other_code1")
+        if ifsc and not re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", ifsc):
+            raise forms.ValidationError(_("Invalid IFSC Code. Format should be 4 letters, '0', then 6 alphanumeric characters."))
+        return ifsc
 
 
 class EmployeeBankDetailsUpdateForm(ModelForm):
@@ -554,10 +606,14 @@ class EmployeeBankDetailsUpdateForm(ModelForm):
 
         model = EmployeeBankDetails
         fields = "__all__"
+        labels = {
+            "any_other_code1": _("IFSC Code"),
+        }
         exclude = ["employee_id", "is_active", "additional_info"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["any_other_code2"].widget = forms.HiddenInput()
         for visible in self.visible_fields():
             visible.field.widget.attrs["class"] = "oh-input w-100"
         for field in self.fields:
@@ -567,9 +623,15 @@ class EmployeeBankDetailsUpdateForm(ModelForm):
         context = {"form": self}
         return render_to_string("employee/update_form/bank_info_as_p.html", context)
 
+    def clean_any_other_code1(self):
+        ifsc = self.cleaned_data.get("any_other_code1")
+        if ifsc and not re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", ifsc):
+            raise forms.ValidationError(_("Invalid IFSC Code. Format should be 4 letters, '0', then 6 alphanumeric characters."))
+        return ifsc
+
 
 excel_columns = [
-    ("badge_id", _("Badge ID")),
+    ("badge_id", _("Employee ID / Badge ID")),
     ("employee_first_name", _("First Name")),
     ("employee_last_name", _("Last Name")),
     ("email", _("Email")),
@@ -581,7 +643,7 @@ excel_columns = [
     ("state", _("State")),
     ("city", _("City")),
     ("address", _("Address")),
-    ("zip", _("Zip Code")),
+    ("zip", _("PIN Code")),
     ("marital_status", _("Marital Status")),
     ("children", _("Children")),
     ("is_active", _("Is active")),
@@ -591,12 +653,12 @@ excel_columns = [
     ("employee_work_info__email", _("Work Email")),
     ("employee_work_info__mobile", _("Work Phone")),
     ("employee_work_info__department_id", _("Department")),
-    ("employee_work_info__job_position_id", _("Job Position")),
+    ("employee_work_info__job_position_id", _("Designation")),
     ("employee_work_info__job_role_id", _("Job Role")),
     ("employee_work_info__shift_id", _("Shift")),
-    ("employee_work_info__work_type_id", _("Work Type")),
+    ("employee_work_info__work_type_id", _("Work Mode")),
     ("employee_work_info__reporting_manager_id", _("Reporting Manager")),
-    ("employee_work_info__employee_type_id", _("Employee Type")),
+    ("employee_work_info__employee_type_id", _("Employment Type")),
     ("employee_work_info__location", _("Location")),
     ("employee_work_info__date_joining", _("Date Joining")),
     ("employee_work_info__basic_salary", _("Basic Salary")),
@@ -606,11 +668,15 @@ excel_columns = [
     ("employee_bank_details__bank_name", _("Bank Name")),
     ("employee_bank_details__branch", _("Branch")),
     ("employee_bank_details__account_number", _("Account Number")),
-    ("employee_bank_details__any_other_code1", _("Bank Code #1")),
+    ("employee_bank_details__any_other_code1", _("IFSC Code")),
     ("employee_bank_details__any_other_code2", _("Bank Code #2")),
     ("employee_bank_details__country", _("Bank Country")),
     ("employee_bank_details__state", _("Bank State")),
     ("employee_bank_details__city", _("Bank City")),
+    # ── India Localization fields ──────────────────────────────────────────
+    ("pan_number", _("PAN Number")),
+    ("aadhaar_number", _("Aadhaar Number")),
+    ("account_type", _("Bank Account Type")),
 ]
 fields_to_remove = [
     "badge_id",

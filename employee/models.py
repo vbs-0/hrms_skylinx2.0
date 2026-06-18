@@ -76,7 +76,7 @@ class Employee(models.Model):
         ("married", _("Married")),
         ("divorced", _("Divorced")),
     )
-    badge_id = models.CharField(max_length=50, null=True, blank=True)
+    badge_id = models.CharField(max_length=50, null=True, blank=True, verbose_name=_("Employee ID / Badge ID"))
     employee_user_id = models.OneToOneField(
         SkylinxUser,
         on_delete=models.CASCADE,
@@ -100,7 +100,7 @@ class Employee(models.Model):
     country = models.CharField(max_length=100, blank=True, null=True)
     state = models.CharField(max_length=100, null=True, blank=True)
     city = models.CharField(max_length=30, null=True, blank=True)
-    zip = models.CharField(max_length=20, null=True, blank=True, verbose_name=_("Zip"))
+    zip = models.CharField(max_length=20, null=True, blank=True, verbose_name=_("PIN Code"))
     dob = models.DateField(null=True, blank=True, verbose_name=_("Date of Birth"))
     gender = models.CharField(
         max_length=10, null=True, choices=choice_gender, default="male"
@@ -136,6 +136,39 @@ class Employee(models.Model):
     is_directly_converted = models.BooleanField(
         default=False, null=True, blank=True, editable=False
     )
+    # ── India Localization: identity & bank fields ──────────────────────────
+    ACCOUNT_TYPE_CHOICES = [
+        ("savings", _("Savings")),
+        ("current", _("Current")),
+    ]
+    pan_number = models.CharField(
+        max_length=10,
+        null=True,
+        blank=True,
+        unique=True,
+        verbose_name=_("PAN Number"),
+        help_text=_("Permanent Account Number — 10 chars, e.g. ABCDE1234F"),
+    )
+    aadhaar_number = models.CharField(
+        max_length=12,
+        null=True,
+        blank=True,
+        verbose_name=_("Aadhaar Number"),
+        help_text=_("12-digit UIDAI Aadhaar number"),
+    )
+    account_type = models.CharField(
+        max_length=10,
+        null=True,
+        blank=True,
+        choices=ACCOUNT_TYPE_CHOICES,
+        verbose_name=_("Bank Account Type"),
+    )
+
+    @property
+    def masked_aadhaar(self):
+        if self.aadhaar_number and len(self.aadhaar_number) >= 4:
+            return f"XXXX XXXX {self.aadhaar_number[-4:]}"
+        return self.aadhaar_number
     objects = SkylinxCompanyManager(
         related_company_field="employee_work_info__company_id"
     )
@@ -811,7 +844,7 @@ class EmployeeWorkInformation(models.Model):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        verbose_name=_("Job Position"),
+        verbose_name=_("Designation"),
     )
     job_role_id = models.ForeignKey(
         JobRole,
@@ -840,7 +873,7 @@ class EmployeeWorkInformation(models.Model):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        verbose_name=_("Work Type"),
+        verbose_name=_("Work Mode"),
     )
 
     employee_type_id = models.ForeignKey(
@@ -848,7 +881,7 @@ class EmployeeWorkInformation(models.Model):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        verbose_name=_("Employee Type"),
+        verbose_name=_("Employment Type"),
     )
     tags = models.ManyToManyField(
         EmployeeTag, blank=True, verbose_name=_("Employee tag")

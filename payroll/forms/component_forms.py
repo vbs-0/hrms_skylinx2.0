@@ -95,6 +95,23 @@ class AllowanceForm(ModelForm):
         reload_queryset(self.fields)
         self.fields["style"].widget = widget.StyleWidget(form=self)
 
+        # --- India Localization: tag advanced fields ---
+        _allowance_advanced = [
+            "is_condition_based", "field", "condition", "value",
+            "shift_id", "shift_per_attendance_amount",
+            "per_attendance_fixed_amount", "amount_per_one_hr",
+            "work_type_id", "work_type_per_attendance_amount",
+            "per_children_fixed_amount",
+            "has_max_limit", "maximum_amount", "maximum_unit",
+            "exclude_employees", "only_show_under_employee",
+            "one_time_date", "start_range", "end_range",
+            "if_condition", "if_amount", "if_choice",
+            "is_loan",
+        ]
+        for fn in _allowance_advanced:
+            if fn in self.fields:
+                self.fields[fn].widget.attrs["data-advanced"] = "true"
+
     def as_p(self):
         """
         Render the form fields as HTML table rows with Bootstrap styling.
@@ -236,6 +253,19 @@ class DeductionForm(ModelForm):
         for field_name, field in self.fields.items():
             if isinstance(field.widget, forms.Select):
                 field.widget.option_template_name = default_select_option_template
+
+        # --- India Localization: tag advanced fields ---
+        _deduction_advanced = [
+            "is_condition_based", "field", "condition", "value",
+            "has_max_limit", "maximum_amount", "maximum_unit",
+            "exclude_employees", "only_show_under_employee",
+            "one_time_date", "start_range", "end_range",
+            "if_condition", "if_amount", "if_choice",
+            "is_installment", "employer_rate",
+        ]
+        for fn in _deduction_advanced:
+            if fn in self.fields:
+                self.fields[fn].widget.attrs["data-advanced"] = "true"
 
     def clean(self, *args, **kwargs):
         cleaned_data = super().clean(*args, **kwargs)

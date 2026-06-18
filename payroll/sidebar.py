@@ -47,7 +47,7 @@ SUBMENUS = [
         "redirect": reverse("view-reimbursement"),
     },
     {
-        "menu": _("Federal Tax"),
+        "menu": _("Income Tax (TDS)"),
         "redirect": reverse("filing-status-view"),
         "accessibility": "payroll.sidebar.federal_tax_accessibility",
     },

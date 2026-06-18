@@ -34,6 +34,13 @@ BREADCRUMB_URL_NAMES = {
     "ess": "Employee",
     "offboarding": "Offboarding",
     "helpdesk": "Helpdesk",
+    "job-position-view": "Designation",
+    "work-type-view": "Work Mode",
+    "employee-type-view": "Employment Type",
+    "view-payslip": "Payslip",
+    "disciplinary-actions": "Show Cause / Warning",
+    "resignation-requests-view": "Separation (F&F)",
+    "leave": "Leave Application",
 }
 
 sidebar_urls = [

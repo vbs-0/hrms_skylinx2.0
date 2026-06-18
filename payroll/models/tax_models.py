@@ -28,9 +28,9 @@ class PayrollSettings(SkylinxModel):
         ("postfix", _("Suffix")),
     ]
 
-    currency_symbol = models.CharField(null=True, default="$", max_length=5)
+    currency_symbol = models.CharField(null=True, default="₹", max_length=5)
     position = models.CharField(
-        max_length=15, null=True, choices=choices, default="postfix"
+        max_length=15, null=True, choices=choices, default="prefix"
     )
 
     company_id = models.ForeignKey(Company, null=True, on_delete=models.PROTECT)
@@ -52,7 +52,7 @@ class TaxBracket(SkylinxModel):
     filing_status_id = models.ForeignKey(
         FilingStatus,
         on_delete=models.CASCADE,
-        verbose_name=_("Filing status"),
+        verbose_name=_("Tax Regime"),
     )
     min_income = models.FloatField(
         null=False, blank=False, verbose_name=_("Min. Income")
@@ -136,3 +136,7 @@ class TaxBracket(SkylinxModel):
                         )
                     }
                 )
+
+    class Meta:
+        verbose_name = _("Income Slab")
+        verbose_name_plural = _("Income Slabs")

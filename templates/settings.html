@@ -170,6 +170,16 @@
 													>
 												{% endif %}
 											</div>
+											<div class="oh-input-group">
+												{% if perms.skylinx_audit.view_auditmodelconfig %}
+													<a
+														id="activityLog"
+														href="{% url 'audit-activity-log' %}"
+														class="oh-inner-sidebar__link oh-dropdown__link"
+														>{% trans "Activity Log" %}</a
+													>
+												{% endif %}
+											</div>
 											{% if perms.base.view_dynamicemailconfiguration and not "outlook_auth"|app_installed %}
 											<div class="oh-input-group">
 												<a

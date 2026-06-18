@@ -74,7 +74,12 @@
           </div>
 
           {% if perms.employee.change_employee or perms.employee.delete_employee or request.user|check_manager:emp %}
-            <div class="oh-kanban-card__dots" onclick="event.stopPropagation()">
+            <div class="oh-kanban-card__dots" onclick="event.stopPropagation()" style="display: flex; align-items: center;">
+              {% if perms.employee.change_employee %}
+                <a href="{% url 'employee-view-update' emp.id %}" class="oh-btn oh-btn--transparent text-muted p-1" title="{% trans 'Edit' %}">
+                  <ion-icon name="create-outline" style="font-size: 1.2rem;"></ion-icon>
+                </a>
+              {% endif %}
               <div class="oh-dropdown" x-data="{show: false}">
                 <button class="oh-btn oh-btn--transparent text-muted p-3" @click="show = !show" title='{% trans "Actions" %}'>
                   <ion-icon name="ellipsis-vertical-sharp" role="img" class="md hydrated" aria-label="ellipsis vertical sharp"></ion-icon>

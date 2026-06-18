@@ -700,7 +700,7 @@ class Candidate(SkylinxModel):
         max_length=30, null=True, blank=True, verbose_name=_("City")
     )
     zip = models.CharField(
-        max_length=30, null=True, blank=True, verbose_name=_("Zip Code")
+        max_length=30, null=True, blank=True, verbose_name=_("PIN Code")
     )
     gender = models.CharField(
         max_length=15,

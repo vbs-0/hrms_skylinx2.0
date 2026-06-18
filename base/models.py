@@ -106,7 +106,7 @@ class Company(SkylinxModel):
         null=True,
     )
     objects = models.Manager()
-    date_format = models.CharField(max_length=30, blank=True, null=True)
+    date_format = models.CharField(max_length=30, blank=True, null=True, default="DD-MM-YYYY")
     time_format = models.CharField(max_length=20, blank=True, null=True)
 
     class Meta:

@@ -136,8 +136,8 @@ class FilingStatus(SkylinxModel):
 
     class Meta:
         ordering = ["-id"]
-        verbose_name = _("Filing Status")
-        verbose_name_plural = _("Filing Statuses")
+        verbose_name = _("Tax Regime")
+        verbose_name_plural = _("Tax Regimes")
 
 
 class Contract(SkylinxModel):

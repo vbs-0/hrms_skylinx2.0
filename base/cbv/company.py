@@ -107,7 +107,7 @@ class CompanyListView(SkylinxListView):
         (_("Country"), "country"),
         (_("State"), "state"),
         (_("City"), "city"),
-        (_("Zip"), "zip"),
+        (_("PIN Code"), "zip"),
     ]
 
     sortby_mapping = [
@@ -115,7 +115,7 @@ class CompanyListView(SkylinxListView):
         (_("Country"), "country"),
         (_("State"), "state"),
         (_("City"), "city"),
-        (_("Zip"), "zip"),
+        (_("PIN Code"), "zip"),
     ]
 
     row_attrs = """

@@ -19,6 +19,7 @@ import random
 import secrets
 from urllib.parse import parse_qs
 
+from django import forms
 from django import template
 from django.contrib import messages
 from django.contrib.auth import login
@@ -45,6 +46,7 @@ from base.methods import (
 )
 from base.models import SkylinxMailTemplate, JobPosition
 from employee.models import Employee, EmployeeBankDetails, EmployeeWorkInformation
+from onboarding.constants import DIRECT_HIRE_TITLE
 from skylinx import settings
 from skylinx.decorators import (
     hx_request_required,
@@ -435,15 +437,36 @@ def candidate_creation(request):
     GET : return candidate creation form template
     POST : return candidate view
     """
-    form = OnboardingCandidateForm()
+    is_direct_hire = request.GET.get("direct_hire") == "true"
+    initial = {}
+    if is_direct_hire:
+        direct_hire_rec, _created = Recruitment.objects.get_or_create(
+            title=DIRECT_HIRE_TITLE, 
+            company_id=request.user.employee_get.get_company(),
+            defaults={
+                "description": "System-managed: Direct Hire / Walk-in path",
+                "is_active": False,
+                "closed": True,
+                "is_published": False,
+            }
+        )
+        initial["recruitment_id"] = direct_hire_rec.id
+
+    form = OnboardingCandidateForm(initial=initial)
     if request.method == "POST":
         form = OnboardingCandidateForm(request.POST, request.FILES)
         if form.is_valid():
-            candidate = form.save()
+            candidate = form.save(commit=False)
             candidate.hired = True
             candidate.save()
+            # Django ModelForm save_m2m is needed when commit=False
+            form.save_m2m()
             messages.success(request, _("New candidate created successfully.."))
             return redirect(candidates_view)
+            
+    if is_direct_hire and "recruitment_id" in form.fields:
+        form.fields["recruitment_id"].widget = forms.HiddenInput()
+        
     return render(request, "onboarding/candidate_creation.html", {"form": form})
 
 

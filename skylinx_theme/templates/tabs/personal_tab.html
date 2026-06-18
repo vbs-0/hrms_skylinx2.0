@@ -17,6 +17,24 @@
         <span class="font-medium text-xs text-[#565E6C]">{% trans 'Address' %}</span>
         <p class="text-xs font-semibold">{{ employee.address|default:_('None') }}</p>
       </div>
+      <div class="mb-2">
+        <span class="font-medium text-xs text-[#565E6C]">{% trans 'Aadhaar Number' %}</span>
+        <p class="text-xs font-semibold">
+          {% if perms.employee.change_employee or request.user.employee_get == employee %}
+            {{ employee.aadhaar_number|default:_('None') }}
+          {% else %}
+            {{ employee.masked_aadhaar|default:_('None') }}
+          {% endif %}
+        </p>
+      </div>
+      <div class="mb-2">
+        <span class="font-medium text-xs text-[#565E6C]">{% trans 'PAN Number' %}</span>
+        <p class="text-xs font-semibold">{{ employee.pan_number|default:_('None') }}</p>
+      </div>
+      <div class="mb-2">
+        <span class="font-medium text-xs text-[#565E6C]">{% trans 'UAN' %}</span>
+        <p class="text-xs font-semibold">{{ employee.uan|default:_('None') }}</p>
+      </div>
       {% endif %}
       <div class="mb-2">
         <span class="font-medium text-xs text-[#565E6C]">{% trans 'Country' %}</span>

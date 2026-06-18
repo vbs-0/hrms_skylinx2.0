@@ -199,6 +199,16 @@
                 {% endif %}
                 <div class="oh-btn-group ml-2">
                     <a
+                        href="{% url 'candidate-creation' %}?direct_hire=true"
+                        class="oh-btn oh-btn--primary oh-btn--shadow"
+                        method="get"
+                    >
+                        <ion-icon name="person-add-outline" class="me-1"></ion-icon>
+                        {% trans "Direct Hire" %}
+                    </a>
+                </div>
+                <div class="oh-btn-group ml-2">
+                    <a
                         href="{% url 'candidate-create' %}?onboarding=True"
                         class="oh-btn oh-btn--secondary oh-btn--shadow"
                         method="get"
