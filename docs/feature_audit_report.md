@@ -8,7 +8,7 @@
 
 ## 📋 Executive Summary
 
-**Skylinx HRMS** is a comprehensive, open-source Human Resource Management System built on **Django 5.2** with **PostgreSQL**, **Redis**, and Docker orchestration. It is a rebranded fork of Horilla HRMS with custom theming, Skylinx brand identity, and additional enhancements. The system spans **~30+ Django apps** covering the full employee lifecycle — from recruitment and onboarding through performance management to offboarding and exit management.
+**Skylinx HRMS** is a comprehensive, open-source Human Resource Management System built on **Django 5.2** with **PostgreSQL**, **Redis**, and Docker orchestration. It features custom theming, Skylinx brand identity, and additional enhancements. The system spans **~30+ Django apps** covering the full employee lifecycle — from recruitment and onboarding through performance management to offboarding and exit management.
 
 > **Overall Assessment:** Production-grade HRMS with comprehensive feature coverage across the entire employee lifecycle. Strong multi-tenancy, excellent audit trail, multiple communication channels, and extensive scheduled automation.
 
