@@ -238,6 +238,48 @@ body.skylinx-dark::before {
 .oh-sidebar::-webkit-scrollbar { width: 7px; }
 .oh-sidebar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .16); border-radius: 7px; }
 
+/* -------------------------------------------------------------------
+   ALWAYS-EXPANDED SIDEBAR — icon + text always visible (no icon-only
+   collapse / hover-to-reveal). Neutralizes the legacy `--closed` state
+   so the rail stays full-width regardless of toggle / localStorage / hover.
+   ------------------------------------------------------------------- */
+.oh-wrapper-main,
+.oh-wrapper-main--closed {
+  -ms-grid-columns: 256px auto !important;
+  grid-template-columns: 256px auto !important;
+}
+/* keep the company block fully shown */
+.oh-wrapper-main--closed .oh-sidebar__company {
+  justify-content: flex-start !important;
+}
+.oh-wrapper-main--closed .oh-sidebar__company-details,
+.oh-wrapper-main--closed .oh-sidebar__company .oh-dropdown {
+  display: block !important;
+}
+/* always reveal nav labels + submenus */
+.oh-wrapper-main--closed .oh-sidebar__menu-link span,
+.oh-wrapper-main--closed .oh-sidebar__submenu-items {
+  display: revert !important;
+}
+/* restore the expanded link layout (icon + text inline) */
+.oh-wrapper-main--closed .oh-sidebar__menu-link,
+.oh-wrapper-main--closed .oh-sidebar__submenu {
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+.oh-wrapper-main--closed .oh-sidebar__menu-item { margin-bottom: 0 !important; }
+.oh-wrapper-main--closed .oh-sidebar__menu-icon { margin-right: 12px !important; }
+/* keep the sidebar visible on small screens too */
+.oh-wrapper-main--closed #sidebar { display: block !important; }
+
+@media (max-width: 767.98px) {
+  .oh-wrapper-main,
+  .oh-wrapper-main--closed {
+    -ms-grid-columns: auto !important;
+    grid-template-columns: auto !important;
+  }
+}
+
 /* ===================================================================
    NAVBAR — frosted floating top glass
    =================================================================== */
