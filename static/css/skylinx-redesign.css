@@ -1,6 +1,7 @@
 /* =====================================================================
-   SKYLINX HRMS — Redesign theme (loaded last; overrides legacy oh- styles)
-   Violet / Indigo · modern · rounded · light + dark
+   SKYLINX HRMS — SPATIAL UI theme (loaded last; overrides legacy oh- styles)
+   visionOS-inspired · frosted glass · depth · luminous edges · motion
+   Light + Dark. Pure CSS override — no markup / tech-stack changes.
    ===================================================================== */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
@@ -11,20 +12,31 @@
   --sx-primary-500: #29abe2;
   --sx-primary-300: #93c5fd;
   --sx-primary-100: #dbeafe;
-  --sx-primary-grad: linear-gradient(135deg, #1c75bc 0%, #1a5f9e 100%);
+  --sx-accent: #22d3ee;
+  --sx-primary-grad: linear-gradient(135deg, #29abe2 0%, #1a5f9e 100%);
+  --sx-glow: 0 0 0 1px rgba(41, 171, 226, .35), 0 8px 30px rgba(28, 117, 188, .35);
 
   /* Neutrals (light) */
-  --sx-bg: #f4f8fc;
-  --sx-surface: #ffffff;
-  --sx-surface-2: #eef4fb;
-  --sx-text: #14253a;
-  --sx-text-muted: #6b6880;
-  --sx-border: #dce6f2;
+  --sx-bg: #eef3fb;
+  --sx-surface: rgba(255, 255, 255, .72);
+  --sx-surface-solid: #ffffff;
+  --sx-surface-2: rgba(238, 244, 251, .7);
+  --sx-text: #112033;
+  --sx-text-muted: #5b6b80;
+  --sx-border: rgba(255, 255, 255, .55);
+  --sx-border-soft: rgba(17, 32, 51, .08);
 
-  /* Sidebar (dark slate in light mode for contrast) */
-  --sx-side-bg: #0f2438;
-  --sx-side-bg-2: #16314c;
-  --sx-side-text: #c9c4dd;
+  /* Spatial glass tokens */
+  --sx-glass-blur: 22px;
+  --sx-glass-edge: inset 0 1px 0 rgba(255, 255, 255, .65), inset 0 -1px 0 rgba(17, 32, 51, .04);
+  --sx-depth-1: 0 1px 2px rgba(16, 30, 54, .06), 0 6px 16px rgba(16, 30, 54, .08);
+  --sx-depth-2: 0 2px 6px rgba(16, 30, 54, .08), 0 18px 40px rgba(16, 30, 54, .14);
+  --sx-depth-3: 0 8px 18px rgba(16, 30, 54, .12), 0 40px 80px rgba(16, 30, 54, .22);
+
+  /* Sidebar (deep spatial glass) */
+  --sx-side-bg: rgba(13, 27, 45, .78);
+  --sx-side-bg-2: rgba(9, 19, 33, .82);
+  --sx-side-text: #b8c6da;
   --sx-side-active: #ffffff;
 
   /* Status */
@@ -33,181 +45,446 @@
   --sx-danger:  #f43f5e;
   --sx-info:    #38bdf8;
 
-  --sx-radius: 14px;
-  --sx-radius-sm: 10px;
-  --sx-shadow: 0 4px 20px rgba(31, 22, 64, .08);
-  --sx-shadow-sm: 0 2px 8px rgba(31, 22, 64, .06);
+  --sx-radius: 18px;
+  --sx-radius-sm: 12px;
+  --sx-shadow: var(--sx-depth-2);
+  --sx-shadow-sm: var(--sx-depth-1);
+  --sx-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --sx-ease: cubic-bezier(.4, 0, .2, 1);
 }
 
 /* Dark theme */
 body.skylinx-dark {
-  --sx-bg: #0b1626;
-  --sx-surface: #122033;
-  --sx-surface-2: #18293f;
-  --sx-text: #ece9f7;
-  --sx-text-muted: #9b95b3;
-  --sx-border: #243549;
-  --sx-side-bg: #0c1a2b;
-  --sx-side-bg-2: #122740;
-  --sx-side-text: #b9b3cf;
-  --sx-shadow: 0 6px 26px rgba(0, 0, 0, .45);
-  --sx-shadow-sm: 0 2px 10px rgba(0, 0, 0, .4);
+  --sx-bg: #060c16;
+  --sx-surface: rgba(20, 32, 50, .62);
+  --sx-surface-solid: #121f33;
+  --sx-surface-2: rgba(24, 41, 63, .6);
+  --sx-text: #eaf0fb;
+  --sx-text-muted: #94a3bc;
+  --sx-border: rgba(255, 255, 255, .1);
+  --sx-border-soft: rgba(255, 255, 255, .06);
+  --sx-glass-edge: inset 0 1px 0 rgba(255, 255, 255, .1), inset 0 -1px 0 rgba(0, 0, 0, .25);
+  --sx-depth-1: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 18px rgba(0, 0, 0, .4);
+  --sx-depth-2: 0 2px 8px rgba(0, 0, 0, .45), 0 20px 46px rgba(0, 0, 0, .55);
+  --sx-depth-3: 0 10px 24px rgba(0, 0, 0, .5), 0 44px 90px rgba(0, 0, 0, .65);
+  --sx-side-bg: rgba(10, 18, 31, .72);
+  --sx-side-bg-2: rgba(6, 12, 22, .8);
+  --sx-side-text: #aab6cc;
 }
+/* avoid white flash before JS applies the saved theme */
+html.skylinx-dark-pre body { background: #060c16 !important; }
 
-/* ---------- Global typography & canvas ---------- */
+/* ---------- Global typography & ambient spatial canvas ---------- */
 body,
-.oh-main,
-.oh-wrapper,
-.oh-wrapper-main,
+.oh-main, .oh-wrapper, .oh-wrapper-main,
 input, select, textarea, button,
 .oh-sidebar, .oh-navbar {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif !important;
   -webkit-font-smoothing: antialiased;
 }
-body { background: var(--sx-bg) !important; color: var(--sx-text) !important; }
-.oh-main, .oh-main__topbar, .oh-wrapper-main { background: var(--sx-bg) !important; }
-
-/* ---------- Sidebar: dark, rounded pills, violet active ---------- */
-.oh-sidebar {
-  background: linear-gradient(180deg, var(--sx-side-bg) 0%, var(--sx-side-bg-2) 100%) !important;
-  border-right: none !important;
-  padding: 8px 10px !important;
-}
-.oh-sidebar__company {
-  background: rgba(255,255,255,.04) !important;
-  border-radius: var(--sx-radius) !important;
-  margin: 6px 4px 12px !important;
-}
-.oh-sidebar__company-title, .oh-sidebar__company-link { color: #fff !important; }
-.oh-sidebar__menu-items { gap: 4px; display: flex; flex-direction: column; }
-.oh-sidebar__menu-link {
-  color: var(--sx-side-text) !important;
-  border-radius: 12px !important;
-  margin: 1px 2px !important;
-  padding: 11px 14px !important;
-  transition: background .18s ease, color .18s ease, transform .12s ease;
+body {
+  background-color: var(--sx-bg) !important;
+  color: var(--sx-text) !important;
   position: relative;
 }
-.oh-sidebar__menu-link:hover {
-  background: rgba(41, 171, 226, .16) !important;
-  color: #fff !important;
-  transform: translateX(2px);
+/* Ambient layered light field — the "space" behind the glass */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(820px 620px at 12% 8%, rgba(41, 171, 226, .22), transparent 60%),
+    radial-gradient(720px 680px at 92% 0%, rgba(34, 211, 238, .16), transparent 55%),
+    radial-gradient(900px 720px at 78% 100%, rgba(28, 117, 188, .18), transparent 60%),
+    radial-gradient(620px 520px at 0% 92%, rgba(147, 197, 253, .16), transparent 55%);
+  filter: saturate(1.05);
+  animation: sx-aurora 24s ease-in-out infinite alternate;
 }
+body.skylinx-dark::before {
+  background:
+    radial-gradient(820px 620px at 12% 8%, rgba(41, 171, 226, .2), transparent 60%),
+    radial-gradient(720px 680px at 92% 0%, rgba(34, 211, 238, .12), transparent 55%),
+    radial-gradient(900px 720px at 78% 100%, rgba(28, 117, 188, .22), transparent 60%),
+    radial-gradient(620px 520px at 0% 92%, rgba(56, 189, 248, .12), transparent 55%);
+}
+@keyframes sx-aurora {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(-1.5%, 1.5%, 0) scale(1.04); }
+  100% { transform: translate3d(1.5%, -1%, 0) scale(1.02); }
+}
+.oh-main, .oh-main__topbar, .oh-wrapper-main { background: transparent !important; }
+
+/* ===================================================================
+   SIDEBAR — floating spatial glass rail
+   =================================================================== */
+.oh-sidebar {
+  background: linear-gradient(185deg, var(--sx-side-bg) 0%, var(--sx-side-bg-2) 100%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(1.4);
+  backdrop-filter: blur(26px) saturate(1.4);
+  border-right: 1px solid rgba(255, 255, 255, .08) !important;
+  box-shadow: var(--sx-depth-3), inset -1px 0 0 rgba(255, 255, 255, .05);
+  padding: 10px 12px !important;
+}
+/* faint constellation sheen on the rail */
+.oh-sidebar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(420px 320px at 50% -8%, rgba(41, 171, 226, .22), transparent 70%);
+}
+.oh-sidebar__company {
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, .06) !important;
+  border: 1px solid rgba(255, 255, 255, .08) !important;
+  border-radius: var(--sx-radius) !important;
+  margin: 6px 4px 14px !important;
+  box-shadow: var(--sx-glass-edge);
+  backdrop-filter: blur(8px);
+  transition: transform .25s var(--sx-spring), box-shadow .25s var(--sx-ease);
+}
+.oh-sidebar__company:hover { transform: translateY(-1px); box-shadow: var(--sx-glass-edge), 0 10px 24px rgba(0,0,0,.3); }
+.oh-sidebar__company-title, .oh-sidebar__company-link { color: #fff !important; }
+
+.oh-sidebar__menu-items { gap: 5px; display: flex; flex-direction: column; position: relative; z-index: 1; }
+
+/* staggered entrance for nav items */
+.oh-sidebar__menu-item { animation: sx-slide-in .5s var(--sx-ease) both; }
+.oh-sidebar__menu-item:nth-child(1)  { animation-delay: .02s; }
+.oh-sidebar__menu-item:nth-child(2)  { animation-delay: .05s; }
+.oh-sidebar__menu-item:nth-child(3)  { animation-delay: .08s; }
+.oh-sidebar__menu-item:nth-child(4)  { animation-delay: .11s; }
+.oh-sidebar__menu-item:nth-child(5)  { animation-delay: .14s; }
+.oh-sidebar__menu-item:nth-child(6)  { animation-delay: .17s; }
+.oh-sidebar__menu-item:nth-child(7)  { animation-delay: .20s; }
+.oh-sidebar__menu-item:nth-child(8)  { animation-delay: .23s; }
+.oh-sidebar__menu-item:nth-child(9)  { animation-delay: .26s; }
+.oh-sidebar__menu-item:nth-child(n+10) { animation-delay: .29s; }
+@keyframes sx-slide-in {
+  from { opacity: 0; transform: translateX(-14px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.oh-sidebar__menu-link {
+  color: var(--sx-side-text) !important;
+  border-radius: 14px !important;
+  margin: 1px 2px !important;
+  padding: 12px 14px !important;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid transparent !important;
+  transition: background .22s var(--sx-ease), color .22s var(--sx-ease),
+              transform .28s var(--sx-spring), box-shadow .25s var(--sx-ease);
+}
+/* hover sweep light */
+.oh-sidebar__menu-link::after {
+  content: "";
+  position: absolute;
+  top: 0; left: -120%;
+  width: 80%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.16), transparent);
+  transition: left .55s var(--sx-ease);
+}
+.oh-sidebar__menu-link:hover {
+  background: rgba(41, 171, 226, .14) !important;
+  color: #fff !important;
+  transform: translateX(4px);
+  border-color: rgba(41, 171, 226, .28) !important;
+  box-shadow: var(--sx-glass-edge), 0 8px 18px rgba(0, 0, 0, .28);
+}
+.oh-sidebar__menu-link:hover::after { left: 130%; }
+
 .oh-sidebar__menu-link--active,
 .oh-sidebar__menu-link.active {
   background: var(--sx-primary-grad) !important;
   color: #fff !important;
-  box-shadow: 0 6px 16px rgba(28, 117, 188, .45);
+  box-shadow: var(--sx-glow), inset 0 1px 0 rgba(255, 255, 255, .25);
+  transform: translateX(2px);
 }
 .oh-sidebar__menu-link--active::before,
 .oh-sidebar__menu-link.active::before {
-  content: ""; position: absolute; left: -10px; top: 18%; height: 64%;
-  width: 4px; border-radius: 4px; background: var(--sx-primary-500);
+  content: ""; position: absolute; left: -12px; top: 16%; height: 68%;
+  width: 4px; border-radius: 4px; background: #fff;
+  box-shadow: 0 0 12px 2px rgba(41, 171, 226, .8);
 }
-.oh-sidebar__menu-icon img { filter: brightness(0) invert(1) !important; opacity: .9; }
-.oh-sidebar__submenu-items_re li::before { color: var(--sx-primary-500) !important; content: "•" !important; }
-/* sidebar scrollbar */
-.oh-sidebar::-webkit-scrollbar { width: 6px; }
-.oh-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.14); border-radius: 6px; }
+.oh-sidebar__menu-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: transform .3s var(--sx-spring);
+}
+.oh-sidebar__menu-link:hover .oh-sidebar__menu-icon { transform: scale(1.14) rotate(-3deg); }
+.oh-sidebar__menu-icon img { filter: brightness(0) invert(1) !important; opacity: .92; }
 
-/* ---------- Navbar ---------- */
+/* submenu — spatial drop with luminous bullets */
+.oh-sidebar__submenu { position: relative; z-index: 1; }
+.oh-sidebar__submenu-items { animation: sx-fade-down .28s var(--sx-ease) both; }
+@keyframes sx-fade-down {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.oh-sidebar__submenu-link {
+  color: var(--sx-side-text) !important;
+  border-radius: 10px !important;
+  transition: background .18s var(--sx-ease), color .18s var(--sx-ease), padding-left .2s var(--sx-ease);
+}
+.oh-sidebar__submenu-link:hover {
+  background: rgba(255, 255, 255, .08) !important;
+  color: #fff !important;
+  padding-left: 22px !important;
+}
+.oh-sidebar__submenu-items_re li::before { color: var(--sx-accent) !important; content: "•" !important; }
+.oh-sidebar::-webkit-scrollbar { width: 7px; }
+.oh-sidebar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .16); border-radius: 7px; }
+
+/* ===================================================================
+   NAVBAR — frosted floating top glass
+   =================================================================== */
 .oh-navbar {
   background: var(--sx-surface) !important;
-  border-bottom: 1px solid var(--sx-border) !important;
-  box-shadow: var(--sx-shadow-sm);
+  -webkit-backdrop-filter: blur(var(--sx-glass-blur)) saturate(1.5);
+  backdrop-filter: blur(var(--sx-glass-blur)) saturate(1.5);
+  border: 1px solid var(--sx-border) !important;
+  border-radius: 0 0 var(--sx-radius) var(--sx-radius) !important;
+  box-shadow: var(--sx-depth-1), var(--sx-glass-edge);
 }
 .oh-navbar__search, .oh-input--search, .oh-navbar input[type="search"] {
   background: var(--sx-surface-2) !important;
-  border: 1px solid var(--sx-border) !important;
+  border: 1px solid var(--sx-border-soft) !important;
   border-radius: 999px !important;
   color: var(--sx-text) !important;
+  backdrop-filter: blur(6px);
 }
+.oh-navbar__action-icons-link, .oh-navbar__icon { color: var(--sx-text) !important; }
 
-/* ---------- Buttons ---------- */
-.oh-btn { border-radius: 11px !important; font-weight: 600 !important; transition: transform .12s ease, box-shadow .18s ease; }
-.oh-btn:hover { transform: translateY(-1px); }
-.oh-btn--secondary, .oh-btn--primary, .btn-primary, .oh-btn--shadow {
+/* ===================================================================
+   BUTTONS — tactile spatial controls
+   =================================================================== */
+.oh-btn {
+  border-radius: 13px !important;
+  font-weight: 600 !important;
+  border: 1px solid var(--sx-border-soft) !important;
+  transition: transform .2s var(--sx-spring), box-shadow .2s var(--sx-ease), filter .2s var(--sx-ease);
+}
+.oh-btn:hover { transform: translateY(-2px); }
+.oh-btn:active { transform: translateY(0) scale(.98); }
+.oh-btn--secondary, .oh-btn--primary, .btn-primary, .oh-btn--shadow, .oh-btn--success {
   background: var(--sx-primary-grad) !important;
   border-color: transparent !important;
   color: #fff !important;
-  box-shadow: 0 6px 16px rgba(28,117,188,.32);
+  box-shadow: 0 6px 18px rgba(28, 117, 188, .34), inset 0 1px 0 rgba(255, 255, 255, .25);
 }
+.oh-btn--secondary:hover, .oh-btn--primary:hover, .btn-primary:hover, .oh-btn--shadow:hover {
+  box-shadow: var(--sx-glow), inset 0 1px 0 rgba(255, 255, 255, .3);
+  filter: brightness(1.04);
+}
+.oh-btn--success {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%) !important;
+  box-shadow: 0 6px 18px rgba(16, 185, 129, .32), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.oh-btn--info { background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%) !important; color: #fff !important; border-color: transparent !important; }
 .oh-btn--light-bkg, .oh-btn--light {
-  background: var(--sx-primary-100) !important;
-  color: var(--sx-primary) !important;
-  border-color: transparent !important;
-}
-.oh-btn--danger-outline, .oh-btn--danger { color: var(--sx-danger) !important; }
-
-/* ---------- Cards / panels ---------- */
-.oh-card, .oh-card-dashboard, .oh-sticky-table, .card, .oh-kanban-card, .oh-profile-section,
-.oh-dropdown__menu, .oh-modal__dialog, .oh-accordion {
   background: var(--sx-surface) !important;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  color: var(--sx-primary) !important;
+  border: 1px solid var(--sx-border) !important;
+  box-shadow: var(--sx-depth-1);
+}
+.oh-btn--light-bkg:hover, .oh-btn--light:hover { background: var(--sx-surface-solid) !important; }
+.oh-btn--danger, .oh-btn--danger-outline { color: var(--sx-danger) !important; }
+.oh-btn--danger { background: linear-gradient(135deg, #fb7185 0%, #f43f5e 100%) !important; color: #fff !important; border-color: transparent !important; }
+
+/* ===================================================================
+   CARDS / PANELS / SURFACES — layered frosted glass
+   =================================================================== */
+.oh-card, .oh-card-dashboard, .oh-sticky-table, .card, .oh-kanban-card, .oh-profile-section,
+.oh-dropdown__menu, .oh-accordion, .oh-checkpoint, .oh-timeoff,
+.oh-onboarding, .oh-permission {
+  background: var(--sx-surface) !important;
+  -webkit-backdrop-filter: blur(var(--sx-glass-blur)) saturate(1.4);
+  backdrop-filter: blur(var(--sx-glass-blur)) saturate(1.4);
   border: 1px solid var(--sx-border) !important;
   border-radius: var(--sx-radius) !important;
-  box-shadow: var(--sx-shadow-sm) !important;
+  box-shadow: var(--sx-depth-1), var(--sx-glass-edge) !important;
+}
+/* dashboard cards lift on hover for depth perception */
+.oh-card-dashboard, .oh-card {
+  transition: transform .3s var(--sx-spring), box-shadow .3s var(--sx-ease);
+  animation: sx-rise .5s var(--sx-ease) both;
+}
+.oh-card-dashboard:hover, .oh-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--sx-depth-2), var(--sx-glass-edge) !important;
+}
+@keyframes sx-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .oh-card-dashboard__title, .oh-card__title { color: var(--sx-text) !important; }
 
-/* ---------- Inputs ---------- */
+/* ===================================================================
+   INPUTS — recessed glass fields
+   =================================================================== */
 .oh-input, .oh-select, select.oh-input, textarea.oh-input, .select2-selection,
-input.form-control, select.form-control, textarea.form-control {
-  background: var(--sx-surface) !important;
-  border: 1.5px solid var(--sx-border) !important;
+input.form-control, select.form-control, textarea.form-control,
+.oh-input__group input {
+  background: var(--sx-surface-2) !important;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  border: 1.5px solid var(--sx-border-soft) !important;
   border-radius: var(--sx-radius-sm) !important;
   color: var(--sx-text) !important;
+  transition: border-color .18s var(--sx-ease), box-shadow .18s var(--sx-ease), background .18s var(--sx-ease);
 }
-.oh-input:focus, .oh-select:focus, input.form-control:focus, textarea.form-control:focus {
+.oh-input:focus, .oh-select:focus, input.form-control:focus, textarea.form-control:focus,
+.select2-container--focus .select2-selection {
   border-color: var(--sx-primary-500) !important;
-  box-shadow: 0 0 0 4px var(--sx-primary-100) !important;
+  background: var(--sx-surface-solid) !important;
+  box-shadow: 0 0 0 4px rgba(41, 171, 226, .18) !important;
 }
-.oh-label, label { color: var(--sx-text-muted) !important; font-weight: 600; }
+.oh-label, label, .oh-input__label { color: var(--sx-text-muted) !important; font-weight: 600; }
 
-/* ---------- Tables ---------- */
+/* ===================================================================
+   TABLES
+   =================================================================== */
 .oh-sticky-table__th, table thead th, .oh-table thead th {
   background: var(--sx-surface-2) !important;
   color: var(--sx-text-muted) !important;
   text-transform: uppercase; font-size: 11px; letter-spacing: .04em;
-  border-bottom: 1px solid var(--sx-border) !important;
+  border-bottom: 1px solid var(--sx-border-soft) !important;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
 }
-.oh-sticky-table__tr:hover, table tbody tr:hover { background: var(--sx-primary-100) !important; }
-.oh-sticky-table__td, table td { color: var(--sx-text) !important; border-color: var(--sx-border) !important; }
+.oh-sticky-table__tr, table tbody tr { transition: background .16s var(--sx-ease); }
+.oh-sticky-table__tr:hover, table tbody tr:hover { background: rgba(41, 171, 226, .1) !important; }
+.oh-sticky-table__td, table td { color: var(--sx-text) !important; border-color: var(--sx-border-soft) !important; }
 
-/* ---------- Badges / chips / tabs ---------- */
-.oh-badge, .badge, .oh-chip {
-  border-radius: 999px !important; font-weight: 600 !important;
+/* ===================================================================
+   DROPDOWNS / MENUS — floating glass
+   =================================================================== */
+.oh-dropdown__menu {
+  box-shadow: var(--sx-depth-2), var(--sx-glass-edge) !important;
+  animation: sx-pop .2s var(--sx-spring) both;
 }
+@keyframes sx-pop {
+  from { opacity: 0; transform: translateY(-6px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.oh-dropdown__link, .oh-dropdown__item { color: var(--sx-text) !important; border-radius: 10px; transition: background .15s var(--sx-ease); }
+.oh-dropdown__link:hover, .oh-dropdown__item:hover { background: rgba(41, 171, 226, .12) !important; }
+
+/* ===================================================================
+   MODALS — depth-elevated frosted dialog
+   =================================================================== */
+.oh-modal { background: rgba(8, 14, 26, .42) !important; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.oh-modal__dialog {
+  background: var(--sx-surface) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(1.5);
+  backdrop-filter: blur(28px) saturate(1.5);
+  border: 1px solid var(--sx-border) !important;
+  border-radius: calc(var(--sx-radius) + 4px) !important;
+  box-shadow: var(--sx-depth-3), var(--sx-glass-edge) !important;
+}
+.oh-modal--show .oh-modal__dialog { animation: sx-modal-in .35s var(--sx-spring) both; }
+@keyframes sx-modal-in {
+  from { opacity: 0; transform: translateY(18px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.oh-modal__dialog-title { color: var(--sx-text) !important; }
+
+/* ===================================================================
+   PAGINATION
+   =================================================================== */
+.oh-pagination__link, .oh-pagination__page {
+  border-radius: 10px !important;
+  border: 1px solid var(--sx-border-soft) !important;
+  background: var(--sx-surface) !important;
+  color: var(--sx-text) !important;
+  transition: background .15s var(--sx-ease), transform .18s var(--sx-spring);
+}
+.oh-pagination__link:hover, .oh-pagination__page:hover { background: rgba(41, 171, 226, .14) !important; transform: translateY(-1px); }
+.oh-pagination__page--active, .oh-pagination__link--active { background: var(--sx-primary-grad) !important; color: #fff !important; border-color: transparent !important; box-shadow: var(--sx-glow); }
+
+/* ===================================================================
+   BADGES / CHIPS / DOTS / TABS / SWITCH / ALERTS / PROFILE
+   =================================================================== */
+.oh-badge, .badge, .oh-chip { border-radius: 999px !important; font-weight: 600 !important; }
+.oh-dot { box-shadow: 0 0 0 3px rgba(41, 171, 226, .15); }
+.oh-tabs__tab, .oh-tabs__link { transition: color .18s var(--sx-ease), border-color .18s var(--sx-ease); }
 .oh-tabs__tab--active, .oh-tabs__link--active, .nav-tabs .active {
-  color: var(--sx-primary) !important; border-color: var(--sx-primary) !important;
+  color: var(--sx-primary) !important; border-color: var(--sx-primary-500) !important;
 }
+.oh-switch__checkbox:checked + .oh-switch__indicator,
+.oh-switch input:checked + span { background: var(--sx-primary-grad) !important; }
+
+.oh-alert {
+  border-radius: var(--sx-radius-sm) !important;
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  border: 1px solid var(--sx-border) !important;
+  box-shadow: var(--sx-depth-2), var(--sx-glass-edge);
+}
+.oh-alert--animated { animation: sx-pop .35s var(--sx-spring) both; }
+
+.oh-profile__avatar, .oh-profile__image { box-shadow: var(--sx-depth-1), 0 0 0 2px rgba(255,255,255,.5); }
+.oh-profile__name, .oh-text--dark { color: var(--sx-text) !important; }
 
 /* ---------- Titlebar / headings ---------- */
-.oh-titlebar__title, h1, h2, h3, h4, .oh-title { color: var(--sx-text) !important; font-weight: 700 !important; }
+.oh-titlebar__title, .oh-main__titlebar, h1, h2, h3, h4, .oh-title {
+  color: var(--sx-text) !important; font-weight: 700 !important; letter-spacing: -.01em;
+}
 
-/* ---------- Dark-mode surface fixes for legacy white blocks ---------- */
+/* ===================================================================
+   THEME TOGGLE
+   =================================================================== */
+.sx-theme-toggle {
+  width: 42px; height: 42px; border-radius: 13px;
+  border: 1px solid var(--sx-border);
+  background: var(--sx-surface); color: var(--sx-text); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 20px;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  box-shadow: var(--sx-depth-1), var(--sx-glass-edge);
+  transition: background .18s var(--sx-ease), transform .25s var(--sx-spring), box-shadow .2s var(--sx-ease);
+}
+.sx-theme-toggle:hover { transform: translateY(-2px) rotate(-8deg); box-shadow: var(--sx-glow); }
+.sx-theme-toggle:active { transform: scale(.92); }
+
+/* ===================================================================
+   DARK-MODE legacy surface fixes
+   =================================================================== */
 body.skylinx-dark .oh-navbar,
 body.skylinx-dark .oh-modal__dialog,
 body.skylinx-dark .oh-dropdown__menu,
 body.skylinx-dark .oh-card,
 body.skylinx-dark .oh-card-dashboard,
 body.skylinx-dark .oh-sticky-table,
+body.skylinx-dark .oh-accordion,
 body.skylinx-dark .oh-profile-section { background: var(--sx-surface) !important; color: var(--sx-text) !important; }
 body.skylinx-dark .oh-main,
-body.skylinx-dark .oh-wrapper-main { background: var(--sx-bg) !important; }
+body.skylinx-dark .oh-wrapper-main { background: transparent !important; }
 body.skylinx-dark .oh-sticky-table__th,
 body.skylinx-dark table thead th { background: var(--sx-surface-2) !important; }
 body.skylinx-dark p, body.skylinx-dark span, body.skylinx-dark td, body.skylinx-dark div { color: inherit; }
 
-/* ---------- Theme toggle button ---------- */
-.sx-theme-toggle {
-  width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--sx-border);
-  background: var(--sx-surface); color: var(--sx-text); cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center; font-size: 20px;
-  transition: background .15s ease, transform .12s ease;
+/* ===================================================================
+   SCROLLBARS
+   =================================================================== */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--sx-primary-500), var(--sx-primary)); border-radius: 8px;
+  border: 2px solid transparent; background-clip: padding-box;
 }
-.sx-theme-toggle:hover { background: var(--sx-primary-100); transform: translateY(-1px); }
+*::-webkit-scrollbar-thumb:hover { background: var(--sx-primary-600); background-clip: padding-box; }
+body.skylinx-dark *::-webkit-scrollbar-thumb { background: linear-gradient(#1c75bc, #0f2438); background-clip: padding-box; }
 
-/* Global scrollbars */
-*::-webkit-scrollbar { width: 9px; height: 9px; }
-*::-webkit-scrollbar-thumb { background: var(--sx-primary-300); border-radius: 8px; }
-body.skylinx-dark *::-webkit-scrollbar-thumb { background: #3a2f59; }
+/* ===================================================================
+   MOTION-SAFE: respect reduced motion preferences
+   =================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  .oh-sidebar__menu-item,
+  .oh-card, .oh-card-dashboard,
+  .oh-alert--animated,
+  .oh-dropdown__menu,
+  .oh-modal--show .oh-modal__dialog,
+  .oh-sidebar__submenu-items { animation: none !important; }
+  * { transition-duration: .01ms !important; }
+}
