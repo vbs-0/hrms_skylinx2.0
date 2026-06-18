@@ -92,18 +92,22 @@ def get_companies(request):
             ],
         ] + companies
 
-    selected_company = request.session.get("selected_company")
+    selected_company = None
+    if request and hasattr(request, 'session'):
+        selected_company = request.session.get("selected_company")
 
     # Non-privileged users must never be scoped to "all" or another company.
     if not is_privileged:
         allowed_ids = {str(c[0]) for c in companies}
-        if str(selected_company) not in allowed_ids:
+        if selected_company and str(selected_company) not in allowed_ids:
             selected_company = str(companies[0][0]) if companies else None
-            request.session["selected_company"] = selected_company
+            if request and hasattr(request, 'session'):
+                request.session["selected_company"] = selected_company
 
     company_selected = False
     if is_privileged and selected_company == "all":
-        companies[0][3] = True
+        if companies:
+            companies[0][3] = True
         company_selected = True
     else:
         for company in companies:
@@ -203,11 +207,14 @@ def white_labelling_company(request):
     if white_labelling:
         hq = Company.objects.filter(hq=True).last()
         try:
-            company = (
-                request.user.employee_get.get_company()
-                if request.user.employee_get.get_company()
-                else hq
-            )
+            if request and hasattr(request, 'user') and hasattr(request.user, 'employee_get'):
+                company = (
+                    request.user.employee_get.get_company()
+                    if request.user.employee_get.get_company()
+                    else hq
+                )
+            else:
+                company = hq
         except:
             company = hq
 
@@ -226,7 +233,10 @@ def resignation_request_enabled(request):
     """
     Check weather resignation_request enabled of not in offboarding
     """
-    selected_company = request.session.get("selected_company")
+    if request is None:
+        selected_company = None
+    else:
+        selected_company = request.session.get("selected_company")
     cache_key = f"resignation_request_enabled_{selected_company}"
     enabled_resignation_request = cache.get(cache_key)
     
@@ -298,7 +308,11 @@ def check_candidate_self_tracking(request):
     """
     This method is used to get the candidate self tracking is enabled or not
     """
-    selected_company = request.session.get("selected_company")
+
+    if request is None:
+        selected_company = None
+    else:
+        selected_company = request.session.get("selected_company")
     cache_key = f"candidate_self_tracking_{selected_company}"
     candidate_self_tracking = cache.get(cache_key)
     
@@ -329,7 +343,10 @@ def check_candidate_self_tracking_rating(request):
     """
     This method is used to check enabled/disabled of rating option
     """
-    selected_company = request.session.get("selected_company")
+    if request is None:
+        selected_company = None
+    else:
+        selected_company = request.session.get("selected_company")
     cache_key = f"candidate_self_tracking_rating_{selected_company}"
     rating_option = cache.get(cache_key)
     
