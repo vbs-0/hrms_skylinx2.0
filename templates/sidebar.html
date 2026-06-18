@@ -223,23 +223,15 @@
     }
 </style>
 <script>
-    $("#sidebar").mouseover(function (e) {
-        e.preventDefault();
-        var sidebarContainer = $(".oh-wrapper-main");
-        if (sidebarContainer.hasClass("oh-wrapper-main--closed")) {
-            sidebarContainer.removeClass("oh-wrapper-main--closed");
-        }
-    });
-
-    $("#sidebar").mouseleave(function (e) {
-        var sidebarContainer = $(".oh-wrapper-main");
-        if (sidebarContainer.hasClass("oh-wrapper-main--closed")) {
-            sidebarContainer.removeClass("oh-wrapper-main--closed");
-        } else {
-            if (sidebarContainer.hasClass("toggle-clicked")) {
-                sidebarContainer.addClass("oh-wrapper-main--closed");
-            }
-        }
+    // Sidebar is controlled solely by the hamburger toggle (open = icon + text,
+    // closed = fully hidden). Disable the legacy hover-to-reveal/collapse so
+    // hovering the rail never auto-opens or auto-closes it. We unbind both our
+    // own and the compiled (web.frontend.js) mouseover/mouseleave handlers once
+    // the page is ready.
+    $(function () {
+        setTimeout(function () {
+            $("#sidebar").off("mouseover mouseleave");
+        }, 0);
     });
 
     $(".oh-sidebar__menu-link").click(function (e) {

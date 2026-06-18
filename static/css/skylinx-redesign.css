@@ -239,39 +239,46 @@ body.skylinx-dark::before {
 .oh-sidebar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .16); border-radius: 7px; }
 
 /* -------------------------------------------------------------------
-   ALWAYS-EXPANDED SIDEBAR — icon + text always visible (no icon-only
-   collapse / hover-to-reveal). Neutralizes the legacy `--closed` state
-   so the rail stays full-width regardless of toggle / localStorage / hover.
+   SIDEBAR TOGGLE BEHAVIOR
+   - OPEN (default): expanded rail with icon + text always visible.
+   - CLOSED (hamburger): rail cleanly slides away and is fully hidden,
+     letting the content area take the full width. No icon-only stub,
+     no hover-to-reveal — the hamburger is the single source of truth.
    ------------------------------------------------------------------- */
-.oh-wrapper-main,
-.oh-wrapper-main--closed {
+
+/* OPEN — full-width rail, icon + text inline */
+.oh-wrapper-main {
   -ms-grid-columns: 256px auto !important;
   grid-template-columns: 256px auto !important;
+  transition: grid-template-columns .42s cubic-bezier(.22, 1, .36, 1) !important;
 }
-/* keep the company block fully shown */
-.oh-wrapper-main--closed .oh-sidebar__company {
-  justify-content: flex-start !important;
+.oh-wrapper-main #sidebar {
+  transition: transform .42s cubic-bezier(.22, 1, .36, 1),
+              opacity .3s ease !important;
 }
-.oh-wrapper-main--closed .oh-sidebar__company-details,
-.oh-wrapper-main--closed .oh-sidebar__company .oh-dropdown {
-  display: block !important;
+.oh-wrapper-main .oh-sidebar__menu-link span,
+.oh-wrapper-main .oh-sidebar__submenu-items {
+  display: revert;
 }
-/* always reveal nav labels + submenus */
-.oh-wrapper-main--closed .oh-sidebar__menu-link span,
-.oh-wrapper-main--closed .oh-sidebar__submenu-items {
-  display: revert !important;
-}
-/* restore the expanded link layout (icon + text inline) */
-.oh-wrapper-main--closed .oh-sidebar__menu-link,
-.oh-wrapper-main--closed .oh-sidebar__submenu {
+.oh-wrapper-main .oh-sidebar__menu-link {
   justify-content: flex-start !important;
   text-align: left !important;
 }
-.oh-wrapper-main--closed .oh-sidebar__menu-item { margin-bottom: 0 !important; }
-.oh-wrapper-main--closed .oh-sidebar__menu-icon { margin-right: 12px !important; }
-/* keep the sidebar visible on small screens too */
-.oh-wrapper-main--closed #sidebar { display: block !important; }
+.oh-wrapper-main .oh-sidebar__menu-icon { margin-right: 12px !important; }
 
+/* CLOSED — collapse the rail completely and slide it off-canvas */
+.oh-wrapper-main--closed {
+  -ms-grid-columns: 0 auto !important;
+  grid-template-columns: 0 auto !important;
+}
+.oh-wrapper-main--closed #sidebar {
+  transform: translateX(-100%) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+}
+
+/* On small screens the sidebar overlays content; keep that pattern intact */
 @media (max-width: 767.98px) {
   .oh-wrapper-main,
   .oh-wrapper-main--closed {
