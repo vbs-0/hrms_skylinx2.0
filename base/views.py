@@ -1360,7 +1360,7 @@ def user_group_search(request):
     groups = Group.objects.filter(name__icontains=search).prefetch_related(
         Prefetch('permissions')
     ).annotate(
-        user_count=Count('user_set', distinct=True)
+        user_count=Count('user', distinct=True)
     )
     return render(
         request,
