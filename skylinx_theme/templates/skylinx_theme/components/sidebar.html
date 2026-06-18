@@ -1092,11 +1092,25 @@ function removeId(element, storeKey = "selectedInstances") {
 
       var s = document.getElementById("sidebar") || sidebarEl;
       if (s && s.contains(e.target)) return;
-      closeAll();
+
+      // If sidebar is open, close it entirely
+      if (document.body.classList.contains("sidebar-toggled")) {
+        document.body.classList.remove("sidebar-toggled");
+        localStorage.setItem('sidebarToggled', 'false');
+        closeAll({ force: true });
+      } else {
+        closeAll();
+      }
     }, true);
 
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") closeAll({ force: true });
+      if (e.key === "Escape") {
+        if (document.body.classList.contains("sidebar-toggled")) {
+          document.body.classList.remove("sidebar-toggled");
+          localStorage.setItem('sidebarToggled', 'false');
+        }
+        closeAll({ force: true });
+      }
     });
 
     /*

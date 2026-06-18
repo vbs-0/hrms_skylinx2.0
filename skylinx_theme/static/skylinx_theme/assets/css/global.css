@@ -1145,3 +1145,83 @@ input[type="checkbox"].custom-checkbox:hover {
 ::-webkit-scrollbar-thumb:hover {
   background-color: #8a8a8a;
 }
+
+/* ============= HTMX LOADING INDICATORS ============= */
+.htmx-request {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.htmx-indicator {
+  display: none;
+  opacity: 0;
+  transition: opacity 200ms ease-in;
+}
+
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+  display: inline-flex;
+  opacity: 1;
+}
+
+/* ============= GLOBAL SPINNER ============= */
+.oh-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e6e6e6;
+  border-bottom-color: #1c75bc;
+  border-radius: 50%;
+  display: inline-block;
+  animation: oh-spinner-rotation 1s linear infinite;
+}
+
+@keyframes oh-spinner-rotation {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Page-level loading indicator */
+#global-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255,255,255,0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+#global-loader.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Button loading indicator */
+.btn-loading {
+  position: relative;
+  pointer-events: none;
+}
+
+.btn-loading .btn-text {
+  visibility: hidden;
+}
+
+.btn-loading .oh-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
+}

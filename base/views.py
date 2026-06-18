@@ -1355,7 +1355,13 @@ def user_group_search(request):
     search = ""
     if request.GET.get("search"):
         search = str(request.GET["search"])
-    groups = Group.objects.filter(name__icontains=search)
+    # Optimize query with prefetch_related and annotate user count
+    from django.db.models import Prefetch, Count
+    groups = Group.objects.filter(name__icontains=search).prefetch_related(
+        Prefetch('permissions')
+    ).annotate(
+        user_count=Count('user_set', distinct=True)
+    )
     return render(
         request,
         "base/auth/group_lines.html",
@@ -1448,8 +1454,8 @@ def user_group_permission_remove(request, pid, gid):
         pid: permission id
         gid: group id
     """
-    group = Group.objects.get(id=1)
-    permission = Permission.objects.get(id=2)
+    group = Group.objects.get(id=gid)
+    permission = Permission.objects.get(id=pid)
     group.permissions.remove(permission)
     return SkylinxRedirect(request)
 

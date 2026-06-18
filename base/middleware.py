@@ -338,12 +338,30 @@ class ForcePasswordChangeMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        excluded_paths = ["/change-password", "/login", "/logout"]
-        if request.path.rstrip("/") in excluded_paths:
+        excluded_paths = [
+            "/change-password",
+            "/login",
+            "/logout",
+            "/get-skylinx-installed-apps",
+            "/notifications",
+            "/inbox/notifications",
+            "/jsi18n",
+            "/reload-messages"
+        ]
+        # Check if path starts with any of the excluded paths
+        excluded = False
+        path = request.path.rstrip("/")
+        for excluded_path in excluded_paths:
+            if path == excluded_path or path.startswith(excluded_path + "/"):
+                excluded = True
+                break
+        
+        if excluded:
             return self.get_response(request)
 
         if hasattr(request, "user") and request.user.is_authenticated:
-            if getattr(request.user, "is_new_employee", True):
+            # Only redirect if is_new_employee is explicitly True, not defaulting to True
+            if getattr(request.user, "is_new_employee", False):
                 return redirect("change-password")
 
         return self.get_response(request)
@@ -364,9 +382,21 @@ class TwoFactorAuthMiddleware:
             "/logout",
             "/two-factor",
             "/send-otp",
+            "/get-skylinx-installed-apps",
+            "/notifications",
+            "/inbox/notifications",
+            "/jsi18n",
+            "/reload-messages"
         ]
-
-        if request.path.rstrip("/") in excluded_paths:
+        # Check if path starts with any of the excluded paths
+        excluded = False
+        path = request.path.rstrip("/")
+        for excluded_path in excluded_paths:
+            if path == excluded_path or path.startswith(excluded_path + "/"):
+                excluded = True
+                break
+        
+        if excluded:
             return self.get_response(request)
 
         if settings.TWO_FACTORS_AUTHENTICATION:

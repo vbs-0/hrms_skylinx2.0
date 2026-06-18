@@ -172,13 +172,14 @@
                 pointer-events: auto;
                 box-shadow: 10px 0 35px -5px rgba(15, 23, 42, 0.2);
             }
+            /* Don't push main content, just hover */
             body.sidebar-toggled #main-content-wrapper {
-                margin-left: 260px !important;
+                margin-left: 0 !important;
             }
             body.sidebar-toggled #header > div,
             body.sidebar-toggled #submodules-toolbar {
-                width: calc(100% - 260px) !important;
-                left: 260px !important;
+                width: 100% !important;
+                left: 0 !important;
             }
             body.sidebar-toggled #sidebar .sidebar-top-header {
                 display: flex !important;
@@ -189,6 +190,17 @@
             }
             body.sidebar-toggled #sidebarSharedPanel {
                 left: 259px !important;
+            }
+            /* Add an overlay when sidebar is open for better UX */
+            body.sidebar-toggled::before {
+                content: "";
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.15);
+                z-index: 35;
             }
 
             @keyframes fadeInText {
