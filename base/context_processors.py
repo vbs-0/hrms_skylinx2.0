@@ -384,7 +384,10 @@ def biometric_app_exists(request):
 
 
 def enable_late_come_early_out_tracking(request):
-    selected_company = request.session.get("selected_company", "all")
+    if request is None:
+        selected_company = "all"
+    else:
+        selected_company = request.session.get("selected_company", "all")
     cache_key = f"late_come_early_out_tracking_{selected_company}"
     enable = cache.get(cache_key)
     
