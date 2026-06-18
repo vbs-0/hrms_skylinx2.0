@@ -9,6 +9,7 @@ import re
 from django.apps import apps
 from django.conf import settings
 from django.contrib import messages
+from django.core.cache import cache
 from django.http import HttpResponse
 from django.urls import path, reverse
 from django.utils.translation import gettext_lazy as _
@@ -24,6 +25,8 @@ from employee.models import (
 from skylinx.decorators import hx_request_required, login_required, permission_required
 from skylinx.http.response import SkylinxRedirect
 from skylinx.methods import get_skylinx_model_class
+
+CACHE_TIMEOUT = getattr(settings, "CACHE_TIMEOUT", 3600)
 
 
 class AllCompany:
@@ -224,20 +227,26 @@ def resignation_request_enabled(request):
     Check weather resignation_request enabled of not in offboarding
     """
     selected_company = request.session.get("selected_company")
-    enabled_resignation_request = False
-    first = None
-    if apps.is_installed("offboarding"):
-        OffboardingGeneralSetting = get_skylinx_model_class(
-            app_label="offboarding", model="offboardinggeneralsetting"
-        )
-        if selected_company and selected_company != "all":
-            first = OffboardingGeneralSetting.objects.filter(
-                company_id=selected_company
-            ).first()
-        else:
-            first = OffboardingGeneralSetting.objects.first()
-    if first:
-        enabled_resignation_request = first.resignation_request
+    cache_key = f"resignation_request_enabled_{selected_company}"
+    enabled_resignation_request = cache.get(cache_key)
+    
+    if enabled_resignation_request is None:
+        enabled_resignation_request = False
+        first = None
+        if apps.is_installed("offboarding"):
+            OffboardingGeneralSetting = get_skylinx_model_class(
+                app_label="offboarding", model="offboardinggeneralsetting"
+            )
+            if selected_company and selected_company != "all":
+                first = OffboardingGeneralSetting.objects.filter(
+                    company_id=selected_company
+                ).first()
+            else:
+                first = OffboardingGeneralSetting.objects.first()
+        if first:
+            enabled_resignation_request = first.resignation_request
+        cache.set(cache_key, enabled_resignation_request, CACHE_TIMEOUT)
+    
     return {"enabled_resignation_request": enabled_resignation_request}
 
 
@@ -245,15 +254,21 @@ def timerunner_enabled(request):
     """
     Check weather resignation_request enabled of not in offboarding
     """
-    first = None
-    enabled_timerunner = True
-    if apps.is_installed("attendance"):
-        AttendanceGeneralSetting = get_skylinx_model_class(
-            app_label="attendance", model="attendancegeneralsetting"
-        )
-        first = AttendanceGeneralSetting.objects.first()
-    if first:
-        enabled_timerunner = first.time_runner
+    cache_key = "timerunner_enabled"
+    enabled_timerunner = cache.get(cache_key)
+    
+    if enabled_timerunner is None:
+        first = None
+        enabled_timerunner = True
+        if apps.is_installed("attendance"):
+            AttendanceGeneralSetting = get_skylinx_model_class(
+                app_label="attendance", model="attendancegeneralsetting"
+            )
+            first = AttendanceGeneralSetting.objects.first()
+        if first:
+            enabled_timerunner = first.time_runner
+        cache.set(cache_key, enabled_timerunner, CACHE_TIMEOUT)
+    
     return {"enabled_timerunner": enabled_timerunner}
 
 
@@ -261,15 +276,21 @@ def intial_notice_period(request):
     """
     Check weather resignation_request enabled of not in offboarding
     """
-    initial = 30
-    first = None
-    if apps.is_installed("payroll"):
-        PayrollGeneralSetting = get_skylinx_model_class(
-            app_label="payroll", model="payrollgeneralsetting"
-        )
-        first = PayrollGeneralSetting.objects.first()
-    if first:
-        initial = first.notice_period
+    cache_key = "initial_notice_period"
+    initial = cache.get(cache_key)
+    
+    if initial is None:
+        initial = 30
+        first = None
+        if apps.is_installed("payroll"):
+            PayrollGeneralSetting = get_skylinx_model_class(
+                app_label="payroll", model="payrollgeneralsetting"
+            )
+            first = PayrollGeneralSetting.objects.first()
+        if first:
+            initial = first.notice_period
+        cache.set(cache_key, initial, CACHE_TIMEOUT)
+    
     return {"get_initial_notice_period": initial}
 
 
@@ -277,25 +298,30 @@ def check_candidate_self_tracking(request):
     """
     This method is used to get the candidate self tracking is enabled or not
     """
-
-    candidate_self_tracking = False
     selected_company = request.session.get("selected_company")
-    if apps.is_installed("recruitment"):
-        RecruitmentGeneralSetting = get_skylinx_model_class(
-            app_label="recruitment", model="recruitmentgeneralsetting"
-        )
-        if selected_company and selected_company != "all":
-            first = RecruitmentGeneralSetting.objects.filter(
-                company_id_id=selected_company
-            ).first()
+    cache_key = f"candidate_self_tracking_{selected_company}"
+    candidate_self_tracking = cache.get(cache_key)
+    
+    if candidate_self_tracking is None:
+        candidate_self_tracking = False
+        if apps.is_installed("recruitment"):
+            RecruitmentGeneralSetting = get_skylinx_model_class(
+                app_label="recruitment", model="recruitmentgeneralsetting"
+            )
+            if selected_company and selected_company != "all":
+                first = RecruitmentGeneralSetting.objects.filter(
+                    company_id_id=selected_company
+                ).first()
+            else:
+                first = RecruitmentGeneralSetting.objects.filter(
+                    company_id__isnull=True
+                ).first()
         else:
-            first = RecruitmentGeneralSetting.objects.filter(
-                company_id__isnull=True
-            ).first()
-    else:
-        first = None
-    if first:
-        candidate_self_tracking = first.candidate_self_tracking
+            first = None
+        if first:
+            candidate_self_tracking = first.candidate_self_tracking
+        cache.set(cache_key, candidate_self_tracking, CACHE_TIMEOUT)
+    
     return {"check_candidate_self_tracking": candidate_self_tracking}
 
 
@@ -303,24 +329,30 @@ def check_candidate_self_tracking_rating(request):
     """
     This method is used to check enabled/disabled of rating option
     """
-    rating_option = False
     selected_company = request.session.get("selected_company")
-    if apps.is_installed("recruitment"):
-        RecruitmentGeneralSetting = get_skylinx_model_class(
-            app_label="recruitment", model="recruitmentgeneralsetting"
-        )
-        if selected_company and selected_company != "all":
-            first = RecruitmentGeneralSetting.objects.filter(
-                company_id_id=selected_company
-            ).first()
+    cache_key = f"candidate_self_tracking_rating_{selected_company}"
+    rating_option = cache.get(cache_key)
+    
+    if rating_option is None:
+        rating_option = False
+        if apps.is_installed("recruitment"):
+            RecruitmentGeneralSetting = get_skylinx_model_class(
+                app_label="recruitment", model="recruitmentgeneralsetting"
+            )
+            if selected_company and selected_company != "all":
+                first = RecruitmentGeneralSetting.objects.filter(
+                    company_id_id=selected_company
+                ).first()
+            else:
+                first = RecruitmentGeneralSetting.objects.filter(
+                    company_id__isnull=True
+                ).first()
         else:
-            first = RecruitmentGeneralSetting.objects.filter(
-                company_id__isnull=True
-            ).first()
-    else:
-        first = None
-    if first:
-        rating_option = first.show_overall_rating
+            first = None
+        if first:
+            rating_option = first.show_overall_rating
+        cache.set(cache_key, rating_option, CACHE_TIMEOUT)
+    
     return {"check_candidate_self_tracking_rating": rating_option}
 
 
@@ -328,13 +360,20 @@ def get_initial_prefix(request):
     """
     This method is used to get the initial prefix
     """
-    settings = EmployeeGeneralSetting.objects.first()
-    instance_id = None
-    prefix = "PEP"
-    if settings:
-        instance_id = settings.id
-        prefix = settings.badge_id_prefix
-    return {"get_initial_prefix": prefix, "prefix_instance_id": instance_id}
+    cache_key = "initial_prefix"
+    cached_data = cache.get(cache_key)
+    
+    if cached_data is None:
+        settings = EmployeeGeneralSetting.objects.first()
+        instance_id = None
+        prefix = "PEP"
+        if settings:
+            instance_id = settings.id
+            prefix = settings.badge_id_prefix
+        cached_data = {"prefix": prefix, "instance_id": instance_id}
+        cache.set(cache_key, cached_data, CACHE_TIMEOUT)
+    
+    return {"get_initial_prefix": cached_data["prefix"], "prefix_instance_id": cached_data["instance_id"]}
 
 
 def biometric_app_exists(request):
@@ -345,26 +384,38 @@ def biometric_app_exists(request):
 
 
 def enable_late_come_early_out_tracking(request):
-    if request is None:
-        tracking = TrackLateComeEarlyOut.objects.first()
-        enable = tracking.is_enable if tracking else True
-        return {"tracking": enable, "late_come_early_out_tracking": enable}
-    selected_company = request.session.get("selected_company")
-    if selected_company == "all":
-        company = None
-    else:
-        company = Company.objects.filter(id=selected_company).first()
+    selected_company = request.session.get("selected_company", "all")
+    cache_key = f"late_come_early_out_tracking_{selected_company}"
+    enable = cache.get(cache_key)
+    
+    if enable is None:
+        if request is None:
+            tracking = TrackLateComeEarlyOut.objects.first()
+            enable = tracking.is_enable if tracking else True
+        else:
+            if selected_company == "all":
+                company = None
+            else:
+                company = Company.objects.filter(id=selected_company).first()
 
-    tracking = TrackLateComeEarlyOut.objects.filter(company_id=company).first()
-    enable = tracking.is_enable if tracking else True
+            tracking = TrackLateComeEarlyOut.objects.filter(company_id=company).first()
+            enable = tracking.is_enable if tracking else True
+        cache.set(cache_key, enable, CACHE_TIMEOUT)
+    
     return {"tracking": enable, "late_come_early_out_tracking": enable}
 
 
 def enable_profile_edit(request):
     from accessibility.accessibility import ACCESSBILITY_FEATURE
 
-    profile_edit = ProfileEditFeature.objects.filter().first()
-    enable = False if profile_edit and profile_edit.is_enabled else True
+    cache_key = "profile_edit_enabled"
+    enable = cache.get(cache_key)
+    
+    if enable is None:
+        profile_edit = ProfileEditFeature.objects.filter().first()
+        enable = False if profile_edit and profile_edit.is_enabled else True
+        cache.set(cache_key, enable, CACHE_TIMEOUT)
+    
     if enable:
         if not any(item[0] == "profile_edit" for item in ACCESSBILITY_FEATURE):
             ACCESSBILITY_FEATURE.append(("profile_edit", _("Profile Edit Access")))

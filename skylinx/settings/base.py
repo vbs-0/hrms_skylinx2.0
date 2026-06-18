@@ -335,6 +335,21 @@ DJANGO_NOTIFICATIONS_CONFIG = {
     "TEMPLATE": "notifications.html",
 }
 
+# Cache configuration
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "skylinx-cache",
+        "OPTIONS": {
+            "MAX_ENTRIES": 1000,
+            "CULL_FREQUENCY": 3,
+        },
+    }
+}
+
+# Default cache timeout in seconds (1 hour)
+CACHE_TIMEOUT = 3600
+
 # ========================================
 # SKYLINX-SPECIFIC SETTINGS
 # ========================================

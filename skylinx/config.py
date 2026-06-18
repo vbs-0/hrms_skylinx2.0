@@ -10,6 +10,7 @@ import logging
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.context_processors import PermWrapper
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -25,17 +26,11 @@ def import_method(accessibility):
     return accessibility_method
 
 
-ALL_MENUS = {}
-
-
-def sidebar(request):
-
+def generate_sidebar(request):
     base_dir_apps = get_apps_in_base_dir()
+    MENUS = []
 
     if not request.user.is_anonymous:
-        request.MENUS = []
-        MENUS = request.MENUS
-
         for app in base_dir_apps:
             if apps.is_installed(app):
                 # Licensing: hide nav for paid features this instance can't use.
@@ -97,15 +92,22 @@ def sidebar(request):
         order_index = {app: i for i, app in enumerate(SIDEBAR_ORDER)}
         MENUS.sort(key=lambda m: order_index.get(m.get("app"), len(SIDEBAR_ORDER)))
 
-        session_key = getattr(request.session, "session_key", None) if hasattr(request, "session") else None
-        ALL_MENUS[session_key] = MENUS
+    return MENUS
 
 
 def get_MENUS(request):
-    session_key = getattr(request.session, "session_key", None) if hasattr(request, "session") else None
-    ALL_MENUS[session_key] = []
-    sidebar(request)
-    return {"sidebar": ALL_MENUS.get(session_key)}
+    if not request.user.is_authenticated:
+        return {"sidebar": []}
+    
+    # Use user ID for cache key instead of session key
+    cache_key = f"sidebar_menus_user_{request.user.id}"
+    sidebar_menus = cache.get(cache_key)
+    
+    if sidebar_menus is None:
+        sidebar_menus = generate_sidebar(request)
+        cache.set(cache_key, sidebar_menus, timeout=getattr(settings, "CACHE_TIMEOUT", 3600))
+    
+    return {"sidebar": sidebar_menus}
 
 
 def load_ldap_settings():
