@@ -1018,9 +1018,111 @@ class Workinfo:
 @login_required
 def home(request):
     """
-    This method is used to render index page — redirects to the modern dashboard.
+    Renders the Home Page — a visual launchpad showing all module navigation cards.
     """
-    return redirect("dashboard")
+    if not request.user.is_authenticated:
+        return redirect("login")
+    return render(request, "home_page.html")
+
+
+@login_required
+def global_search(request):
+    """
+    Global search API: searches employees and permission-filtered module pages.
+    Returns JSON for the header live search bar.
+    """
+    query = request.GET.get("q", "").strip()
+    results = []
+
+    if not query or len(query) < 2:
+        return JsonResponse({"results": []})
+
+    q_lower = query.lower()
+
+    # ── 1. Employee search (permission-scoped) ───────────────────────────────
+    if request.user.has_perm("employee.view_employee"):
+        try:
+            from employee.models import Employee
+
+            employees = Employee.objects.filter(is_active=True)
+            employees = filtersubordinatesemployeemodel(
+                request, employees, perm="employee.view_employee"
+            )
+            employees = employees.filter(
+                Q(employee_first_name__icontains=query)
+                | Q(employee_last_name__icontains=query)
+                | Q(badge_id__icontains=query)
+                | Q(email__icontains=query)
+                | Q(employee_work_info__department_id__department__icontains=query)
+                | Q(employee_work_info__job_position_id__job_position__icontains=query)
+            ).select_related(
+                "employee_work_info__department_id",
+                "employee_work_info__job_position_id",
+            ).distinct()[:8]
+
+            for emp in employees:
+                dept = ""
+                try:
+                    dept = (
+                        str(emp.employee_work_info.department_id)
+                        if emp.employee_work_info.department_id
+                        else ""
+                    )
+                except Exception:
+                    pass
+                results.append(
+                    {
+                        "type": "employee",
+                        "label": emp.get_full_name(),
+                        "sub": dept or emp.email or "",
+                        "url": f"/employee/employee-view/?search={emp.employee_first_name}",
+                        "icon": "person",
+                        "avatar": emp.employee_profile.url
+                        if emp.employee_profile
+                        else None,
+                    }
+                )
+        except Exception:
+            pass
+
+    # ── 2. Module / feature search from permission-filtered sidebar ─────────
+    from skylinx.config import get_MENUS
+
+    menus = get_MENUS(request).get("sidebar", [])
+    feature_entries = [
+        ("Dashboard", "Overview & Analytics", "/dashboard/", "dashboard"),
+        ("Home Page", "Module launchpad", "/", "dashboard"),
+    ]
+    for module in menus:
+        for submenu in module.get("submenu", []):
+            feature_entries.append(
+                (
+                    submenu.get("menu", module.get("menu", "")),
+                    module.get("menu", ""),
+                    submenu.get("redirect", "/"),
+                    module.get("app", "dashboard"),
+                )
+            )
+
+    seen_urls = set()
+    for label, sub, url, icon in feature_entries:
+        if not url or url in seen_urls:
+            continue
+        if q_lower not in label.lower() and q_lower not in sub.lower():
+            continue
+        seen_urls.add(url)
+        results.append(
+            {
+                "type": "feature",
+                "label": label,
+                "sub": sub,
+                "url": url,
+                "icon": icon,
+                "avatar": None,
+            }
+        )
+
+    return JsonResponse({"results": results[:10]})
 
 
 @login_required

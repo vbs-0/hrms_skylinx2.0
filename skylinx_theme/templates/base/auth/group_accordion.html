@@ -52,10 +52,6 @@
         <div
             id="permissionContainer"
             class="accordion-wrapper space-y-2"
-            onclick="
-                $(this).next().toggle();
-                $(this).toggleClass('perm-accordion-active');
-            "
         >
             {% include "base/auth/group_lines.html" %}
         </div>
@@ -348,38 +344,28 @@
     });
 
     // Inner accordion logic (supports multiple)
-    document.addEventListener("DOMContentLoaded", () => {
-        document
-            .querySelectorAll(".inner-accordion-toggle")
-            .forEach((toggle) => {
-                const content = toggle.nextElementSibling;
+    $(document).on("click", ".inner-accordion-toggle", function () {
+        const $toggle = $(this);
+        const $content = $toggle.next(".inner-accordion-content");
 
-                // Open by default if needed (optional)
-                // content.style.maxHeight = content.scrollHeight + "px";
-                // content.style.opacity = "1";
+        if (!$content.length) return;
 
-                toggle.addEventListener("click", () => {
-                    const isOpen =
-                        content.style.maxHeight &&
-                        content.style.maxHeight !== "0px";
+        const isOpen =
+            $content.css("max-height") !== "0px" &&
+            $content.css("max-height") !== "none";
 
-                    if (isOpen) {
-                        content.style.maxHeight = "0";
-                        content.style.opacity = "0";
-                    } else {
-                        content.style.maxHeight = "500px";
-                        content.style.opacity = "1";
-                    }
+        if (isOpen) {
+            $content.css({ "max-height": "0", "opacity": "0" });
+        } else {
+            $content.css({ "max-height": "500px", "opacity": "1" });
+        }
 
-                    // Adjust parent height (if inside outer accordion)
-                    const outerPanel = toggle.closest(".accordion-panel-gp");
-                    if (outerPanel) {
-                        setTimeout(() => {
-                            outerPanel.style.maxHeight =
-                                outerPanel.scrollHeight + "px";
-                        }, 250);
-                    }
-                });
-            });
+        // Adjust parent height (if inside outer accordion)
+        const $outerPanel = $toggle.closest(".accordion-panel-gp");
+        if ($outerPanel.length) {
+            setTimeout(() => {
+                $outerPanel.css("max-height", $outerPanel[0].scrollHeight + "px");
+            }, 250);
+        }
     });
 </script>

@@ -66,6 +66,7 @@ from skylinx_audit.models import AuditTag
 
 urlpatterns = [
     path("", views.home, name="home-page"),
+    path("global-search/", views.global_search, name="global-search"),
     path("dashboard/", dashboard_module.main_dashboard_view, name="dashboard"),
     path(
         "dashboard/api/kpi/",

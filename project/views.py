@@ -1581,18 +1581,30 @@ def get_members(request):
             project = Project.objects.filter(id=project_id).first()
             task = Task.objects.filter(id=task_id).first()
             employee = Employee.objects.filter(id=request.user.employee_get.id)
-            if employee.first() in project.managers.all():
-                members = (
-                    employee
-                    | project.members.all()
-                    | task.task_managers.all()
-                    | task.task_members.all()
-                ).distinct()
-            elif employee.first() in task.task_managers.all():
-                members = (employee | task.task_members.all()).distinct()
-            else:
-                members = employee
-            form.fields["employee_id"].queryset = members
+            emp = employee.first()
+            if project and task and emp:
+                if (
+                    request.user.is_superuser
+                    or request.user.has_perm("project.add_timesheet")
+                ):
+                    members = (
+                        project.managers.all()
+                        | project.members.all()
+                        | task.task_managers.all()
+                        | task.task_members.all()
+                    ).distinct()
+                elif emp in project.managers.all():
+                    members = (
+                        employee
+                        | project.members.all()
+                        | task.task_managers.all()
+                        | task.task_members.all()
+                    ).distinct()
+                elif emp in task.task_managers.all():
+                    members = (employee | task.task_members.all()).distinct()
+                else:
+                    members = employee
+                form.fields["employee_id"].queryset = members
     else:
         form.fields["employee_id"].queryset = Employee.objects.none()
 

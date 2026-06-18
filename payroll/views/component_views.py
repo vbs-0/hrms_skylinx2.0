@@ -1267,13 +1267,19 @@ def filter_payslip(request):
 
 
 @login_required
-@permission_required("payroll.change_payslip")
 def payslip_export(request):
     """
     This view exports payslip data based on selected fields and filters,
     and generates an Excel file for download.
     """
-    if request.META.get("HTTP_HX_REQUEST"):
+    if not (
+        request.user.has_perm("payroll.change_payslip")
+        or request.user.has_perm("payroll.view_payslip")
+        or request.user.has_perm("payroll.add_payslip")
+    ):
+        return HttpResponse(_("Permission denied"), status=403)
+
+    if request.META.get("HTTP_HX_REQUEST") and not request.GET.getlist("selected_fields"):
         return render(
             request,
             "payroll/payslip/payslip_export_filter.html",
@@ -2208,6 +2214,14 @@ def payslip_detailed_export_data(request):
     selected_fields = request.GET.getlist("selected_fields")
     form = forms.PayslipExportColumnForm()
 
+    ids = request.GET.get("ids", "[]")
+    try:
+        id_list = json.loads(ids)
+        if id_list:
+            payslips = Payslip.objects.filter(id__in=id_list)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        pass
+
     allowances = Allowance.objects.all()
     deductions = Deduction.objects.all()
 
@@ -2407,7 +2421,6 @@ def payslip_detailed_export_data(request):
 
 
 @login_required
-@permission_required("payroll.change_payslip")
 def payslip_detailed_export(request):
     """
     Generate an Excel file for download containing detailed payslip data based on
@@ -2419,6 +2432,12 @@ def payslip_detailed_export(request):
     Returns:
         HttpResponse: A response object with the Excel file as an attachment.
     """
+    if not (
+        request.user.has_perm("payroll.change_payslip")
+        or request.user.has_perm("payroll.view_payslip")
+        or request.user.has_perm("payroll.add_payslip")
+    ):
+        return HttpResponse(_("Permission denied"), status=403)
 
     if request.META.get("HTTP_HX_REQUEST"):
         return render(

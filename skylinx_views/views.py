@@ -47,6 +47,14 @@ from skylinx_views.forms import SavedFilterForm
 from skylinx_views.generic.cbv.views import SkylinxFormView, SkylinxListView
 from skylinx_views.templatetags.generic_template_filters import getattribute
 
+def strip_html_tags(text):
+    """Strip HTML tags from text"""
+    if not isinstance(text, str):
+        return text
+    clean = re.compile("<.*?>")
+    return re.sub(clean, "", text)
+
+
 # Create your views here.
 
 
@@ -1077,7 +1085,7 @@ def export_data(request, *args, **kwargs):
                 value = getattr(value, part, None)
                 if callable(value):
                     value = value()
-            method_maps[idx][obj_id] = str(value) if value is not None else ""
+            method_maps[idx][obj_id] = strip_html_tags(str(value) if value is not None else "")
 
     # =====================================================
     # FINAL ROWS
@@ -1089,7 +1097,9 @@ def export_data(request, *args, **kwargs):
         obj_id = row[0]
         for idx, mmap in method_maps.items():
             row[idx] = mmap.get(obj_id, "")
-        final_rows.append(row[1:])
+        # Strip HTML from all values
+        cleaned_row = [strip_html_tags(str(cell)) if cell is not None else "" for cell in row[1:]]
+        final_rows.append(cleaned_row)
 
     # =====================================================
     # XLSX EXPORT (FIXED WIDTH – PERFORMANCE SAFE)

@@ -96,6 +96,16 @@ class PayslipList(SkylinxListView):
         (_("Net Pay"), "net_pay_display"),
         (_("Status"), "custom_status_col"),
     ]
+    export_columns = [
+        (_("Employee"), "employee_id", "employee_id__get_avatar"),
+        (_("Start date"), "start_date"),
+        (_("End Date"), "end_date"),
+        (_("Batch"), "group_name"),
+        (_("Gross Pay"), "gross_pay_text"),
+        (_("Deduction"), "deduction_text"),
+        (_("Net Pay"), "net_pay_text"),
+        (_("Status"), "get_status_display"),
+    ]
 
     sortby_mapping = [
         (_("Employee"), "employee_id__get_full_name", "employee_id__get_avatar"),
@@ -281,7 +291,7 @@ class PayslipBulkExport(TemplateView):
             Dict[str, Any]: Updated context dictionary containing export form and filter.
         """
         payslip = Payslip.objects.all()
-        export_column = forms.PayslipExportColumnForm
+        export_column = forms.PayslipExportColumnForm()
         export_filter = PayslipFilter(queryset=payslip)
         context = super().get_context_data(**kwargs)
         context["export_column"] = export_column

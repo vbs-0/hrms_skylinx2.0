@@ -131,30 +131,44 @@
   }
 </style>
 <div id="sidebar" class="fixed inset-y-0 left-0 w-auto bg-white border-r border-r-dark-50 z-50">
-  <div class="p-4">
-    <div class="flex items-center justify-center gap-2 mb-6">
-      {% if request.session.selected_company_instance %}
-        <img
-          src="{{request.session.selected_company_instance.icon}}"
-          class="w-10 h-10 rounded-full"
-          title="{{request.session.selected_company_instance.company}}"
-        />
-      {% else %}
-        <img src="/static/skylinx_theme/assets/img/skylinx-logo.png" alt="Logo" class="w-10 h-10" />
-      {% endif %}
-    </div>
+  <div class="sidebar-top-header h-[65px] px-5 flex items-center gap-3 border-b border-b-dark-50 mb-4">
+      <!-- Hamburger toggle button inside the sidebar itself -->
+      <button
+          id="sidebarCloseToggle"
+          class="sidebar-text p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition duration-200 flex items-center justify-center dark:text-slate-300 dark:hover:bg-slate-800 flex-shrink-0"
+          onclick="toggleSidebar()"
+          aria-label="Close sidebar"
+      >
+          <i class="fa-solid fa-bars text-lg"></i>
+      </button>
+      <div class="flex items-center gap-3 overflow-hidden">
+        {% if request.session.selected_company_instance %}
+          <img
+            src="{{request.session.selected_company_instance.icon}}"
+            class="w-10 h-10 rounded-full flex-shrink-0"
+            title="{{request.session.selected_company_instance.company}}"
+          />
+          <span class="sidebar-text font-bold text-slate-800 dark:text-white text-base truncate">{{request.session.selected_company_instance.company}}</span>
+        {% else %}
+          <img src="/static/skylinx_theme/assets/img/skylinx-logo.png" alt="Logo" class="w-10 h-10 flex-shrink-0" />
+          <span class="sidebar-text font-bold text-slate-800 dark:text-white text-base truncate">Skylinx HRMS</span>
+        {% endif %}
+      </div>
+  </div>
 
+  <div class="px-4 pb-4">
     <nav class="space-y-2 overflow-hidden overflow-y-auto h-[calc(100vh_-_95px)] sidebar-scroll" role="navigation" aria-label="{% trans 'Main navigation' %}">
       {% include "skylinx_theme/components/sidebar/top_menu.html" %}
       {% for menues in sidebar %}
-        <button class="sideboxmain group flex items-center gap-3 p-3 rounded-full transition duration-300"
+        <button class="sideboxmain group flex items-center gap-3 p-3 rounded-full transition duration-300 w-full justify-start"
           data-menu="{{ menues.menu }}"
           title="{{ menues.menu }}"
           aria-label="{{ menues.menu }}"
           aria-expanded="false"
           aria-haspopup="true">
 
-          <img src="{% static menues.img_src %}" alt="" class="w-4.5 h-4.5 transition duration-300 group-hover:filter group-hover:brightness-0 group-hover:invert" />
+          <img src="{% static menues.img_src %}" alt="" class="w-4.5 h-4.5 transition duration-300 group-hover:filter group-hover:brightness-0 group-hover:invert flex-shrink-0" />
+          <span class="sidebar-text text-sm text-slate-700 dark:text-slate-300 font-medium whitespace-nowrap">{{ menues.menu }}</span>
           <div class="sidebox sidebox-template absolute shadow-card mb-3 bg-white min-w-64 left-[75px]"
                role="menu"
                aria-label="{{ menues.menu }} {% trans 'submenu' %}">
@@ -254,7 +268,46 @@ function removeId(element, storeKey = "selectedInstances") {
 }
 </script>
 <script>
+  // Restore sidebar toggled state immediately to prevent layout flashes
+  (function() {
+    const sidebarToggled = localStorage.getItem('sidebarToggled');
+    if (sidebarToggled === 'true') {
+      document.body.classList.add('sidebar-toggled');
+    } else if (sidebarToggled === 'false') {
+      document.body.classList.remove('sidebar-toggled');
+    }
+  })();
+
   document.addEventListener("DOMContentLoaded", function () {
+    window.toggleSidebar = function() {
+      const body = document.body;
+      const isToggled = body.classList.toggle('sidebar-toggled');
+      localStorage.setItem('sidebarToggled', isToggled ? 'true' : 'false');
+      if (!isToggled) {
+        closeAll({ force: true });
+        var shared = document.getElementById("sidebarSharedPanel");
+        if (shared) {
+          shared.classList.remove("sidebox-visible");
+          shared.style.display = "";
+        }
+      } else {
+        openLastActiveSubmenu();
+      }
+    };
+
+    window.updateBackButtonVisibility = function() {
+      const backBtn = document.getElementById("backButton");
+      if (!backBtn) return;
+      const currentPath = window.location.pathname;
+      if (currentPath === '/' || currentPath === '/home/' || currentPath === '/base/home/') {
+        backBtn.style.display = 'none';
+      } else {
+        backBtn.style.display = 'flex';
+      }
+    };
+
+    // Initialize back button visibility
+    updateBackButtonVisibility();
     /*
      * Delayed sidebar icon tooltip
      * - replaces instant native title tooltip
@@ -355,12 +408,84 @@ function removeId(element, storeKey = "selectedInstances") {
       window.addEventListener("resize", hideTip);
     })();
 
-    // Restore highlighted (active) state from localStorage
-    const activeMenu = localStorage.getItem("activeSidebarMenu");
-    if (activeMenu) {
-      document.querySelectorAll(".sideboxmain").forEach(btn => {
-        if (btn.dataset.menu === activeMenu) btn.classList.add("active");
+    let lastUrlPath = window.location.pathname;
+
+    function updateActiveMenuFromUrl() {
+      const currentPath = window.location.pathname;
+      if (currentPath !== lastUrlPath) {
+        try { localStorage.removeItem("activeSubmenuDismissed"); }
+        catch (_) {}
+        lastUrlPath = currentPath;
+      }
+
+      if (currentPath === '/' || currentPath === '/home/' || currentPath === '/base/home/') {
+        try { localStorage.removeItem("activeSidebarMenu"); }
+        catch (_) {}
+        document.querySelectorAll(".sideboxmain").forEach(el => el.classList.remove("active"));
+        closeAll({ force: true });
+        const homeBtn = document.querySelector('a.sideboxmain[data-menu="Home Page"]');
+        if (homeBtn) homeBtn.classList.add("active");
+        renderSubmodulesToolbar();
+        return;
+      }
+
+      if (currentPath === '/dashboard/') {
+        try { localStorage.removeItem("activeSidebarMenu"); }
+        catch (_) {}
+        document.querySelectorAll(".sideboxmain").forEach(el => el.classList.remove("active"));
+        closeAll({ force: true });
+        renderSubmodulesToolbar();
+        return;
+      }
+
+      let matchedBtn = null;
+      let bestBtnMatchLen = 0;
+      document.querySelectorAll("button.sideboxmain").forEach(btn => {
+        const links = btn.querySelectorAll(".sidebox-template ul li a");
+        links.forEach(link => {
+          const href = link.getAttribute("href") || link.getAttribute("hx-get");
+          if (href) {
+            try {
+              const linkPath = new URL(href, window.location.origin).pathname;
+              if (currentPath === linkPath) {
+                matchedBtn = btn;
+                bestBtnMatchLen = linkPath.length + 10000;
+              } else if (linkPath !== '/' && currentPath.startsWith(linkPath)) {
+                if (linkPath.length > bestBtnMatchLen) {
+                  matchedBtn = btn;
+                  bestBtnMatchLen = linkPath.length;
+                }
+              }
+            } catch (_) {
+              if (currentPath === href) {
+                matchedBtn = btn;
+                bestBtnMatchLen = href.length + 10000;
+              } else if (href !== '/' && currentPath.startsWith(href)) {
+                if (href.length > bestBtnMatchLen) {
+                  matchedBtn = btn;
+                  bestBtnMatchLen = href.length;
+                }
+              }
+            }
+          }
+        });
       });
+
+      if (matchedBtn) {
+        const prevActive = localStorage.getItem("activeSidebarMenu");
+        if (prevActive !== matchedBtn.dataset.menu) {
+          try { localStorage.removeItem("activeSubmenuDismissed"); }
+          catch (_) {}
+        }
+        setActiveSidebarMenu(matchedBtn);
+      } else {
+        // Clear active states if no sidebar button matches the current path
+        document.querySelectorAll(".sideboxmain").forEach(el => el.classList.remove("active"));
+        try { localStorage.removeItem("activeSidebarMenu"); }
+        catch (_) {}
+        closeAll({ force: true });
+        renderSubmodulesToolbar();
+      }
     }
 
     var ignoreCloseUntil = 0;
@@ -459,18 +584,103 @@ function removeId(element, storeKey = "selectedInstances") {
       } catch (_) { /* noop */ }
       document.querySelectorAll(".sideboxmain").forEach(el => el.classList.remove("active"));
       btn.classList.add("active");
+      renderSubmodulesToolbar();
+    }
+
+    function renderSubmodulesToolbar() {
+      const toolbar = document.getElementById("submodules-toolbar-links");
+      const wrapper = document.getElementById("submodules-toolbar");
+      const content = document.getElementById("ohMainContent");
+      if (!toolbar || !wrapper || !content) return;
+
+      const activeBtn = document.querySelector(".sideboxmain.active");
+      if (!activeBtn || activeBtn.tagName.toLowerCase() === "a") {
+        wrapper.style.display = "none";
+        content.style.paddingTop = "96px";
+        return;
+      }
+
+      const template = activeBtn.querySelector(".sidebox-template, :scope > .sidebox");
+      if (!template) {
+        wrapper.style.display = "none";
+        content.style.paddingTop = "96px";
+        return;
+      }
+
+      const links = template.querySelectorAll("ul li a");
+      if (links.length === 0) {
+        wrapper.style.display = "none";
+        content.style.paddingTop = "96px";
+        return;
+      }
+
+      wrapper.style.display = "flex";
+      content.style.paddingTop = "135px";
+
+      const currentPath = window.location.pathname;
+      
+      // Determine the best (longest matching or exact matching) submodule link to highlight
+      let bestLink = null;
+      let bestMatchLen = 0;
+      links.forEach(link => {
+        const href = link.getAttribute("href") || link.getAttribute("hx-get") || "#";
+        if (currentPath === href) {
+          bestLink = link;
+          bestMatchLen = href.length + 10000;
+        } else if (href !== '/' && currentPath.startsWith(href)) {
+          if (href.length > bestMatchLen) {
+            bestLink = link;
+            bestMatchLen = href.length;
+          }
+        }
+      });
+
+      let html = "";
+      links.forEach(link => {
+        const href = link.getAttribute("href") || link.getAttribute("hx-get") || "#";
+        const label = link.textContent.trim();
+        const isCurrent = (link === bestLink);
+
+        const activeClass = isCurrent 
+          ? "submodule-tab-active font-semibold shadow-sm" 
+          : "text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900";
+
+        html += `<a href="${href}" 
+                    hx-get="${href}" 
+                    hx-target="#ohMainContent" 
+                    hx-select="#ohMainContent > *" 
+                    hx-swap="innerHTML show:window:top" 
+                    hx-push-url="true"
+                    class="px-4 py-1.5 text-xs font-semibold rounded-full transition duration-150 whitespace-nowrap ${activeClass}">${label}</a>`;
+      });
+      toolbar.innerHTML = html;
+
+      if (window.htmx) {
+        htmx.process(toolbar);
+      }
     }
 
     function openSidebarMenuButton(btn, opts) {
       if (!btn) return;
+      if (!document.body.classList.contains("sidebar-toggled")) return;
       var options = opts || {};
       var keepCardOpen = !!options.keepCardOpen;
       var currentlyOpen = document.querySelector(".sideboxmain.sidebox-active");
       var sameButton = currentlyOpen === btn;
 
       if (sameButton) {
-        /* No-op for same button to avoid repaint flicker */
-        setActiveSidebarMenu(btn);
+        if (options.isHover) {
+          renderSharedPanelFromButton(btn);
+          positionSidebox(btn);
+          btn.classList.add("sidebox-active");
+          btn.setAttribute("aria-expanded", "true");
+          var shared = getSharedPanel();
+          if (shared) shared.classList.add("sidebox-visible");
+          return;
+        }
+        if (!options.isHover) {
+          setActiveSidebarMenu(btn);
+        }
         return;
       }
 
@@ -496,7 +706,9 @@ function removeId(element, storeKey = "selectedInstances") {
         btn.setAttribute("aria-expanded", "true");
       }
 
-      setActiveSidebarMenu(btn);
+      if (!options.isHover) {
+        setActiveSidebarMenu(btn);
+      }
     }
 
     // Single delegated listener on the nav scroll container
@@ -638,13 +850,36 @@ function removeId(element, storeKey = "selectedInstances") {
         if (!btn) return;
 
         e.stopPropagation();
-        const isAlreadyOpen = btn.classList.contains("sidebox-active");
-        if (isAlreadyOpen) {
+
+        if (btn.tagName.toLowerCase() === "a") {
           closeAll({ force: true });
           setActiveSidebarMenu(btn);
+          try { localStorage.removeItem("activeSubmenuDismissed"); }
+          catch (_) {}
           return;
         }
+
+        // Clear dismissed state since user is explicitly clicking a menu
+        try { localStorage.removeItem("activeSubmenuDismissed"); }
+        catch (_) {}
+
+        // Open the submenu first
         openSidebarMenuButton(btn, { keepCardOpen: true });
+
+        // Navigate to the first submenu page
+        const firstLink = btn.querySelector(".sidebox-template ul li a");
+        if (firstLink) {
+          firstLink.click();
+        } else {
+          // Fallback if no submenu items
+          const isAlreadyOpen = btn.classList.contains("sidebox-active");
+          if (isAlreadyOpen) {
+            closeAll({ force: true });
+            setActiveSidebarMenu(btn);
+            try { localStorage.setItem("activeSubmenuDismissed", "true"); }
+            catch (_) {}
+          }
+        }
       });
     }
 
@@ -715,6 +950,10 @@ function removeId(element, storeKey = "selectedInstances") {
          still absorbed — harmless otherwise since the next user click
          will have moved past this window. */
       bumpGrace(200);
+
+      updateActiveMenuFromUrl();
+      openLastActiveSubmenu();
+      updateBackButtonVisibility();
 
       /* Update breadcrumbs in the header from the sidebar navigation response.
          evt.detail.elt is the settled DOM node (not the sidebar link), so we
@@ -850,6 +1089,7 @@ function removeId(element, storeKey = "selectedInstances") {
     document.addEventListener("click", function (e) {
       if (!e.isTrusted) return;
       if (lastMousedownInSidebar) return;
+
       var s = document.getElementById("sidebar") || sidebarEl;
       if (s && s.contains(e.target)) return;
       closeAll();
@@ -886,8 +1126,15 @@ function removeId(element, storeKey = "selectedInstances") {
     }
 
     function openLastActiveSubmenu() {
+      if (!document.body.classList.contains("sidebar-toggled")) return;
       if (Date.now() < ignoreCloseUntil) return;
       if (document.querySelector(".sideboxmain.sidebox-active")) return;
+
+      let dismissed = false;
+      try { dismissed = localStorage.getItem("activeSubmenuDismissed") === "true"; }
+      catch (_) {}
+      if (dismissed) return;
+
       var lastMenu = null;
       try { lastMenu = localStorage.getItem("activeSidebarMenu"); }
       catch (_) { /* noop */ }
@@ -896,7 +1143,10 @@ function removeId(element, storeKey = "selectedInstances") {
         '.sideboxmain[data-menu="' + lastMenu.replace(/"/g, '\\"') + '"]'
       );
       if (!btn || btn.classList.contains("sidebox-active")) return;
+
+      renderSharedPanelFromButton(btn);
       positionSidebox(btn);
+
       btn.classList.add("sidebox-active");
       btn.setAttribute("aria-expanded", "true");
       document
@@ -916,16 +1166,74 @@ function removeId(element, storeKey = "selectedInstances") {
         var openBtn = document.querySelector(".sideboxmain.sidebox-active");
         if (!openBtn) {
           clearHoverCloseTimer();
-          openSidebarMenuButton(btn, { keepCardOpen: false });
+          openSidebarMenuButton(btn, { keepCardOpen: false, isHover: true });
           return;
         }
         if (openBtn === btn) return;
         clearHoverCloseTimer();
-        openSidebarMenuButton(btn, { keepCardOpen: true });
+        openSidebarMenuButton(btn, { keepCardOpen: true, isHover: true });
       }, true);
 
       sidebarRoot.addEventListener("mousemove", clearHoverCloseTimer, true);
       sidebarRoot.addEventListener("mouseleave", scheduleCloseIfPointerLeavesSidebar, true);
+
+      // Reopen last active submenu when mouse enters the sidebar
+      sidebarRoot.addEventListener("mouseenter", function () {
+        if (!document.body.classList.contains("sidebar-toggled")) return;
+        clearHoverCloseTimer();
+        openLastActiveSubmenu();
+      });
+    }
+
+    // Intercept submodule toolbar clicks for robust programmatic HTMX navigation and sync
+    const toolbarLinksContainer = document.getElementById("submodules-toolbar-links");
+    if (toolbarLinksContainer) {
+      toolbarLinksContainer.addEventListener("click", function (e) {
+        var link = e.target.closest("a[href], a[hx-get]");
+        if (!link) return;
+        var isLeftClick = !e.button || e.button === 0;
+        var isModified = e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
+        if (!isLeftClick || isModified) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        var href = link.getAttribute("href") || link.getAttribute("hx-get") || "/";
+        if (isStandaloneUrl(href)) {
+          window.location.href = href;
+          return;
+        }
+
+        var target = document.getElementById("ohMainContent");
+        if (!target || !window.htmx) {
+          window.location.href = href;
+          return;
+        }
+
+        bumpGrace(1500);
+        window.history.pushState({}, "", href);
+
+        // Instantly transition active tab styling for immediate user feedback
+        toolbarLinksContainer.querySelectorAll("a").forEach(a => {
+          a.className = a.className.replace("submodule-tab-active font-semibold shadow-sm", "text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900");
+        });
+        link.className = link.className.replace("text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900", "submodule-tab-active font-semibold shadow-sm");
+
+        htmx.ajax("GET", href, {
+          source: link,
+          target: "#ohMainContent",
+          select: "#ohMainContent > *",
+          swap: "innerHTML show:window:top",
+          headers: {"HX-Sidebar-Nav": "true"},
+        });
+      }, true);
+    }
+
+    updateActiveMenuFromUrl();
+    if (document.body.classList.contains("sidebar-toggled")) {
+      openLastActiveSubmenu();
+    } else {
+      closeAll({ force: true });
     }
   });
 

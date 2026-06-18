@@ -13,10 +13,10 @@
         </div>
       </div>
       <div class="row">
-        {% for field in export_column.selected_fields %}
+        {% for checkbox in export_column.selected_fields %}
           <div class="col-sm-12 col-md-12 col-lg-4">
             <div class="oh-input-group">
-              <label class="oh-label"> {{ field }} </label>
+              <label class="oh-label">{{ checkbox }}</label>
             </div>
           </div>
         {% endfor %}

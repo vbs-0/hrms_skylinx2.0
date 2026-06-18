@@ -1972,6 +1972,69 @@ class Payslip(SkylinxModel):
             context={"amount": net_pay},
         )
 
+    def gross_pay_text(self):
+        """
+        Plain text gross pay for exports
+        """
+        from django.apps import apps
+        from skylinx.methods import get_skylinx_model_class
+        
+        gross_pay = self.gross_pay
+        amount_str = f"{gross_pay:.2f}"
+        
+        if apps.is_installed("payroll"):
+            PayrollSettings = get_skylinx_model_class(
+                app_label="payroll", model="payrollsettings"
+            )
+            symbol = PayrollSettings.objects.first()
+            currency = symbol.currency_symbol if symbol else "$"
+            if symbol and symbol.position == "postfix":
+                return f"{amount_str} {currency}"
+            return f"{currency} {amount_str}"
+        return f"$ {amount_str}"
+
+    def deduction_text(self):
+        """
+        Plain text deduction for exports
+        """
+        from django.apps import apps
+        from skylinx.methods import get_skylinx_model_class
+        
+        deduction = self.deduction
+        amount_str = f"{deduction:.2f}"
+        
+        if apps.is_installed("payroll"):
+            PayrollSettings = get_skylinx_model_class(
+                app_label="payroll", model="payrollsettings"
+            )
+            symbol = PayrollSettings.objects.first()
+            currency = symbol.currency_symbol if symbol else "$"
+            if symbol and symbol.position == "postfix":
+                return f"{amount_str} {currency}"
+            return f"{currency} {amount_str}"
+        return f"$ {amount_str}"
+
+    def net_pay_text(self):
+        """
+        Plain text net pay for exports
+        """
+        from django.apps import apps
+        from skylinx.methods import get_skylinx_model_class
+        
+        net_pay = self.net_pay
+        amount_str = f"{net_pay:.2f}"
+        
+        if apps.is_installed("payroll"):
+            PayrollSettings = get_skylinx_model_class(
+                app_label="payroll", model="payrollsettings"
+            )
+            symbol = PayrollSettings.objects.first()
+            currency = symbol.currency_symbol if symbol else "$"
+            if symbol and symbol.position == "postfix":
+                return f"{amount_str} {currency}"
+            return f"{currency} {amount_str}"
+        return f"$ {amount_str}"
+
     def custom_status_col(self):
         """
         custom status coloumn
