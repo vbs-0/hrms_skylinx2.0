@@ -65,6 +65,25 @@ class AllowanceForm(ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        advanced_fields = [
+            "include_active_employees",
+            "is_pretax",
+            "update_compensation",
+            "is_fixed",
+            "amount",
+            "is_tax",
+            "employer_rate",
+            "one_time_date",
+            "has_max_limit",
+            "maximum_amount",
+            "is_condition_based",
+            "condition",
+        ]
+        for field in advanced_fields:
+            if field in self.fields:
+                self.fields[field].widget.attrs["data_advanced"] = "true"
+
         if instance := kwargs.get("instance"):
             # django forms not showing value inside the date, time html element.
             # so here overriding default forms instance method to set initial value
