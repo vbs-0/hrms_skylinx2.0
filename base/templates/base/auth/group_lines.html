@@ -21,7 +21,7 @@
     {% if perms.auth.change_group or perms.auth.delete_group %}
       <div class="btn-group">
         {% if perms.auth.change_group %}
-          <button class=" oh-btn oh-btn--light" hx-get="{% url "user-group-assign" %}" hx-vals='{"group":"{{group.id}}"}' hx-target="#groupAssignBody" data-toggle="oh-modal-toggle" data-target="#groupAssign" onclick="event.stopPropagation()">
+          <button type="button" class=" oh-btn oh-btn--light" hx-get="{% url "user-group-assign" %}" hx-vals='{"group":"{{group.id}}"}' hx-target="#groupAssignBody" data-toggle="oh-modal-toggle" data-target="#groupAssign" onclick="event.stopPropagation()">
             <ion-icon name="person-add-outline" class="text-dark"></ion-icon>
           </button>
         {% endif %}

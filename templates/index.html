@@ -249,7 +249,10 @@
     <script>
         document.body.addEventListener('htmx:configRequest', (event) => {
             event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
-        })
+        });
+        if (typeof htmx !== 'undefined') {
+            htmx.config.historyCacheSize = 0;
+        }
     </script>
     <!-- this is the master js  -->
     <script src="{% static '/index/index.js' %}"></script>

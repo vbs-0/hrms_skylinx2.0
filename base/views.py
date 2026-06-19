@@ -1409,7 +1409,16 @@ def group_assign(request):
         if form.is_valid():
             form.save()
             messages.success(request, _("User group assigned."))
-            return SkylinxRedirect(request)
+            return HttpResponse(
+                '<script>'
+                '$("#groupAssign").removeClass("oh-modal--show");'
+                '$(".oh-modal--show").removeClass("oh-modal--show");'
+                '$(".oh-modal-backdrop").remove();'
+                '$("#permissionSearch").trigger("keyup");'
+                'htmx.trigger("#permissionSearch", "keyup");'
+                'if (typeof reloadMessage === "function") { reloadMessage(); }'
+                '</script>'
+            )
     return render(
         request,
         "base/auth/group_user_assign.html",

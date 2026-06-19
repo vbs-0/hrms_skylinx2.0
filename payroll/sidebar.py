@@ -19,7 +19,7 @@ SUBMENUS = [
         "accessibility": "payroll.sidebar.dasbhoard_accessibility",
     },
     {
-        "menu": _("Contract"),
+        "menu": _("Pay Register"),
         "redirect": reverse("view-contract"),
         "accessibility": "payroll.sidebar.dasbhoard_accessibility",
     },
@@ -43,7 +43,7 @@ SUBMENUS = [
         "accessibility": "payroll.sidebar.loan_accessibility",
     },
     {
-        "menu": _("Encashments & Reimbursements"),
+        "menu": _("Expenses"),
         "redirect": reverse("view-reimbursement"),
     },
     {

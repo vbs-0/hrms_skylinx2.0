@@ -1,5 +1,5 @@
 {% load i18n %}
-<form hx-post="{% url 'assign-group-user' %}?employee={{employee}}" hx-target="#groupAssignBody" method="post">
+<form hx-post="{% url 'assign-group-user' %}?employee={{employee}}" hx-target="#groupAssignBody" data-settings-native="true" method="post">
     {% csrf_token %}
     {{form.group.errors}}
     {{form.group}}
