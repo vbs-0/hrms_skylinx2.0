@@ -110,7 +110,7 @@ class AllowanceForm(ModelForm):
         ]
         for fn in _allowance_advanced:
             if fn in self.fields:
-                self.fields[fn].widget.attrs["data-advanced"] = "true"
+                self.fields[fn].widget.attrs["data_advanced"] = "true"
 
     def as_p(self):
         """
@@ -265,7 +265,7 @@ class DeductionForm(ModelForm):
         ]
         for fn in _deduction_advanced:
             if fn in self.fields:
-                self.fields[fn].widget.attrs["data-advanced"] = "true"
+                self.fields[fn].widget.attrs["data_advanced"] = "true"
 
     def clean(self, *args, **kwargs):
         cleaned_data = super().clean(*args, **kwargs)

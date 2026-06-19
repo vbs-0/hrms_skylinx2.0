@@ -33,7 +33,7 @@
         <div class="row" id="personal_basic_fields">
             <div class="col-12">{{ form.non_field_errors }}</div>
             {% for field in form.visible_fields %}
-                {% if field.field.widget.attrs.data-advanced %}
+                {% if field.field.widget.attrs.data_advanced %}
                     {# advanced — skip here, rendered below #}
                 {% else %}
                     <div class="col-12 {% if form.cols.employee_id %} col-md-12 {% endif %} col-md-6" id="id_{{field.name}}_parent_div">
@@ -60,7 +60,7 @@
         {# ---- Advanced fields section ---- #}
         <div class="row skylinx-advanced-section" id="personal_advanced_fields">
             {% for field in form.visible_fields %}
-                {% if field.field.widget.attrs.data-advanced %}
+                {% if field.field.widget.attrs.data_advanced %}
                     <div class="col-12 col-md-6" id="id_{{field.name}}_parent_div">
                         <div class="oh-label__info" style="display:ruby;" for="id_{{ field.name }}">
                             <label class="oh-label {% if field.field.required %} required-star{% endif %}"
