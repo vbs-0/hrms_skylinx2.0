@@ -50,9 +50,9 @@
                 <div class="oh-sticky-table__tbody ui-sortable">
                     {% for payslip in instances %}
                         <div class="oh-sticky-table__tr ui-sortable-handle">
-                            <div class="oh-sticky-table__sd {% if payslip.status == " review_ongoing" %}row-status--orange
-                                {% elif payslip.status=="confirmed" %} row-status--blue {% elif payslip.status=="paid" %}
-                                row-status--yellow {% elif payslip.status=="draft" %} row-status--gray{% endif %}">
+                            <div class="oh-sticky-table__sd {% if payslip.status == "review_ongoing" %}row-status--orange
+                                {% elif payslip.status == "confirmed" %} row-status--blue {% elif payslip.status == "paid" %}
+                                row-status--yellow {% elif payslip.status == "draft" %} row-status--gray{% endif %}">
                                 <div class="d-flex">
                                     <div class="">
                                         <input type="checkbox" value="{{payslip.id}}"

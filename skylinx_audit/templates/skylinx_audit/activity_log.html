@@ -75,7 +75,7 @@
                             <span class="timeformat_changer text-muted">{{ entry.history_date|date:"g:i A" }}</span>
                         </td>
                         <td>
-                            <span class="badge-unknown">{{ entry._model_verbose }}</span>
+                            <span class="badge-unknown">{{ entry.model_verbose_name }}</span>
                         </td>
                         <td>
                             {{ entry.instance|default:entry.history_id }}

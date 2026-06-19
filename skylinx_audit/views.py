@@ -166,8 +166,8 @@ def activity_log(request):
         )[:200]  # cap per model to keep queries fast
 
         for entry in qs:
-            entry._model_label = f"{config.app_label}.{config.model_name}"
-            entry._model_verbose = getattr(model_cls._meta, "verbose_name", config.model_name).title()
+            entry.model_label_name = f"{config.app_label}.{config.model_name}"
+            entry.model_verbose_name = getattr(model_cls._meta, "verbose_name", config.model_name).title()
             all_history.append(entry)
 
     # Sort combined list by date descending
@@ -182,7 +182,7 @@ def activity_log(request):
             actor_name = str(actor) if actor else ""
             if (
                 sq_lower in actor_name.lower()
-                or sq_lower in getattr(entry, "_model_verbose", "").lower()
+                or sq_lower in getattr(entry, "model_verbose_name", "").lower()
                 or sq_lower in str(getattr(entry, "history_type", "")).lower()
             ):
                 filtered.append(entry)

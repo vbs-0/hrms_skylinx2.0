@@ -1,4 +1,6 @@
-{% extends 'index.html' %} {% block content %}
+{% extends 'index.html' %}
+{% load i18n %}
+{% block content %}
 <p class="pb-3">
   <a href="{% url 'request-creation' %}" class="btn btn-primary">{% trans "Create" %}</a> {% trans "New Leave Request" %}
 </p>
