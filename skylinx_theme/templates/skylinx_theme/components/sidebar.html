@@ -471,14 +471,35 @@ function removeId(element, storeKey = "selectedInstances") {
         });
       });
 
-      if (matchedBtn) {
-        const prevActive = localStorage.getItem("activeSidebarMenu");
-        if (prevActive !== matchedBtn.dataset.menu) {
-          try { localStorage.removeItem("activeSubmenuDismissed"); }
-          catch (_) {}
+        if (!matchedBtn) {
+          const pathSegments = currentPath.split('/').filter(Boolean);
+          if (pathSegments.length > 0) {
+            const basePath = '/' + pathSegments[0] + '/';
+            document.querySelectorAll("button.sideboxmain").forEach(btn => {
+              const links = btn.querySelectorAll(".sidebox-template ul li a");
+              links.forEach(link => {
+                const href = link.getAttribute("href") || link.getAttribute("hx-get");
+                if (href) {
+                  try {
+                    const linkPath = new URL(href, window.location.origin).pathname;
+                    if (linkPath.startsWith(basePath)) matchedBtn = btn;
+                  } catch (_) {
+                    if (href.startsWith(basePath)) matchedBtn = btn;
+                  }
+                }
+              });
+            });
+          }
         }
-        setActiveSidebarMenu(matchedBtn);
-      } else {
+
+        if (matchedBtn) {
+          const prevActive = localStorage.getItem("activeSidebarMenu");
+          if (prevActive !== matchedBtn.dataset.menu) {
+            try { localStorage.removeItem("activeSubmenuDismissed"); }
+            catch (_) {}
+          }
+          setActiveSidebarMenu(matchedBtn);
+        } else {
         // Clear active states if no sidebar button matches the current path
         document.querySelectorAll(".sideboxmain").forEach(el => el.classList.remove("active"));
         try { localStorage.removeItem("activeSidebarMenu"); }
