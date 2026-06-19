@@ -6,66 +6,78 @@
                 {% trans "Form 16 (TDS Certificate)" %}
             </h1>
         </div>
+        <div class="oh-main__titlebar oh-main__titlebar--right">
+            {% if is_hr %}
+            <div class="oh-main__titlebar-button-container">
+                <div class="oh-btn-group">
+                    <a href="{% url 'form16-upload' %}" class="oh-btn oh-btn--secondary" data-toggle="oh-modal-toggle" data-target="#objectCreateModal" hx-get="{% url 'form16-upload' %}" hx-target="#objectCreateModalTarget">
+                        <ion-icon name="cloud-upload-outline" class="mr-1"></ion-icon>{% trans "Upload Form 16" %}
+                    </a>
+                    <a href="{% url 'form16-bulk-upload' %}" class="oh-btn oh-btn--primary" data-toggle="oh-modal-toggle" data-target="#objectCreateModal" hx-get="{% url 'form16-bulk-upload' %}" hx-target="#objectCreateModalTarget">
+                        <ion-icon name="documents-outline" class="mr-1"></ion-icon>{% trans "Bulk Upload (ZIP)" %}
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
     </section>
 
     <div class="oh-wrapper">
         <div class="oh-card">
             <div class="oh-card__body">
-                <form id="form16Form" method="GET" action="">
-                    <div class="row">
-                        {% if is_hr %}
-                        <div class="col-sm-12 col-md-6 col-lg-6">
-                            <div class="oh-input-group">
-                                <label class="oh-label" for="employee_id">{% trans "Employee" %}</label>
-                                <select class="oh-select w-100" name="employee_id" id="employee_id" required>
-                                    <option value="" disabled selected>{% trans "Select Employee" %}</option>
-                                    {% for emp in employees %}
-                                        <option value="{{ emp.id }}">{{ emp.get_full_name }} ({{ emp.badge_id }})</option>
-                                    {% endfor %}
-                                </select>
+                {% if documents %}
+                <div class="oh-sticky-table">
+                    <div class="oh-sticky-table__table">
+                        <div class="oh-sticky-table__thead">
+                            <div class="oh-sticky-table__tr">
+                                <div class="oh-sticky-table__th">{% trans "Employee" %}</div>
+                                <div class="oh-sticky-table__th">{% trans "Financial Year" %}</div>
+                                <div class="oh-sticky-table__th">{% trans "Document" %}</div>
+                                <div class="oh-sticky-table__th oh-sticky-table__right">{% trans "Actions" %}</div>
                             </div>
                         </div>
-                        {% else %}
-                            <input type="hidden" name="employee_id" id="employee_id" value="{{ employees.first.id }}">
-                        {% endif %}
-
-                        <div class="col-sm-12 col-md-6 col-lg-6">
-                            <div class="oh-input-group">
-                                <label class="oh-label" for="financial_year">{% trans "Financial Year" %}</label>
-                                <select class="oh-select w-100" name="financial_year" id="financial_year" required>
-                                    <option value="" disabled selected>{% trans "Select Financial Year" %}</option>
-                                    {% for year in years %}
-                                        <option value="{{ year }}">{{ year }}-{{ year|add:1 }}</option>
-                                    {% endfor %}
-                                </select>
+                        <div class="oh-sticky-table__tbody">
+                            {% for doc in documents %}
+                            <div class="oh-sticky-table__tr" draggable="false">
+                                <div class="oh-sticky-table__td">
+                                    <div class="d-flex align-items-center">
+                                        <div class="oh-profile oh-profile--md">
+                                            <div class="oh-profile__avatar mr-1">
+                                                <img src="{{ doc.employee.get_avatar }}" class="oh-profile__image" alt="Username" />
+                                            </div>
+                                            <span class="oh-profile__name oh-text--dark">{{ doc.employee.get_full_name }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="oh-sticky-table__td">{{ doc.financial_year }}</div>
+                                <div class="oh-sticky-table__td">
+                                    <a href="{% url 'form16-download' doc.pk %}" target="_blank">
+                                        <ion-icon name="document-text-outline" style="font-size: 20px;"></ion-icon>
+                                        {{ doc.document.name|slice:"15:" }}
+                                    </a>
+                                </div>
+                                <div class="oh-sticky-table__td oh-sticky-table__right">
+                                    <div class="oh-btn-group">
+                                        <a href="{% url 'form16-download' doc.pk %}" target="_blank" class="oh-btn oh-btn--light-info oh-btn--sm" title="{% trans 'Download' %}">
+                                            <ion-icon name="download-outline"></ion-icon>
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
+                            {% endfor %}
                         </div>
                     </div>
-                    
-                    <div class="d-flex justify-content-end mt-4">
-                        <button type="button" class="oh-btn oh-btn--secondary" onclick="downloadForm16()">
-                            <ion-icon name="download-outline" class="mr-2"></ion-icon>
-                            {% trans "Download Form 16" %}
-                        </button>
+                </div>
+                {% else %}
+                <div style="height: 300px; display:flex;align-items: center;justify-content: center;" class="">
+                    <div style="" class="">
+                        <img style="width: 150px;height: 150px;" src="{% static 'images/ui/no_records.svg' %}" class="oh-404__image mb-4" alt="Page not found. 404."/>
+                        <h5 class="oh-404__subtitle">{% trans "No Form 16 documents have been uploaded yet." %}</h5>
                     </div>
-                </form>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
 </main>
-
-<script>
-    function downloadForm16() {
-        const empId = document.getElementById('employee_id').value;
-        const fy = document.getElementById('financial_year').value;
-        
-        if (!empId || !fy) {
-            alert("{% trans 'Please select both Employee and Financial Year' %}");
-            return;
-        }
-        
-        const url = "{% url 'form16-download' employee_id=0 financial_year=0 %}".replace('0/0', `${empId}/${fy}`);
-        window.open(url, '_blank');
-    }
-</script>
 {% endblock content %}

@@ -1,98 +1,140 @@
 """
 form16_views.py
 
-This module contains views to generate and download Form 16 Part B PDFs.
+This module contains views to list and upload Form 16 PDFs.
 """
 
-from django.shortcuts import render, get_object_or_404
+import os
+import zipfile
+from io import BytesIO
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from django.http import HttpResponse
-from django.template.loader import render_to_string
+from django.http import HttpResponse, FileResponse
 import datetime
 
-from base.methods import template_pdf
-from skylinx.decorators import login_required, permission_required, hx_request_required
-from payroll.models.models import Payslip, Contract
+from skylinx.decorators import login_required, permission_required
 from employee.models import Employee
+from payroll.models.tax_models import Form16Document
+from payroll.forms.tax_forms import Form16DocumentForm, Form16BulkUploadForm
+from django.core.files.base import ContentFile
 
 @login_required
 @permission_required("payroll.view_payslip")
 def form16_list_view(request):
     """
-    Display the Form 16 selection view.
-    HR sees all employees; Employees see their own.
+    Display the Form 16 list view.
+    HR sees all employees' uploaded Form 16s. Employees see their own.
     """
     user = request.user
     is_hr = user.has_perm("employee.change_employee")
     
-    current_year = datetime.date.today().year
-    years = [current_year, current_year - 1, current_year - 2]
-    
     if is_hr:
-        employees = Employee.objects.all()
+        documents = Form16Document.objects.all().order_by("-financial_year", "employee__employee_first_name")
     else:
-        employees = Employee.objects.filter(employee_user_id=user)
+        documents = Form16Document.objects.filter(employee__employee_user_id=user).order_by("-financial_year")
         
     context = {
-        "employees": employees,
-        "years": years,
+        "documents": documents,
         "is_hr": is_hr,
     }
     return render(request, "payroll/form16/form16_list.html", context)
 
 
 @login_required
+@permission_required("employee.change_employee")
+def upload_form16(request):
+    """
+    Upload a single Form 16 document.
+    """
+    if request.method == "POST":
+        form = Form16DocumentForm(request.POST, request.FILES)
+        if form.is_valid():
+            # Check for existing document for this employee and year
+            employee = form.cleaned_data["employee"]
+            financial_year = form.cleaned_data["financial_year"]
+            existing = Form16Document.objects.filter(employee=employee, financial_year=financial_year).first()
+            if existing:
+                existing.document = form.cleaned_data["document"]
+                existing.save()
+                messages.success(request, f"Form 16 updated for {employee} ({financial_year}).")
+            else:
+                form.save()
+                messages.success(request, f"Form 16 uploaded successfully for {employee}.")
+            return redirect("form16-list")
+    else:
+        form = Form16DocumentForm()
+        
+    context = {"form": form, "title": "Upload Form 16"}
+    return render(request, "payroll/form16/form16_upload.html", context)
+
+
+@login_required
+@permission_required("employee.change_employee")
+def bulk_upload_form16(request):
+    """
+    Bulk upload Form 16 PDFs via ZIP file.
+    Matches filename (without .pdf) to Employee Badge ID.
+    """
+    if request.method == "POST":
+        form = Form16BulkUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            financial_year = form.cleaned_data["financial_year"]
+            zip_file = form.cleaned_data["zip_file"]
+            
+            success_count = 0
+            error_msgs = []
+            
+            try:
+                with zipfile.ZipFile(zip_file, 'r') as archive:
+                    for filename in archive.namelist():
+                        if filename.endswith(".pdf"):
+                            # Expecting "EMP001.pdf" -> badge_id "EMP001"
+                            badge_id = os.path.splitext(os.path.basename(filename))[0]
+                            employee = Employee.objects.filter(badge_id__iexact=badge_id).first()
+                            
+                            if employee:
+                                pdf_data = archive.read(filename)
+                                doc = Form16Document.objects.filter(employee=employee, financial_year=financial_year).first()
+                                if not doc:
+                                    doc = Form16Document(employee=employee, financial_year=financial_year)
+                                
+                                # Save the extracted file data to the document field
+                                file_name_to_save = f"Form16_{badge_id}_{financial_year}.pdf"
+                                doc.document.save(file_name_to_save, ContentFile(pdf_data), save=True)
+                                success_count += 1
+                            else:
+                                error_msgs.append(f"No employee found with Badge ID: {badge_id}")
+                                
+                if success_count > 0:
+                    messages.success(request, f"Successfully uploaded {success_count} Form 16 documents.")
+                if error_msgs:
+                    messages.warning(request, "Some files could not be matched: " + ", ".join(error_msgs[:5]) + ("..." if len(error_msgs)>5 else ""))
+                    
+                return redirect("form16-list")
+            except zipfile.BadZipFile:
+                messages.error(request, "Invalid ZIP file.")
+    else:
+        form = Form16BulkUploadForm()
+        
+    context = {"form": form, "title": "Bulk Upload Form 16"}
+    return render(request, "payroll/form16/form16_bulk_upload.html", context)
+
+@login_required
 @permission_required("payroll.view_payslip")
-def generate_form16_pdf(request, employee_id, financial_year):
+def download_form16(request, pk):
     """
-    Aggregates salary and TDS for the financial year and generates Form 16 Part B PDF.
-    Financial year e.g. 2025 means FY 2025-2026 (Apr 1 2025 - Mar 31 2026).
+    Download a specific Form 16 document.
     """
+    document = get_object_or_404(Form16Document, pk=pk)
     user = request.user
-    employee = get_object_or_404(Employee, id=employee_id)
     
-    # Permission check: if not HR, can only generate own Form 16
-    if not user.has_perm("employee.change_employee") and employee.employee_user_id != user:
-        messages.error(request, "You do not have permission to view this Form 16.")
+    # Permission check
+    if not user.has_perm("employee.change_employee") and document.employee.employee_user_id != user:
         return HttpResponse("Unauthorized", status=403)
         
-    fy_start = datetime.date(financial_year, 4, 1)
-    fy_end = datetime.date(financial_year + 1, 3, 31)
-    
-    # Get all payslips for the FY
-    payslips = Payslip.objects.filter(
-        employee_id=employee,
-        start_date__gte=fy_start,
-        end_date__lte=fy_end,
-        status="Paid"
-    )
-    
-    gross_salary = 0
-    total_tds = 0
-    pf_deducted = 0
-    pt_deducted = 0
-    esi_deducted = 0
-    allowances_total = 0
-    
-    for payslip in payslips:
-        gross_salary += payslip.gross_pay or 0
-        total_tds += payslip.federal_tax or 0 # Federal Tax was relabeled to TDS
-        # We assume deductions are stored in payslip.deduction_set or json. For simplicity we check if there's a JSON field or aggregate fields
-        
-        # Typically payslips have related records for allowances and deductions in this HRMS.
-        # Assuming PayslipDeduction and PayslipAllowance exist, let's just aggregate safely if they do,
-        # or use generic totals if not easily accessible.
-        pass
+    if document.document:
+        response = FileResponse(document.document.open('rb'), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="Form16_{document.employee.badge_id}_{document.financial_year}.pdf"'
+        return response
+    return HttpResponse("File not found", status=404)
 
-    # Basic layout for Form 16 Part B
-    context = {
-        "employee": employee,
-        "financial_year": f"{financial_year}-{financial_year+1}",
-        "assessment_year": f"{financial_year+1}-{financial_year+2}",
-        "gross_salary": round(gross_salary, 2),
-        "total_tds": round(total_tds, 2),
-        "net_salary": round(gross_salary - total_tds, 2), # Placeholder
-    }
-    
-    html_string = render_to_string("payroll/form16/form16_pdf.html", context)
-    return template_pdf(html_string, filename=f"Form16_{employee.badge_id}_{financial_year}.pdf")

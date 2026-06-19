@@ -140,3 +140,22 @@ class TaxBracket(SkylinxModel):
     class Meta:
         verbose_name = _("Income Slab")
         verbose_name_plural = _("Income Slabs")
+
+class Form16Document(SkylinxModel):
+    """
+    Form 16 uploaded documents model
+    """
+    from employee.models import Employee  # Local import or add to top
+    
+    employee = models.ForeignKey("employee.Employee", on_delete=models.CASCADE, verbose_name=_("Employee"))
+    financial_year = models.CharField(max_length=9, verbose_name=_("Financial Year"), help_text="e.g., 2023-2024")
+    document = models.FileField(upload_to="payroll/form16/", verbose_name=_("Form 16 Document"))
+
+    class Meta:
+        unique_together = ("employee", "financial_year")
+        verbose_name = _("Form 16 Document")
+        verbose_name_plural = _("Form 16 Documents")
+
+    def __str__(self):
+        return f"Form 16 for {self.employee} ({self.financial_year})"
+
