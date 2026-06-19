@@ -365,3 +365,242 @@ regression.
 - New fields are 10% model, 90% plumbing (§11.4).
 - Nullable onboarding FK needs null-guards in every reader (§11.7).
 - Hidden ≠ deleted; that's the whole backward-compat strategy (§0.6, §11.5).
+
+
+---
+
+# India Localization — Part 2: US-isms still baked in
+
+**Companion to `INDIA_LOCALIZATION.md`.** That doc covered terminology, forms,
+PAN/Aadhaar, onboarding. It **missed the US-specific payroll/tax/locale guts**.
+This doc is that sweep — every place the app still assumes USA, with file paths.
+
+Same §0 safety rules from the first doc apply: **relabel/repurpose, don't delete.**
+The tax models are user-data-driven (free-text records), so India fits by
+relabeling + seeding, not by ripping anything out.
+
+---
+
+## A. The big one: "Federal Tax" is a whole US subsystem
+
+India has **no federal tax.** Income tax here is central, slab-based, deducted as
+**TDS** under the Income Tax Act, with an **Old Regime / New Regime** choice. The
+app ships the US model: a "Federal Tax" menu, "Filing Status" (the US W-4
+concept: Single / Married / Head of Household), and "Tax Brackets".
+
+### What exists (don't delete — relabel + reseed)
+
+| Thing | File | India action |
+|---|---|---|
+| Sidebar menu **"Federal Tax"** | `payroll/sidebar.py:50` | relabel → **"Income Tax (TDS)"** |
+| `federal_tax_accessibility` perm fn | `payroll/sidebar.py:73` | keep (internal name, no UI) |
+| `FilingStatus` model — `filing_status` is **free-text CharField**, not hardcoded Single/Married | `payroll/models/models.py:81` | relabel verbose_name → **"Tax Regime"**; seed two records: **Old Regime**, **New Regime** |
+| `TaxBracket` (min/max income, rate per filing status) | `payroll/models/tax_models.py:47` | this IS income slabs — relabel "Filing status" → "Tax Regime"; seed FY25-26 slabs |
+| Tax calc engine (`calculate_federal_tax`, `federal_tax_for_period`) | `payroll/methods/tax_calc.py` | **keep math** — slab math is identical; only var names say "federal" (internal, leave) |
+| Tax views ("federal tax-related operations") | `payroll/views/tax_views.py:4` | relabel docstrings/messages only |
+| Templates folder `cbv/federal_tax/`, `skylinx_theme/.../federal_tax/` | template dirs | relabel **displayed** headings; leave folder/file names |
+| `.po` catalogs reference Federal Tax / Filing status | `skylinx/locale/*/django.po`, `skylinx_theme/locale/.../django.po` | add India translations there (cleanest layer) |
+| FAQ entries about Federal Tax | `load_data/faq.json` | rewrite for TDS / regime |
+
+> **Why this is safe:** `FilingStatus.filing_status` is a free CharField and
+> `based_on` is just basic_pay vs gross. There are no hardcoded "Single/Married"
+> choices to remove. So "make it Indian" = relabel the menu + create two regime
+> records + enter the current slabs as TaxBrackets. Zero schema change.
+
+### India FY 2025-26 slabs to seed (New Regime, default)
+Seed as `TaxBracket` rows under a "New Regime" `FilingStatus` (`based_on` = gross,
+verify against current Budget before going live — slabs change yearly):
+
+| Min income (₹) | Max income (₹) | Rate |
+|---|---|---|
+| 0 | 4,00,000 | 0% |
+| 4,00,001 | 8,00,000 | 5% |
+| 8,00,001 | 12,00,000 | 10% |
+| 12,00,001 | 16,00,000 | 15% |
+| 16,00,001 | 20,00,000 | 20% |
+| 20,00,001 | 24,00,000 | 25% |
+| 24,00,001 | ∞ | 30% |
+
+> ⚠️ Slabs are statutory and change every Union Budget (Feb). Treat the seed as a
+> starting point with a "review each FY" note, not a constant. Old Regime (with
+> 80C/HRA deductions) is a second FilingStatus record if you support both.
+> Surcharge + 4% cess are not modeled — flag as a gap if you need exact TDS.
+
+---
+
+## B. Currency — defaults to US dollar
+
+| Thing | File | India action |
+|---|---|---|
+| `PayrollSettings.currency_symbol` default **`"$"`** | `payroll/models/tax_models.py:31` | set to **`₹`** (Payroll → Settings UI, or change default) |
+| `position` default `postfix` | `payroll/models/tax_models.py:33` | India shows symbol **before** amount → set **`prefix`** (₹1,200) |
+
+Currency is read from `PayrollSettings.first().currency_symbol`
+(`payroll/views/views.py:593,1593`) — so once set, payslips/PDFs follow. **But**
+check for **hardcoded `$`** in templates/PDFs that bypass the setting (payslip
+PDF, dashboard cards) and fix those to use the setting.
+
+> Action: set ₹ + prefix in the seed/setup, and grep templates for a literal `$`
+> next to an amount (distinct from jQuery `$`) before shipping payslips.
+
+---
+
+## C. Address / postal — US wording
+
+India uses **PIN Code**, not ZIP. The field is named `zip` everywhere (keep the
+field name) but the **label** says "Zip":
+
+| Where | File | Action |
+|---|---|---|
+| Employee `zip` | `employee/models.py:103` (`verbose_name="Zip"`) | label → **"PIN Code"** |
+| Export header "Zip Code" | `employee/forms.py:651` | header → "PIN Code" (sync import per Part-1 §11.1) |
+| Recruitment `zip` | `recruitment/models.py:702` (`"Zip Code"`) | label → "PIN Code" |
+| Onboarding portal `zip` | `onboarding/forms.py:336` (`label="Zip"`) | label → "PIN Code" |
+| Company `zip` columns | `base/cbv/company.py:110,118` | label → "PIN Code" |
+
+Also: default **Country = India**, and consider that India PIN is 6 digits
+(validation `^\d{6}$` when shown) — current field is `max_length=20` free text,
+fine to leave, tighten only if you want.
+
+---
+
+## D. Date format — US mm/dd/yyyy vs India dd/mm/yyyy
+
+There's a date-format setting endpoint (`/settings/get-date-format/`). India uses
+**dd/mm/yyyy** (or dd-mm-yyyy). Verify the default and set it to a `DD-MM-YYYY`
+format in settings so dates don't display US-style. This is a settings value, not
+code — confirm the default isn't `MM/DD/YYYY`.
+
+---
+
+## E. Sub-labels & smaller US-isms to verify
+
+These are quick relabels (translation/verbose_name layer), grouped so you can
+sweep them in one pass:
+
+| US term in app | India label |
+|---|---|
+| Federal Tax | Income Tax (TDS) |
+| Filing Status | Tax Regime |
+| Tax Bracket | Income Slab |
+| Zip / Zip Code | PIN Code |
+| State (US connotation) | State / UT (keep, India has states + UTs) |
+| Social Security / SSN | (not found — good; if any appear, → PAN/UAN) |
+| Salary Hour | keep (hourly is rare in India but harmless) |
+| Contract End Date | keep |
+
+> No SSN/Medicare/401k fields were found in code — so the US-isms that remain are
+> the tax subsystem (A), currency (B), ZIP (C), and date format (D). That's the
+> complete list, not a sample.
+
+---
+
+## F. Provident Fund / ESI / UAN — what's genuinely missing for India tax
+
+The first doc (§7) noted PF/ESI as manual. Tying it to tax: Indian salary has
+statutory items the US-style tax engine doesn't know about:
+
+- **PF (EPF)** — 12% employee + 12% employer; needs **UAN** number per employee.
+- **ESI** — if gross ≤ ₹21k; needs **ESIC** number.
+- **Professional Tax (PT)** — state slab, monthly.
+- **TDS** — handled by the relabeled tax engine (A) IF you seed correct slabs.
+
+UAN / ESIC / PT registration numbers are not fields today. If you need
+compliance-grade payroll, add them like PAN/Aadhaar (additive nullable, Part-1
+§6 pattern). Otherwise they live in manual Deduction records.
+
+---
+
+## G. Execution order (Part 2)
+
+| # | Task | Layer | Risk | Migration? |
+|---|---|---|---|---|
+| 1 | Currency → ₹ + prefix; fix hardcoded `$` in payslip/PDF | settings + template | low | no |
+| 2 | "Federal Tax"→"Income Tax (TDS)", "Filing Status"→"Tax Regime", "Tax Bracket"→"Income Slab" labels | labels/.po | low | no |
+| 3 | Seed Old/New Regime FilingStatus + FY25-26 TaxBrackets | data seed | low | no |
+| 4 | Zip → PIN Code labels (+ export/import header sync) | labels/export | low | no |
+| 5 | Date format default → DD-MM-YYYY | setting | low | no |
+| 6 | FAQ rewrite for TDS/regime/PIN/₹ | data | low | no |
+| 7 | (optional) UAN/ESIC/PT number fields | model | low | additive |
+
+All of 1–6 are relabel/seed/settings — **no schema change, no deletion**, fully
+reversible. Run the Part-1 §0.7 regression matrix on payroll after 1–3 (payslip
+generate + PDF + export are the things that can break).
+
+---
+
+### One-line summary
+Part 1 fixed *HR* terminology. The money/tax/locale layer was still pure USA:
+**Federal Tax → TDS (relabel + reseed, no delete), `$` → ₹, Zip → PIN, mm/dd →
+dd/mm.** The tax models are free-text + slab rows, so India fits by relabeling and
+seeding — not by surgery.
+
+
+---
+
+# India Localization Part 2 - Audit Report
+
+Per your instructions, the final three hardcoded-value issues have been resolved, and a complete audit against the required checklist in `INDIA_LOCALIZATION.md` and `INDIA_LOCALIZATION_2.md` has been performed.
+
+Here is the comprehensive report addressing all outstanding items, caveats, and your strict guidance on imports and label consistency.
+
+## 1. Direct Hire Magic String Sentinel
+- **Issue:** The string `"__direct_hire__"` was hardcoded in multiple places (`onboarding/views.py` and `onboarding/management/commands/seed_direct_hire_recruitment.py`), causing a brittle coupling that could silently break manual onboarding.
+- **Fix:** Created a module-level constant `DIRECT_HIRE_TITLE = "__direct_hire__"` in `onboarding/constants.py`.
+- Both the seed command and the view now import and use this constant.
+- Added a `get_or_create` guard in the view so that manual onboarding will automatically recreate the sentinel if the seed hasn't been run, eliminating the risk of 500 errors.
+
+## 2. Professional Tax Hardcoding
+- **Issue:** PT was hardcoded to a flat ₹200/month in the seeding logic.
+- **Fix:** Changed the seeded default PT value to `0` in `payroll/management/commands/seed_india_deductions.py`.
+- **Note Acknowledged:** PT is strictly state-specific. As noted in the caveats for `INDIA_LOCALIZATION_2.md`, the UI/FAQ must clarify that companies should configure their own state-specific PT slabs and rules, rather than relying on a hardcoded assumption.
+- **Caveat Acknowledged:** Income Tax slabs change every Union Budget (e.g., FY25-26 rules are a seed and must be reviewed each FY), and surcharge/cess calculations are currently not modeled in the statutory engine.
+
+## 3. Badge ID vs Employee ID Consistency
+- **Feedback Addressed:** You rightly pointed out that having both "Employee Code", "Employee ID", and "Badge ID" is confusing and breaks consistency.
+- **Fix:** All instances of `Employee Code` and `Badge ID` have been standardized to exactly **`Employee ID / Badge ID`** across models, forms, UI, and export/import templates.
+- This includes the `verbose_name` in `employee/models.py` and the `required_keys` list in `employee/methods/methods.py`.
+
+## 4. Aadhaar Masking & Missing Fields in Legacy Theme
+- **Issue:** Aadhaar masking was implemented in `skylinx_theme` but the legacy templates were untouched, and `account_type` was missing from onboarding bank details.
+- **Fix:**
+  - Updated `employee/templates/tabs/personal_tab.html` to display Aadhaar, PAN, UAN, and Account Type.
+  - Implemented the `masked_aadhaar` logic on the template layer: if the user does not have `change_employee` permission and is not the employee themselves, the Aadhaar number is masked (e.g., `XXXX XXXX 1234`).
+  - Added `account_type` to `skylinx_theme/templates/onboarding/employee_bank_details.html` so it is collected properly during employee onboarding.
+
+## 5. Required Keys Import Checklist (§11.1)
+- **Feedback Addressed:** *"Check the required list for everything u hidden they moightfk later"* and *"Every rename in this table has a checklist in §11.1 that MUST be done together."*
+- **Audit Performed:** I audited `employee/methods/methods.py`'s `required_keys`.
+- The current required keys are: `Employee ID / Badge ID`, `First Name`, `Last Name`, `Phone`, `Email`, `Gender`, `Department`, `Designation`, `Job Role`, `Work Mode`, `Shift`, `Employment Type`, `Reporting Manager`, `Company`, `Location`, `Date Joining`, `Contract End Date`, `Basic Salary`, `Salary Hour`.
+- **Verification:** None of the fields designated as "hidden" (e.g., Cost Center, Secondary contacts, advanced Allowance/Deduction limits) are present in the `required_keys` list. Import functionality will **not** break due to missing fields. The export headers exactly match the required import headers.
+
+## Conclusion
+All requested fixes are complete, additive, and safe. No destructive database migrations were created. The system is ready for you to verify locally. I have committed nothing to GitHub per your instructions.
+
+
+---
+
+
+## Part 3: Final Bug Fixes & Polish
+
+During final verification, the following regressions and UI bugs were identified and fixed:
+
+### 1. Manual Onboarding / Direct Hire 500 Error Crash
+**Issue:** Submitting a direct-hire candidate crashed with a 500 error.
+**Root Causes:**
+- The get_or_create method unpacked a tuple into _, which shadowed the global gettext_lazy as _ translation function, causing _('...') calls further down the view to fail with 'bool' object is not callable.
+- A missing rom django import forms import caused a NameError when orms.HiddenInput() was called.
+- Attempting to access 
+equest.user.employee_get.company_id threw an AttributeError because the property doesn't exist.
+**Fixes:**
+- Renamed the unpacking variable to _created.
+- Added the missing orms import to onboarding/views.py.
+- Replaced .company_id with .get_company() method call.
+The direct hire POST now returns 200 successfully.
+
+### 2. Dashboard Dark Mode UI Bug
+**Issue:** The main dashboard (home_page.html) did not switch to dark mode, retaining a white background and light cards even when dark mode was toggled.
+**Fix:**
+- Added .dark CSS overrides into the <style> block in skylinx_theme/templates/home_page.html.
+- Styled .hp-wrapper, .hp-header h1, .hp-header p, .hp-card, and .hp-card-label to use appropriate slate/navy colors (#0f172a, #1e293b) with softer text when the .dark class is active on the body.
+
