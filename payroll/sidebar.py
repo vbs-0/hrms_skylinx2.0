@@ -51,6 +51,11 @@ SUBMENUS = [
         "redirect": reverse("filing-status-view"),
         "accessibility": "payroll.sidebar.federal_tax_accessibility",
     },
+    {
+        "menu": _("Form 16"),
+        "redirect": reverse("form16-list"),
+        "accessibility": "payroll.sidebar.form16_accessibility",
+    },
 ]
 
 
@@ -72,6 +77,10 @@ def loan_accessibility(request, submenu, user_perms, *args, **kwargs):
 
 def federal_tax_accessibility(request, submenu, user_perms, *args, **kwargs):
     return request.user.has_perm("payroll.view_filingstatus")
+
+
+def form16_accessibility(request, submenu, user_perms, *args, **kwargs):
+    return request.user.has_perm("payroll.view_payslip")
 
 
 # ---------------------------------------------------------------------------

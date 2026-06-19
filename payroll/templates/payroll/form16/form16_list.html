@@ -1,0 +1,71 @@
+{% extends 'index.html' %} {% block content %} {% load static %} {% load i18n %}
+<main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
+    <section class="oh-wrapper oh-main__topbar" x-data="{searchShow: false}">
+        <div class="oh-main__titlebar oh-main__titlebar--left">
+            <h1 class="oh-main__titlebar-title fw-bold">
+                {% trans "Form 16 (TDS Certificate)" %}
+            </h1>
+        </div>
+    </section>
+
+    <div class="oh-wrapper">
+        <div class="oh-card">
+            <div class="oh-card__body">
+                <form id="form16Form" method="GET" action="">
+                    <div class="row">
+                        {% if is_hr %}
+                        <div class="col-sm-12 col-md-6 col-lg-6">
+                            <div class="oh-input-group">
+                                <label class="oh-label" for="employee_id">{% trans "Employee" %}</label>
+                                <select class="oh-select w-100" name="employee_id" id="employee_id" required>
+                                    <option value="" disabled selected>{% trans "Select Employee" %}</option>
+                                    {% for emp in employees %}
+                                        <option value="{{ emp.id }}">{{ emp.get_full_name }} ({{ emp.badge_id }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        {% else %}
+                            <input type="hidden" name="employee_id" id="employee_id" value="{{ employees.first.id }}">
+                        {% endif %}
+
+                        <div class="col-sm-12 col-md-6 col-lg-6">
+                            <div class="oh-input-group">
+                                <label class="oh-label" for="financial_year">{% trans "Financial Year" %}</label>
+                                <select class="oh-select w-100" name="financial_year" id="financial_year" required>
+                                    <option value="" disabled selected>{% trans "Select Financial Year" %}</option>
+                                    {% for year in years %}
+                                        <option value="{{ year }}">{{ year }}-{{ year|add:1 }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="button" class="oh-btn oh-btn--secondary" onclick="downloadForm16()">
+                            <ion-icon name="download-outline" class="mr-2"></ion-icon>
+                            {% trans "Download Form 16" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    function downloadForm16() {
+        const empId = document.getElementById('employee_id').value;
+        const fy = document.getElementById('financial_year').value;
+        
+        if (!empId || !fy) {
+            alert("{% trans 'Please select both Employee and Financial Year' %}");
+            return;
+        }
+        
+        const url = "{% url 'form16-download' employee_id=0 financial_year=0 %}".replace('0/0', `${empId}/${fy}`);
+        window.open(url, '_blank');
+    }
+</script>
+{% endblock content %}
