@@ -17,6 +17,78 @@
     </style>
 </head>
 <body>
+    <div style="page-break-after: always;">
+        <div class="header">
+            <h1>FORM NO. 16</h1>
+            <h2>[See rule 31(1)(a)]</h2>
+            <h2>PART A</h2>
+            <p>Certificate under section 203 of the Income-tax Act, 1961 for tax deducted at source on salary</p>
+        </div>
+
+        <table>
+            <tr>
+                <td width="50%" class="bold">Name and Address of the Employer</td>
+                <td width="50%" class="bold">Name and Address of the Employee</td>
+            </tr>
+            <tr>
+                <td>
+                    {{ employee.employee_work_info.company_id.company|default:"Skylinx HRMS" }}<br>
+                    {{ employee.employee_work_info.company_id.address|default:"" }}
+                </td>
+                <td>
+                    {{ employee.get_full_name }}<br>
+                    {{ employee.address|default:"" }}
+                </td>
+            </tr>
+            <tr>
+                <td class="bold">PAN of the Employer: <span style="font-weight: normal;">Not Available</span></td>
+                <td class="bold">PAN of the Employee: <span style="font-weight: normal;">{{ employee.pan_number|default:"Not Provided" }}</span></td>
+            </tr>
+            <tr>
+                <td class="bold">TAN of the Employer: <span style="font-weight: normal;">Not Available</span></td>
+                <td class="bold">Assessment Year: <span style="font-weight: normal;">{{ assessment_year }}</span></td>
+            </tr>
+        </table>
+
+        <h3 class="text-center" style="font-size: 14px;">Summary of amount paid/credited and tax deducted at source</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th class="text-right">Amount paid/credited (Rs.)</th>
+                    <th class="text-right">Amount of tax deducted (Rs.)</th>
+                    <th class="text-right">Amount of tax deposited (Rs.)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Consolidated Salary Summary</td>
+                    <td class="text-right">{{ gross_salary }}</td>
+                    <td class="text-right">{{ total_tds }}</td>
+                    <td class="text-right">{{ total_tds }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="margin-top: 50px;">
+            <p class="bold">Verification</p>
+            <p>
+                I, _______________________________, working in the capacity of _______________________________ do hereby certify that the information given above is true, complete and correct and is based on the books of account, documents, TDS statements, TDS deposited and other available records.
+            </p>
+            <br><br>
+            <table class="no-border" style="border: none;">
+                <tr>
+                    <td class="no-border" style="border: none;">Place: ________________</td>
+                    <td class="text-right no-border" style="border: none;">Signature: __________________________</td>
+                </tr>
+                <tr>
+                    <td class="no-border" style="border: none;">Date: _________________</td>
+                    <td class="text-right no-border" style="border: none;">Designation: ________________________</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
     <div class="header">
         <h1>FORM NO. 16</h1>
         <h2>[See rule 31(1)(a)]</h2>
