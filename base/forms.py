@@ -433,8 +433,17 @@ class AssignUserGroup(Form):
     Form to assign groups
     """
 
-    employee = forms.ModelMultipleChoiceField(
-        queryset=Employee.objects.all(), required=False
+    employee = SkylinxMultiSelectField(
+        queryset=Employee.objects.all(),
+        widget=SkylinxMultiSelectWidget(
+            filter_route_name="employee-widget-filter",
+            filter_class=EmployeeFilter,
+            filter_instance_context_name="f",
+            filter_template_path="employee_filters.html",
+            required=False,
+        ),
+        label=_("Employee"),
+        required=False,
     )
 
     group = forms.ModelChoiceField(
@@ -873,7 +882,7 @@ class WorkTypeForm(ModelForm):
     WorkType model's form
     """
 
-    cols = {"work_type": 12, "company_id": 12}
+    cols = {"work_type": 12}
 
     class Meta:
         """
@@ -882,18 +891,10 @@ class WorkTypeForm(ModelForm):
 
         model = WorkType
         fields = "__all__"
-        exclude = ["is_active"]
+        exclude = ["is_active", "company_id"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not self.instance.pk:
-            request = getattr(_thread_locals, "request", None)
-            if request:
-                selected_company = request.session.get("selected_company")
-                if selected_company and selected_company != "all":
-                    self.initial["company_id"] = Company.objects.filter(
-                        id=selected_company
-                    )
 
 
 class RotatingWorkTypeForm(ModelForm):

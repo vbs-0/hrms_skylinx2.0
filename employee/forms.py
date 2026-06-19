@@ -217,9 +217,18 @@ class EmployeeForm(ModelForm):
             "is_from_onboarding",
             "is_directly_converted",
             "is_active",
+            "account_type",
         )
         widgets = {
             "dob": TextInput(attrs={"type": "date", "id": "dob"}),
+        }
+        labels = {
+            "email": _("Official Email ID"),
+            "phone": _("Phone Number"),
+            "employee_first_name": _("First Name"),
+            "employee_last_name": _("Last Name"),
+            "dob": _("Date of Birth"),
+            "badge_id": _("Employee ID"),
         }
 
     def __init__(self, *args, **kwargs):
@@ -238,6 +247,9 @@ class EmployeeForm(ModelForm):
             kwargs["initial"] = initial
         else:
             self.initial = {"badge_id": self.get_next_badge_id()}
+        if not self.instance or not self.instance.pk:
+            self.initial["country"] = "India"
+
 
         # ── India Localization: PAN / Aadhaar / Account Type ────────────────
         if "pan_number" in self.fields:
@@ -331,52 +343,9 @@ class EmployeeForm(ModelForm):
         """
         This method is used to generate badge id
         """
-        from base.context_processors import get_initial_prefix
-        from employee.methods.methods import get_ordered_badge_ids
-
-        prefix = get_initial_prefix(None)["get_initial_prefix"]
-        data = get_ordered_badge_ids()
-        result = []
-        try:
-            for sublist in data:
-                for item in sublist:
-                    if isinstance(item, str) and item.lower().startswith(
-                        prefix.lower()
-                    ):
-                        # Find the index of the item in the sublist
-                        index = sublist.index(item)
-                        # Check if there is a next item in the sublist
-                        if index + 1 < len(sublist):
-                            result = sublist[index + 1]
-                            result = re.findall(r"[a-zA-Z]+|\d+|[^a-zA-Z\d\s]", result)
-
-            if result:
-                prefix = []
-                incremented = False
-                for item in reversed(result):
-                    total_letters = len(item)
-                    total_zero_leads = 0
-                    for letter in item:
-                        if letter == "0":
-                            total_zero_leads = total_zero_leads + 1
-                            continue
-                        break
-
-                    if total_zero_leads:
-                        item = item[total_zero_leads:]
-                    if isinstance(item, list):
-                        item = item[-1]
-                    if not incremented and isinstance(eval_validate(str(item)), int):
-                        item = int(item) + 1
-                        incremented = True
-                    if isinstance(item, int):
-                        item = "{:0{}d}".format(item, total_letters)
-                    prefix.insert(0, str(item))
-                prefix = "".join(prefix)
-        except Exception as e:
-            logger.exception(e)
-            prefix = get_initial_prefix(None)["get_initial_prefix"]
-        return prefix
+        from django.db.models import Max
+        max_id = Employee.objects.entire().aggregate(max_id=Max('id'))['max_id']
+        return str((max_id or 0) + 1)
 
     def clean_badge_id(self):
         """
@@ -415,6 +384,17 @@ class EmployeeWorkInformationForm(ModelForm):
             "date_joining": DateInput(attrs={"type": "date"}),
             "contract_end_date": DateInput(attrs={"type": "date"}),
         }
+        labels = {
+            "job_position_id": _("Designation"),
+            "job_role_id": _("Job Title"),
+            "location": _("Work Location"),
+            "date_joining": _("Date of Joining"),
+            "employee_type_id": _("Employee Type"),
+            "reporting_manager_id": _("Reporting Manager"),
+            "department_id": _("Department"),
+            "company_id": _("Company"),
+            "basic_salary": _("CTC"),
+        }
 
     def __init__(self, *args, disable=False, **kwargs):
         super().__init__(*args, **kwargs)
@@ -432,16 +412,16 @@ class EmployeeWorkInformationForm(ModelForm):
                 self.fields[field].disabled = True
         field_names = {
             "Department": "department",
-            "Job Position": "job_position",
-            "Job Role": "job_role",
+            "Designation": "job_position",   # was "Job Position"
+            "Job Title": "job_role",           # was "Job Role"
             "Work Type": "work_type",
             "Employee Type": "employee_type",
             "Shift": "employee_shift",
         }
         urls = {
             "Department": "#dynamicDept",
-            "Job Position": "#dynamicJobPosition",
-            "Job Role": "#dynamicJobRole",
+            "Designation": "#dynamicJobPosition",   # was "Job Position"
+            "Job Title": "#dynamicJobRole",          # was "Job Role"
             "Work Type": "#dynamicWorkType",
             "Employee Type": "#dynamicEmployeeType",
             "Shift": "#dynamicShift",
@@ -520,6 +500,17 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
             "date_joining": DateInput(attrs={"type": "date"}),
             "contract_end_date": DateInput(attrs={"type": "date"}),
         }
+        labels = {
+            "job_position_id": _("Designation"),
+            "job_role_id": _("Job Title"),
+            "location": _("Work Location"),
+            "date_joining": _("Date of Joining"),
+            "employee_type_id": _("Employee Type"),
+            "reporting_manager_id": _("Reporting Manager"),
+            "department_id": _("Department"),
+            "company_id": _("Company"),
+            "basic_salary": _("CTC"),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -552,7 +543,13 @@ class EmployeeBankDetailsForm(ModelForm):
     Form for EmployeeBankDetails model
     """
 
-    address = forms.CharField(widget=forms.Textarea(attrs={"rows": 2, "cols": 40}))
+    address = forms.CharField(widget=forms.HiddenInput(), required=False)
+    account_type = forms.ChoiceField(
+        choices=[("", _("---Choose Account Type---"))] + Employee.ACCOUNT_TYPE_CHOICES,
+        required=False,
+        label=_("Bank Account Type"),
+        initial="savings",
+    )
 
     class Meta:
         """
@@ -570,6 +567,7 @@ class EmployeeBankDetailsForm(ModelForm):
             "state",
             "city",
             "any_other_code2",
+            "account_type",
         )
         labels = {
             "any_other_code1": _("IFSC Code"),
@@ -578,10 +576,17 @@ class EmployeeBankDetailsForm(ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["address"].widget.attrs["autocomplete"] = "address"
+        self.fields["address"].required = False
+        self.fields["address"].widget = forms.HiddenInput()
         self.fields["any_other_code2"].widget = forms.HiddenInput()
+        self.initial["account_type"] = "savings"
+        self.initial["country"] = "India"
         for visible in self.visible_fields():
             visible.field.widget.attrs["class"] = "oh-input w-100"
+        if self.instance and hasattr(self.instance, "employee_id") and self.instance.employee_id:
+            self.initial["account_type"] = self.instance.employee_id.account_type or "savings"
+        if self.instance and self.instance.country:
+            self.initial["country"] = self.instance.country
 
     def as_p(self, *args, **kwargs):
         context = {"form": self}
@@ -593,11 +598,36 @@ class EmployeeBankDetailsForm(ModelForm):
             raise forms.ValidationError(_("Invalid IFSC Code. Format should be 4 letters, '0', then 6 alphanumeric characters."))
         return ifsc
 
+    def save(self, commit=True):
+        bank_details = super().save(commit=False)
+        account_type = self.cleaned_data.get("account_type")
+        
+        orig_save = bank_details.save
+        def custom_save(*args, **kwargs):
+            orig_save(*args, **kwargs)
+            if bank_details.employee_id:
+                employee = bank_details.employee_id
+                if employee.account_type != account_type:
+                    employee.account_type = account_type
+                    employee.save(update_fields=["account_type"])
+        bank_details.save = custom_save
+        
+        if commit:
+            bank_details.save()
+        return bank_details
+
 
 class EmployeeBankDetailsUpdateForm(ModelForm):
     """
     Form for EmployeeBankDetails model
     """
+
+    account_type = forms.ChoiceField(
+        choices=[("", _("---Choose Account Type---"))] + Employee.ACCOUNT_TYPE_CHOICES,
+        required=False,
+        label=_("Bank Account Type"),
+        initial="savings",
+    )
 
     class Meta:
         """
@@ -613,11 +643,19 @@ class EmployeeBankDetailsUpdateForm(ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["address"].required = False
+        self.fields["address"].widget = forms.HiddenInput()
         self.fields["any_other_code2"].widget = forms.HiddenInput()
+        self.initial["account_type"] = "savings"
+        self.initial["country"] = "India"
         for visible in self.visible_fields():
             visible.field.widget.attrs["class"] = "oh-input w-100"
         for field in self.fields:
             self.fields[field].widget.attrs["placeholder"] = self.fields[field].label
+        if self.instance and hasattr(self.instance, "employee_id") and self.instance.employee_id:
+            self.initial["account_type"] = self.instance.employee_id.account_type or "savings"
+        if self.instance and self.instance.country:
+            self.initial["country"] = self.instance.country
 
     def as_p(self, *args, **kwargs):
         context = {"form": self}
@@ -628,6 +666,24 @@ class EmployeeBankDetailsUpdateForm(ModelForm):
         if ifsc and not re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", ifsc):
             raise forms.ValidationError(_("Invalid IFSC Code. Format should be 4 letters, '0', then 6 alphanumeric characters."))
         return ifsc
+
+    def save(self, commit=True):
+        bank_details = super().save(commit=False)
+        account_type = self.cleaned_data.get("account_type")
+        
+        orig_save = bank_details.save
+        def custom_save(*args, **kwargs):
+            orig_save(*args, **kwargs)
+            if bank_details.employee_id:
+                employee = bank_details.employee_id
+                if employee.account_type != account_type:
+                    employee.account_type = account_type
+                    employee.save(update_fields=["account_type"])
+        bank_details.save = custom_save
+        
+        if commit:
+            bank_details.save()
+        return bank_details
 
 
 excel_columns = [
@@ -803,7 +859,7 @@ class PolicyForm(ModelForm):
     class Meta:
         model = Policy
         fields = "__all__"
-        exclude = ["attachments", "is_active"]
+        exclude = ["attachments", "is_active", "company_id"]
         widgets = {
             "body": forms.Textarea(
                 attrs={"data-summernote": "", "style": "display:none;"}

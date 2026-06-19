@@ -2186,6 +2186,12 @@ def employee_delete(request, obj_id):
         id  : employee id
     """
 
+    employee_get = getattr(request.user, "employee_get", None)
+    if employee_get and int(obj_id) == int(employee_get.pk):
+        messages.error(request, _("You cannot delete your own profile."))
+        view = request.POST.get("view")
+        return SkylinxRedirect(request, fallback_url=f"/view={view}")
+
     try:
         view = request.POST.get("view")
         employee = Employee.objects.get(id=obj_id)
@@ -2223,6 +2229,14 @@ def employee_bulk_delete(request):
     This method is used to delete set of Employee instances
     """
     ids = json.loads(request.POST.get("ids", "[]"))
+    employee_get = getattr(request.user, "employee_get", None)
+    if employee_get:
+        own_id = employee_get.pk
+        if any(int(x) == int(own_id) for x in ids):
+            ids = [x for x in ids if int(x) != int(own_id)]
+            messages.error(request, _("You cannot delete your own profile. Your ID was excluded from bulk deletion."))
+            if not ids:
+                return JsonResponse({"message": "Forbidden"}, status=403)
     if not ids:
         messages.error(request, _("No IDs provided."))
     deleted_count = 0
@@ -3731,6 +3745,8 @@ def organisation_chart(request):
         Hierarchy generator method
         """
         nodes = []
+        if not manager:
+            return nodes
         # check the manager is a reporting manager if yes, store it into entered_req_managers
         if manager.id in result_dict.keys():
             entered_req_managers.append(manager)
@@ -3748,6 +3764,7 @@ def organisation_chart(request):
             if employee.id in result_dict.keys():
                 nodes.append(
                     {
+                        "id": employee.id,
                         "name": employee.get_full_name(),
                         "title": getattr(
                             employee.get_job_position(), "job_position", _("Not set")
@@ -3760,6 +3777,7 @@ def organisation_chart(request):
             else:
                 nodes.append(
                     {
+                        "id": employee.id,
                         "name": employee.get_full_name(),
                         "title": getattr(
                             employee.get_job_position(), "job_position", _("Not set")
@@ -3785,35 +3803,46 @@ def organisation_chart(request):
             is_active=True, reporting_manager__isnull=False
         ).distinct()
 
-    manager = request.user.employee_get
+    try:
+        manager = request.user.employee_get
+    except Exception:
+        manager = Employee.objects.filter(is_active=True).first()
+        if not manager:
+            manager = Employee.objects.entire().first()
 
-    if len(reporting_managers) == 0:
-        new_dict = {}
-    else:
-        new_dict = {reporting_managers[0].id: _("My view"), **result_dict}
+    new_dict = {}
+    if manager:
+        new_dict[manager.id] = _("My view")
+    for k, v in result_dict.items():
+        if manager and k == manager.id:
+            continue
+        new_dict[k] = v
+
     # POST method is used to change the reporting manager
     if request.method == "POST":
         if request.POST.get("manager_id"):
             manager_id = int(request.POST.get("manager_id"))
             manager = Employee.objects.get(id=manager_id)
         node = {
-            "name": manager.get_full_name(),
-            "title": getattr(manager.get_job_position(), "job_position", _("Not set")),
-            "children": create_hierarchy(manager),
+            "id": manager.id if manager else None,
+            "name": manager.get_full_name() if manager else "",
+            "title": getattr(manager.get_job_position(), "job_position", _("Not set")) if manager else "",
+            "children": create_hierarchy(manager) if manager else [],
         }
         context = {"act_datasource": node}
         return render(request, "organisation_chart/chart.html", context=context)
 
     node = {
-        "name": manager.get_full_name(),
-        "title": getattr(manager.get_job_position(), "job_position", _("Not set")),
-        "children": create_hierarchy(manager),
+        "id": manager.id if manager else None,
+        "name": manager.get_full_name() if manager else "",
+        "title": getattr(manager.get_job_position(), "job_position", _("Not set")) if manager else "",
+        "children": create_hierarchy(manager) if manager else [],
     }
 
     context = {
         "act_datasource": node,
         "reporting_manager_dict": new_dict,
-        "act_manager_id": manager.id,
+        "act_manager_id": manager.id if manager else None,
     }
     return render(request, "organisation_chart/org_chart.html", context=context)
 

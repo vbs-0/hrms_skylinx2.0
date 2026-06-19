@@ -68,7 +68,22 @@ def create_policy(request):
     if request.method == "POST":
         form = PolicyForm(request.POST, request.FILES, instance=instance)
         if form.is_valid():
-            form.save()
+            is_new = instance is None
+            policy = form.save()
+            if is_new:
+                from base.models import Company
+                selected_company = request.session.get("selected_company")
+                company = None
+                if selected_company and selected_company != "all":
+                    company = Company.objects.filter(id=selected_company).first()
+                if not company and hasattr(request.user, "employee_get") and request.user.employee_get:
+                    work_info = getattr(request.user.employee_get, "employee_work_info", None)
+                    if work_info:
+                        company = work_info.company_id
+                if not company:
+                    company = Company.objects.first()
+                if company:
+                    policy.company_id.add(company)
             messages.success(request, "Policy saved")
             form = PolicyForm()
             # return HttpResponse("<script>window.location.reload()</script>")

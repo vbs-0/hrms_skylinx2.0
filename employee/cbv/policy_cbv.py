@@ -35,11 +35,26 @@ class PolicyFormView(SkylinxFormView):
 
     def form_valid(self, form: PolicyForm) -> HttpResponse:
         if form.is_valid():
+            is_new = form.instance.pk is None
             if form.instance.pk:
                 message = _("Policy saved")
             else:
                 message = _("Policy updated")
-            form.save()
+            policy = form.save()
+            if is_new:
+                from base.models import Company
+                selected_company = self.request.session.get("selected_company")
+                company = None
+                if selected_company and selected_company != "all":
+                    company = Company.objects.filter(id=selected_company).first()
+                if not company and hasattr(self.request.user, "employee_get") and self.request.user.employee_get:
+                    work_info = getattr(self.request.user.employee_get, "employee_work_info", None)
+                    if work_info:
+                        company = work_info.company_id
+                if not company:
+                    company = Company.objects.first()
+                if company:
+                    policy.company_id.add(company)
             messages.success(self.request, _(message))
             return self.HttpResponse(targets_to_reload=["#policyContainerReload"])
 

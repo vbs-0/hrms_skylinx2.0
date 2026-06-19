@@ -84,9 +84,15 @@ def action_accessible(request, instance, user_perms):
     To access archive and delete functionalities
 
     """
+    if hasattr(request.user, "employee_get") and request.user.employee_get:
+        if instance.pk == request.user.employee_get.pk:
+            return False
+    if hasattr(instance, "employee_user_id") and instance.employee_user_id == request.user:
+        return False
 
     if request.user.has_perm("employee.change_employee"):
         return True
+    return False
 
 
 def permission_accessibility(

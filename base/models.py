@@ -347,7 +347,19 @@ class WorkType(SkylinxModel):
         super().clean(*args, **kwargs)
         request = getattr(_thread_locals, "request", None)
         if request and request.POST:
-            company = request.POST.getlist("company_id", None)
+            company = request.POST.getlist("company_id")
+            if not company:
+                selected_company = request.session.get("selected_company")
+                if selected_company and selected_company != "all":
+                    company = [selected_company]
+                elif hasattr(request.user, "employee_get") and request.user.employee_get:
+                    work_info = getattr(request.user.employee_get, "employee_work_info", None)
+                    if work_info and work_info.company_id:
+                        company = [str(work_info.company_id.id)]
+                if not company:
+                    first_company = Company.objects.first()
+                    if first_company:
+                        company = [str(first_company.id)]
             work_type = request.POST.get("work_type", None)
             if (
                 WorkType.objects.filter(company_id__id__in=company, work_type=work_type)
@@ -1523,15 +1535,16 @@ class WorkTypeRequest(SkylinxModel):
                 messages.warning(request, "The request entry cannot be deleted.")
 
     def is_any_work_type_request_exists(self):
-        approved_work_type_requests_range = WorkTypeRequest.objects.filter(
-            employee_id=self.employee_id,
-            approved=True,
-            canceled=False,
-            requested_date__range=[self.requested_date, self.requested_till],
-            requested_till__range=[self.requested_date, self.requested_till],
-        ).exclude(id=self.id)
-        if approved_work_type_requests_range:
-            return True
+        if self.requested_till:
+            approved_work_type_requests_range = WorkTypeRequest.objects.filter(
+                employee_id=self.employee_id,
+                approved=True,
+                canceled=False,
+                requested_date__range=[self.requested_date, self.requested_till],
+                requested_till__range=[self.requested_date, self.requested_till],
+            ).exclude(id=self.id)
+            if approved_work_type_requests_range:
+                return True
         approved_work_type_requests = WorkTypeRequest.objects.filter(
             employee_id=self.employee_id,
             approved=True,
@@ -1823,15 +1836,16 @@ class ShiftRequest(SkylinxModel):
                 raise ValidationError(_("Requested till field is required."))
 
     def is_any_request_exists(self):
-        approved_shift_requests_range = ShiftRequest.objects.filter(
-            employee_id=self.employee_id,
-            approved=True,
-            canceled=False,
-            requested_date__range=[self.requested_date, self.requested_till],
-            requested_till__range=[self.requested_date, self.requested_till],
-        ).exclude(id=self.id)
-        if approved_shift_requests_range:
-            return True
+        if self.requested_till:
+            approved_shift_requests_range = ShiftRequest.objects.filter(
+                employee_id=self.employee_id,
+                approved=True,
+                canceled=False,
+                requested_date__range=[self.requested_date, self.requested_till],
+                requested_till__range=[self.requested_date, self.requested_till],
+            ).exclude(id=self.id)
+            if approved_shift_requests_range:
+                return True
         approved_shift_requests = ShiftRequest.objects.filter(
             employee_id=self.employee_id,
             approved=True,

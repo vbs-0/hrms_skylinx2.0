@@ -128,4 +128,46 @@
         }
     }
 })();
+
+// ── Is Fixed / Amount / Employee Rate conditional logic ──────────────────
+(function() {
+    function applyIsFixedLogic(isFixedEl) {
+        var amountField = document.getElementById('id_amount');
+        var employerRateField = document.getElementById('id_employer_rate');
+        if (!amountField) return;
+
+        var isFixed = isFixedEl.checked;
+
+        // Amount field
+        if (amountField) {
+            amountField.disabled = !isFixed;
+            var amountWrapper = amountField.closest('.col-12');
+            if (amountWrapper) {
+                amountWrapper.style.opacity = isFixed ? '1' : '0.45';
+                amountWrapper.style.pointerEvents = isFixed ? '' : 'none';
+            }
+        }
+
+        // Employee Rate field
+        if (employerRateField) {
+            employerRateField.disabled = isFixed;
+            var rateWrapper = employerRateField.closest('.col-12');
+            if (rateWrapper) {
+                rateWrapper.style.opacity = isFixed ? '0.45' : '1';
+                rateWrapper.style.pointerEvents = isFixed ? 'none' : '';
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var isFixedEl = document.getElementById('id_is_fixed');
+        if (!isFixedEl) return;
+        // Apply on load
+        applyIsFixedLogic(isFixedEl);
+        // Apply on change
+        isFixedEl.addEventListener('change', function() {
+            applyIsFixedLogic(isFixedEl);
+        });
+    });
+})();
 </script>

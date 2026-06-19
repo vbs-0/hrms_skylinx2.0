@@ -42,8 +42,13 @@ def _onboarding_candidates_in_period(request):
 
 @login_required
 def onboarding_dashboard_view(request):
-    """Render the modern onboarding dashboard page."""
-    return render(request, "onboarding/dashboard.html")
+    """
+    Onboarding is now handled directly via Add Employee.
+    Redirect to the employee creation page.
+    """
+    from django.shortcuts import redirect
+    return redirect("employee-view-new")
+
 
 
 @login_required

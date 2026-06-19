@@ -1317,7 +1317,12 @@ def user_group(request):
         permissions.append(
             {"app": app_name.capitalize().replace("_", " "), "app_models": app_models}
         )
-    groups = Group.objects.all()
+    from django.db.models import Prefetch, Count
+    groups = Group.objects.all().prefetch_related(
+        Prefetch('permissions')
+    ).annotate(
+        user_count=Count('user', distinct=True)
+    )
     return render(
         request,
         "base/auth/group.html",
@@ -2277,14 +2282,23 @@ def work_type_create(request):
     company = None
     if selected_company and selected_company != "all":
         company = Company.objects.filter(id=selected_company).first()
-    initial = {"company_id": [company] if company else []}
-    form = WorkTypeForm(initial=initial)
+    form = WorkTypeForm()
     work_types = WorkType.objects.all()
     if request.method == "POST":
         form = WorkTypeForm(request.POST)
         if form.is_valid():
-            form.save()
-            form = WorkTypeForm(initial=initial)
+            work_type_instance = form.save()
+            company_to_add = company
+            if not company_to_add:
+                if hasattr(request.user, "employee_get") and request.user.employee_get:
+                    work_info = getattr(request.user.employee_get, "employee_work_info", None)
+                    if work_info and work_info.company_id:
+                        company_to_add = work_info.company_id
+                if not company_to_add:
+                    company_to_add = Company.objects.first()
+            if company_to_add:
+                work_type_instance.company_id.add(company_to_add)
+            form = WorkTypeForm()
             messages.success(request, _("Work Type has been created successfully!"))
             return SkylinxRedirect(request)
 

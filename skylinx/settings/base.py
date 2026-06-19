@@ -367,8 +367,8 @@ NESTED_SUBORDINATE_VISIBILITY = False
 TWO_FACTORS_AUTHENTICATION = False
 
 SIDEBARS = [
-    "recruitment",
-    "onboarding",
+    # "recruitment",  # Hidden per product decision
+    # "onboarding",  # Replaced by direct Add Employee flow
     "employee",
     "attendance",
     "leave",

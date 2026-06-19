@@ -397,6 +397,12 @@ class SkylinxDeleteConfirmationView(View):
             messages.error(self.request, "Invalid model parameter format.")
             return SkylinxFormView.HttpResponse()
 
+        if app == "employee" and MODEL_NAME.lower() == "employee":
+            employee_get = getattr(self.request.user, "employee_get", None)
+            if employee_get and str(pk) == str(employee_get.pk):
+                messages.error(self.request, "You cannot delete your own profile.")
+                return HttpResponseForbidden("You cannot delete your own profile.")
+
         if not self.request.user.has_perm(app + ".delete_" + MODEL_NAME.lower()):
             return render(self.request, "no_perm.html")
         model = apps.get_model(app, MODEL_NAME)
@@ -631,6 +637,12 @@ class SkylinxDeleteConfirmationView(View):
         """
         pk = self.request.GET["pk"]
         app, MODEL_NAME = self.request.GET["model"].split(".")
+        if app == "employee" and MODEL_NAME.lower() == "employee":
+            employee_get = getattr(self.request.user, "employee_get", None)
+            if employee_get and str(pk) == str(employee_get.pk):
+                messages.error(self.request, "You cannot delete your own profile.")
+                return HttpResponseForbidden("You cannot delete your own profile.")
+
         if not self.request.user.has_perm(app + ".delete_" + MODEL_NAME.lower()):
             return render(self.request, "no_perm.html")
         model = apps.get_model(app, MODEL_NAME)

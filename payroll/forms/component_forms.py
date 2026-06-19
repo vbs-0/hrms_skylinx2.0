@@ -96,6 +96,7 @@ class AllowanceForm(ModelForm):
         self.fields["style"].widget = widget.StyleWidget(form=self)
 
         # --- India Localization: tag advanced fields ---
+        # is_fixed, amount, employer_rate are always visible (not advanced)
         _allowance_advanced = [
             "is_condition_based", "field", "condition", "value",
             "shift_id", "shift_per_attendance_amount",
@@ -107,8 +108,7 @@ class AllowanceForm(ModelForm):
             "one_time_date", "start_range", "end_range",
             "if_condition", "if_amount", "if_choice",
             "is_loan", "include_active_employees", "is_pretax", 
-            "update_compensation", "is_fixed", "amount", "is_tax", 
-            "employer_rate"
+            "update_compensation", "is_tax",
         ]
         for fn in _allowance_advanced:
             if fn in self.fields:
@@ -257,15 +257,16 @@ class DeductionForm(ModelForm):
                 field.widget.option_template_name = default_select_option_template
 
         # --- India Localization: tag advanced fields ---
+        # is_fixed, amount, employer_rate are always visible (not advanced)
         _deduction_advanced = [
             "is_condition_based", "field", "condition", "value",
             "has_max_limit", "maximum_amount", "maximum_unit",
             "exclude_employees", "only_show_under_employee",
             "one_time_date", "start_range", "end_range",
             "if_condition", "if_amount", "if_choice",
-            "is_installment", "employer_rate", "include_active_employees", 
-            "is_pretax", "update_compensation", "is_fixed", "amount", 
-            "is_tax", "condition"
+            "is_installment", "include_active_employees", 
+            "is_pretax", "update_compensation",
+            "is_tax",
         ]
         for fn in _deduction_advanced:
             if fn in self.fields:

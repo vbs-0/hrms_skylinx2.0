@@ -297,7 +297,7 @@
                 <li class="flex-1 flex flex-col items-center justify-start ${
 					hasChildren ? "has-children" : ""
 				}">
-                    <a class="block" href="#" onclick="event.preventDefault()">
+                    <a class="block" href="#" data-id="${person.id || ''}" onclick="event.preventDefault()">
                         <div class="member-view-box relative h-full">
                             <div class="member-header">${person.name}</div>
                             <div class="member-footer">
@@ -349,6 +349,29 @@
 				$(this).addClass("has-children");
 			}
 		});
+
+		$(".member-header").each(function() {
+			const personId = $(this).closest("a").attr("data-id");
+			if (personId && $("#managerSelect option[value='" + personId + "']").length > 0) {
+				$(this).css("cursor", "pointer");
+				$(this).hover(
+					function() { $(this).css("text-decoration", "underline"); },
+					function() { $(this).css("text-decoration", "none"); }
+				);
+			}
+		});
+
+		$(".member-header")
+			.off("click")
+			.on("click", function (e) {
+				const personId = $(this).closest("a").attr("data-id");
+				if (personId && $("#managerSelect option[value='" + personId + "']").length > 0) {
+					$("#managerSelect").val(personId);
+					document.getElementById("managerSelect").dispatchEvent(new Event("change"));
+					e.stopPropagation();
+					e.preventDefault();
+				}
+			});
 
 		$(".genealogy-tree li .member-view-box")
 			.off("click")

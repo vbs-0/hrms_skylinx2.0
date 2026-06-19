@@ -97,7 +97,7 @@ class Employee(models.Model):
     email = models.EmailField(max_length=254, unique=True)
     phone = models.CharField(max_length=25, validators=[phone_validator])
     address = models.TextField(max_length=200, blank=True, null=True)
-    country = models.CharField(max_length=100, blank=True, null=True)
+    country = models.CharField(max_length=100, blank=True, null=True, default="India")
     state = models.CharField(max_length=100, null=True, blank=True)
     city = models.CharField(max_length=30, null=True, blank=True)
     zip = models.CharField(max_length=20, null=True, blank=True, verbose_name=_("PIN Code"))
@@ -161,6 +161,7 @@ class Employee(models.Model):
         null=True,
         blank=True,
         choices=ACCOUNT_TYPE_CHOICES,
+        default="savings",
         verbose_name=_("Bank Account Type"),
     )
 
@@ -743,8 +744,12 @@ class Employee(models.Model):
                 )
 
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
         self.full_clean()
         super().save(*args, **kwargs)
+        if is_new and not self.badge_id:
+            self.badge_id = str(self.pk)
+            super().save(update_fields=["badge_id"])
 
         request = getattr(skylinx_middlewares._thread_locals, "request", None)
         if request and not self.is_active and self.get_archive_condition() is not False:
@@ -1034,7 +1039,7 @@ class EmployeeBankDetails(SkylinxModel):
     )
     branch = models.CharField(max_length=50, null=True)
     address = models.TextField(max_length=255, null=True)
-    country = models.CharField(max_length=50, null=True, blank=True)
+    country = models.CharField(max_length=50, null=True, blank=True, default="India")
     state = models.CharField(max_length=50, null=True, blank=True)
     city = models.CharField(max_length=50, null=True, blank=True)
     any_other_code1 = models.CharField(

@@ -1,0 +1,1074 @@
+
+<div class="flex flex-wrap justify-between items-center mb-3">
+    <h3 class="text-lg font-semibold">Leave Allocation Requests</h3>
+    <div class="flex flex-wrap gap-1">
+        
+            <form autocomplete="off" id="filterForm" onsubmit="event.preventDefault()"
+                hx-get="/leave/leave-allocation-request-filter/?referrer="
+                hx-trigger="load, submit"
+                hx-replace-url="false" hx-target="#listContainer" hx-on:submit="htmxLoadIndicator(this);"
+                class="flex flex-wrap gap-1 navFilterForm">
+
+                <input type="text" name="nav_url" value="/leave/nav-leave-allocation-request/" hidden>
+
+                <div class="relative">
+                    <input type="text"
+                        class="text-color-600 ps-8 p-1.5 pb-2 placeholder:text-xs w-full border border-dark-50 rounded-md focus-visible:outline-0 placeholder:text-dark-100 text-sm [transition:.3s] focus:border-primary-600"
+                        name="search" aria-label="Search Input" placeholder="Search" autocomplete="false" autofocus="true"
+                        
+                    />
+                    <i class="fas fa-search absolute left-3 top-[1px] bottom-0 m-auto flex items-center opacity-50 text-xs"></i>
+                    
+                </div>
+                <div class="flex gap-1 text-[#000]">
+                    
+                </div>
+
+                
+                    <div class="relative dropdown-wrapper">
+                        <span
+                            class="px-5 py-2 h-full bg-[white]  rounded-md text-xs flex items-center gap-2  border border-primary-500 hover:border-primary-600 transition duration-300 cursor-pointer">
+                            <img src="/static/skylinx_theme/assets/img/icons/sort.svg" alt="Filter" width="15"
+                                class="mt-[-1px]">
+                            Filter
+                        </span>
+
+                        <div
+                            class="dropdown-content absolute z-10 bg-white rounded-lg [box-shadow:0px_0px_20px_0px_rgb(0_0_0_/_8%)] min-w-[400px] p-3 right-0">
+                            <div class="accordion-wrapper space-y-2">
+                                
+<div class="oh-dropdown__filter-body">
+    <div class="oh-accordion">
+        <div
+            class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            Leave Allocation Request
+        </div>
+        <div class="oh-accordion-body">
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label">Leave Type</label>
+                        <select name="leave_type_id" class="oh-select oh-select-2" id="3b2e9103-f028-4755-9dd6-f9fca5cfa864" multiple>
+  <option value="5" 
+ >LOP</option>
+
+  <option value="1" 
+ >Compensatory Leave Type</option>
+
+</select>
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label class="oh-label">Employee</label>
+                        <select name="employee_id" class="oh-select oh-select-2" id="caaddbf8-c3ad-47d5-b1b0-21e580f2cc23" multiple>
+  <option value="12" 
+ >Abigail Roberts (PEP15)</option>
+
+  <option value="1" 
+ >Adam Luis (PEP00)</option>
+
+  <option value="37" 
+ >Aiden Murphy (PEP40)</option>
+
+  <option value="13" 
+ >Alexander Smith (PEP16)</option>
+
+  <option value="63" 
+ >Alice Foster (PEP69)</option>
+
+  <option value="22" 
+ >Amelia Cooper (PEP25)</option>
+
+  <option value="135" 
+ >Ananya Iyer (SKY006)</option>
+
+  <option value="68" 
+ >Andrew Hayes (PEP74)</option>
+
+  <option value="119" 
+ >Angel Sanor (PEP118)</option>
+
+  <option value="103" 
+ >Angelyn Vong (PEP102)</option>
+
+  <option value="87" 
+ >Arcelia Bouska (PEP86)</option>
+
+  <option value="40" 
+ >Aria Powell (PEP43)</option>
+
+  <option value="130" 
+ >Arjun Reddy (SKY001)</option>
+
+  <option value="28" 
+ >Avery Hill (PEP31)</option>
+
+  <option value="97" 
+ >Belinda Partain (PEP96)</option>
+
+  <option value="11" 
+ >Benjamin Parker (PEP14)</option>
+
+  <option value="62" 
+ >Caleb Fisher (PEP68)</option>
+
+  <option value="106" 
+ >Carla Trumbull (PEP105)</option>
+
+  <option value="47" 
+ >Carter Stewart (PEP50)</option>
+
+  <option value="16" 
+ >Charlotte White (PEP19)</option>
+
+  <option value="116" 
+ >Chase Karner (PEP115)</option>
+
+  <option value="36" 
+ >Chloe Morgan (PEP39)</option>
+
+  <option value="9" 
+ >Christopher Miller (PEP12)</option>
+
+  <option value="71" 
+ >Daniel Foster (PEP06)</option>
+
+  <option value="7" 
+ >David King (PEP10)</option>
+
+  <option value="124" 
+ >Demetria Abbey (PEP123)</option>
+
+  <option value="111" 
+ >Dewitt Borger (PEP110)</option>
+
+  <option value="139" 
+ >Divya Joshi (SKY010)</option>
+
+  <option value="118" 
+ >Dorcas Darity (PEP117)</option>
+
+  <option value="77" 
+ >Dulce Abril (PEP76)</option>
+
+  <option value="76" 
+ >Dylan Ward (PEP54)</option>
+
+  <option value="84" 
+ >Earlean Melgar (PEP83)</option>
+
+  <option value="58" 
+ >Elijah Cox (PEP64)</option>
+
+  <option value="30" 
+ >Ella Jackson (PEP33)</option>
+
+  <option value="44" 
+ >Ellie Rogers (PEP47)</option>
+
+  <option value="4" 
+ >Emily Clark (PEP03)</option>
+
+  <option value="8" 
+ >Emma Lee (PEP11)</option>
+
+  <option value="27" 
+ >Ethan Gonzalez (PEP30)</option>
+
+  <option value="83" 
+ >Etta Hurn (PEP82)</option>
+
+  <option value="26" 
+ >Evelyn Garcia (PEP29)</option>
+
+  <option value="86" 
+ >Fallon Winward (PEP85)</option>
+
+  <option value="123" 
+ >Felisa Cail (PEP122)</option>
+
+  <option value="104" 
+ >Francesca Beaudreau (PEP103)</option>
+
+  <option value="88" 
+ >Franklyn Unknow (PEP87)</option>
+
+  <option value="39" 
+ >Gabriel Phillips (PEP42)</option>
+
+  <option value="105" 
+ >Garth Gangi (PEP104)</option>
+
+  <option value="82" 
+ >Gaston Brumm (PEP81)</option>
+
+  <option value="18" 
+ >Grace Allen (PEP21)</option>
+
+  <option value="55" 
+ >Hannah Brooks (PEP61)</option>
+
+  <option value="24" 
+ >Harper Edwards (PEP27)</option>
+
+  <option value="51" 
+ >Hazel Adams (PEP57)</option>
+
+  <option value="33" 
+ >Henry Lewis (PEP36)</option>
+
+  <option value="98" 
+ >Holly Eudy (PEP97)</option>
+
+  <option value="56" 
+ >Hunter Butler (PEP62)</option>
+
+  <option value="75" 
+ >Isaac Torres (PEP52)</option>
+
+  <option value="14" 
+ >Isabella Thompson (PEP17)</option>
+
+  <option value="43" 
+ >Jack Rivera (PEP46)</option>
+
+  <option value="15" 
+ >Jacob Walker (PEP18)</option>
+
+  <option value="70" 
+ >James Davis (PEP04)</option>
+
+  <option value="125" 
+ >Jeromy Danz (PEP124)</option>
+
+  <option value="5" 
+ >Jessica Evans (PEP05)</option>
+
+  <option value="109" 
+ >Jona Grindle (PEP108)</option>
+
+  <option value="66" 
+ >Jonathan Gray (PEP72)</option>
+
+  <option value="60" 
+ >Joseph Diaz (PEP66)</option>
+
+  <option value="110" 
+ >Judie Claywell (PEP109)</option>
+
+  <option value="52" 
+ >Julian Barnes (PEP58)</option>
+
+  <option value="136" 
+ >Karthik Varma (SKY007)</option>
+
+  <option value="80" 
+ >Kathleen Hanner (PEP79)</option>
+
+  <option value="113" 
+ >Kelsie Wachtel (PEP112)</option>
+
+  <option value="91" 
+ >Kina Hazelton (PEP90)</option>
+
+  <option value="94" 
+ >Lauralee Perrine (PEP93)</option>
+
+  <option value="65" 
+ >Layla Gonzales (PEP71)</option>
+
+  <option value="101" 
+ >Lester Prothro (PEP100)</option>
+
+  <option value="45" 
+ >Levi Sanders (PEP48)</option>
+
+  <option value="100" 
+ >Libbie Dalby (PEP99)</option>
+
+  <option value="20" 
+ >Lily Campbell (PEP23)</option>
+
+  <option value="25" 
+ >Logan Flores (PEP28)</option>
+
+  <option value="95" 
+ >Loreta Curren (PEP94)</option>
+
+  <option value="21" 
+ >Lucas Carter (PEP24)</option>
+
+  <option value="59" 
+ >Lucy Cruz (PEP65)</option>
+
+  <option value="32" 
+ >Madison Kelly (PEP35)</option>
+
+  <option value="99" 
+ >Many Cuccia (PEP98)</option>
+
+  <option value="78" 
+ >Mara Hashimoto (PEP77)</option>
+
+  <option value="90" 
+ >Marcel Zabriskie (PEP89)</option>
+
+  <option value="102" 
+ >Marvel Hail (PEP101)</option>
+
+  <option value="23" 
+ >Mason Diaz (PEP26)</option>
+
+  <option value="6" 
+ >Matthew Harris (PEP08)</option>
+
+  <option value="137" 
+ >Meera Nair (SKY008)</option>
+
+  <option value="10" 
+ >Mia Nelson (PEP13)</option>
+
+  <option value="2" 
+ >Michael Brown (PEP01)</option>
+
+  <option value="38" 
+ >Mila Perez (PEP41)</option>
+
+  <option value="50" 
+ >Nathaniel Wright (PEP56)</option>
+
+  <option value="112" 
+ >Nena Hacker (PEP111)</option>
+
+  <option value="81" 
+ >Nereida Magwood (PEP80)</option>
+
+  <option value="64" 
+ >Nicholas George (PEP70)</option>
+
+  <option value="17" 
+ >Noah Young (PEP20)</option>
+
+  <option value="42" 
+ >Nora Reed (PEP45)</option>
+
+  <option value="72" 
+ >Olivia Green (PEP07)</option>
+
+  <option value="31" 
+ >Owen Jenkins (PEP34)</option>
+
+  <option value="46" 
+ >Penelope Scott (PEP49)</option>
+
+  <option value="79" 
+ >Philip Gent (PEP78)</option>
+
+  <option value="131" 
+ >Priya Sharma (SKY002)</option>
+
+  <option value="126" 
+ >Rasheeda Alkire (PEP125)</option>
+
+  <option value="132" 
+ >Ravi Kumar (SKY003)</option>
+
+  <option value="74" 
+ >Riley Taylor (PEP51)</option>
+
+  <option value="122" 
+ >Roma Lafollette (PEP121)</option>
+
+  <option value="57" 
+ >Ruby Cook (PEP63)</option>
+
+  <option value="54" 
+ >Ryan Bennett (PEP60)</option>
+
+  <option value="61" 
+ >Sadie Ellis (PEP67)</option>
+
+  <option value="19" 
+ >Samuel Baker (PEP22)</option>
+
+  <option value="3" 
+ >Sarah Anderson (PEP02)</option>
+
+  <option value="114" 
+ >Sau Pfau (PEP113)</option>
+
+  <option value="34" 
+ >Scarlett Martinez (PEP37)</option>
+
+  <option value="35" 
+ >Sebastian Mitchell (PEP38)</option>
+
+  <option value="115" 
+ >Shanice Mccrystal (PEP114)</option>
+
+  <option value="93" 
+ >Shavon Benito (PEP92)</option>
+
+  <option value="92" 
+ >Shavonne Pia (PEP91)</option>
+
+  <option value="89" 
+ >Sherron Ascencio (PEP88)</option>
+
+  <option value="133" 
+ >Sneha Patel (SKY004)</option>
+
+  <option value="69" 
+ >Sofia Howard (PEP75)</option>
+
+  <option value="73" 
+ >Sophia Johnson (PEP09)</option>
+
+  <option value="108" 
+ >Stasia Becker (PEP107)</option>
+
+  <option value="53" 
+ >Stella Bell (PEP59)</option>
+
+  <option value="138" 
+ >Suresh Yadav (SKY009)</option>
+
+  <option value="96" 
+ >Teresa Strawn (PEP95)</option>
+
+  <option value="117" 
+ >Tommie Underdahl (PEP116)</option>
+
+  <option value="107" 
+ >Veta Muntz (PEP106)</option>
+
+  <option value="48" 
+ >Victoria Turner (PEP53)</option>
+
+  <option value="134" 
+ >Vikram Singh (SKY005)</option>
+
+  <option value="85" 
+ >Vincenza Weiland (PEP84)</option>
+
+  <option value="67" 
+ >Violet Griffin (PEP73)</option>
+
+  <option value="121" 
+ >Weston Martina (PEP120)</option>
+
+  <option value="29" 
+ >William Hughes (PEP32)</option>
+
+  <option value="120" 
+ >Willodean Harn (PEP119)</option>
+
+  <option value="41" 
+ >Wyatt Ramirez (PEP44)</option>
+
+  <option value="49" 
+ >Zoey Watson (PEP55)</option>
+
+  <option value="129" 
+ >demo2  (PEP1002)</option>
+
+  <option value="128" 
+ >sandeep  (PEP1001)</option>
+
+  <option value="127" 
+ >vbs  (HEHEHAHA01)</option>
+
+</select>
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label class="oh-label">Created By</label>
+                        <select name="created_by" class="oh-select oh-select-2" id="a9acf5f8-1b73-42e9-999b-aac4b2df95c1" multiple>
+  <option value="1" 
+ >admin</option>
+
+  <option value="2" 
+ >Skylinx Bot</option>
+
+  <option value="3" 
+ >michael.brown@skylinx.com</option>
+
+  <option value="4" 
+ >sarah.anderson@skylinx.com</option>
+
+  <option value="5" 
+ >emily.clark@skylinx.com</option>
+
+  <option value="6" 
+ >jessica.evans@skylinx.com</option>
+
+  <option value="7" 
+ >matthew.harris@skylinx.com</option>
+
+  <option value="8" 
+ >david.king@skylinx.com</option>
+
+  <option value="9" 
+ >emma.lee@skylinx.com</option>
+
+  <option value="10" 
+ >christopher.miller@skylinx.com</option>
+
+  <option value="11" 
+ >mia.nelson@skylinx.com</option>
+
+  <option value="12" 
+ >benjamin.parker@skylinx.com</option>
+
+  <option value="13" 
+ >abigail.roberts@skylinx.com</option>
+
+  <option value="14" 
+ >alexander.smith@skylinx.com</option>
+
+  <option value="15" 
+ >isabella.thompson@skylinx.com</option>
+
+  <option value="16" 
+ >jacob.walker@skylinx.com</option>
+
+  <option value="17" 
+ >charlotte.white@skylinx.com</option>
+
+  <option value="18" 
+ >noah.young@skylinx.com</option>
+
+  <option value="19" 
+ >grace.allen@skylinx.com</option>
+
+  <option value="20" 
+ >samuel.baker@skylinx.com</option>
+
+  <option value="21" 
+ >lily.campbell@skylinx.com</option>
+
+  <option value="22" 
+ >lucas.carter@skylinx.com</option>
+
+  <option value="23" 
+ >amelia.cooper@skylinx.com</option>
+
+  <option value="24" 
+ >mason.diaz@skylinx.com</option>
+
+  <option value="25" 
+ >harper.edwards@skylinx.com</option>
+
+  <option value="26" 
+ >logan.flores@skylinx.com</option>
+
+  <option value="27" 
+ >evelyn.garcia@skylinx.com</option>
+
+  <option value="28" 
+ >ethan.gonzalez@skylinx.com</option>
+
+  <option value="29" 
+ >avery.hill@skylinx.com</option>
+
+  <option value="30" 
+ >william.hughes@skylinx.com</option>
+
+  <option value="31" 
+ >ella.jackson@skylinx.com</option>
+
+  <option value="32" 
+ >owen.jenkins@skylinx.com</option>
+
+  <option value="33" 
+ >madison.kelly@skylinx.com</option>
+
+  <option value="34" 
+ >henry.lewis@skylinx.com</option>
+
+  <option value="35" 
+ >scarlett.martinez@skylinx.com</option>
+
+  <option value="36" 
+ >sebastian.mitchell@skylinx.com</option>
+
+  <option value="37" 
+ >chloe.morgan@skylinx.com</option>
+
+  <option value="38" 
+ >aiden.murphy@skylinx.com</option>
+
+  <option value="39" 
+ >mila.perez@skylinx.com</option>
+
+  <option value="40" 
+ >gabriel.phillips@skylinx.com</option>
+
+  <option value="41" 
+ >aria.powell@skylinx.com</option>
+
+  <option value="42" 
+ >wyatt.ramirez@skylinx.com</option>
+
+  <option value="43" 
+ >nora.reed@skylinx.com</option>
+
+  <option value="44" 
+ >jack.rivera@skylinx.com</option>
+
+  <option value="45" 
+ >ellie.rogers@skylinx.com</option>
+
+  <option value="46" 
+ >levi.sanders@skylinx.com</option>
+
+  <option value="47" 
+ >penelope.scott@skylinx.com</option>
+
+  <option value="48" 
+ >carter.stewart@skylinx.com</option>
+
+  <option value="49" 
+ >victoria.turner@skylinx.com</option>
+
+  <option value="50" 
+ >zoey.watson@skylinx.com</option>
+
+  <option value="51" 
+ >nathaniel.wright@skylinx.com</option>
+
+  <option value="52" 
+ >hazel.adams@skylinx.com</option>
+
+  <option value="53" 
+ >julian.barnes@skylinx.com</option>
+
+  <option value="54" 
+ >stella.bell@skylinx.com</option>
+
+  <option value="55" 
+ >ryan.bennett@skylinx.com</option>
+
+  <option value="56" 
+ >hannah.brooks@skylinx.com</option>
+
+  <option value="57" 
+ >hunter.butler@skylinx.com</option>
+
+  <option value="58" 
+ >ruby.cook@skylinx.com</option>
+
+  <option value="59" 
+ >elijah.cox@skylinx.com</option>
+
+  <option value="60" 
+ >lucy.cruz@skylinx.com</option>
+
+  <option value="61" 
+ >joseph.diaz@skylinx.com</option>
+
+  <option value="62" 
+ >sadie.ellis@skylinx.com</option>
+
+  <option value="63" 
+ >caleb.fisher@skylinx.com</option>
+
+  <option value="64" 
+ >alice.foster@skylinx.com</option>
+
+  <option value="65" 
+ >nicholas.george@skylinx.com</option>
+
+  <option value="66" 
+ >layla.gonzales@skylinx.com</option>
+
+  <option value="67" 
+ >jonathan.gray@skylinx.com</option>
+
+  <option value="68" 
+ >violet.griffin@skylinx.com</option>
+
+  <option value="69" 
+ >andrew.hayes@skylinx.com</option>
+
+  <option value="70" 
+ >sofia.howard@skylinx.com</option>
+
+  <option value="71" 
+ >james.davis@skylinx.com</option>
+
+  <option value="72" 
+ >daniel.foster@skylinx.com</option>
+
+  <option value="73" 
+ >olivia.green@skylinx.com</option>
+
+  <option value="74" 
+ >sophia.johnson@skylinx.com</option>
+
+  <option value="75" 
+ >riley.taylor@skylinx.com</option>
+
+  <option value="76" 
+ >isaac.torres@skylinx.com</option>
+
+  <option value="77" 
+ >dylan.ward@skylinx.com</option>
+
+  <option value="78" 
+ >skylinxadmin</option>
+
+  <option value="79" 
+ >dulce.abril@skylinx.com</option>
+
+  <option value="80" 
+ >mara.hashimoto@skylinx.com</option>
+
+  <option value="81" 
+ >philip.gent@skylinx.com</option>
+
+  <option value="82" 
+ >kathleen.hanner@skylinx.com</option>
+
+  <option value="83" 
+ >nereida.magwood@skylinx.com</option>
+
+  <option value="84" 
+ >gaston.brumm@skylinx.com</option>
+
+  <option value="85" 
+ >etta.hurn@skylinx.com</option>
+
+  <option value="86" 
+ >earlean.melgar@skylinx.com</option>
+
+  <option value="87" 
+ >vincenza.weiland@skylinx.com</option>
+
+  <option value="88" 
+ >fallon.winward@skylinx.com</option>
+
+  <option value="89" 
+ >arcelia.bouska@skylinx.com</option>
+
+  <option value="90" 
+ >franklyn.unknow@skylinx.com</option>
+
+  <option value="91" 
+ >sherron.ascencio@skylinx.com</option>
+
+  <option value="92" 
+ >marcel.zabriskie@skylinx.com</option>
+
+  <option value="93" 
+ >kina.hazelton@skylinx.com</option>
+
+  <option value="94" 
+ >shavonne.pia@skylinx.com</option>
+
+  <option value="95" 
+ >shavon.benito@skylinx.com</option>
+
+  <option value="96" 
+ >lauralee.perrine@skylinx.com</option>
+
+  <option value="97" 
+ >loreta.curren@skylinx.com</option>
+
+  <option value="98" 
+ >teresa.strawn@skylinx.com</option>
+
+  <option value="99" 
+ >belinda.partain@skylinx.com</option>
+
+  <option value="100" 
+ >holly.eudy@skylinx.com</option>
+
+  <option value="101" 
+ >many.cuccia@skylinx.com</option>
+
+  <option value="102" 
+ >libbie.dalby@skylinx.com</option>
+
+  <option value="103" 
+ >lester.prothro@skylinx.com</option>
+
+  <option value="104" 
+ >marvel.hail@skylinx.com</option>
+
+  <option value="105" 
+ >angelyn.vong@skylinx.com</option>
+
+  <option value="106" 
+ >francesca.beaudreau@skylinx.com</option>
+
+  <option value="107" 
+ >garth.gangi@skylinx.com</option>
+
+  <option value="108" 
+ >carla.trumbull@skylinx.com</option>
+
+  <option value="109" 
+ >veta.muntz@skylinx.com</option>
+
+  <option value="110" 
+ >stasia.becker@skylinx.com</option>
+
+  <option value="111" 
+ >jona.grindle@skylinx.com</option>
+
+  <option value="112" 
+ >judie.claywell@skylinx.com</option>
+
+  <option value="113" 
+ >dewitt.borger@skylinx.com</option>
+
+  <option value="114" 
+ >nena.hacker@skylinx.com</option>
+
+  <option value="115" 
+ >kelsie.wachtel@skylinx.com</option>
+
+  <option value="116" 
+ >sau.pfau@skylinx.com</option>
+
+  <option value="117" 
+ >shanice.mccrystal@skylinx.com</option>
+
+  <option value="118" 
+ >chase.karner@skylinx.com</option>
+
+  <option value="119" 
+ >tommie.underdahl@skylinx.com</option>
+
+  <option value="120" 
+ >dorcas.darity@skylinx.com</option>
+
+  <option value="121" 
+ >angel.sanor@skylinx.com</option>
+
+  <option value="122" 
+ >willodean.harn@skylinx.com</option>
+
+  <option value="123" 
+ >weston.martina@skylinx.com</option>
+
+  <option value="124" 
+ >roma.lafollette@skylinx.com</option>
+
+  <option value="125" 
+ >felisa.cail@skylinx.com</option>
+
+  <option value="126" 
+ >demetria.abbey@skylinx.com</option>
+
+  <option value="127" 
+ >jeromy.danz@skylinx.com</option>
+
+  <option value="128" 
+ >rasheeda.alkire@skylinx.com</option>
+
+  <option value="129" 
+ >chbhadri0@gmail.com</option>
+
+  <option value="130" 
+ >narsimhasaisandeep@gmail.com</option>
+
+  <option value="131" 
+ >admin@gmail.com</option>
+
+  <option value="132" 
+ >arjun.reddy@skylinxhr.com</option>
+
+  <option value="133" 
+ >priya.sharma@skylinxhr.com</option>
+
+  <option value="134" 
+ >ravi.kumar@skylinxhr.com</option>
+
+  <option value="135" 
+ >sneha.patel@skylinxhr.com</option>
+
+  <option value="136" 
+ >vikram.singh@skylinxhr.com</option>
+
+  <option value="137" 
+ >ananya.iyer@skylinxhr.com</option>
+
+  <option value="138" 
+ >karthik.varma@skylinxhr.com</option>
+
+  <option value="139" 
+ >meera.nair@skylinxhr.com</option>
+
+  <option value="140" 
+ >suresh.yadav@skylinxhr.com</option>
+
+  <option value="141" 
+ >divya.joshi@skylinxhr.com</option>
+
+  <option value="142" 
+ >testadmin</option>
+
+</select>
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label class="oh-label"
+                            >Requested days Up To</label
+                        >
+                        <input type="number" name="number_of_days_up_to" step="any" class="oh-input w-100 form-control" placeholder="Requested Days Is Less Than Or Equal To" id="id_number_of_days_up_to">
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label class="oh-label"
+                            >Requested days More Than </label
+                        >
+                        <input type="number" name="number_of_days_more_than" step="any" class="oh-input w-100 form-control" placeholder="Requested Days Is Greater Than Or Equal To" id="id_number_of_days_more_than">
+                    </div>
+                </div>
+
+                <div class="col-sm-12 col-md-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label">Status</label>
+                        <select name="status" class="oh-select oh-select-2" id="31eda1ab-b168-4643-bd20-8858d32edcff">
+  <option value=""  selected
+ disabled>---------</option>
+
+  <option value="requested" 
+ >Requested</option>
+
+  <option value="approved" 
+ >Approved</option>
+
+  <option value="rejected" 
+ >Rejected</option>
+
+</select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+                                
+                                    <div class="oh-accordion">
+                                        <div class="oh-accordion-header">
+                                            Group By
+                                        </div>
+                                        <div class="oh-accordion-body">
+                                            <div class="row">
+                                                <div class="col-sm-12 col-md-12 col-lg-6">
+                                                    <div class="oh-input-group">
+                                                        <label class="oh-label" for="id_field">Field</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-sm-12 col-md-12 col-lg-6">
+                                                    <div class="oh-input-group">
+                                                        <select onchange="$(this).closest('form').find('#applyFilter').click()"
+                                                            class="oh-select mt-1 w-100" id="id_field" name="field"
+                                                            style="width:100%;">
+                                                            <option value="">Select</option>
+                                                            
+                                                            <option value="employee_id">Employee</option>
+                                                            
+                                                            <option value="leave_type_id">Leave Type</option>
+                                                            
+                                                            <option value="status">Status</option>
+                                                            
+                                                            <option value="requested_days">Requested Days</option>
+                                                            
+                                                            <option value="employee_id__employee_work_info__reporting_manager_id">Reporting Manager</option>
+                                                            
+                                                            <option value="employee_id__employee_work_info__department_id">Department</option>
+                                                            
+                                                            <option value="employee_id__employee_work_info__job_position_id">Job Position</option>
+                                                            
+                                                            <option value="employee_id__employee_work_info__employee_type_id">Employment Type</option>
+                                                            
+                                                            <option value="employee_id__employee_work_info__company_id">Company</option>
+                                                            
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                
+
+                                <div class="flex justify-end ">
+                                    <button
+                                        class="px-4 py-2 bg-primary-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-primary-800 transition duration-300 filterButton"
+                                        id="applyFilter">
+                                        <img src="/static/skylinx_theme/assets/img/icons/sort.svg" style="filter: invert(1) brightness(2);" alt="Filter" width="15"
+                                            class="mt-[-1px]">Filter
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                
+            </form>
+        
+        <input type="hidden" id="pageInput">
+        <input type="hidden" id="sortInput">
+        
+        
+            <a class="px-4 py-2 bg-primary-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-primary-800 transition duration-300 cursor-pointer"
+                
+                            data-toggle="oh-modal-toggle"
+                            data-target="#objectCreateModal"
+                            hx-target="#objectCreateModalTarget"
+                            hx-get="/leave/leave-allocation-request-create/"
+                            >
+                <img src="/static/skylinx_theme/assets/img/icons/more.svg" alt="Create" width="13" class="filter brightness-0 invert" />
+                Create
+            </a>
+        
+    </div>
+</div>
+<div id="filterTagContainerSectionNav"  class="oh-titlebar-container__filters mb-2 mt-0 oh-wrapper"></div>
+
+<script>
+    $(document).ready(function () {
+        $("#filterForm").on("htmx:configRequest", function (event) {
+            if (event.detail.verb == "get" && event.target.tagName == "FORM") {
+                event.detail.path = $(this).attr("hx-get");
+            }
+        });
+
+        setTimeout(() => {
+            $(".oh-view-btn--active").click();
+            
+            if (!$(".oh-view-btn--active").length) {
+                $("#applyFilter").click()
+            }
+            
+        }, 100);
+        $(document).ready(function () {
+
+        let debounceTimer;
+
+        $('#filterForm input[name="search"]').on('keyup', function () {
+            clearTimeout(debounceTimer);
+
+            debounceTimer = setTimeout(() => {
+            this.form.requestSubmit(); // Triggers HTMX handling via form's hx-get, etc.
+            }, 500);
+        });
+        });
+
+        $(".nav-view-btn").click(function (e) {
+            e.preventDefault();
+            $(".oh-view-btn--active").removeClass("oh-view-btn--active");
+            $(this).addClass("oh-view-btn--active");
+        });
+    });
+</script>
