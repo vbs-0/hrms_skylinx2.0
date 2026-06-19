@@ -363,7 +363,7 @@
 <script src="{% static '/leave_request/action.js' %}"></script>
 <script>
 
-	$(document).on('htmx:load','#userLeaves', function () {
+	$(document).off('htmx:load.user_lea_user_request').on('htmx:load.user_lea_user_request','#userLeaves', function () {
         // Create a new script element
         var scriptElement = document.createElement("script");
         // Set the source URL of the script file to be loaded
@@ -372,7 +372,7 @@
         document.head.appendChild(scriptElement);
     });
 
-    $(document).on('htmx:load', '#requestForm', function () {
+    $(document).off('htmx:load.user_lea_user_request').on('htmx:load.user_lea_user_request', '#requestForm', function () {
 		{% include 'select2.js' %}
         $('#leaveType #id_leave_type_id').select2();
         $('#employee #id_employee_id').select2();
@@ -381,7 +381,7 @@
     });
 
 
-	$(document).on('htmx:load', '#updateForm', function () {
+	$(document).off('htmx:load.user_lea_user_request').on('htmx:load.user_lea_user_request', '#updateForm', function () {
 		{% include 'select2.js' %}
 		$('#startDate #id_start_date_breakdown').select2();
 		$('#endDate #id_end_date_breakdown').select2();

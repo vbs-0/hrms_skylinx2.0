@@ -4165,26 +4165,12 @@ def employee_available_leave_count(request):
 
     employee_id = _restrict_employee_id(employee_id)
 
-    available_leave = (
-        AvailableLeave.objects.filter(
-            leave_type_id=leave_type_id, employee_id=employee_id
-        ).first()
-        if leave_type_id and employee_id
-        else None
-    )
-    total_leave_days = available_leave.total_leave_days if available_leave else 0
-    forcasted_days = 0
-
     if not leave_type_id or not start_date:
         return render(
             request,
             "leave/leave_request/employee_available_leave_count.html",
             {"hx_target": hx_target},
         )
-
-    employee_id = request.GET.getlist("employee_id")
-    employee_id = employee_id[0] if employee_id else None
-    employee_id = _restrict_employee_id(employee_id)
 
     available_leave = (
         AvailableLeave.objects.select_related("leave_type_id", "employee_id")

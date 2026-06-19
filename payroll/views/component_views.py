@@ -366,12 +366,21 @@ def allowances_deductions_tab(request, emp_id):
                     ):
                         applicable = False
                         break
-            if applicable:
+            if applicable and deduction not in employee_deductions:
                 employee_deductions.append(deduction)
 
+        employee_deductions = [
+            deduction
+            for deduction in employee_deductions
+            if operator_mapping.get(deduction.if_condition)(
+                basic_pay if deduction.if_choice == "basic_pay" else 0,
+                deduction.if_amount,
+            )
+        ]
+
     allowance_ids = (
-        json.dumps([instance.id for instance in employee_deductions])
-        if employee_deductions
+        json.dumps([instance.id for instance in employee_allowances])
+        if employee_allowances
         else None
     )
     deduction_ids = (

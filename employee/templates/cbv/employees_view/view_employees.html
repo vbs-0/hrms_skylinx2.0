@@ -275,9 +275,9 @@
       }
     }
     document.addEventListener("DOMContentLoaded", syncEmployeeListNavBar);
-    document.body.addEventListener("htmx:afterSwap", onListContainerHtmxEvent);
-    document.body.addEventListener("htmx:afterSettle", onListContainerHtmxEvent);
-    document.body.addEventListener("htmx:afterRequest", function (e) {
+    window.oneListener(document.body, "htmx:afterSwap", onListContainerHtmxEvent, "employeeListContainerSwap");
+    window.oneListener(document.body, "htmx:afterSettle", onListContainerHtmxEvent, "employeeListContainerSettle");
+    window.oneListener(document.body, "htmx:afterRequest", function (e) {
       var url = (e.detail && e.detail.xhr && e.detail.xhr.responseURL) || "";
       if (
         e.detail &&
@@ -287,10 +287,10 @@
       ) {
         setTimeout(syncEmployeeListNavBar, 0);
       }
-    });
-    window.addEventListener("popstate", function () {
+    }, "employeeAfterRequest");
+    window.oneListener(window, "popstate", function () {
       setTimeout(syncEmployeeListNavBar, 0);
-    });
+    }, "employeePopstate");
   })();
 </script>
 <script>

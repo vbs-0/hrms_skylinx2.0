@@ -216,7 +216,7 @@
     });
 </script>
 <script>
-    $(document).on('htmx:load', '#assignLeaveForm', function () {
+    $(document).off('htmx:load.leave_as_assign_view').on('htmx:load.leave_as_assign_view', '#assignLeaveForm', function () {
         {% include 'select2.js' %}
         $('#leaveTypeAssign #id_leave_type_id').select2();
         $('#employeeAssign #id_employee_id').select2();

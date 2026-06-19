@@ -252,7 +252,7 @@
 
 <script>
     $(document).ready(function () {
-        $(document).on("htmx:afterSettle", function () {
+        $(document).off("htmx:afterSettle.workRecord").on("htmx:afterSettle.workRecord", function () {
             var hxVals = $("[data-hx-vals]").data("hx-vals");
             var queryParams = {};
             var pairs = hxVals.split("&");

@@ -13,9 +13,11 @@
         (function () {
             var $form = $("#createTitle").closest("form");
             $form.find("select").each(function () {
-                if ($(this).hasClass("select2-hidden-accessible")) {
+                if ($(this).data("select2")) {
                     $(this).select2("destroy");
                 }
+                // ensure class is removed if HTML came with it
+                $(this).removeClass("select2-hidden-accessible");
             });
             $form.find("select").select2({ width: "100%" });
         })();

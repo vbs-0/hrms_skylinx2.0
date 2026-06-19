@@ -3,7 +3,7 @@
     {% include "generic/skylinx_list_table.html" %}
 </div>
 <script>
-  $(document).on("htmx:afterSwap", function () {
+  $(document).off("htmx:afterSwap.cbv_recruitm_rec_main").on("htmx:afterSwap.cbv_recruitm_rec_main", function () {
     $("[data-toggle-count]").off("click").on("click", function (e) {
       e.stopPropagation();
       let recViewContainer = $(this).closest('tr');

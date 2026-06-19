@@ -91,7 +91,7 @@
 
 
     // Re-initialize Summernote after HTMX content swap
-    $(document).on("htmx:afterRequest", function () {
+    $(document).off("htmx:afterRequest.mail_htmx_form").on("htmx:afterRequest.mail_htmx_form", function () {
         initializeSummernote();
     });
 </script>

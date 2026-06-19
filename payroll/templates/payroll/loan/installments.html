@@ -189,7 +189,7 @@
 </div>
 
 <script>
-    $(document).on("htmx:afterSettle", function () {
+    $(document).off("htmx:afterSettle.payroll_loan_installments").on("htmx:afterSettle.payroll_loan_installments", function () {
         editableInput = $(".editable-input");
 
         editableInput.on("focus", function () {

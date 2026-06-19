@@ -64,7 +64,7 @@
 	</div>
 
 	<script>
-		$(document).on("htmx:afterSettle", function () {
+		$(document).off("htmx:afterSettle.objectives").on("htmx:afterSettle.objectives", function () {
 			$("[data-toggle-count]")
 				.off("click")
 				.on("click", function (e) {
@@ -105,11 +105,11 @@
 			}
 
 			document.addEventListener("DOMContentLoaded", syncObjectivesNavVisibility);
-			document.body.addEventListener("htmx:afterSwap", onListContainerSwap);
-			document.body.addEventListener("htmx:afterSettle", onListContainerSwap);
-			window.addEventListener("popstate", function () {
+			window.oneListener(document.body, "htmx:afterSwap", onListContainerSwap, "objectivesListContainerSwap");
+			window.oneListener(document.body, "htmx:afterSettle", onListContainerSwap, "objectivesListContainerSettle");
+			window.oneListener(window, "popstate", function () {
 				setTimeout(syncObjectivesNavVisibility, 0);
-			});
+			}, "objectivesPopstate");
 		})();
 	</script>
 {% endblock content %}

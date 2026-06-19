@@ -391,6 +391,8 @@ class MyLeaveRequestForm(SkylinxFormView):
                     if form.is_valid():
                         # if form.instance.pk:
                         leave_request = form.save(commit=False)
+                        leave_request.created_by = self.request.user.employee_get
+                        leave_request.save()
                         save = True
                         if leave_request.leave_type_id.require_approval == "no":
                             employee_id = leave_request.employee_id

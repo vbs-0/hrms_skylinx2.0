@@ -882,6 +882,7 @@
         refreshToggle.textContent = '⟳';
         refreshToggle.title = '{% trans "Auto-refresh ON (5 min)" %}';
         refreshTimer = setInterval(() => location.reload(), REFRESH_INTERVAL);
+        window._dashboardRefreshTimer = refreshTimer;
     }
     function stopAutoRefresh() {
         autoRefreshOn = false;
@@ -889,7 +890,7 @@
         refreshDot.classList.remove('am-refresh__dot--pulse');
         refreshToggle.textContent = '⏸';
         refreshToggle.title = '{% trans "Auto-refresh OFF" %}';
-        if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+        if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; window._dashboardRefreshTimer = null; }
     }
     refreshToggle.addEventListener('click', () => { if (autoRefreshOn) stopAutoRefresh(); else startAutoRefresh(); });
     if (autoRefreshOn) startAutoRefresh(); else stopAutoRefresh();

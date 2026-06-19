@@ -172,15 +172,18 @@
                 let $timeSpan = timer.find(".time");
                 let resendUrl = "{% url 'send-otp' %}";
 
+                if (window._otpTimer) clearInterval(window._otpTimer);
                 let interval = setInterval(function () {
                     counter--;
                     if (counter <= 0) {
                         clearInterval(interval);
+                        window._otpTimer = null;
                         $timeSpan.html(`<a href='${resendUrl}' class="oh-text--secondary">{% trans "Resend" %}`);
                     } else {
                         $timeSpan.text(`${counter}`);
                     }
                 }, 1000);
+                window._otpTimer = interval;
             }, 5000);
         </script>
     </body>

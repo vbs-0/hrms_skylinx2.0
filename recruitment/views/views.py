@@ -2071,9 +2071,10 @@ def candidate_conversion(request, cand_id, **kwargs):
         return SkylinxRedirect(request)
 
     user_exists = SkylinxUser.objects.filter(username=candidate_obj.email).exists()
-    employee_exists = Employee.objects.filter(
-        employee_user_id__username=candidate_obj.email
-    ).exists()
+    employee_exists = (
+        Employee.objects.filter(employee_user_id__username=candidate_obj.email).exists()
+        or Employee.objects.filter(email=candidate_obj.email).exists()
+    )
 
     if user_exists:
         messages.error(request, ("User instance with this mail already exists"))

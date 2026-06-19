@@ -275,7 +275,7 @@
 
 <script src="{% static '/leave_request/action.js' %}"></script>
 <script>
-    $(document).on('htmx:afterSwap', function () {
+    $(document).off('htmx:afterSwap.leaveRequest').on('htmx:afterSwap.leaveRequest', function () {
         // Create a new script element
         var scriptElement = document.createElement("script");
         // Set the source URL of the script file to be loaded

@@ -1,7 +1,6 @@
 {% load i18n %}
 <form hx-post="{% url 'user-group-assign' %}?group={{group_id}}" hx-target="#groupAssignBody"
     data-settings-native="true"
-    method="POST"
     class="oh-profile-section">
     {{form.group.errors}}
     {{form.employee.errors}}
@@ -15,24 +14,18 @@
 </form>
 
 <script>
-  function initGroupAssignSelect2() {
-    var el = document.querySelector('#groupAssignBody .oh-select2');
-    if (el && !el.classList.contains('select2-initialized')) {
-      el.classList.add('select2-initialized');
-      if (typeof $ !== 'undefined' && $.fn.select2) {
-        $(el).select2();
+  (function() {
+    function initGroupAssignSelect2() {
+      var el = $('#groupAssignBody .oh-select2');
+      if (!el.length || typeof $ === 'undefined' || !$.fn.select2) return;
+      // Destroy existing select2 instance first to prevent duplicate containers (fix #67bce92)
+      if (el.data("select2")) {
+        el.select2('destroy');
       }
+      el.removeClass("select2-hidden-accessible");
+      el.select2();
     }
-  }
-  // Initialize on load (works with htmx 1.x inline script execution)
-  initGroupAssignSelect2();
-  // Also initialize on htmx swap (works with htmx 2.x) — guarded against duplicate listeners
-  if (!window._groupAssignSelect2Bound) {
-    window._groupAssignSelect2Bound = true;
-    document.body.addEventListener('htmx:afterSwap', function(evt) {
-      if (evt.detail && evt.detail.target && evt.detail.target.id === 'groupAssignBody') {
-        setTimeout(initGroupAssignSelect2, 50);
-      }
-    });
-  }
+    // Delay to allow htmx to finish DOM swap
+    setTimeout(initGroupAssignSelect2, 100);
+  })();
 </script>

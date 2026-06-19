@@ -34,6 +34,24 @@ var cancelModal = {
     fr: "Annuler",
 };
 
+/**
+ * Register a DOM event listener exactly once per (target, eventType, key) tuple.
+ * Prevents memory leaks from inline scripts that re-run on every HTMX swap.
+ * @param {EventTarget} target - Element to listen on (e.g. document.body)
+ * @param {string} eventType - Event type (e.g. "htmx:afterSwap")
+ * @param {Function} handler - The event handler
+ * @param {string} key - Unique key scoping this listener
+ */
+window.oneListener = function (target, eventType, handler, key) {
+    if (!key) return;
+    window.__oneListener = window.__oneListener || {};
+    var k = (target.tagName || target.id || "anon") + "|" + eventType + "|" + key;
+    if (!window.__oneListener[k]) {
+        window.__oneListener[k] = true;
+        target.addEventListener(eventType, handler);
+    }
+};
+
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== "") {
@@ -893,7 +911,8 @@ $(document).on("htmx:beforeRequest", function (event, data) {
             "reloadMessages",
             "infinite",
             "OtpContainer",
-            "attendance-activity-container"
+            "attendance-activity-container",
+            "groupAssignBody"
         ];
         var avoid_target_class = ["oh-badge--small"];
         if (
@@ -978,7 +997,7 @@ $(document).on("click", function (event) {
     }
 });
 
-$(document).on("htmx:afterSwap", function () {
+$(document).off("htmx:afterSwap.summernote").on("htmx:afterSwap.summernote", function () {
     if ($("[data-summernote]").length > 0) {
         $("[data-summernote]").summernote({
             height: 300,
@@ -1081,6 +1100,29 @@ const ChartTheme = {
         window._chartThemeRegistry = window._chartThemeRegistry || [];
         if (!window._chartThemeRegistry.includes(chartWindowKey)) {
             window._chartThemeRegistry.push(chartWindowKey);
+        }
+    },
+
+    // Remove orphaned chart keys whose canvases have been removed by HTMX swaps
+    pruneRegistry: function () {
+        var registry = window._chartThemeRegistry || [];
+        var alive = [];
+        for (var i = 0; i < registry.length; i++) {
+            if (window[registry[i]]) {
+                alive.push(registry[i]);
+            }
+        }
+        window._chartThemeRegistry = alive;
+    },
+
+    // Disconnect the MutationObserver if no charts remain registered
+    unobserve: function () {
+        if (
+            window._chartThemeObserver &&
+            (!window._chartThemeRegistry || window._chartThemeRegistry.length === 0)
+        ) {
+            window._chartThemeObserver.disconnect();
+            window._chartThemeObserver = null;
         }
     },
 };

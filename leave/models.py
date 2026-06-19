@@ -1754,9 +1754,9 @@ class LeaveRequest(SkylinxModel):
             # Check if requested days intersect with restricted days
             if requ_days & restri_days:
                 if (
-                    restrict.department == emp_dep
+                    restrict.department_id == emp_dep
                     and not restrict.job_position.exists()
-                ) or (emp_job and emp_job in restrict.job_position.all()):
+                ) or (emp_job and restrict.job_position.filter(id=emp_job).exists()):
                     raise ValidationError(
                         "You cannot request leave for this date range. The requested dates are restricted. Please contact admin."
                     )

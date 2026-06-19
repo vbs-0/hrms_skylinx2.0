@@ -24,7 +24,7 @@
 	</div>
 
 	<script>
-		$(document).on("htmx:afterSwap", function () {
+		$(document).off("htmx:afterSwap.cbv_meetings_meetings").on("htmx:afterSwap.cbv_meetings_meetings", function () {
 			$("[data-toggle-count]")
 				.off("click")
 				.on("click", function (e) {

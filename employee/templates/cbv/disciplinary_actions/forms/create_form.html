@@ -4,7 +4,7 @@
 
 <script>
 
-  $(document).on("htmx:afterSettle", function () {
+  $(document).off("htmx:afterSettle.discipli_forms_create_form").on("htmx:afterSettle.discipli_forms_create_form", function () {
       var actionElement = $("#id_action");
       if (actionElement.length > 0) {
         var action = actionElement.val();

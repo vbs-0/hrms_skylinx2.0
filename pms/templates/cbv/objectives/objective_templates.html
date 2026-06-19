@@ -20,7 +20,7 @@
 </div>
 
 <script>
-    $(document).on("htmx:afterSettle", function () {
+    $(document).off("htmx:afterSettle.cbv_objectiv_objective_te").on("htmx:afterSettle.cbv_objectiv_objective_te", function () {
         $("[data-toggle-count]")
             .off("click")
             .on("click", function (e) {

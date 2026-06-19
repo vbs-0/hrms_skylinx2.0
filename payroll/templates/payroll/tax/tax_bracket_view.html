@@ -104,7 +104,7 @@
         }, 500);
     };
 
-    window.onmessage = function (e) {
+    window.oneListener(window, "message", function (e) {
         if (e.data && e.data.language) {
             var code = e.data.files[0].content;
 
@@ -115,7 +115,7 @@
                 }
             }
         }
-    };
+    }, "taxBracketCodeChange");
 
     saveBtn.addEventListener("click", function () {
         $.ajax({

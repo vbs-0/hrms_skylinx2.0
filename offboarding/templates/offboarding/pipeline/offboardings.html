@@ -240,12 +240,12 @@
     });
 
     // Reapply active tab after pagination (dynamic content update or reload)
-    $(document).on("htmx:afterSwap", function () {
+    $(document).off("htmx:afterSwap.offboardingTab").on("htmx:afterSwap.offboardingTab", function () {
       applyActiveTab();
     });
 
     // Fallback for form submission or full page reload
-    $(window).on("load", function () {
+    $(window).off("load.offboardingTab").on("load.offboardingTab", function () {
       applyActiveTab();
     });
   });

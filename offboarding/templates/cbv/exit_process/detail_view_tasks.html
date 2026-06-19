@@ -39,7 +39,7 @@
 {% endif %}
 
 <script>
-    $(document).on("htmx:afterRequest", function (event, data) {
+    $(document).off("htmx:afterRequest.cbv_exit_pro_detail_view_").on("htmx:afterRequest.cbv_exit_pro_detail_view_", function (event, data) {
         $("select[name='task_status']").on("change", function() {
             var value = $(this).val();
             var dot = $(this).closest('.col-6').find('span.oh-dot');

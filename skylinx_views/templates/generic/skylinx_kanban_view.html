@@ -147,7 +147,7 @@
 {% endif %}
 
 <script>
-	$(document).on("htmx:afterSettle", function (event) {
+	$(document).off("htmx:afterSettle.template_generic_skylinx_kanb").on("htmx:afterSettle.template_generic_skylinx_kanb", function (event) {
 		$(document).off("click.dropdown");
 		$(".dropdown-toggle").off("click.dropdown");
 

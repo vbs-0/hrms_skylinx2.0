@@ -149,7 +149,7 @@
             multiple
         >
             {% for instance in queryset %}
-                <option value="{{instance.id}}">{{instance}}</option>
+                <option value="{{instance.id}}" {% if instance.id in initial %}selected{% endif %}>{{instance}}</option>
             {% endfor %}
         </select>
     </div>

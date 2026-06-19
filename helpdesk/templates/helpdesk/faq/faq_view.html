@@ -68,7 +68,7 @@
         });
     });
 
-    $(document).on("htmx:afterRequest", function (e) {
+    $(document).off("htmx:afterRequest.helpdesk_faq_faq_view").on("htmx:afterRequest.helpdesk_faq_faq_view", function (e) {
         get_faqs();
     });
 </script>

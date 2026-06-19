@@ -1353,6 +1353,9 @@
     const refreshToggle = document.getElementById('md-refresh-toggle');
     let autoRefreshOn = localStorage.getItem(REFRESH_KEY) !== 'off';
 
+    // Guard against interval accumulation
+    if (window._mdRefreshTimer) { clearInterval(window._mdRefreshTimer); window._mdRefreshTimer = null; }
+
     function updateRefreshText() {
         const mins = Math.floor((Date.now() - lastRefresh) / 60000);
         refreshText.textContent = mins < 1 ? 'Just now' : mins + 'm ago';
@@ -1366,6 +1369,7 @@
         refreshToggle.textContent = '⟳';
         refreshToggle.title = 'Auto-refresh ON (5 min)';
         refreshTimer = setInterval(() => location.reload(), REFRESH_INTERVAL);
+        window._dashboardRefreshTimer = refreshTimer;
     }
     function stopAutoRefresh() {
         autoRefreshOn = false;
@@ -1373,7 +1377,7 @@
         refreshDot.classList.remove('md-refresh__dot--pulse');
         refreshToggle.textContent = '⏸';
         refreshToggle.title = 'Auto-refresh OFF';
-        if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+        if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; window._dashboardRefreshTimer = null; }
     }
     refreshToggle.addEventListener('click', () => { if (autoRefreshOn) stopAutoRefresh(); else startAutoRefresh(); });
     if (autoRefreshOn) startAutoRefresh(); else stopAutoRefresh();

@@ -76,7 +76,7 @@
 <!-- End of Time-Off -->
 
 <script>
-    $(document).on('htmx:load','#userLeaves', function () {
+    $(document).off('htmx:load.leave_user_leave_v').on('htmx:load.leave_user_leave_v','#userLeaves', function () {
         // Create a new script element
         var scriptElement = document.createElement("script");
         // Set the source URL of the script file to be loaded
@@ -85,7 +85,7 @@
         document.head.appendChild(scriptElement);
     });
 
-    $(document).on('htmx:load', '#requestForm', function () {
+    $(document).off('htmx:load.leave_user_leave_v').on('htmx:load.leave_user_leave_v', '#requestForm', function () {
         {% include 'select2.js' %}
         $('#leaveType #id_leave_type_id').select2();
         $('#employee #id_employee_id').select2();

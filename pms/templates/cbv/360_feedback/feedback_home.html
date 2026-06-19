@@ -182,13 +182,13 @@ aria-hidden="true">
       loadDetailIntoContainerIfNeeded();
       syncFeedbackNavVisibility();
     });
-    document.body.addEventListener("htmx:afterSwap", onListContainerSwap);
-    document.body.addEventListener("htmx:afterSettle", onListContainerSwap);
-    window.addEventListener("popstate", function () {
+    window.oneListener(document.body, "htmx:afterSwap", onListContainerSwap, "feedbackListContainerSwap");
+    window.oneListener(document.body, "htmx:afterSettle", onListContainerSwap, "feedbackListContainerSettle");
+    window.oneListener(window, "popstate", function () {
       loadCreationIntoContainerIfNeeded();
       loadDetailIntoContainerIfNeeded();
       setTimeout(syncFeedbackNavVisibility, 0);
-    });
+    }, "feedbackPopstate");
   })();
 </script>
 {% endblock content %}
