@@ -2577,15 +2577,45 @@ class MailTemplateForm(ModelForm):
             "th",
             "a",
             "span",
+            "div",
+            "img",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "font",
+            "sub",
+            "sup",
+            "blockquote",
+            "pre",
+            "code",
         ]
 
         ALLOWED_ATTRIBUTES = {
-            "a": ["href", "title"],
+            "a": ["href", "title", "target"],
             "span": ["style"],
+            "div": ["style", "class"],
+            "td": ["style", "colspan", "rowspan"],
+            "th": ["style", "colspan", "rowspan"],
+            "table": ["style", "class", "border", "cellpadding", "cellspacing"],
+            "img": ["src", "alt", "width", "height", "style"],
+            "p": ["style"],
+            "font": ["color", "size", "face"],
+            "h1": ["style"],
+            "h2": ["style"],
+            "h3": ["style"],
+            "h4": ["style"],
+            "h5": ["style"],
+            "h6": ["style"],
         }
 
+        from bleach.css_sanitizer import CSSSanitizer
+        css_sanitizer = CSSSanitizer()
+
         cleaned_body = bleach.clean(
-            body, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES, strip=True
+            body, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES, css_sanitizer=css_sanitizer, strip=True
         )
 
         return cleaned_body

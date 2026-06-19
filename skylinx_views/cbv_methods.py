@@ -294,6 +294,8 @@ def hx_request_required(function):
     def _function(request, *args, **kwargs):
         key = "HTTP_HX_REQUEST"
         if key not in request.META.keys():
+            if request.method == "GET" and request.user.is_authenticated:
+                return redirect("/")
             return render(request, "405.html", status=405)
         return function(request, *args, **kwargs)
 

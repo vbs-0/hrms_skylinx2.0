@@ -96,7 +96,7 @@
             <div class="relative dropdown-wrapper">
                 <button
                     class="hidden md:block p-2 group text-primary-600 w-12 h-12 bg-primary-100 hover:bg-primary-600 rounded-full transition duration-300 relative"
-                    hx-get="{% url 'notifications' %}"
+                    hx-get="{% url 'notifications-partial' %}"
                     hx-target="#notificationContainer"
                     hx-trigger="load"
                 >
@@ -380,4 +380,5 @@ document.addEventListener("DOMContentLoaded", function () {
   })();
 });
 </script>
+
 

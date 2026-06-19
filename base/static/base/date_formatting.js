@@ -65,7 +65,17 @@ var DateFormattingUtility = DateFormattingUtility || class DateFormattingUtility
         }
 
         // Format the processed date using moment.js
-        const formattedDate = moment(processedDate).format(storedDateFormat);
+        const formattedDate = moment(processedDate, [
+            storedDateFormat, 
+            'YYYY-MM-DD', 
+            'MMMM D, YYYY', 
+            'MMM. D, YYYY', 
+            'MMM D, YYYY', 
+            'D MMM YYYY', 
+            'DD-MM-YYYY', 
+            'DD.MM.YYYY', 
+            'DD/MM/YYYY'
+        ]).format(storedDateFormat);
 
         return formattedDate;
     }

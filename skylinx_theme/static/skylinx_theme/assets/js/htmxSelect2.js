@@ -3972,15 +3972,17 @@
                             return (
                                 this.each(function () {
                                     var e = s.GetData(this, "select2");
-                                    null == e &&
-                                        window.console &&
-                                        console.error &&
-                                        console.error(
-                                            "The select2('" +
-                                            t +
-                                            "') method was called on an element that is not using Select2."
-                                        ),
-                                        (n = e[t].apply(e, r));
+                                    if (null == e) {
+                                        if (window.console && console.error) {
+                                            console.error(
+                                                "The select2('" +
+                                                t +
+                                                "') method was called on an element that is not using Select2."
+                                            );
+                                        }
+                                    } else {
+                                        n = e[t].apply(e, r);
+                                    }
                                 }),
                                 -1 < i.inArray(t, a) ? this : n
                             );

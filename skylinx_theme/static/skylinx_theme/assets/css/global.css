@@ -301,7 +301,7 @@
   opacity: 1;
 }
 
-@media (max-width: 991px) {
+@media (max-width: 480px) {
   .check {
     display: none;
   }

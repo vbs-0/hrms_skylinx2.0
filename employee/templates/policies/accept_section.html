@@ -1,0 +1,17 @@
+{% load i18n %}
+<div id="acceptPolicySection" style="margin-top: 15px;">
+    {% if request.user.employee_get in policy.accepted_employees.all %}
+        <span class="oh-badge oh-badge--success" style="background-color: #22c55e; color: #fff; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px;">
+            <ion-icon name="checkmark-circle-outline" style="font-size: 1.1rem;"></ion-icon>
+            {% trans "Accepted" %}
+        </span>
+    {% else %}
+        <form hx-post="{% url 'accept-policy' %}" hx-target="#acceptPolicySection" hx-swap="outerHTML">
+            {% csrf_token %}
+            <input type="hidden" name="policy_id" value="{{ policy.id }}">
+            <button type="submit" class="oh-btn oh-btn--primary oh-btn--small" style="background-color: #3b82f6; border-color: #3b82f6; color: #fff; border-radius: 6px; padding: 8px 16px; font-weight: 600; font-size: 0.85rem;">
+                {% trans "Accept Policy" %}
+            </button>
+        </form>
+    {% endif %}
+</div>

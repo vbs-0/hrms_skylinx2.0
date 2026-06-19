@@ -188,7 +188,7 @@
                             {% endif %}
                             {% if perms.base.add_holidays %}
                                 <li class="oh-sidebar__submenu-item">
-                                    <a href="{% url 'holiday-view' %}" class="oh-sidebar__submenu-link">{% trans "Holidays" %}</a>
+                                    <a href="{% url 'holiday-view' %}" class="oh-sidebar__submenu-link">{% trans "Public Holidays" %}</a>
                                 </li>
                             {% endif %}
                             {% if perms.base.view_companyleaves %}
@@ -198,7 +198,7 @@
                             {% endif %}
                             {% if "leave"|app_installed %}
                                 <li class="oh-sidebar__submenu-item">
-                                    <a href="{% url 'restrict-view' %}" class="oh-sidebar__submenu-link">{% trans "Restrict Leaves" %}</a>
+                                    <a href="{% url 'restrict-view' %}" class="oh-sidebar__submenu-link">{% trans "Leave Restrictions" %}</a>
                                 </li>
                             {% endif %}
                         </ul>

@@ -1,4 +1,4 @@
-﻿{% extends "index.html" %}
+{% extends "index.html" %}
 {% load static i18n %}
 
 {% block content %}
@@ -843,9 +843,9 @@
                     <div class="md-chart-card__body"><div id="chart-leave-trend"></div></div>
                 </div>
 
-                <!-- Recruitment Pipeline -->
-                <div class="md-chart-card md-chart-card--wide" data-chart-id="recruitment_pipeline" data-chart-section="recruitment" data-chart-label="{% trans 'Recruitment Pipeline' %}" data-chart-wide="1">
-                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Recruitment Pipeline" %}</div><div class="md-chart-card__subtitle">{% trans "Candidates by stage per recruitment" %}</div></div></div>
+                <!-- Hiring Pipeline -->
+                <div class="md-chart-card md-chart-card--wide" data-chart-id="recruitment_pipeline" data-chart-section="recruitment" data-chart-label="{% trans 'Hiring Pipeline' %}" data-chart-wide="1">
+                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Hiring Pipeline" %}</div><div class="md-chart-card__subtitle">{% trans "Candidates by stage per recruitment" %}</div></div></div>
                     <div class="md-chart-card__body"><div id="chart-pipeline"></div></div>
                 </div>
 
@@ -867,9 +867,9 @@
                     <div class="md-chart-card__body"><div id="chart-leave-days"></div></div>
                 </div>
 
-                <!-- Recruitment Funnel (NEW) -->
-                <div class="md-chart-card md-chart-card--wide" data-chart-id="recruitment_funnel" data-chart-section="recruitment" data-chart-label="{% trans 'Recruitment Funnel' %}" data-chart-wide="1">
-                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Recruitment Funnel" %}</div><div class="md-chart-card__subtitle">{% trans "Candidates by stage — active recruitments" %}</div></div></div>
+                <!-- Hiring Funnel (NEW) -->
+                <div class="md-chart-card md-chart-card--wide" data-chart-id="recruitment_funnel" data-chart-section="recruitment" data-chart-label="{% trans 'Hiring Funnel' %}" data-chart-wide="1">
+                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Hiring Funnel" %}</div><div class="md-chart-card__subtitle">{% trans "Candidates by stage — Active hiring" %}</div></div></div>
                     <div class="md-chart-card__body"><div id="chart-recruitment-funnel"></div></div>
                 </div>
 
@@ -1411,7 +1411,7 @@
                 </a>
                 <a href="{% url 'recruitment-view' %}" class="md-kpi-card">
                     <div class="md-kpi-card__icon md-kpi-card__icon--purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
-                    <div class="md-kpi-card__label">{% trans "Open Recruitments" %}</div>
+                    <div class="md-kpi-card__label">{% trans "Open Hiring Jobs" %}</div>
                     <div class="md-kpi-card__value">${data.open_recruitments}</div>
                     <div class="md-kpi-card__sub"><span style="opacity:0.5">{% trans "Active hiring" %}</span></div>
                 </a>`;

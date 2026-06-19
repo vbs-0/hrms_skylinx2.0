@@ -1379,6 +1379,93 @@ def user_group_search(request):
     )
 
 
+
+@login_required
+@hx_request_required
+@permission_required("auth.view_group")
+def group_permissions_table_view(request, group_id):
+    """
+    Lazy-loads permissions table for a specific group.
+    """
+    try:
+        group = Group.objects.get(id=group_id)
+    except Group.DoesNotExist:
+        return HttpResponse("Group not found", status=404)
+
+    permissions = []
+    apps = settings.APPS
+    no_permission_models = settings.NO_PERMISSION_MODALS
+    for app_name in apps:
+        app_models = []
+        for model in get_models_in_app(app_name):
+            app_models.append(
+                {
+                    "verbose_name": model._meta.verbose_name.capitalize(),
+                    "model_name": model._meta.model_name,
+                }
+            )
+        permissions.append(
+            {"app": app_name.capitalize().replace("_", " "), "app_models": app_models}
+        )
+
+    selected_perms = list(group.permissions.values_list("codename", flat=True))
+
+    return render(
+        request,
+        "base/auth/permission_table_lazy.html",
+        {
+            "permissions": permissions,
+            "group": group,
+            "selected_perms": selected_perms,
+            "no_permission_models": no_permission_models,
+            "panel_id": f"panel{group.id}",
+        },
+    )
+
+
+@login_required
+@hx_request_required
+@permission_required("view_permissions")
+def user_permission_table_view(request, emp_id):
+    """
+    Lazy-loads the permission table for a specific employee (user).
+    Mirrors group_permissions_table_view to avoid rendering one full
+    permission table per employee on the page (the 10MB N-times bug).
+    """
+    employee = Employee.objects.filter(id=emp_id).first()
+    if not employee or not employee.employee_user_id:
+        return HttpResponse("Employee not found", status=404)
+
+    permissions = []
+    for app_name in settings.APPS:
+        app_models = []
+        for model in get_models_in_app(app_name):
+            app_models.append(
+                {
+                    "verbose_name": model._meta.verbose_name.capitalize(),
+                    "model_name": model._meta.model_name,
+                }
+            )
+        permissions.append(
+            {"app": app_name.capitalize().replace("_", " "), "app_models": app_models}
+        )
+
+    selected_perms = list(
+        employee.employee_user_id.user_permissions.values_list("codename", flat=True)
+    )
+
+    return render(
+        request,
+        "base/auth/permission_table_lazy.html",
+        {
+            "permissions": permissions,
+            "selected_perms": selected_perms,
+            "no_permission_models": settings.NO_PERMISSION_MODALS,
+            "panel_id": f"panel{employee.id}",
+        },
+    )
+
+
 @login_required
 @hx_request_required
 @permission_required("auth.add_group")
@@ -5491,6 +5578,17 @@ def notifications(request):
 
 
 @login_required
+def notifications_page(request):
+    """
+    This method will render full notification page
+    """
+    all_notifications = request.user.notifications.all()
+    return render(
+        request,
+        "notification/notification_page.html",
+        {"notifications": all_notifications},
+    )
+
 def clear_notification(request):
     """
     This method is used to clear notification
@@ -8069,3 +8167,215 @@ def protected_media(request, path):
             raise Http404("File not found")
 
     return FileResponse(open(media_path, "rb"))
+
+def get_home_announcement(request):
+    from base.models import Announcement
+    latest_announcement = Announcement.objects.filter(is_active=True).order_by('id').last()
+    if not latest_announcement:
+        latest_announcement = Announcement.objects.order_by('id').last()
+    return render(request, "home_announcement.html", {"latest_announcement": latest_announcement})
+
+@login_required
+def edit_home_announcement(request):
+    from django.http import HttpResponseForbidden
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Permission Denied")
+        
+    from base.models import Announcement
+    latest_announcement = Announcement.objects.filter(is_active=True).order_by('id').last()
+    if not latest_announcement:
+        latest_announcement = Announcement.objects.order_by('id').last()
+        
+    if request.method == "POST":
+        title = request.POST.get("title", "Company Announcement").strip()
+        description = request.POST.get("description", "").strip()
+        if latest_announcement:
+            latest_announcement.title = title
+            latest_announcement.description = description
+            latest_announcement.save()
+        else:
+            latest_announcement = Announcement.objects.create(title=title, description=description)
+            from base.models import Company
+            company = Company.objects.filter(hq=True).first()
+            if company:
+                latest_announcement.company_id.add(company)
+        return render(request, "home_announcement.html", {"latest_announcement": latest_announcement, "edit_mode": False})
+        
+    return render(request, "home_announcement.html", {"latest_announcement": latest_announcement, "edit_mode": True})
+
+def get_home_logo_card(request):
+    from base.models import Company
+    company = Company.objects.filter(hq=True).first()
+    
+    # Load social links from JSON file
+    social_links_file = os.path.join(settings.BASE_DIR, "base", "company_social_links.json")
+    social_links = {"linkedin": "", "facebook": "", "instagram": ""}
+    if os.path.exists(social_links_file):
+        try:
+            with open(social_links_file, "r", encoding="utf-8") as f:
+                social_links.update(json.load(f))
+        except Exception:
+            pass
+            
+    return render(request, "home_logo_card.html", {
+        "company": company,
+        "social_links": social_links,
+        "edit_mode": False,
+    })
+
+
+@login_required
+def edit_home_logo_card(request):
+    from django.http import HttpResponseForbidden
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Permission Denied")
+        
+    from base.models import Company
+    company = Company.objects.filter(hq=True).first()
+    
+    social_links_file = os.path.join(settings.BASE_DIR, "base", "company_social_links.json")
+    social_links = {"linkedin": "", "facebook": "", "instagram": ""}
+    if os.path.exists(social_links_file):
+        try:
+            with open(social_links_file, "r", encoding="utf-8") as f:
+                social_links.update(json.load(f))
+        except Exception:
+            pass
+
+    if request.method == "POST":
+        company_name = request.POST.get("company_name", "").strip() or "SkyLinx"
+        linkedin = request.POST.get("linkedin", "").strip()
+        facebook = request.POST.get("facebook", "").strip()
+        instagram = request.POST.get("instagram", "").strip()
+        
+        if company:
+            company.company = company_name
+            if request.FILES.get("icon"):
+                company.icon = request.FILES.get("icon")
+            company.save()
+        else:
+            # Fallback if no company exists
+            company = Company.objects.create(company=company_name, hq=True)
+            if request.FILES.get("icon"):
+                company.icon = request.FILES.get("icon")
+                company.save()
+                
+        # Update session selected_company_instance so sidebar updates instantly
+        try:
+            prev_instance = request.session.get("selected_company_instance") or {}
+            request.session["selected_company_instance"] = {
+                "company": company.company,
+                "icon": company.icon.url if company.icon else "",
+                "text": prev_instance.get("text", "My Company"),
+                "id": company.id,
+            }
+            request.session.modified = True
+        except Exception:
+            pass
+                
+        social_links = {
+            "linkedin": linkedin,
+            "facebook": facebook,
+            "instagram": instagram,
+        }
+        
+        # Save social links to JSON
+        try:
+            with open(social_links_file, "w", encoding="utf-8") as f:
+                json.dump(social_links, f, indent=4)
+        except Exception:
+            pass
+            
+        return render(request, "home_logo_card.html", {
+            "company": company,
+            "social_links": social_links,
+            "edit_mode": False,
+        })
+        
+    return render(request, "home_logo_card.html", {
+        "company": company,
+        "social_links": social_links,
+        "edit_mode": True,
+    })
+
+
+@login_required
+def edit_home_logo_card_image(request):
+    from django.http import HttpResponseForbidden
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Permission Denied")
+        
+    from base.models import Company
+    company = Company.objects.filter(hq=True).first()
+    
+    if request.method == "POST" and request.FILES.get("icon"):
+        import re
+        uploaded_file = request.FILES.get("icon")
+        filename = uploaded_file.name
+        
+        # Strip extension
+        base_name = os.path.splitext(filename)[0]
+        
+        # Remove UUID/hex suffix if any (e.g. -d16c3baa)
+        base_name = re.sub(r'-[0-9a-fA-F]{8}$', '', base_name)
+        
+        base_name_lower = base_name.lower()
+        if "sgs" in base_name_lower or "skylinx" in base_name_lower:
+            company_name = "SkyLinx"
+        else:
+            # Replace separators with spaces
+            company_name = base_name.replace("_", " ").replace("-", " ").strip()
+            
+            # Filter out generic words
+            words = company_name.split()
+            filtered_words = [w for w in words if w.lower() not in ["logo", "icon", "company"]]
+            if filtered_words:
+                company_name = " ".join(filtered_words)
+                
+            company_name = company_name.title().strip()
+            
+            # Fallback if name is empty or too generic/short
+            if len(company_name) < 2 or not company_name or company_name.lower() in ["logo", "icon", "company", "company logo"]:
+                company_name = "SkyLinx"
+            
+        if company:
+            company.icon = uploaded_file
+            company.company = company_name
+            company.save()
+        else:
+            company = Company.objects.create(company=company_name, hq=True)
+            company.icon = uploaded_file
+            company.save()
+            
+        # Update session selected_company_instance so sidebar updates instantly
+        try:
+            prev_instance = request.session.get("selected_company_instance") or {}
+            request.session["selected_company_instance"] = {
+                "company": company.company,
+                "icon": company.icon.url if company.icon else "",
+                "text": prev_instance.get("text", "My Company"),
+                "id": company.id,
+            }
+            request.session.modified = True
+        except Exception:
+            pass
+            
+    # Load social links from JSON file
+    social_links_file = os.path.join(settings.BASE_DIR, "base", "company_social_links.json")
+    social_links = {"linkedin": "", "facebook": "", "instagram": ""}
+    if os.path.exists(social_links_file):
+        try:
+            with open(social_links_file, "r", encoding="utf-8") as f:
+                social_links.update(json.load(f))
+        except Exception:
+            pass
+            
+    return render(request, "home_logo_card.html", {
+        "company": company,
+        "social_links": social_links,
+        "edit_mode": False,
+    })
+
+
+
+

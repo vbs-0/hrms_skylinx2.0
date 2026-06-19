@@ -71,11 +71,14 @@ class PoliciesNav(SkylinxNavView):
     search_url = reverse_lazy("search-policies")
     search_swap_target = "#policyContainer"
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.create_attrs = f"""
-            data-toggle="oh-modal-toggle"
-            data-target="#genericModal"
-            hx-get="{reverse_lazy('create-policy')}"
-            hx-target="#genericModalBody"
-        """
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.has_perm("employee.add_policy"):
+            self.create_attrs = ""
+        else:
+            self.create_attrs = f"""
+                data-toggle="oh-modal-toggle"
+                data-target="#genericModal"
+                hx-get="{reverse_lazy('create-policy')}"
+                hx-target="#genericModalBody"
+            """
+        return super().dispatch(request, *args, **kwargs)

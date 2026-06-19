@@ -61,9 +61,34 @@ class SkylinxMultiSelectWidget(forms.Widget):
         context["field_name"] = name
         if self.form and name in self.form.data:
             initial = self.form.data.getlist(name)
-            context["initial"] = initial
+            context["initial"] = [int(i) for i in initial if str(i).isdigit()]
         elif value:
-            context["initial"] = value
+            # Handle various value cases:
+            # 1. If it's a QuerySet of model instances (not ValuesListQuerySet):
+            #    → get ids via values_list
+            # 2. If it's a ValuesListQuerySet, list, tuple:
+            #    → just convert to list
+            # 3. If it's a list/tuple of model instances or ids:
+            #    → clean to list of ids
+            try:
+                # First try: is it a model QuerySet (not ValuesList)?
+                initial = list(value.values_list("id", flat=True))
+            except AttributeError:
+                # If that fails, try to convert to list directly:
+                initial = list(value)
+                # Now clean this list if it has model instances or string ids:
+                cleaned = []
+                for item in initial:
+                    if hasattr(item, "pk"):
+                        cleaned.append(item.pk)
+                    elif isinstance(item, int):
+                        cleaned.append(item)
+                    elif isinstance(item, str) and item.isdigit():
+                        cleaned.append(int(item))
+                    else:
+                        cleaned.append(item)
+                initial = cleaned
+            context["initial"] = initial
 
         elif self.instance and self.instance.pk:
             initial = list(getattr(self.instance, name).values_list("id", flat=True))

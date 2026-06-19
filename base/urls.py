@@ -66,6 +66,31 @@ from skylinx_audit.models import AuditTag
 
 urlpatterns = [
     path("", views.home, name="home-page"),
+    path(
+        "get-home-logo-card/",
+        views.get_home_logo_card,
+        name="get-home-logo-card",
+    ),
+    path(
+        "edit-home-logo-card/",
+        views.edit_home_logo_card,
+        name="edit-home-logo-card",
+    ),
+    path(
+        "edit-home-logo-card-image/",
+        views.edit_home_logo_card_image,
+        name="edit-home-logo-card-image",
+    ),
+    path(
+        "get-home-announcement/",
+        views.get_home_announcement,
+        name="get-home-announcement",
+    ),
+    path(
+        "edit-home-announcement/",
+        views.edit_home_announcement,
+        name="edit-home-announcement",
+    ),
     path("global-search/", views.global_search, name="global-search"),
     path("dashboard/", dashboard_module.main_dashboard_view, name="dashboard"),
     path(
@@ -338,6 +363,16 @@ urlpatterns = [
     path("settings/user-group-view/", views.user_group, name="user-group-view"),
     path(
         "settings/user-group-search/", views.user_group_search, name="user-group-search"
+    ),
+    path(
+        "settings/group-permissions-table-view/<int:group_id>/",
+        views.group_permissions_table_view,
+        name="group-permissions-table-view",
+    ),
+    path(
+        "settings/user-permission-table-view/<int:emp_id>/",
+        views.user_permission_table_view,
+        name="user-permission-table-view",
     ),
     path(
         "user-group-delete/<int:obj_id>/",
@@ -1227,7 +1262,8 @@ urlpatterns = [
         views.shift_request_bulk_delete,
         name="shift-request-bulk-delete",
     ),
-    path("notifications/", views.notifications, name="notifications"),
+    path("notifications/", views.notifications_page, name="notifications"),
+    path("notifications-partial/", views.notifications, name="notifications-partial"),
     path("clear-notifications/", views.clear_notification, name="clear-notifications"),
     path(
         "delete-all-notifications/",
@@ -1899,3 +1935,4 @@ urlpatterns = [
 urlpatterns.append(
     re_path(r"^media/(?P<path>.*)$", views.protected_media, name="protected_media"),
 )
+

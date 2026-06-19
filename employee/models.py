@@ -1123,6 +1123,9 @@ class Policy(SkylinxModel):
     specific_employees = models.ManyToManyField(Employee, blank=True, editable=False)
     attachments = models.ManyToManyField(PolicyMultipleFile, blank=True)
     company_id = models.ManyToManyField(Company, blank=True, verbose_name=_("Company"))
+    accepted_employees = models.ManyToManyField(
+        Employee, blank=True, related_name="accepted_policies", verbose_name=_("Accepted Employees")
+    )
 
     objects = SkylinxCompanyManager("company_id")
 

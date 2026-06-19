@@ -3316,7 +3316,10 @@ def leave_request_create(request):
     POST : return leave request view
     """
     previous_data = unquote(request.GET.urlencode())[len("pd=") :]
-    emp = request.user.employee_get
+    emp = getattr(request.user, "employee_get", None)
+    if emp is None:
+        messages.error(request, _("You must have an employee profile to request leave."))
+        return SkylinxRedirect(request)
     emp_id = emp.id
 
     form = UserLeaveRequestCreationForm(employee=emp)

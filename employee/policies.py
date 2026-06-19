@@ -506,3 +506,18 @@ def search_disciplinary(request):
             "pd": request.GET.urlencode(),
         },
     )
+
+@login_required
+def accept_policy(request):
+    if request.method == "POST":
+        policy_id = request.POST.get("policy_id")
+        policy = get_object_or_404(Policy, id=policy_id)
+        employee = getattr(request.user, "employee_get", None)
+        if employee:
+            policy.accepted_employees.add(employee)
+            return render(
+                request,
+                "policies/accept_section.html",
+                {"policy": policy, "request": request}
+            )
+    return HttpResponse("Invalid request", status=400)

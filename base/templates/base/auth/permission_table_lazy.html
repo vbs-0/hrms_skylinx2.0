@@ -1,0 +1,125 @@
+{% load i18n %}
+{% comment %}
+style.min.css (table layout + collapsed-by-default panels) is not loaded on the
+settings page, so without these rules cells stack vertically and every category
+sits open. Inline the minimal layout + collapse rules.
+{% endcomment %}
+<style>
+  .oh-sticky-table__table { display: table; width: 100%; table-layout: fixed; }
+  .oh-sticky-table__tr { display: table-row; }
+  .oh-sticky-table__thead { display: table-header-group; font-weight: bold; }
+  .oh-sticky-table__tbody { display: table-row-group; }
+  .oh-sticky-table__td, .oh-sticky-table__th, .oh-sticky-table__sd {
+    display: table-cell; padding: 10px 12px; vertical-align: middle;
+    border-bottom: 1px solid hsl(213, 22%, 93%);
+    border-right: 1px solid hsl(213, 22%, 95%); word-break: break-word;
+  }
+  .oh-sticky-table__thead { background: hsl(210, 40%, 98%); }
+  .oh-sticky-table__thead .oh-sticky-table__th { border-bottom: 2px solid hsl(213, 22%, 88%); }
+  .oh-sticky-table__tbody .oh-sticky-table__tr:hover .oh-sticky-table__td,
+  .oh-sticky-table__tbody .oh-sticky-table__tr:hover .oh-sticky-table__sd { background: hsl(210, 40%, 98%); }
+  .panel .oh-sticky-table { border: 1px solid hsl(213, 22%, 90%); border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+  /* each category collapsed until its header is clicked (jQuery toggle) */
+  .app-permissions + .panel { display: none; }
+  .app-permissions { cursor: pointer; }
+</style>
+{% for perm in permissions %}
+<span type="button" class="perm-accordion w-100 p-2 oh-user_permission-list_item app-permissions" onclick="$(this).next().toggle();$(this).toggleClass('perm-accordion-active');">
+  <div class="d-flex flex-row bd-highlight">
+    <div class="p-2 bd-highlight">{{ perm.app }}</div>
+    <div class="p-2 bd-highlight">
+      <span class="oh-tabs__input-badge-container">
+        <span class="oh-badge permission-badge oh-badge--secondary oh-badge--small oh-badge--round ms-2 mr-2" align="center">0</span>
+      </span>
+    </div>
+  </div>
+</span>
+<div class="panel">
+  <div class="oh-sticky-table">
+    <div class="oh-sticky-table__table oh-table--sortable">
+      <div class="oh-sticky-table__thead">
+        <div class="oh-sticky-table__tr">
+          <div class="oh-sticky-table__th" style="width: 50px;" align="center">
+            <input type="checkbox" class="row-permission__select-all" id="id{{ perm.app }}Permissions" onchange="selectAllPermissions(this)">
+          </div>
+          <div class="oh-sticky-table__th">{% trans "Actions" %}</div>
+          <div class="oh-sticky-table__th" style="width: 80px;">
+            <div class="d-flex justify-content-center" title="{% translate 'Can create' %}"><ion-icon name="add-circle-outline"></ion-icon></div>
+          </div>
+          <div class="oh-sticky-table__th" style="width: 80px;">
+            <div class="d-flex justify-content-center" title="{% translate 'Can view' %}"><ion-icon name="eye-outline"></ion-icon></div>
+          </div>
+          <div class="oh-sticky-table__th" style="width: 80px;">
+            <div class="d-flex justify-content-center" title="{% translate 'Can edit' %}"><ion-icon name="create-outline"></ion-icon></div>
+          </div>
+          <div class="oh-sticky-table__th" style="width: 80px;">
+            <div class="d-flex justify-content-center" title="{% translate 'Can delete' %}"><ion-icon name="trash-outline"></ion-icon></div>
+          </div>
+        </div>
+      </div>
+      <div class="oh-sticky-table__tbody">
+        {% for model in perm.app_models %}
+        {% if model.model_name not in no_permission_models %}
+        <div class="oh-sticky-table__tr" draggable="true">
+          <div class="oh-sticky-table__sd" align="center">
+            <input type="checkbox" id="id_{{ perm.app }}{{ model.model_name }}" class="row-permission" onchange="$(this).closest('.oh-sticky-table__tr').find('[type=checkbox][name=permissions]').prop('checked',$(this).is(':checked')).change();">
+          </div>
+          <div class="oh-sticky-table__td">
+            <div class="oh-profile oh-profile--md">
+              <div class="oh-profile__avatar mr-1">
+                <img src="https://ui-avatars.com/api/?name={{ model.verbose_name }}&background=random" class="oh-profile__image" />
+              </div>
+              <span class="oh-profile__name oh-text--dark">{{ model.verbose_name }}</span>
+            </div>
+          </div>
+          <div class="oh-sticky-table__td" style="width: 80px;">
+            <div class="d-flex justify-content-center">
+              <div class="oh-switch">
+                <input type="checkbox" name="permissions" value="add_{{ model.model_name }}" class="oh-switch__checkbox"{% if "add_"|add:model.model_name in selected_perms %} checked{% endif %} onchange="if(!$(this).is(':checked')){$(this).closest('.oh-sticky-table__tr').find('.row-permission').prop('checked',false)}" data-group-id="{{ group.id }}" data-group-name="{{ group.name }}" />
+              </div>
+            </div>
+          </div>
+          <div class="oh-sticky-table__td" style="width: 80px;">
+            <div class="d-flex justify-content-center">
+              <div class="oh-switch">
+                <input type="checkbox" name="permissions" value="view_{{ model.model_name }}" class="oh-switch__checkbox view-permission"{% if "view_"|add:model.model_name in selected_perms %} checked{% endif %} onchange="if(!$(this).is(':checked')){$(this).closest('.oh-sticky-table__tr').find('.row-permission').prop('checked',false)}" data-group-id="{{ group.id }}" data-group-name="{{ group.name }}" />
+              </div>
+            </div>
+          </div>
+          <div class="oh-sticky-table__td" style="width: 80px;">
+            <div class="d-flex justify-content-center">
+              <div class="oh-switch">
+                <input type="checkbox" name="permissions" value="change_{{ model.model_name }}" class="oh-switch__checkbox"{% if "change_"|add:model.model_name in selected_perms %} checked{% endif %} onchange="if(!$(this).is(':checked')){$(this).closest('.oh-sticky-table__tr').find('.row-permission').prop('checked',false)}" data-group-id="{{ group.id }}" data-group-name="{{ group.name }}" />
+              </div>
+            </div>
+          </div>
+          <div class="oh-sticky-table__td" style="width: 80px;">
+            <div class="d-flex justify-content-center">
+              <div class="oh-switch">
+                <input type="checkbox" name="permissions" value="delete_{{ model.model_name }}" class="oh-switch__checkbox"{% if "delete_"|add:model.model_name in selected_perms %} checked{% endif %} onchange="if(!$(this).is(':checked')){$(this).closest('.oh-sticky-table__tr').find('.row-permission').prop('checked',false)}" data-group-id="{{ group.id }}" data-group-name="{{ group.name }}" />
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<script>
+  // Let the accordion panel grow to fit the lazily-loaded table.
+  (function () {
+    var panel = document.getElementById('{{ panel_id|default:"" }}');
+    if (panel && panel.classList.contains('accordion-panel-gp')) {
+      panel.style.maxHeight = 'none';
+    }
+  })();
+  if (typeof updateBadge === 'function') { updateBadge(); }
+  $("#{{ panel_id|default:'permTable' }} [name=permissions]").on("change", function (e) {
+    e.preventDefault();
+    if (typeof updateBadge === 'function') { updateBadge($(this)); }
+  });
+</script>

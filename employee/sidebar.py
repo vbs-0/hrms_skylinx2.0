@@ -23,11 +23,6 @@ SUBMENUS = [
         "redirect": reverse_lazy("ess-dashboard"),
     },
     {
-        "menu": _("Profile"),
-        "redirect": reverse_lazy("employee-profile"),
-        "accessibility": "employee.sidebar.profile_accessibility",
-    },
-    {
         "menu": _("Employees"),
         "redirect": reverse_lazy("employee-view"),
         "accessibility": "employee.sidebar.employee_accessibility",
@@ -117,14 +112,12 @@ def shift_roster_accessibility(request, submenu, user_perms, *args, **kwargs):
 
 def employee_accessibility(request, submenu, user_perms, *args, **kwargs):
     """
-    Employee accessibility method
+    Employee accessibility method restricted to superusers, managers, or view_employee permission.
     """
-    cache_key = request.session.session_key + "accessibility_filter"
-    employee = getattr(request.user, "employee_get", None)
     return (
-        is_reportingmanager(request.user)
+        request.user.is_superuser
+        or is_reportingmanager(request.user)
         or request.user.has_perm("employee.view_employee")
-        or check_is_accessible("employee_view", cache_key, employee)
     )
 
 
