@@ -65,25 +65,6 @@ class AllowanceForm(ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        advanced_fields = [
-            "include_active_employees",
-            "is_pretax",
-            "update_compensation",
-            "is_fixed",
-            "amount",
-            "is_tax",
-            "employer_rate",
-            "one_time_date",
-            "has_max_limit",
-            "maximum_amount",
-            "is_condition_based",
-            "condition",
-        ]
-        for field in advanced_fields:
-            if field in self.fields:
-                self.fields[field].widget.attrs["data_advanced"] = "true"
-
         if instance := kwargs.get("instance"):
             # django forms not showing value inside the date, time html element.
             # so here overriding default forms instance method to set initial value
@@ -125,7 +106,9 @@ class AllowanceForm(ModelForm):
             "exclude_employees", "only_show_under_employee",
             "one_time_date", "start_range", "end_range",
             "if_condition", "if_amount", "if_choice",
-            "is_loan",
+            "is_loan", "include_active_employees", "is_pretax", 
+            "update_compensation", "is_fixed", "amount", "is_tax", 
+            "employer_rate"
         ]
         for fn in _allowance_advanced:
             if fn in self.fields:
@@ -280,7 +263,9 @@ class DeductionForm(ModelForm):
             "exclude_employees", "only_show_under_employee",
             "one_time_date", "start_range", "end_range",
             "if_condition", "if_amount", "if_choice",
-            "is_installment", "employer_rate",
+            "is_installment", "employer_rate", "include_active_employees", 
+            "is_pretax", "update_compensation", "is_fixed", "amount", 
+            "is_tax", "condition"
         ]
         for fn in _deduction_advanced:
             if fn in self.fields:
