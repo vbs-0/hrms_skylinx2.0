@@ -3719,20 +3719,26 @@ def organisation_chart(request):
     This method is used to view oganisation chart
     """
     selected_company = request.session.get("selected_company")
-    if (
-        request.GET.get("employee_work_info__company_id") == None
-        and selected_company != "all"
-    ):
-        reporting_managers = Employee.objects.filter(
-            is_active=True,
-            reporting_manager__isnull=False,
-            employee_work_info__company_id=selected_company,
-        ).distinct()
+    if request.user.is_superuser or request.user.has_perm("employee.view_employee"):
+        if (
+            request.GET.get("employee_work_info__company_id") == None
+            and selected_company != "all"
+        ):
+            reporting_managers = Employee.objects.filter(
+                is_active=True,
+                reporting_manager__isnull=False,
+                employee_work_info__company_id=selected_company,
+            ).distinct()
+        else:
+            reporting_managers = Employee.objects.filter(
+                is_active=True,
+                reporting_manager__isnull=False,
+            ).distinct()
     else:
-        reporting_managers = Employee.objects.filter(
-            is_active=True,
-            reporting_manager__isnull=False,
-        ).distinct()
+        try:
+            reporting_managers = Employee.objects.filter(id=request.user.employee_get.id)
+        except Exception:
+            reporting_managers = Employee.objects.none()
 
     # Iterate through the queryset and add reporting manager id and name to the dictionary
     result_dict = {item.id: item.get_full_name() for item in reporting_managers}
@@ -3751,7 +3757,7 @@ def organisation_chart(request):
         if manager.id in result_dict.keys():
             entered_req_managers.append(manager)
         # filter the subordinates
-        subordinates = Employee.objects.filter(
+        subordinates = Employee.objects.entire().filter(
             is_active=True, employee_work_info__reporting_manager_id=manager
         ).exclude(id=manager.id)
 
