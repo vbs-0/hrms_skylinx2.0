@@ -1,3 +1,4 @@
+{% load static %}
 {% load i18n %}
 <div class="oh-wrapper">
     <div class="oh-general__tab-target oh-profile-section mb-4{% if not active_tab or active_tab != 'bank' %} d-none{% endif %}" id="bank">
@@ -17,90 +18,72 @@
                 {% if container_mode %}<input type="hidden" name="container" value="true">{% endif %}
                 <input type="hidden" name="form" value="bank">
 
-                <div class="row g-3">
+                <div class="row">
+                    {{bank_form.non_field_errors}}
+
                     <!-- 1. IFSC Code -->
-                    <div class="col-md-6">
-                        {{ bank_form.any_other_code1.errors }}
-                        <div class="oh-input-group">
-                            <label class="oh-label" for="{{ bank_form.any_other_code1.id_for_label }}">
-                                {{ bank_form.any_other_code1.label }}
-                                {% if bank_form.any_other_code1.field.required %}<span class="oh-label--required">*</span>{% endif %}
-                            </label>
-                            {{ bank_form.any_other_code1 }}
-                        </div>
+                    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+                        <label class="oh-label required-star" for="{{bank_form.any_other_code1.id_for_label}}">{% trans "IFSC Code" %}</label>
+                        {{bank_form.any_other_code1}}
+                        {{bank_form.any_other_code1.errors}}
                     </div>
+
                     <!-- 2. Account Name -->
-                    <div class="col-md-6">
-                        {{ bank_form.bank_name.errors }}
-                        <div class="oh-input-group">
-                            <label class="oh-label" for="{{ bank_form.bank_name.id_for_label }}">
-                                {{ bank_form.bank_name.label }}
-                                {% if bank_form.bank_name.field.required %}<span class="oh-label--required">*</span>{% endif %}
-                            </label>
-                            {{ bank_form.bank_name }}
-                        </div>
+                    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+                        <label class="oh-label required-star" for="{{bank_form.bank_name.id_for_label}}">{% trans "Account Name" %}</label>
+                        {{bank_form.bank_name}}
+                        {{bank_form.bank_name.errors}}
                     </div>
+
                     <!-- 3. Branch -->
-                    <div class="col-md-6">
-                        {{ bank_form.branch.errors }}
-                        <div class="oh-input-group">
-                            <label class="oh-label" for="{{ bank_form.branch.id_for_label }}">
-                                {{ bank_form.branch.label }}
-                                {% if bank_form.branch.field.required %}<span class="oh-label--required">*</span>{% endif %}
-                            </label>
-                            {{ bank_form.branch }}
-                        </div>
+                    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+                        <label class="oh-label required-star" for="{{bank_form.branch.id_for_label}}">{% trans "Branch" %}</label>
+                        {{bank_form.branch}}
+                        {{bank_form.branch.errors}}
                     </div>
+
                     <!-- 4. Account Type -->
-                    <div class="col-md-6">
-                        {{ bank_form.account_type.errors }}
-                        <div class="oh-input-group">
-                            <label class="oh-label" for="{{ bank_form.account_type.id_for_label }}">
-                                {{ bank_form.account_type.label }}
-                                {% if bank_form.account_type.field.required %}<span class="oh-label--required">*</span>{% endif %}
-                            </label>
-                            {{ bank_form.account_type }}
-                        </div>
+                    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+                        <label class="oh-label" for="{{bank_form.account_type.id_for_label}}">{% trans "Account Type" %}</label>
+                        {{bank_form.account_type}}
+                        {{bank_form.account_type.errors}}
                     </div>
+
                     <!-- 5. Account Number -->
-                    <div class="col-md-6">
-                        {{ bank_form.account_number.errors }}
-                        <div class="oh-input-group">
-                            <label class="oh-label" for="{{ bank_form.account_number.id_for_label }}">
-                                {{ bank_form.account_number.label }}
-                                {% if bank_form.account_number.field.required %}<span class="oh-label--required">*</span>{% endif %}
-                            </label>
-                            {{ bank_form.account_number }}
-                        </div>
+                    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+                        <label class="oh-label required-star" for="{{bank_form.account_number.id_for_label}}">{% trans "Account Number" %}</label>
+                        {{bank_form.account_number}}
+                        {{bank_form.account_number.errors}}
                     </div>
+
                     <!-- 6. City -->
-                    <div class="col-md-6">
-                        {{ bank_form.city.errors }}
-                        <div class="oh-input-group">
-                            <label class="oh-label" for="{{ bank_form.city.id_for_label }}">
-                                {{ bank_form.city.label }}
-                                {% if bank_form.city.field.required %}<span class="oh-label--required">*</span>{% endif %}
-                            </label>
-                            {{ bank_form.city }}
-                        </div>
+                    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+                        <label class="oh-label" for="{{bank_form.city.id_for_label}}">{% trans "City" %}</label>
+                        {{bank_form.city}}
+                        {{bank_form.city.errors}}
                     </div>
+
                     <!-- 7. State -->
-                    <div class="col-md-6">
-                        {{ bank_form.state.errors }}
-                        <div class="oh-input-group">
-                            <label class="oh-label" for="id_state">{% trans "State" %}</label>
-                            <select name="state" id="id_state" class="oh-input w-100" data-selected="{{ bank_form.state.value|default:'' }}"></select>
-                        </div>
+                    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+                        <label class="oh-label d-block" for="state">{% trans "State" %}</label>
+                        <select name="state" class="oh-input w-100" id="state"
+                            data-selected="{{ bank_form.state.value|default:'' }}">
+                            <option value="{{ bank_form.instance.state }}">{{ bank_form.instance.state }}</option>
+                        </select>
+                        {{bank_form.state.errors}}
                     </div>
+
                     <!-- 8. Country -->
-                    <div class="col-md-6">
-                        {{ bank_form.country.errors }}
-                        <div class="oh-input-group">
-                            <label class="oh-label" for="id_country">{% trans "Country" %}</label>
-                            <select name="country" id="id_country" class="oh-input w-100" data-selected="{{ bank_form.country.value|default:'' }}"></select>
-                        </div>
+                    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+                        <label class="oh-label" for="country">{% trans "Country" %}</label>
+                        <select name="country" class="oh-input w-100" id="country"
+                            data-selected="{{ bank_form.country.value|default:'' }}">
+                            <option value="{{ bank_form.instance.country }}">{{ bank_form.instance.country }}</option>
+                        </select>
+                        {{bank_form.country.errors}}
                     </div>
-                </div>
+
+                </div><!-- /.row -->
 
             <hr class="mt-5 mb-3">
             <div class="w-100 d-flex align-items-center justify-content-end">
@@ -111,48 +94,49 @@
             </form>
         </div>
     </div>
-    </div>
 </div>
 
+<script src="{% static '/index/country.js' %}"></script>
 <script>
-if (window.ifscFetchListenerInitialized === undefined) {
-    window.ifscFetchListenerInitialized = true;
-    $(document).on('input change', '#id_any_other_code1', function() {
-        var ifsc = $(this).val().trim().toUpperCase();
-        $(this).val(ifsc);
-        var ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
-        if (ifscRegex.test(ifsc)) {
-            fetch('https://ifsc.razorpay.com/' + ifsc)
-                .then(function(response) {
-                    if (response.ok) return response.json();
-                    throw new Error('IFSC not found');
-                })
-                .then(function(data) {
-                    if (data) {
-                        if ($('#id_bank_name').length) { $('#id_bank_name').val(data.BANK || '').trigger('change'); }
-                        if ($('#id_branch').length)    { $('#id_branch').val(data.BRANCH || '').trigger('change'); }
-                        if ($('#id_city').length)      { $('#id_city').val(data.CITY || '').trigger('change'); }
-                        // Country → India
-                        var $country = $('#id_country');
-                        var $state   = $('#id_state');
-                        if ($country.length) {
-                            $country.val('India').trigger('change');
-                            if ($state.length && data.STATE) {
-                                setTimeout(function() {
-                                    var stateToFind = data.STATE.trim().toUpperCase();
-                                    $state.find('option').each(function() {
-                                        if ($(this).text().trim().toUpperCase() === stateToFind) {
-                                            $state.val($(this).val()).trigger('change');
-                                            return false;
-                                        }
-                                    });
-                                }, 500);
-                            }
-                        }
-                    }
-                })
-                .catch(function(error) { console.error('IFSC fetch error:', error); });
+    $(document).ready(function() {
+        if (typeof initCountryStateDropdowns === 'function') {
+            initCountryStateDropdowns();
         }
     });
-}
+
+    if (window.ifscFetchListenerInitialized === undefined) {
+        window.ifscFetchListenerInitialized = true;
+        $(document).on('input change', '#id_any_other_code1', function() {
+            var ifsc = $(this).val().trim().toUpperCase();
+            $(this).val(ifsc);
+            var ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+            if (ifscRegex.test(ifsc)) {
+                fetch('https://ifsc.razorpay.com/' + ifsc)
+                    .then(function(r) { if (r.ok) return r.json(); throw new Error('IFSC not found'); })
+                    .then(function(data) {
+                        if (data) {
+                            if ($('#id_bank_name').length) { $('#id_bank_name').val(data.BANK || '').trigger('change'); }
+                            if ($('#id_branch').length)    { $('#id_branch').val(data.BRANCH || '').trigger('change'); }
+                            if ($('#id_city').length)      { $('#id_city').val(data.CITY || '').trigger('change'); }
+                            var $country = $('#country'), $state = $('#state');
+                            if ($country.length) {
+                                $country.val('India').trigger('change');
+                                if ($state.length && data.STATE) {
+                                    setTimeout(function() {
+                                        var find = data.STATE.trim().toUpperCase();
+                                        $state.find('option').each(function() {
+                                            if ($(this).text().trim().toUpperCase() === find) {
+                                                $state.val($(this).val()).trigger('change');
+                                                return false;
+                                            }
+                                        });
+                                    }, 600);
+                                }
+                            }
+                        }
+                    })
+                    .catch(function(e) { console.error('IFSC fetch error:', e); });
+            }
+        });
+    }
 </script>

@@ -584,9 +584,7 @@ class EmployeeBankDetailsForm(ModelForm):
         if self.instance and self.instance.country:
             self.initial["country"] = self.instance.country
 
-    def as_p(self, *args, **kwargs):
-        context = {"form": self}
-        return render_to_string("employee/update_form/bank_info_as_p.html", context)
+
 
     def clean_any_other_code1(self):
         ifsc = self.cleaned_data.get("any_other_code1")
