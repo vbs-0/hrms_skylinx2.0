@@ -130,9 +130,13 @@ def onboard(request):
                     employee_user_id=user,
                     email=admin_email,
                 )
-                EmployeeWorkInformation.objects.create(
-                    employee_id=emp, company_id=company
+                # Creating the Employee auto-makes its work-info row (signal),
+                # so update that one with the company rather than creating a 2nd.
+                wi, _ = EmployeeWorkInformation.objects.get_or_create(
+                    employee_id=emp
                 )
+                wi.company_id = company
+                wi.save()
                 plan = Plan.objects.filter(id=plan_id).first()
                 Subscription.objects.create(
                     company=company,
