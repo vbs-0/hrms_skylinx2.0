@@ -17,7 +17,52 @@
                 {% csrf_token %}
                 {% if container_mode %}<input type="hidden" name="container" value="true">{% endif %}
                 <input type="hidden" name="form" value="bank">
-                {{bank_form.as_p}}
+                <div class="row">
+                    <!-- 1. IFSC -->
+                    <div class="col-md-6 mb-2">
+                    {{bank_form.any_other_code1.errors}}
+                    <div class="form-outline mb-4">{{bank_form.any_other_code1}}</div>
+                    </div>
+                    <!-- 2. Account Name -->
+                    <div class="col-md-6 mb-2">
+                    {{bank_form.bank_name.errors}}
+                    <div class="form-outline mb-4">{{bank_form.bank_name}}</div>
+                    </div>
+                    <!-- 3. Branch -->
+                    <div class="col-md-6 mb-2">
+                    {{bank_form.branch.errors}}
+                    <div class="form-outline mb-4">{{bank_form.branch}}</div>
+                    </div>
+                    <!-- 4. Account Type -->
+                    <div class="col-md-6 mb-2">
+                    {{bank_form.account_type.errors}}
+                    <div class="form-outline mb-4">{{bank_form.account_type}}</div>
+                    </div>
+                    <!-- 5. Account Number -->
+                    <div class="col-md-6 mb-2">
+                    {{bank_form.account_number.errors}}
+                    <div class="form-outline mb-4">{{bank_form.account_number}}</div>
+                    </div>
+                    <!-- 6. City -->
+                    <div class="col-md-6 mb-2">
+                        {{bank_form.city.errors}}
+                        <div class="form-outline mb-4">{{bank_form.city}}</div>
+                    </div>
+                    <!-- 7. State -->
+                    <div class="col-md-6 mb-2">
+                        {{bank_form.state.errors}}
+                        <div class="form-outline mb-4">
+                            <select name="state" id="id_state" class="oh-input w-100" data-selected="{{ bank_form.state.value|default:'' }}"></select>
+                        </div>
+                    </div>
+                    <!-- 8. Country -->
+                    <div class="col-md-6 mb-2">
+                        {{bank_form.country.errors}}
+                        <div class="form-outline mb-4">
+                            <select name="country" id="id_country" class="oh-input w-100" data-selected="{{ bank_form.country.value|default:'' }}"></select>
+                        </div>
+                    </div>
+                </div>
             <hr class="mt-5 mb-3">
             <div class="w-100 d-flex align-items-center justify-content-end">
                 <button type="submit" class="oh-btn oh-btn--secondary oh-btn--w-100-resp">
