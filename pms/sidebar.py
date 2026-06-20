@@ -11,7 +11,7 @@ from skylinx.menu import settings_menu
 
 MENU = _("PMS")
 IMG_SRC = "images/ui/pms.svg"
-LOCKED = True
+LOCKED = False
 
 
 SUBMENUS = [

@@ -92,72 +92,7 @@
         {% endif %}
         {% csrf_token %}
         {% if container_mode %}<input type="hidden" name="container" value="true">{% endif %}
-        <div class="row">
-            <div class="col-md-6 ">
-            {{work_form.job_position_id.errors}}
-            <div class="form-outline mb-4">{{work_form.job_position_id}}</div>
-            </div>
-            <div class="col-md-6 mb-2">
-            {{work_form.department_id.errors}}
-            <div class="form-outline mb-4">{{work_form.department_id}}</div>
-            </div>
-            <div class="col-md-6 mb-2">
-            {{work_form.shift_id.errors}}
-            <div class="form-outline mb-4">{{work_form.shift_id}}</div>
-            </div>
-            <div class="col-md-6 mb-2">
-            {{work_form.work_type_id.errors}}
-            <div class="form-outline mb-4">{{work_form.work_type_id}}</div>
-            </div>
-            <div class="col-md-6 mb-2">
-                <div class="form-outline mb-4">
-                {{work_form.employee_type_id.errors}}
-                {{work_form.employee_type_id}}
-                </div>
-            </div>
-            <div class="col-md-6 mb-2">
-                <div class="form-outline mb-4">
-                {{work_form.job_role_id.errors}}
-                {{work_form.job_role_id}}
-                </div>
-            </div>
-            <div class="col-md-6 mb-4">
-                {{work_form.reporting_manager_id.errors}}
-                {{work_form.reporting_manager_id}}
-            </div>
-            <div class="col-md-6 mb-4">
-                {{work_form.company_id.errors}}
-                {{work_form.company_id}}
-            </div>
-            <div class="col-md-6 mb-4">
-                {{work_form.location.errors}}
-                {{work_form.location}}
-            </div>
-            <div class="col-md-6 mb-4">
-                {{work_form.email.errors}}
-                {{work_form.email}}
-            </div>
-            <div class="col-md-6 mb-4">
-                {{work_form.mobile.errors}}
-                {{work_form.mobile}}
-            </div>
-            <div class="col-md-6 mb-4">
-                {{work_form.date_joining.errors}}
-                {{work_form.date_joining}}
-            </div>
-            <div class="col-md-6 mb-4">
-                {{work_form.contract_end_date.errors}}
-                {{work_form.contract_end_date}}
-            </div>
-            <div class="col-md-6 mb-4">
-                {{work_form.basic_salary.errors}}
-                {{work_form.basic_salary}}
-            </div>
-            <div class="col-md-6 mb-4">
-                {{work_form.salary_hour.errors}}
-                {{work_form.salary_hour}}
-            </div>
-        </div>
+        {{work_form.as_p}}
         <hr class="mt-5 mb-3" />
         <div class="w-100 d-flex align-items-center justify-content-end">
           <button
