@@ -16,17 +16,24 @@
         <div id="viewTemplateModalContainer">
             <div class="my-3" id="keyResultCard">
                 <div class="oh-card oh-card--no-shadow oh-card__body">
+                    {% if form.non_field_errors %}
+                    <div class="oh-wrapper-invalid">
+                        {{ form.non_field_errors }}
+                    </div>
+                    {% endif %}
                     <div class="oh-input__group">
                         <label class="oh-input__label mt-0" for="id_title"
                             >{% trans "Title" %}</label
                         >
                         {{ form.title }}
+                        {{ form.title.errors }}
                     </div>
                     <div class="oh-input__group">
                         <label class="oh-input__label mt-2" for="id_body"
                             >{% trans "Body" %}</label
                         >
                         {{ form.body }}
+                        {{ form.body.errors }}
                     </div>
                     <div
                         class="form-hint"
@@ -39,6 +46,7 @@
                             >{% trans "Company" %}</label
                         >
                         {{ form.company_id }}
+                        {{ form.company_id.errors }}
                     </div>
                 </div>
             </div>
@@ -82,6 +90,11 @@
                     content: function (item) {
                         var word = searchWords[item];
                         return "{% templatetag openbrace %}{% templatetag openbrace %}"+ word +"{% templatetag closebrace %}{% templatetag closebrace %}";
+                    }
+                },
+                callbacks: {
+                    onChange: function(contents) {
+                        $('#id_body').val(contents);
                     }
                 }
             });
