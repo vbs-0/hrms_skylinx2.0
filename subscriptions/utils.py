@@ -14,7 +14,13 @@ def company_for_user(user):
 def subscription_for_company(company):
     if not company:
         return None
-    return getattr(company, "subscription", None)
+    # Pull the plan in the same query (feature_keys/seat_limit read plan) so a
+    # client page costs 1 query here, not subscription + a lazy plan fetch.
+    from .models import Subscription
+
+    return (
+        Subscription.objects.select_related("plan").filter(company=company).first()
+    )
 
 
 _SENTINEL = object()
