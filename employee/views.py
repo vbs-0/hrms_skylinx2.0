@@ -3756,10 +3756,14 @@ def organisation_chart(request):
         # check the manager is a reporting manager if yes, store it into entered_req_managers
         if manager.id in result_dict.keys():
             entered_req_managers.append(manager)
-        # filter the subordinates
-        subordinates = Employee.objects.entire().filter(
-            is_active=True, employee_work_info__reporting_manager_id=manager
-        ).exclude(id=manager.id)
+        # filter the subordinates — pull work info + job position in one query
+        # so get_job_position() doesn't fire 2 queries per node (was N+1 -> 420 q)
+        subordinates = (
+            Employee.objects.entire()
+            .filter(is_active=True, employee_work_info__reporting_manager_id=manager)
+            .exclude(id=manager.id)
+            .select_related("employee_work_info", "employee_work_info__job_position_id")
+        )
 
         # itrating through subordinates
         for employee in subordinates:
@@ -3809,15 +3813,20 @@ def organisation_chart(request):
             is_active=True, reporting_manager__isnull=False
         ).distinct()
 
-    if request.user.is_superuser or request.user.has_perm("employee.view_employee"):
-        manager = Employee.objects.filter(is_active=True, employee_work_info__reporting_manager_id__isnull=True).first()
+    # Default view is always centred on the logged-in user ("My view"): the
+    # chart then shows their reporting manager one level up and everyone below.
+    try:
+        manager = request.user.employee_get
+    except Exception:
+        manager = None
+    if not manager and (
+        request.user.is_superuser or request.user.has_perm("employee.view_employee")
+    ):
+        manager = Employee.objects.filter(
+            is_active=True, employee_work_info__reporting_manager_id__isnull=True
+        ).first()
         if not manager:
             manager = Employee.objects.filter(is_active=True).first()
-    else:
-        try:
-            manager = request.user.employee_get
-        except Exception:
-            manager = None
 
     new_dict = {}
     if manager:
