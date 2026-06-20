@@ -3876,43 +3876,10 @@ def organisation_chart(request):
         context = {"act_datasource": node}
         return render(request, "organisation_chart/chart.html", context=context)
 
-    # GET Request
-    if request.user.is_superuser or request.user.has_perm("employee.view_employee"):
-        top_managers = Employee.objects.filter(is_active=True, employee_work_info__reporting_manager_id__isnull=True)
-        company_name = str(Company.objects.first()) if Company.objects.exists() else "Company"
-        node = {
-            "id": "root",
-            "name": company_name,
-            "title": str(_("Organization")),
-            "children": [
-                {
-                    "id": m.id,
-                    "name": m.get_full_name(),
-                    "title": getattr(m.get_job_position(), "job_position", _("Not set")),
-                    "children": create_hierarchy(m)
-                } for m in top_managers
-            ]
-        }
-    else:
-        try:
-            me = request.user.employee_get
-        except Exception:
-            me = None
-        if me and me.employee_work_info and me.employee_work_info.reporting_manager_id:
-            chart_root = me.employee_work_info.reporting_manager_id
-            node = {
-                "id": chart_root.id,
-                "name": chart_root.get_full_name(),
-                "title": getattr(chart_root.get_job_position(), "job_position", _("Not set")),
-                "children": create_hierarchy(chart_root)
-            }
-        else:
-            node = {
-                "id": me.id if me else None,
-                "name": me.get_full_name() if me else "",
-                "title": getattr(me.get_job_position(), "job_position", _("Not set")) if me else "",
-                "children": create_hierarchy(me) if me else [],
-            }
+    # GET Request — org_chart.html loads the actual chart via a POST (htmx) into
+    # #chart_target, so it never uses act_datasource here. Building the full
+    # hierarchy on GET was wasted work (hundreds of queries); send an empty node.
+    node = {"id": None, "name": "", "title": "", "children": []}
 
     context = {
         "act_datasource": node,
