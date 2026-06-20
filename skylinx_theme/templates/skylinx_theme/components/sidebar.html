@@ -160,6 +160,19 @@
     <nav class="space-y-2 overflow-hidden overflow-y-auto h-[calc(100vh_-_95px)] sidebar-scroll" role="navigation" aria-label="{% trans 'Main navigation' %}">
       {% include "skylinx_theme/components/sidebar/top_menu.html" %}
       {% for menues in sidebar %}
+        {% if menues.locked %}
+        <button class="group flex items-center gap-3 p-3 rounded-full transition duration-300 w-full justify-start opacity-50 cursor-not-allowed"
+          title="{% trans 'Coming Soon' %}"
+          aria-label="{{ menues.menu }}"
+          onclick="return false;"
+          type="button">
+          <img src="{% static menues.img_src %}" alt="" class="w-4.5 h-4.5 flex-shrink-0" />
+          <span class="sidebar-text text-sm text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">{{ menues.menu }}</span>
+          <span class="sidebar-text ml-auto mr-1">
+            <i class="fa-solid fa-lock text-xs text-slate-400"></i>
+          </span>
+        </button>
+        {% else %}
         <button class="sideboxmain group flex items-center gap-3 p-3 rounded-full transition duration-300 w-full justify-start"
           data-menu="{{ menues.menu }}"
           title="{{ menues.menu }}"
@@ -189,6 +202,7 @@
             </ul>
           </div>
         </button>
+        {% endif %}
       {% endfor %}
       <div
         id="sidebarSharedPanel"

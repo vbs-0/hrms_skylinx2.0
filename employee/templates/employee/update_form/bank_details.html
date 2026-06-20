@@ -12,12 +12,96 @@
                 hx-on::after-request="if(event.detail.successful){var b=document.getElementById('reloadMessagesButton');if(b)b.click();}"
                 action="{% url 'employee-view-update' obj_id %}"
             >
-                <div id="bankMessage">
-                </div>
+                <div id="bankMessage"></div>
                 {% csrf_token %}
                 {% if container_mode %}<input type="hidden" name="container" value="true">{% endif %}
                 <input type="hidden" name="form" value="bank">
-                {{bank_form.as_p}}
+
+                <div class="row g-3">
+                    <!-- 1. IFSC Code -->
+                    <div class="col-md-6">
+                        {{ bank_form.any_other_code1.errors }}
+                        <div class="oh-input-group">
+                            <label class="oh-label" for="{{ bank_form.any_other_code1.id_for_label }}">
+                                {{ bank_form.any_other_code1.label }}
+                                {% if bank_form.any_other_code1.field.required %}<span class="oh-label--required">*</span>{% endif %}
+                            </label>
+                            {{ bank_form.any_other_code1 }}
+                        </div>
+                    </div>
+                    <!-- 2. Account Name -->
+                    <div class="col-md-6">
+                        {{ bank_form.bank_name.errors }}
+                        <div class="oh-input-group">
+                            <label class="oh-label" for="{{ bank_form.bank_name.id_for_label }}">
+                                {{ bank_form.bank_name.label }}
+                                {% if bank_form.bank_name.field.required %}<span class="oh-label--required">*</span>{% endif %}
+                            </label>
+                            {{ bank_form.bank_name }}
+                        </div>
+                    </div>
+                    <!-- 3. Branch -->
+                    <div class="col-md-6">
+                        {{ bank_form.branch.errors }}
+                        <div class="oh-input-group">
+                            <label class="oh-label" for="{{ bank_form.branch.id_for_label }}">
+                                {{ bank_form.branch.label }}
+                                {% if bank_form.branch.field.required %}<span class="oh-label--required">*</span>{% endif %}
+                            </label>
+                            {{ bank_form.branch }}
+                        </div>
+                    </div>
+                    <!-- 4. Account Type -->
+                    <div class="col-md-6">
+                        {{ bank_form.account_type.errors }}
+                        <div class="oh-input-group">
+                            <label class="oh-label" for="{{ bank_form.account_type.id_for_label }}">
+                                {{ bank_form.account_type.label }}
+                                {% if bank_form.account_type.field.required %}<span class="oh-label--required">*</span>{% endif %}
+                            </label>
+                            {{ bank_form.account_type }}
+                        </div>
+                    </div>
+                    <!-- 5. Account Number -->
+                    <div class="col-md-6">
+                        {{ bank_form.account_number.errors }}
+                        <div class="oh-input-group">
+                            <label class="oh-label" for="{{ bank_form.account_number.id_for_label }}">
+                                {{ bank_form.account_number.label }}
+                                {% if bank_form.account_number.field.required %}<span class="oh-label--required">*</span>{% endif %}
+                            </label>
+                            {{ bank_form.account_number }}
+                        </div>
+                    </div>
+                    <!-- 6. City -->
+                    <div class="col-md-6">
+                        {{ bank_form.city.errors }}
+                        <div class="oh-input-group">
+                            <label class="oh-label" for="{{ bank_form.city.id_for_label }}">
+                                {{ bank_form.city.label }}
+                                {% if bank_form.city.field.required %}<span class="oh-label--required">*</span>{% endif %}
+                            </label>
+                            {{ bank_form.city }}
+                        </div>
+                    </div>
+                    <!-- 7. State -->
+                    <div class="col-md-6">
+                        {{ bank_form.state.errors }}
+                        <div class="oh-input-group">
+                            <label class="oh-label" for="id_state">{% trans "State" %}</label>
+                            <select name="state" id="id_state" class="oh-input w-100" data-selected="{{ bank_form.state.value|default:'' }}"></select>
+                        </div>
+                    </div>
+                    <!-- 8. Country -->
+                    <div class="col-md-6">
+                        {{ bank_form.country.errors }}
+                        <div class="oh-input-group">
+                            <label class="oh-label" for="id_country">{% trans "Country" %}</label>
+                            <select name="country" id="id_country" class="oh-input w-100" data-selected="{{ bank_form.country.value|default:'' }}"></select>
+                        </div>
+                    </div>
+                </div>
+
             <hr class="mt-5 mb-3">
             <div class="w-100 d-flex align-items-center justify-content-end">
                 <button type="submit" class="oh-btn oh-btn--secondary oh-btn--w-100-resp">
@@ -29,3 +113,46 @@
     </div>
     </div>
 </div>
+
+<script>
+if (window.ifscFetchListenerInitialized === undefined) {
+    window.ifscFetchListenerInitialized = true;
+    $(document).on('input change', '#id_any_other_code1', function() {
+        var ifsc = $(this).val().trim().toUpperCase();
+        $(this).val(ifsc);
+        var ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+        if (ifscRegex.test(ifsc)) {
+            fetch('https://ifsc.razorpay.com/' + ifsc)
+                .then(function(response) {
+                    if (response.ok) return response.json();
+                    throw new Error('IFSC not found');
+                })
+                .then(function(data) {
+                    if (data) {
+                        if ($('#id_bank_name').length) { $('#id_bank_name').val(data.BANK || '').trigger('change'); }
+                        if ($('#id_branch').length)    { $('#id_branch').val(data.BRANCH || '').trigger('change'); }
+                        if ($('#id_city').length)      { $('#id_city').val(data.CITY || '').trigger('change'); }
+                        // Country → India
+                        var $country = $('#id_country');
+                        var $state   = $('#id_state');
+                        if ($country.length) {
+                            $country.val('India').trigger('change');
+                            if ($state.length && data.STATE) {
+                                setTimeout(function() {
+                                    var stateToFind = data.STATE.trim().toUpperCase();
+                                    $state.find('option').each(function() {
+                                        if ($(this).text().trim().toUpperCase() === stateToFind) {
+                                            $state.val($(this).val()).trigger('change');
+                                            return false;
+                                        }
+                                    });
+                                }, 500);
+                            }
+                        }
+                    }
+                })
+                .catch(function(error) { console.error('IFSC fetch error:', error); });
+        }
+    });
+}
+</script>
