@@ -76,6 +76,7 @@
     <div class="text-sm text-gray mb-2">{% trans "Paid features" %}</div>
     <div class="grid grid-cols-2 gap-2 text-sm">
       {% for f in features %}
+        {% if f.label != "Recruitment / ATS" %}
         <div class="flex items-center gap-2">
           {% if f.enabled %}
             <span class="text-green-600">✓</span>
@@ -87,6 +88,7 @@
             <span class="text-xs text-red-500">{% trans "Locked" %}</span>
           {% endif %}
         </div>
+        {% endif %}
       {% endfor %}
     </div>
   </div>
