@@ -120,7 +120,9 @@ def onboard(request):
                     email=admin_email,
                     password=admin_password,
                 )
-                user.is_staff = True
+                # NOTE: do NOT set is_staff — Django admin (/admin/) is not
+                # tenant-scoped, so staff access would leak other companies'
+                # data. HRMS permissions come from the Company Admin group.
                 user.groups.add(_company_admin_group())
                 user.save()
                 emp = Employee.objects.create(
