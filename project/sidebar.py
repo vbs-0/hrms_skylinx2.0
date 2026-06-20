@@ -18,6 +18,7 @@ from project.methods import (
 
 MENU = _("Projects")
 IMG_SRC = "images/ui/project.png"
+LOCKED = True
 ACCESSIBILITY = "project.sidebar.menu_accessibilty"
 
 SUBMENUS = [

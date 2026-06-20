@@ -70,10 +70,7 @@
                     {{work_form.salary_hour.errors}}
                     {{work_form.salary_hour}}
                 </div>
-                <div class="col-md-6 mb-4">
-                    {{work_form.tags.errors}}
-                    {{work_form.tags}}
-                </div>
+
             </div>
             {% if perms.employee.change_employeeworkinformation %}
             {% if form.instance.employee_work_info %}
@@ -108,49 +105,51 @@
             <div class="card-body pl-5 pr-5 pb-5 pt-5">
               <h3 class="mb-4">{{form.instance.employee_first_name}}'s {% trans "Bank Info" %}</h3>
               <div class="row">
-                    <div class="col-md-6 ">
-                    {{bank_form.bank_name.errors}}
-                    <div class="form-outline mb-4">{{bank_form.bank_name}}</div>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                    {{bank_form.account_number.errors}}
-                    <div class="form-outline mb-4">{{bank_form.account_number}}</div>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                    {{bank_form.branch.errors}}
-                    <div class="form-outline mb-4">{{bank_form.branch}}</div>
-                    </div>
+                    <!-- 1. IFSC -->
                     <div class="col-md-6 mb-2">
                     {{bank_form.any_other_code1.errors}}
                     <div class="form-outline mb-4">{{bank_form.any_other_code1}}</div>
                     </div>
+                    <!-- 2. Account Name -->
+                    <div class="col-md-6 mb-2">
+                    {{bank_form.bank_name.errors}}
+                    <div class="form-outline mb-4">{{bank_form.bank_name}}</div>
+                    </div>
+                    <!-- 3. Branch -->
+                    <div class="col-md-6 mb-2">
+                    {{bank_form.branch.errors}}
+                    <div class="form-outline mb-4">{{bank_form.branch}}</div>
+                    </div>
+                    <!-- 4. Account Type -->
                     <div class="col-md-6 mb-2">
                     {{bank_form.account_type.errors}}
                     <div class="form-outline mb-4">{{bank_form.account_type}}</div>
                     </div>
+                    <!-- 5. Account Number -->
+                    <div class="col-md-6 mb-2">
+                    {{bank_form.account_number.errors}}
+                    <div class="form-outline mb-4">{{bank_form.account_number}}</div>
+                    </div>
+                    <!-- 6. City -->
+                    <div class="col-md-6 mb-2">
+                        {{bank_form.city.errors}}
+                        <div class="form-outline mb-4">{{bank_form.city}}</div>
+                    </div>
+                    <!-- 7. State -->
+                    <div class="col-md-6 mb-2">
+                        {{bank_form.state.errors}}
+                        <div class="form-outline mb-4">
+                            <select name="state" id="id_state" class="oh-input w-100" data-selected="{{ bank_form.state.value|default:'' }}"></select>
+                        </div>
+                    </div>
+                    <!-- 8. Country -->
+                    <div class="col-md-6 mb-2">
+                        {{bank_form.country.errors}}
+                        <div class="form-outline mb-4">
+                            <select name="country" id="id_country" class="oh-input w-100" data-selected="{{ bank_form.country.value|default:'' }}"></select>
+                        </div>
+                    </div>
                 </div>
-                <div class="mb-4">
-                    {{bank_form.address.errors}}
-                    {{bank_form.address}}
-
-                </div>
-                <div class="mb-4">
-                    {{bank_form.country.errors}}
-                    <select name="country" id="id_country" class="oh-input w-100" data-selected="{{ bank_form.country.value|default:'' }}">
-                    </select>
-                </div>
-                <div class="mb-4">
-                    {{bank_form.state.errors}}
-                    <select name="state" id="id_state" class="oh-input w-100" data-selected="{{ bank_form.state.value|default:'' }}">
-                    </select>
-                </div>
-                <div class="mb-4">
-
-                    {{bank_form.city.errors}}
-                    {{bank_form.city}}
-                </div>
-                {{bank_form.any_other_code2.errors}}
-                {{bank_form.any_other_code2}}
                 {% if perms.employee.change_employeebankdetails %}
                 {% if form.instance.employee_bank_details %}
                     <button

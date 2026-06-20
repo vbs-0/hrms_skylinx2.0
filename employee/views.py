@@ -3817,9 +3817,7 @@ def organisation_chart(request):
         try:
             manager = request.user.employee_get
         except Exception:
-            manager = Employee.objects.filter(is_active=True).first()
-            if not manager:
-                manager = Employee.objects.entire().first()
+            manager = None
 
     new_dict = {}
     if manager:
@@ -3835,29 +3833,77 @@ def organisation_chart(request):
             manager_id = int(request.POST.get("manager_id"))
             manager = Employee.objects.get(id=manager_id)
         
-        chart_root = manager
-        if manager and manager.employee_work_info and manager.employee_work_info.reporting_manager_id:
-            chart_root = manager.employee_work_info.reporting_manager_id
-
-        node = {
-            "id": chart_root.id if chart_root else None,
-            "name": chart_root.get_full_name() if chart_root else "",
-            "title": getattr(chart_root.get_job_position(), "job_position", _("Not set")) if chart_root else "",
-            "children": create_hierarchy(chart_root) if chart_root else [],
-        }
+        if request.user.is_superuser or request.user.has_perm("employee.view_employee"):
+            chart_root = manager
+            if manager and manager.employee_work_info and manager.employee_work_info.reporting_manager_id:
+                chart_root = manager.employee_work_info.reporting_manager_id
+            
+            node = {
+                "id": chart_root.id if chart_root else None,
+                "name": chart_root.get_full_name() if chart_root else "",
+                "title": getattr(chart_root.get_job_position(), "job_position", _("Not set")) if chart_root else "",
+                "children": create_hierarchy(chart_root) if chart_root else [],
+            }
+        else:
+            try:
+                me = request.user.employee_get
+            except Exception:
+                me = None
+            if me and me.employee_work_info and me.employee_work_info.reporting_manager_id:
+                chart_root = me.employee_work_info.reporting_manager_id
+                node = {
+                    "id": chart_root.id,
+                    "name": chart_root.get_full_name(),
+                    "title": getattr(chart_root.get_job_position(), "job_position", _("Not set")),
+                    "children": create_hierarchy(chart_root)
+                }
+            else:
+                node = {
+                    "id": me.id if me else None,
+                    "name": me.get_full_name() if me else "",
+                    "title": getattr(me.get_job_position(), "job_position", _("Not set")) if me else "",
+                    "children": create_hierarchy(me) if me else [],
+                }
         context = {"act_datasource": node}
         return render(request, "organisation_chart/chart.html", context=context)
 
-    chart_root = manager
-    if manager and manager.employee_work_info and manager.employee_work_info.reporting_manager_id:
-        chart_root = manager.employee_work_info.reporting_manager_id
-
-    node = {
-        "id": chart_root.id if chart_root else None,
-        "name": chart_root.get_full_name() if chart_root else "",
-        "title": getattr(chart_root.get_job_position(), "job_position", _("Not set")) if chart_root else "",
-        "children": create_hierarchy(chart_root) if chart_root else [],
-    }
+    # GET Request
+    if request.user.is_superuser or request.user.has_perm("employee.view_employee"):
+        top_managers = Employee.objects.filter(is_active=True, employee_work_info__reporting_manager_id__isnull=True)
+        company_name = str(Company.objects.first()) if Company.objects.exists() else "Company"
+        node = {
+            "id": "root",
+            "name": company_name,
+            "title": str(_("Organization")),
+            "children": [
+                {
+                    "id": m.id,
+                    "name": m.get_full_name(),
+                    "title": getattr(m.get_job_position(), "job_position", _("Not set")),
+                    "children": create_hierarchy(m)
+                } for m in top_managers
+            ]
+        }
+    else:
+        try:
+            me = request.user.employee_get
+        except Exception:
+            me = None
+        if me and me.employee_work_info and me.employee_work_info.reporting_manager_id:
+            chart_root = me.employee_work_info.reporting_manager_id
+            node = {
+                "id": chart_root.id,
+                "name": chart_root.get_full_name(),
+                "title": getattr(chart_root.get_job_position(), "job_position", _("Not set")),
+                "children": create_hierarchy(chart_root)
+            }
+        else:
+            node = {
+                "id": me.id if me else None,
+                "name": me.get_full_name() if me else "",
+                "title": getattr(me.get_job_position(), "job_position", _("Not set")) if me else "",
+                "children": create_hierarchy(me) if me else [],
+            }
 
     context = {
         "act_datasource": node,

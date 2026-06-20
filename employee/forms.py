@@ -253,12 +253,14 @@ class EmployeeForm(ModelForm):
 
         # ── India Localization: PAN / Aadhaar / Account Type ────────────────
         if "pan_number" in self.fields:
+            self.fields["pan_number"].required = True
             self.fields["pan_number"].widget.attrs.update({
                 "placeholder": "ABCDE1234F",
                 "style": "text-transform:uppercase",
                 "maxlength": "10",
             })
         if "aadhaar_number" in self.fields:
+            self.fields["aadhaar_number"].required = True
             self.fields["aadhaar_number"].widget.attrs.update({
                 "placeholder": "xxxx xxxx xxxx",
                 "maxlength": "12",
@@ -378,7 +380,7 @@ class EmployeeWorkInformationForm(ModelForm):
 
         model = EmployeeWorkInformation
         fields = "__all__"
-        exclude = ("employee_id", "additional_info", "experience")
+        exclude = ("employee_id", "additional_info", "experience", "tags")
 
         widgets = {
             "date_joining": DateInput(attrs={"type": "date"}),
@@ -494,7 +496,7 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
         #     "basic_salary",
         #     "salary_hour",
         # ]
-        exclude = ("employee_id", "experience", "additional_info")
+        exclude = ("employee_id", "experience", "additional_info", "tags")
 
         widgets = {
             "date_joining": DateInput(attrs={"type": "date"}),
@@ -543,7 +545,6 @@ class EmployeeBankDetailsForm(ModelForm):
     Form for EmployeeBankDetails model
     """
 
-    address = forms.CharField(widget=forms.HiddenInput(), required=False)
     account_type = forms.ChoiceField(
         choices=[("", _("---Choose Account Type---"))] + Employee.ACCOUNT_TYPE_CHOICES,
         required=False,
@@ -558,27 +559,22 @@ class EmployeeBankDetailsForm(ModelForm):
 
         model = EmployeeBankDetails
         fields = (
-            "bank_name",
-            "account_number",
-            "branch",
             "any_other_code1",
-            "address",
-            "country",
-            "state",
-            "city",
-            "any_other_code2",
+            "bank_name",
+            "branch",
             "account_type",
+            "account_number",
+            "city",
+            "state",
+            "country",
         )
         labels = {
             "any_other_code1": _("IFSC Code"),
+            "bank_name": _("Account Name"),
         }
-        exclude = ["employee_id", "is_active", "additional_info"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["address"].required = False
-        self.fields["address"].widget = forms.HiddenInput()
-        self.fields["any_other_code2"].widget = forms.HiddenInput()
         self.initial["account_type"] = "savings"
         self.initial["country"] = "India"
         for visible in self.visible_fields():
@@ -635,17 +631,23 @@ class EmployeeBankDetailsUpdateForm(ModelForm):
         """
 
         model = EmployeeBankDetails
-        fields = "__all__"
+        fields = (
+            "any_other_code1",
+            "bank_name",
+            "branch",
+            "account_type",
+            "account_number",
+            "city",
+            "state",
+            "country",
+        )
         labels = {
             "any_other_code1": _("IFSC Code"),
+            "bank_name": _("Account Name"),
         }
-        exclude = ["employee_id", "is_active", "additional_info"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["address"].required = False
-        self.fields["address"].widget = forms.HiddenInput()
-        self.fields["any_other_code2"].widget = forms.HiddenInput()
         self.initial["account_type"] = "savings"
         self.initial["country"] = "India"
         for visible in self.visible_fields():

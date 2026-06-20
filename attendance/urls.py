@@ -684,26 +684,26 @@ urlpatterns = [
     #     hour_account.HourAccountDetailView.as_view(),
     #     name="hour-account-detail-view",
     # ),
-    # path(
-    #     "late-come-early-out-view/",
-    #     late_come_and_early_out.LateComeAndEarlyOut.as_view(),
-    #     name="late-come-early-out-view",
-    # ),
-    # path(
-    #     "late-come-early-out-search/",
-    #     late_come_and_early_out.LateComeAndEarlyOutList.as_view(),
-    #     name="late-come-early-out-search",
-    # ),
-    # path(
-    #     "late-come-and-early-out-nav/",
-    #     late_come_and_early_out.LateComeAndEarlyOutListNav.as_view(),
-    #     name="late-come-and-early-out-nav",
-    # ),
-    # path(
-    #     "late-come-and-early-out-export/",
-    #     late_come_and_early_out.LateEarlyExportView.as_view(),
-    #     name="late-come-and-early-out-export",
-    # ),
+    path(
+        "late-come-early-out-view/",
+        late_come_and_early_out.LateComeAndEarlyOut.as_view(),
+        name="late-come-early-out-view",
+    ),
+    path(
+        "late-come-early-out-search/",
+        late_come_and_early_out.LateComeAndEarlyOutList.as_view(),
+        name="late-come-early-out-search",
+    ),
+    path(
+        "late-come-and-early-out-nav/",
+        late_come_and_early_out.LateComeAndEarlyOutListNav.as_view(),
+        name="late-come-and-early-out-nav",
+    ),
+    path(
+        "late-come-and-early-out-export/",
+        late_come_and_early_out.LateEarlyExportView.as_view(),
+        name="late-come-and-early-out-export",
+    ),
     path(
         "cut-penalty/<int:instance_id>/",
         penalty.cut_available_leave,
