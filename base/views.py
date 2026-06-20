@@ -295,7 +295,9 @@ def _shift_fixture_dates(file_path):
             pass
         return match.group(1)
 
-    with open(file_path, "r", encoding="utf-8") as f:
+    # utf-8-sig strips a leading BOM if present (some fixtures have one, which
+    # otherwise breaks json.loads during loaddata).
+    with open(file_path, "r", encoding="utf-8-sig") as f:
         content = f.read()
 
     return DATE_RE.sub(_shift, content)
