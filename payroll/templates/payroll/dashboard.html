@@ -1,4 +1,4 @@
-﻿{% extends "index.html" %}
+{% extends "index.html" %}
 {% load static i18n %}
 
 {% block content %}
@@ -247,14 +247,7 @@
                     <div class="pd-info-panel__empty">{% trans "Loading..." %}</div>
                 </div>
             </div>
-            <div class="pd-info-panel">
-                <div class="pd-info-panel__header">
-                    <div class="pd-info-panel__title">{% trans "Active Loans" %}</div>
-                </div>
-                <div class="pd-info-panel__body" id="pd-loans">
-                    <div class="pd-info-panel__empty">{% trans "Loading..." %}</div>
-                </div>
-            </div>
+
         </div>
 
     </div>
@@ -432,12 +425,7 @@
                     <div class="pd-kpi-card__value">${fmt(data.total_deductions)}</div>
                     <div class="pd-kpi-card__sub">${data.month}</div>
                 </a>
-                <a href="{% url 'view-loan' %}" class="pd-kpi-card">
-                    <div class="pd-kpi-card__icon pd-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg></div>
-                    <div class="pd-kpi-card__label">{% trans "Active Loans" %}</div>
-                    <div class="pd-kpi-card__value">${data.active_loans}</div>
-                    <div class="pd-kpi-card__sub">${data.loan_amount > 0 ? fmt(data.loan_amount) + ' {% trans "total" %}' : '{% trans "No active loans" %}'}</div>
-                </a>
+
                 <a href="{% url 'view-reimbursement' %}" class="pd-kpi-card">
                     <div class="pd-kpi-card__icon pd-kpi-card__icon--purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
                     <div class="pd-kpi-card__label">{% trans "Reimbursements" %}</div>

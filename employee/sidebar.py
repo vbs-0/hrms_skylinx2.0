@@ -23,6 +23,11 @@ SUBMENUS = [
         "redirect": reverse_lazy("ess-dashboard"),
     },
     {
+        "menu": _("My Profile"),
+        "redirect": reverse_lazy("employee-profile"),
+        "accessibility": "employee.sidebar.profile_accessibility",
+    },
+    {
         "menu": _("Employees"),
         "redirect": reverse_lazy("employee-view"),
         "accessibility": "employee.sidebar.employee_accessibility",

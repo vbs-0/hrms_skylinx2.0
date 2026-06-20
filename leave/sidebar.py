@@ -10,7 +10,7 @@ from base.templatetags.basefilters import is_leave_approval_manager, is_reportin
 from skylinx.menu import settings_menu
 from leave.templatetags.leavefilters import is_compensatory
 
-MENU = _("Leaves")
+MENU = _("Leave")
 IMG_SRC = "images/ui/leave.svg"
 
 SUBMENUS = [

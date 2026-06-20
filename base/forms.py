@@ -2546,12 +2546,11 @@ class MailTemplateForm(ModelForm):
 
     class Meta:
         model = SkylinxMailTemplate
-        fields = "__all__"
+        exclude = ["is_active"]
         widgets = {
             "body": forms.Textarea(
                 attrs={"data-summernote": "", "style": "display:none;"}
             ),
-            "is_active": forms.HiddenInput(),
         }
 
     def clean_body(self):
