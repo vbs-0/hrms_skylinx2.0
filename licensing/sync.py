@@ -56,7 +56,10 @@ def sync_license(timeout=10):
         return False, "License is not valid (expired or revoked)."
 
     cfg.plan_name = payload.get("plan_name", "")
-    cfg.employee_limit = payload.get("employee_limit")
+    emp_limit = payload.get("employee_limit")
+    if emp_limit is not None and isinstance(emp_limit, int) and emp_limit > 2147483647:
+        emp_limit = 2147483647
+    cfg.employee_limit = emp_limit
     cfg.enabled_features = payload.get("features", [])
     cfg.expires_on = payload.get("expires_on") or None
     cfg.status = payload.get("status", "active")
