@@ -181,8 +181,10 @@ def impersonate(request, user_id):
     if target.is_superuser:
         messages.error(request, "Refusing to impersonate another superuser.")
         return redirect("subscriptions-console")
-    request.session["impersonator_id"] = request.user.id
+    original_id = request.user.id
+    # login() flushes the session when switching users, so set the marker AFTER.
     login(request, target)
+    request.session["impersonator_id"] = original_id
     messages.info(request, f"You are now viewing as {target.username}.")
     return redirect("/")
 
