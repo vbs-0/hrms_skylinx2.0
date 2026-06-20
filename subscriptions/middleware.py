@@ -17,7 +17,7 @@ from django.shortcuts import redirect
 from django.urls import reverse
 
 from .features import feature_for_path
-from .utils import company_for_user, features_for_request, subscription_for_company
+from .utils import features_for_request, subscription_for_request
 
 # never gated, whatever the subscription state
 EXEMPT_PREFIXES = (
@@ -55,7 +55,7 @@ class SubscriptionMiddleware:
         if path.startswith(EXEMPT_PREFIXES):
             return self.get_response(request)
 
-        sub = subscription_for_company(company_for_user(user))
+        sub = subscription_for_request(request)  # memoized (shared with features)
 
         # No subscription row yet => don't lock out (fail open for safety).
         if sub is None:
