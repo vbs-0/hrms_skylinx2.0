@@ -44,6 +44,13 @@ COMPANY_ADMIN_APPS = [
 ]
 
 
+def _plan_or_none(plan_id):
+    """Safely resolve a plan id from form input ('' / non-numeric -> None)."""
+    if not plan_id or not str(plan_id).isdigit():
+        return None
+    return Plan.objects.filter(id=plan_id).first()
+
+
 def _company_admin_group():
     """A reusable group granting broad (non-superuser) management permissions."""
     group, created = Group.objects.get_or_create(name="Company Admin")
@@ -137,7 +144,7 @@ def onboard(request):
                 )
                 wi.company_id = company
                 wi.save()
-                plan = Plan.objects.filter(id=plan_id).first()
+                plan = _plan_or_none(plan_id)
                 Subscription.objects.create(
                     company=company,
                     plan=plan,
@@ -166,7 +173,7 @@ def subscription_update(request, company_id):
     action = request.POST.get("action")
 
     if action == "set_plan":
-        sub.plan = Plan.objects.filter(id=request.POST.get("plan")).first()
+        sub.plan = _plan_or_none(request.POST.get("plan"))
     elif action == "set_status":
         sub.status = request.POST.get("status", sub.status)
     elif action == "extend":
