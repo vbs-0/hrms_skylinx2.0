@@ -20,11 +20,11 @@ SUBMENUS = [
         "accessibility": "leave.sidebar.dashboard_accessibility",
     },
     {
-        "menu": _("My Leave Requests"),
+        "menu": _("Apply Leave"),
         "redirect": reverse_lazy("user-request-view"),
     },
     {
-        "menu": _("Leave Requests"),
+        "menu": _("Leave Approval"),
         "redirect": reverse_lazy("request-view"),
         "accessibility": "leave.sidebar.leave_request_accessibility",
     },
@@ -34,7 +34,7 @@ SUBMENUS = [
         "accessibility": "leave.sidebar.type_accessibility",
     },
     {
-        "menu": _("Assigned Leave"),
+        "menu": _("Assign Leave Type"),
         "redirect": reverse_lazy("assign-view"),
         "accessibility": "leave.sidebar.assign_accessibility",
     },

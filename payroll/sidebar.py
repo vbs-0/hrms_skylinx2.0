@@ -37,11 +37,7 @@ SUBMENUS = [
         "menu": _("Payslips"),
         "redirect": reverse("view-payslip"),
     },
-    {
-        "menu": _("Loan / Advanced Salary"),
-        "redirect": reverse("view-loan"),
-        "accessibility": "payroll.sidebar.loan_accessibility",
-    },
+
     {
         "menu": _("Expenses"),
         "redirect": reverse("view-reimbursement"),

@@ -62,49 +62,49 @@ urlpatterns = [
         allowance_deduction.AllowanceDetailView.as_view(),
         name="allowance-detail-view",
     ),
-    path(
-        "view-loan/", loan_advance_salary.AdvanceSalaryView.as_view(), name="view-loan"
-    ),
-    path(
-        "loan-generic-tab-view/",
-        loan_advance_salary.LoansGenericTab.as_view(),
-        name="loan-generic-tab-view",
-    ),
-    path(
-        "loan-tab-list-view/",
-        loan_advance_salary.LoanListView.as_view(),
-        name="loan-tab-list-view",
-    ),
-    path(
-        "advanced-salary-list-view/",
-        loan_advance_salary.AdvancedSalaryList.as_view(),
-        name="advanced-salary-list-view",
-    ),
-    path(
-        "fines-list-view/",
-        loan_advance_salary.FinesListView.as_view(),
-        name="fines-list-view",
-    ),
-    path(
-        "loan-navbar-view/",
-        loan_advance_salary.LoanNavView.as_view(),
-        name="loan-navbar-view",
-    ),
-    path(
-        "loan-detail-view/<int:pk>/",
-        loan_advance_salary.LoanDetailView.as_view(),
-        name="loan-detail-view",
-    ),
-    path(
-        "loan-create-form/",
-        loan_advance_salary.LoanFormView.as_view(),
-        name="loan-create-form",
-    ),
-    path(
-        "loan-edit-form/<int:pk>/",
-        loan_advance_salary.LoanFormView.as_view(),
-        name="loan-edit-form",
-    ),
+    # path(
+    #     "view-loan/", loan_advance_salary.AdvanceSalaryView.as_view(), name="view-loan"
+    # ),
+    # path(
+    #     "loan-generic-tab-view/",
+    #     loan_advance_salary.LoansGenericTab.as_view(),
+    #     name="loan-generic-tab-view",
+    # ),
+    # path(
+    #     "loan-tab-list-view/",
+    #     loan_advance_salary.LoanListView.as_view(),
+    #     name="loan-tab-list-view",
+    # ),
+    # path(
+    #     "advanced-salary-list-view/",
+    #     loan_advance_salary.AdvancedSalaryList.as_view(),
+    #     name="advanced-salary-list-view",
+    # ),
+    # path(
+    #     "fines-list-view/",
+    #     loan_advance_salary.FinesListView.as_view(),
+    #     name="fines-list-view",
+    # ),
+    # path(
+    #     "loan-navbar-view/",
+    #     loan_advance_salary.LoanNavView.as_view(),
+    #     name="loan-navbar-view",
+    # ),
+    # path(
+    #     "loan-detail-view/<int:pk>/",
+    #     loan_advance_salary.LoanDetailView.as_view(),
+    #     name="loan-detail-view",
+    # ),
+    # path(
+    #     "loan-create-form/",
+    #     loan_advance_salary.LoanFormView.as_view(),
+    #     name="loan-create-form",
+    # ),
+    # path(
+    #     "loan-edit-form/<int:pk>/",
+    #     loan_advance_salary.LoanFormView.as_view(),
+    #     name="loan-edit-form",
+    # ),
     path(
         "view-allowance/", allowances.AllowanceViewPage.as_view(), name="view-allowance"
     ),
@@ -244,19 +244,19 @@ urlpatterns = [
         name="add-payslip-deduction",
     ),
     # path("view-loan/", component_views.view_loans, name="view-loan"),
-    path("create-loan/", component_views.create_loan, name="create-loan"),
-    path(
-        "view-installments/",
-        component_views.view_installments,
-        name="view-installments",
-    ),
-    path(
-        "edit-installment-amount/",
-        component_views.edit_installment_amount,
-        name="edit-installment-amount",
-    ),
-    path("delete-loan/", component_views.delete_loan, name="delete-loan"),
-    path("search-loan/", component_views.search_loan, name="search-loan"),
+    # path("create-loan/", component_views.create_loan, name="create-loan"),
+    # path(
+    #     "view-installments/",
+    #     component_views.view_installments,
+    #     name="view-installments",
+    # ),
+    # path(
+    #     "edit-installment-amount/",
+    #     component_views.edit_installment_amount,
+    #     name="edit-installment-amount",
+    # ),
+    # path("delete-loan/", component_views.delete_loan, name="delete-loan"),
+    # path("search-loan/", component_views.search_loan, name="search-loan"),
     # path(
     #     "asset-fine/",
     #     component_views.asset_fine,

@@ -910,7 +910,7 @@ def generate_payslip(request):
             start_date = form.cleaned_data["start_date"]
             end_date = form.cleaned_data["end_date"]
 
-            group_name = form.cleaned_data["group_name"]
+            # group_name = form.cleaned_data["group_name"]
             emp_count = employees.count()
             for employee in employees:
                 contract = Contract.objects.filter(
@@ -933,7 +933,7 @@ def generate_payslip(request):
                 payslip["payslip"] = payslip
                 data = {}
                 data["employee"] = employee
-                data["group_name"] = group_name
+                # data["group_name"] = group_name
                 data["start_date"] = payslip["start_date"]
                 data["end_date"] = payslip["end_date"]
                 data["status"] = "draft"
@@ -961,9 +961,7 @@ def generate_payslip(request):
                     icon="close",
                 )
             messages.success(request, f"{emp_count} payslip saved as draft")
-            return redirect(
-                f"/payroll/view-payslip/?group_by=group_name&active_group={group_name}"
-            )
+            return redirect("/payroll/view-payslip/")
 
     return render(request, "payroll/common/form.html", {"form": form})
 
@@ -1209,7 +1207,7 @@ def view_payslip(request):
     bulk_form = forms.GeneratePayslipForm()
     field = request.GET.get("group_by")
     if field in Payslip.__dict__.keys():
-        payslips = payslips.filter(group_name__isnull=False).order_by(field)
+        payslips = payslips.order_by(field)
     payslips = paginator_qry(payslips, request.GET.get("page"))
     previous_data = request.GET.urlencode()
     data_dict = parse_qs(previous_data)
@@ -1248,7 +1246,7 @@ def filter_payslip(request):
     view = request.GET.get("view")
     if view == "card":
         template = "payroll/payslip/group_payslips.html"
-        payslips = payslips.filter(group_name__isnull=False).order_by("-group_name")
+        # payslips = payslips.filter(group_name__isnull=False).order_by("-group_name")
     payslips = sortby(request, payslips, "sortby")
     data_dict = []
     if not request.GET.get("dashboard"):

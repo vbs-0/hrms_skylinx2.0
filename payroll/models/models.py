@@ -1924,6 +1924,20 @@ class Payslip(SkylinxModel):
     def __str__(self) -> str:
         return f"Payslip for {self.employee_id} - Period: {self.start_date} to {self.end_date}"
 
+    @property
+    def total_allowance(self):
+        try:
+            return sum(float(a.get("amount", 0)) for a in self.pay_head_data.get("allowances", []) if str(a.get("amount", 0)).replace(".","",1).isdigit())
+        except Exception:
+            return 0
+
+    @property
+    def total_lop(self):
+        try:
+            return float(self.pay_head_data.get("loss_of_pay", 0))
+        except Exception:
+            return 0
+
     def get_status(self):
         """
         Display status

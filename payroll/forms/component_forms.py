@@ -452,11 +452,7 @@ class GeneratePayslipForm(SkylinxForm):
     Form for Payslip
     """
 
-    group_name = forms.CharField(
-        label="Batch name",
-        required=True,
-        # help_text="Enter +-something if you want to generate payslips by batches",
-    )
+    # group_name removed
     employee_id = SkylinxMultiSelectField(
         queryset=Employee.objects.none(),
         widget=SkylinxMultiSelectWidget(
@@ -505,7 +501,7 @@ class GeneratePayslipForm(SkylinxForm):
             {"class": "oh-select oh-select-2", "id": uuid.uuid4()}
         )
         self.fields["start_date"].widget.attrs.update({"class": "oh-input w-100"})
-        self.fields["group_name"].widget.attrs.update({"class": "oh-input w-100"})
+    # group_name attr update removed
         self.fields["end_date"].widget.attrs.update({"class": "oh-input w-100"})
         self.initial["start_date"] = datetime.date.today().replace(day=1)
         self.initial["end_date"] = datetime.date.today()
@@ -537,7 +533,7 @@ class PayrollSettingsForm(ModelForm):
 
 excel_columns = [
     ("employee_id", _("Employee")),
-    ("group_name", _("Batch")),
+    # ("group_name", _("Batch")), removed
     ("start_date", _("Start Date")),
     ("end_date", _("End Date")),
     ("contract_wage", _("Contract Wage")),
@@ -563,7 +559,7 @@ class PayslipExportColumnForm(forms.Form):
         widget=forms.CheckboxSelectMultiple,
         initial=[
             "employee_id",
-            "group_name",
+    # group_name initial removed
             "start_date",
             "end_date",
             "basic_pay",

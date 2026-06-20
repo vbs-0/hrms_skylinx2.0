@@ -10,14 +10,7 @@
 <div class="oh-modal__dialog-body p-0" id="bulkPayslipModal">
     <form action="{% url 'generate-payslip' %}" class="oh-profile-section pt-2" method="post">
         {% csrf_token %}
-        <div class="row">
-            <div class="col-12">
-                <div class="oh-input__group">
-                    <label class="oh-input__label" for="{{bulk_form.group_name.id_for_label}}">{% trans "Batch Name" %}</label>
-                    {{bulk_form.group_name}} {{bulk_form.group_name.errors}}
-                </div>
-            </div>
-        </div>
+
         <div class="row">
             <div class="col-12">
                 <div class="oh-input__group">

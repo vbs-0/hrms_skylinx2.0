@@ -135,11 +135,11 @@ urlpatterns = [
         views.payslip_bulk_delete,
         name="payslip-bulk-delete",
     ),
-    path(
-        "update-batch-group-name/",
-        views.slip_group_name_update,
-        name="update-batch-group-name",
-    ),
+    # path(
+    #     "update-batch-group-name/",
+    #     views.slip_group_name_update,
+    #     name="update-batch-group-name",
+    # ),
     path("contract-export/", views.contract_export, name="contract-export"),
     path(
         "contract-bulk-delete/",

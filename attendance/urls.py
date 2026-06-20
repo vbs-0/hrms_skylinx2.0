@@ -218,36 +218,21 @@ urlpatterns = [
     #     views.attendance_overtime_create,
     #     name="attendance-overtime-create",
     # ),
-    path(
-        "attendance-overtime-create/",
-        hour_account.HourAccountFormView.as_view(),
-        name="attendance-overtime-create",
-    ),
-    path(
-        "attendance-account-info-export/",
-        views.attendance_account_export,
-        name="attendance-account-info-export",
-    ),
     # path(
-    #     "attendance-overtime-view/",
-    #     views.attendance_overtime_view,
-    #     name="attendance-overtime-view",
+    #     "attendance-overtime-create/",
+    #     hour_account.HourAccountFormView.as_view(),
+    #     name="attendance-overtime-create",
     # ),
     # path(
-    #     "attendance-overtime-search",
-    #     attendance.views.search.attendance_overtime_search,
-    #     name="attendance-ot-search",
+    #     "attendance-account-info-export/",
+    #     views.attendance_account_export,
+    #     name="attendance-account-info-export",
     # ),
     # path(
-    #     "attendance-overtime-update/<int:obj_id>/",
-    #     views.attendance_overtime_update,
+    #     "attendance-overtime-update/<int:pk>/",
+    #     hour_account.HourAccountFormView.as_view(),
     #     name="attendance-overtime-update",
     # ),
-    path(
-        "attendance-overtime-update/<int:pk>/",
-        hour_account.HourAccountFormView.as_view(),
-        name="attendance-overtime-update",
-    ),
     path(
         "attendance-overtime-delete/<int:obj_id>/",
         views.attendance_overtime_delete,
@@ -326,21 +311,21 @@ urlpatterns = [
     #     search.late_come_early_out_search,
     #     name="late-come-early-out-search",
     # ),
-    path(
-        "late-come-early-out-delete/<int:obj_id>/",
-        views.late_come_early_out_delete,
-        name="late-come-early-out-delete",
-    ),
-    path(
-        "late-come-early-out-bulk-delete/",
-        views.late_come_early_out_bulk_delete,
-        name="late-come-early-out-bulk-delete",
-    ),
-    path(
-        "late-come-early-out-info-export/",
-        views.late_come_early_out_export,
-        name="late-come-early-out-info-export",
-    ),
+    # path(
+    #     "late-come-early-out-delete/<int:obj_id>/",
+    #     views.late_come_early_out_delete,
+    #     name="late-come-early-out-delete",
+    # ),
+    # path(
+    #     "late-come-early-out-bulk-delete/",
+    #     views.late_come_early_out_bulk_delete,
+    #     name="late-come-early-out-bulk-delete",
+    # ),
+    # path(
+    #     "late-come-early-out-info-export/",
+    #     views.late_come_early_out_export,
+    #     name="late-come-early-out-info-export",
+    # ),
     path(
         "validation-condition-create/",
         views.validation_condition_create,
@@ -664,61 +649,61 @@ urlpatterns = [
         my_attendances.MyAttendancesDetailView.as_view(),
         name="my-attendance-detail",
     ),
-    path(
-        "attendance-overtime-view/",
-        hour_account.HourAccount.as_view(),
-        name="attendance-overtime-view",
-    ),
-    path(
-        "attendance-overtime-search/",
-        hour_account.HourAccountList.as_view(),
-        name="attendance-ot-search",
-    ),
-    path(
-        "attendance-overtime-individual-tab/<int:pk>/",
-        attendance_tab.HourAccountIndividualTabView.as_view(),
-        name="attendance-overtime-individual-tab",
-    ),
-    path(
-        "all-attendances-individual-tab/<int:pk>/",
-        attendance_tab.AllAttendancesList.as_view(),
-        name="all-attendances-individual-tab",
-    ),
-    path(
-        "hour-account-nav/",
-        hour_account.HourAccountNav.as_view(),
-        name="hour-account-nav",
-    ),
-    path(
-        "hour-account-export/",
-        hour_account.HourExportView.as_view(),
-        name="hour-account-export",
-    ),
-    path(
-        "hour-account-detail-view/<int:pk>/",
-        hour_account.HourAccountDetailView.as_view(),
-        name="hour-account-detail-view",
-    ),
-    path(
-        "late-come-early-out-view/",
-        late_come_and_early_out.LateComeAndEarlyOut.as_view(),
-        name="late-come-early-out-view",
-    ),
-    path(
-        "late-come-early-out-search/",
-        late_come_and_early_out.LateComeAndEarlyOutList.as_view(),
-        name="late-come-early-out-search",
-    ),
-    path(
-        "late-come-and-early-out-nav/",
-        late_come_and_early_out.LateComeAndEarlyOutListNav.as_view(),
-        name="late-come-and-early-out-nav",
-    ),
-    path(
-        "late-come-and-early-out-export/",
-        late_come_and_early_out.LateEarlyExportView.as_view(),
-        name="late-come-and-early-out-export",
-    ),
+    # path(
+    #     "attendance-overtime-view/",
+    #     hour_account.HourAccount.as_view(),
+    #     name="attendance-overtime-view",
+    # ),
+    # path(
+    #     "attendance-overtime-search/",
+    #     hour_account.HourAccountList.as_view(),
+    #     name="attendance-ot-search",
+    # ),
+    # path(
+    #     "attendance-overtime-individual-tab/<int:pk>/",
+    #     attendance_tab.HourAccountIndividualTabView.as_view(),
+    #     name="attendance-overtime-individual-tab",
+    # ),
+    # path(
+    #     "all-attendances-individual-tab/<int:pk>/",
+    #     attendance_tab.AllAttendancesList.as_view(),
+    #     name="all-attendances-individual-tab",
+    # ),
+    # path(
+    #     "hour-account-nav/",
+    #     hour_account.HourAccountNav.as_view(),
+    #     name="hour-account-nav",
+    # ),
+    # path(
+    #     "hour-account-export/",
+    #     hour_account.HourExportView.as_view(),
+    #     name="hour-account-export",
+    # ),
+    # path(
+    #     "hour-account-detail-view/<int:pk>/",
+    #     hour_account.HourAccountDetailView.as_view(),
+    #     name="hour-account-detail-view",
+    # ),
+    # path(
+    #     "late-come-early-out-view/",
+    #     late_come_and_early_out.LateComeAndEarlyOut.as_view(),
+    #     name="late-come-early-out-view",
+    # ),
+    # path(
+    #     "late-come-early-out-search/",
+    #     late_come_and_early_out.LateComeAndEarlyOutList.as_view(),
+    #     name="late-come-early-out-search",
+    # ),
+    # path(
+    #     "late-come-and-early-out-nav/",
+    #     late_come_and_early_out.LateComeAndEarlyOutListNav.as_view(),
+    #     name="late-come-and-early-out-nav",
+    # ),
+    # path(
+    #     "late-come-and-early-out-export/",
+    #     late_come_and_early_out.LateEarlyExportView.as_view(),
+    #     name="late-come-and-early-out-export",
+    # ),
     path(
         "cut-penalty/<int:instance_id>/",
         penalty.cut_available_leave,

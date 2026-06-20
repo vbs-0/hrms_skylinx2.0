@@ -31,11 +31,7 @@ SUBMENUS = [
         "menu": _("Attendance Requests"),
         "redirect": reverse_lazy("request-attendance-view"),
     },
-    {
-        "menu": _("Hour Account"),
-        "redirect": reverse_lazy("attendance-overtime-view"),
-        "accessibility": "attendance.sidebar.hour_account_accessibility",
-    },
+
     {
         "menu": _("Work Records"),
         "redirect": reverse_lazy("work-records"),
@@ -45,11 +41,7 @@ SUBMENUS = [
         "menu": _("Attendance Activities"),
         "redirect": reverse_lazy("attendance-activity-view"),
     },
-    {
-        "menu": _("Late Come Early Out"),
-        "redirect": reverse_lazy("late-come-early-out-view"),
-        "accessibility": "attendance.sidebar.tracking_accessibility",
-    },
+
     {
         "menu": _("My Attendances"),
         "redirect": reverse_lazy("view-my-attendance"),
