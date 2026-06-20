@@ -1,0 +1,44 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% block content %}
+<div class="oh-wrapper max-w-xl">
+  <h1 class="text-lg font-semibold mb-4">{% trans "Onboard a new client" %}</h1>
+  <form method="post" class="bg-white rounded-md shadow-card p-5 space-y-4">
+    {% csrf_token %}
+    <div>
+      <label class="text-sm font-medium">{% trans "Company name" %} *</label>
+      <input name="company_name" required class="w-full border rounded px-3 py-2 mt-1">
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="text-sm font-medium">{% trans "Admin username" %} *</label>
+        <input name="admin_username" required class="w-full border rounded px-3 py-2 mt-1">
+      </div>
+      <div>
+        <label class="text-sm font-medium">{% trans "Admin password" %} *</label>
+        <input name="admin_password" required class="w-full border rounded px-3 py-2 mt-1">
+      </div>
+    </div>
+    <div>
+      <label class="text-sm font-medium">{% trans "Admin email" %}</label>
+      <input name="admin_email" type="email" class="w-full border rounded px-3 py-2 mt-1">
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="text-sm font-medium">{% trans "Plan" %}</label>
+        <select name="plan" class="w-full border rounded px-3 py-2 mt-1">
+          {% for p in plans %}<option value="{{ p.id }}">{{ p.name }} ({{ p.price }})</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="text-sm font-medium">{% trans "Trial days" %}</label>
+        <input name="trial_days" type="number" value="14" class="w-full border rounded px-3 py-2 mt-1">
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button class="px-4 py-2 bg-primary-600 text-white rounded-md text-sm">{% trans "Create client" %}</button>
+      <a href="{% url 'subscriptions-console' %}" class="px-4 py-2 border rounded-md text-sm">{% trans "Cancel" %}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

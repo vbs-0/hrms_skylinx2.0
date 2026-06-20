@@ -38,6 +38,8 @@ urlpatterns = [
     path("", include("skylinx_views.urls")),
     path("", include("skylinx_audit.urls")),
     path("employee/", include("employee.urls")),
+    path("manage/", include("subscriptions.urls")),
+    path("subscription/", include("subscriptions.client_urls")),
     path("skylinx-widget/", include("skylinx_widgets.urls")),
     re_path(
         "^inbox/notifications/", include(notifications.urls, namespace="notifications")

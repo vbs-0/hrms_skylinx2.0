@@ -112,7 +112,9 @@
 
 
 
-            {% if perms.base.change_company %}
+            {# SaaS: only the platform owner (superuser) may switch companies. #}
+            {# Client admins are locked to their own company — no chooser. #}
+            {% if request.user.is_superuser %}
                 <div class="relative dropdown-wrapper">
                     <button
                         class="hidden md:block p-2 group text-primary-600 w-12 h-12 bg-primary-100 hover:bg-primary-600 rounded-full transition duration-300"

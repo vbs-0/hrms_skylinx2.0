@@ -126,6 +126,7 @@ INSTALLED_APPS = [
     "skylinx_ldap",
     "skylinx_dbtemplate",
     "licensing",
+    "subscriptions",
 ]
 
 # ========================================
@@ -181,7 +182,8 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Skylinx-specific middlewares
-    "licensing.middleware.LicenseEnforcementMiddleware",
+    # licensing replaced by per-company subscriptions (SaaS multi-tenant)
+    "subscriptions.middleware.SubscriptionMiddleware",
     "base.middleware.CompanyMiddleware",
     "base.middleware.ForcePasswordChangeMiddleware",
     "base.middleware.TwoFactorAuthMiddleware",
@@ -281,6 +283,7 @@ TEMPLATES = [
                 "base.context_processors.enable_late_come_early_out_tracking",
                 "base.context_processors.enable_profile_edit",
                 "skylinx_crumbs.context_processors.breadcrumbs",
+                "subscriptions.context_processors.subscription_context",
             ],
             "loaders": [
                 "skylinx_dbtemplate.loaders.Loader",
