@@ -27,7 +27,7 @@ EXEMPT_PREFIXES = (
     "/static/",
     "/media/",
     "/i18n/",
-    "/django-admin/",
+    "/admin/",  # Django admin (superuser-only anyway)
     "/manage/",  # the platform-owner console
     "/subscription/",  # the blocked / locked pages themselves
 )
