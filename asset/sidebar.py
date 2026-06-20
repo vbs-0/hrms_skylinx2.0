@@ -7,7 +7,7 @@ from django.utils.translation import gettext_lazy as _
 
 MENU = _("Assets")
 IMG_SRC = "images/ui/assets.svg"
-LOCKED = True
+LOCKED = False
 
 SUBMENUS = [
     {

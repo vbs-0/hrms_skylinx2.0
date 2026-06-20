@@ -2,20 +2,41 @@
 {% load i18n %}
 <ul class="oh-navbar__breadcrumb">
     {% for breadcrumb in breadcrumbs %}
-        {% if forloop.last %}
-            <li class="oh-navbar__breadcrumb-item">
-                {% if breadcrumb.found %}
-                    <a href="{{breadcrumb.url}}" class="oh-navbar__breadcrumb-link active">{% trans breadcrumb.name %}</a>
-                {% else %}
-                    <a href="#" class="oh-navbar__breadcrumb-link active">{% trans breadcrumb.name %}</a>
-                {% endif %}
-            </li>
+        {% if breadcrumbs|length > 2 %}
+            {% if forloop.first %}
+                <li class="oh-navbar__breadcrumb-item">
+                    {% if breadcrumb.found %}
+                        <a href="{{breadcrumb.url}}" class="oh-navbar__breadcrumb-link">{% trans breadcrumb.name %}</a>
+                    {% else %}
+                        <a href="#" class="oh-navbar__breadcrumb-link">{% trans breadcrumb.name %}</a>
+                    {% endif %}
+                </li>
+                <li class="oh-navbar__breadcrumb-item" id="breadcrumb-dots">
+                    <a href="#" class="oh-navbar__breadcrumb-link" onclick="document.querySelectorAll('.oh-navbar__breadcrumb-item.hidden-breadcrumb').forEach(el => el.classList.remove('d-none')); document.getElementById('breadcrumb-dots').classList.add('d-none'); return false;" style="font-weight: bold; border: 1px solid #ccc; padding: 2px 10px; border-radius: 12px; text-decoration: none;">...</a>
+                </li>
+            {% elif forloop.last %}
+                <li class="oh-navbar__breadcrumb-item">
+                    {% if breadcrumb.found %}
+                        <a href="{{breadcrumb.url}}" class="oh-navbar__breadcrumb-link active">{% trans breadcrumb.name %}</a>
+                    {% else %}
+                        <a href="#" class="oh-navbar__breadcrumb-link active">{% trans breadcrumb.name %}</a>
+                    {% endif %}
+                </li>
+            {% else %}
+                <li class="oh-navbar__breadcrumb-item hidden-breadcrumb d-none">
+                    {% if breadcrumb.found %}
+                        <a href="{{breadcrumb.url}}" class="oh-navbar__breadcrumb-link">{% trans breadcrumb.name %}</a>
+                    {% else %}
+                        <a href="#" class="oh-navbar__breadcrumb-link">{% trans breadcrumb.name %}</a>
+                    {% endif %}
+                </li>
+            {% endif %}
         {% else %}
             <li class="oh-navbar__breadcrumb-item">
                 {% if breadcrumb.found %}
-                    <a href="{{breadcrumb.url}}" class="oh-navbar__breadcrumb-link">{% trans breadcrumb.name %}</a>
+                    <a href="{{breadcrumb.url}}" class="oh-navbar__breadcrumb-link {% if forloop.last %}active{% endif %}">{% trans breadcrumb.name %}</a>
                 {% else %}
-                    <a href="#" class="oh-navbar__breadcrumb-link">{% trans breadcrumb.name %}</a>
+                    <a href="#" class="oh-navbar__breadcrumb-link {% if forloop.last %}active{% endif %}">{% trans breadcrumb.name %}</a>
                 {% endif %}
             </li>
         {% endif %}

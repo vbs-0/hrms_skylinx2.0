@@ -4,7 +4,7 @@ from django.utils.translation import gettext_lazy as _
 
 MENU = _("Insights")
 IMG_SRC = "images/ui/report.svg"
-LOCKED = True
+LOCKED = False
 ACCESSIBILITY = "report.sidebar.menu_accessibility"
 
 

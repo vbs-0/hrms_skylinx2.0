@@ -14,36 +14,6 @@ PAID_FEATURES = {
         "prefixes": ["/pms/"],
         "app": "pms",
     },
-    "backup": {
-        "label": "Database Backups",
-        "prefixes": ["/backup/"],
-        "app": "skylinx_backup",
-    },
-    "facedetection": {
-        "label": "Face Detection",
-        "prefixes": ["/api/facedetection/"],
-        "app": "facedetection",
-    },
-    "whatsapp": {
-        "label": "WhatsApp Integration",
-        "prefixes": ["/whatsapp/"],
-        "app": "whatsapp",
-    },
-    "biometric": {
-        "label": "Biometric Attendance",
-        "prefixes": ["/biometric/"],
-        "app": "biometric",
-    },
-    "meet": {
-        "label": "Video Meetings",
-        "prefixes": ["/meet/"],
-        "app": "skylinx_meet",
-    },
-    "recruitment": {
-        "label": "Recruitment / ATS",
-        "prefixes": ["/recruitment/"],
-        "app": "recruitment",
-    },
 }
 
 ALL_FEATURE_KEYS = list(PAID_FEATURES.keys())
