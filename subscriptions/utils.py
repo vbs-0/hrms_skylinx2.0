@@ -17,11 +17,27 @@ def subscription_for_company(company):
     return getattr(company, "subscription", None)
 
 
+_SENTINEL = object()
+
+
 def subscription_for_request(request):
+    """
+    Resolve the request's company subscription, memoized on the request so the
+    middleware and the context processor (and any view) share ONE lookup instead
+    of each re-querying company + subscription on every page.
+    """
+    cached = getattr(request, "_subscription_cache", _SENTINEL)
+    if cached is not _SENTINEL:
+        return cached
     user = getattr(request, "user", None)
-    if not user or not user.is_authenticated:
-        return None
-    return subscription_for_company(company_for_user(user))
+    sub = None
+    if user and user.is_authenticated:
+        sub = subscription_for_company(company_for_user(user))
+    try:
+        request._subscription_cache = sub
+    except Exception:
+        pass  # request without __dict__ (rare) — just skip caching
+    return sub
 
 
 def features_for_request(request):
