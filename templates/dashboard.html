@@ -1660,7 +1660,7 @@
                 chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
                     events: { dataPointSelection: (e, ctx, config) => {
                         const dept = data.labels[config.dataPointIndex];
-                        window.location.href = "{% url 'attendance-overtime-view' %}?department=" + encodeURIComponent(dept);
+                        window.location.href = "{% url 'attendance-view' %}?department=" + encodeURIComponent(dept);
                     }}
                 },
                 labels: data.labels,

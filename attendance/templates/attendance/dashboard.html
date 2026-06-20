@@ -1,4 +1,4 @@
-﻿{% extends "index.html" %}
+{% extends "index.html" %}
 {% load static i18n %}
 
 {% block content %}
@@ -972,7 +972,7 @@
                     <div class="am-kpi-card__value">${data.on_time}</div>
                     <div class="am-kpi-card__sub">{% trans "of" %} ${data.total_employees} {% trans "employees" %}</div>
                 </a>
-                <a href="{% url 'late-come-early-out-view' %}" class="am-kpi-card">
+                <a href="{% url 'attendance-view' %}" class="am-kpi-card">
                     <div class="am-kpi-card__icon am-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
                     <div class="am-kpi-card__label">{% trans "Late Come" %}</div>
                     <div class="am-kpi-card__value">${data.late_come}</div>
@@ -1075,7 +1075,7 @@
                     events: { dataPointSelection: (e, ctx, config) => {
                         const dept = allDepts[config.dataPointIndex];
                         if (!dept) return;
-                        navigate("{% url 'late-come-early-out-view' %}", { department: dept, attendance_date: data.date });
+                        navigate("{% url 'attendance-view' %}", { department: dept, attendance_date: data.date });
                     }}
                 },
                 colors: ['#f59e0b', '#ef4444'],
@@ -1140,7 +1140,7 @@
                     events: { dataPointSelection: (e, ctx, config) => {
                         const dept = data.departments[config.dataPointIndex]?.department;
                         if (!dept) return;
-                        navigate("{% url 'attendance-overtime-view' %}", { department_name: dept });
+                        navigate("{% url 'attendance-view' %}", { department_name: dept });
                     }}
                 },
                 colors: ['#22c55e', '#f59e0b'],
@@ -1378,7 +1378,7 @@
                         const seriesLabel = data.dataSet[config.seriesIndex]?.label || '';
                         const params = { department: dept, attendance_date: data.date };
                         if (seriesLabel.toLowerCase().includes('late') || seriesLabel.toLowerCase().includes('early')) {
-                            navigate("{% url 'late-come-early-out-view' %}", params);
+                            navigate("{% url 'attendance-view' %}", params);
                         } else {
                             navigate("{% url 'attendance-view' %}", params);
                         }
