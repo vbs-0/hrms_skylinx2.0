@@ -2,6 +2,14 @@
 {% load basefilters %}
 {% show_section as show_section %}
 
+{# SaaS support: banner shown while a platform owner is impersonating a client #}
+{% if request.session.impersonator_id %}
+<div class="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-white text-sm py-1.5 px-5 flex items-center justify-center gap-3">
+    <span>{% trans "Support mode — viewing as" %} <b>{{ request.user.username }}</b></span>
+    <a href="{% url 'subscription-stop-impersonate' %}" class="underline font-semibold">{% trans "Exit support mode" %}</a>
+</div>
+{% endif %}
+
 <div
     class="flex justify-between items-center bg-white py-3 px-5 border-b border-b-dark-50 fixed w-full right-0 z-40"
 >

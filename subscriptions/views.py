@@ -62,12 +62,22 @@ def console(request):
     rows = []
     for c in companies:
         sub = getattr(c, "subscription", None)
+        # a non-superuser user in this company we can impersonate for support
+        admin_user = (
+            User.objects.filter(
+                is_superuser=False,
+                employee_get__employee_work_info__company_id=c,
+            )
+            .order_by("id")
+            .first()
+        )
         rows.append(
             {
                 "company": c,
                 "sub": sub,
                 "seats_used": sub.seats_used() if sub else 0,
                 "seat_limit": sub.seat_limit if sub else None,
+                "admin_user": admin_user,
             }
         )
     context = {

@@ -48,11 +48,16 @@
           <td class="p-3">{{ r.seats_used }}{% if r.seat_limit %} / {{ r.seat_limit }}{% else %} / ∞{% endif %}</td>
           <td class="p-3">{{ r.sub.expires_on|default:"—" }}</td>
           <td class="p-3">
-            <form method="post" action="{% url 'subscriptions-update' r.company.id %}" class="inline-flex gap-1 items-center">
-              {% csrf_token %}<input type="hidden" name="action" value="extend">
-              <input type="number" name="days" value="30" class="border rounded px-1 py-0.5 w-14 text-xs">
-              <button class="text-xs text-green-600">+{% trans "days" %}</button>
-            </form>
+            <div class="flex items-center gap-3">
+              <form method="post" action="{% url 'subscriptions-update' r.company.id %}" class="inline-flex gap-1 items-center">
+                {% csrf_token %}<input type="hidden" name="action" value="extend">
+                <input type="number" name="days" value="30" class="border rounded px-1 py-0.5 w-14 text-xs">
+                <button class="text-xs text-green-600">+{% trans "days" %}</button>
+              </form>
+              {% if r.admin_user %}
+                <a href="{% url 'subscriptions-impersonate' r.admin_user.id %}" class="text-xs text-primary-600" title="{% trans 'Log in as this client for support' %}">{% trans "Log in as" %}</a>
+              {% endif %}
+            </div>
           </td>
         </tr>
         {% empty %}
