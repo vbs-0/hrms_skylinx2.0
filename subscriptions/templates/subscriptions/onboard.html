@@ -32,7 +32,8 @@
       </div>
       <div>
         <label class="text-sm font-medium">{% trans "Trial days" %}</label>
-        <input name="trial_days" type="number" value="14" class="w-full border rounded px-3 py-2 mt-1">
+        <input name="trial_days" type="number" placeholder="{% trans 'blank = plan default' %}" class="w-full border rounded px-3 py-2 mt-1">
+        <p class="text-xs text-gray-400 mt-1">{% trans "Leave blank to use the selected plan's trial length." %}</p>
       </div>
     </div>
     <div class="flex gap-2">

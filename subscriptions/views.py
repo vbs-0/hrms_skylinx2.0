@@ -64,12 +64,15 @@ def _company_admin_group():
     return group
 
 
-def create_tenant(company_name, username, email, password, plan, trial_days=14):
+def create_tenant(company_name, username, email, password, plan, trial_days=None):
     """
     Create Company + admin user + Employee + trial Subscription atomically.
     Shared by the owner console (onboard) and client self-signup.
+    Trial length comes from the chosen plan (owner-editable) unless overridden.
     Returns (company, user); raises on failure.
     """
+    if trial_days is None:
+        trial_days = plan.trial_days if plan else 14
     # Employee.email is unique & required — synthesize one if not given.
     if not email:
         email = f"{username}@{company_name.lower().replace(' ', '')}.local"
@@ -154,7 +157,8 @@ def onboard(request):
         admin_email = request.POST.get("admin_email", "").strip()
         admin_password = request.POST.get("admin_password", "").strip()
         plan_id = request.POST.get("plan")
-        trial_days = int(request.POST.get("trial_days") or 14)
+        td = request.POST.get("trial_days")
+        trial_days = int(td) if td and td.isdigit() else None  # None -> plan default
 
         if not (company_name and admin_username and admin_password):
             messages.error(request, "Company name, admin username and password are required.")
@@ -274,15 +278,20 @@ def signup(request):
             messages.error(request, "That username is already taken.")
             return redirect("subscription-signup")
         trial_plan = Plan.objects.filter(is_active=True).order_by("price").first()
+        days = trial_plan.trial_days if trial_plan else 14
         try:
             _, user = create_tenant(company_name, username, email, password, trial_plan)
             login(request, user)
-            messages.success(request, f"Welcome, {company_name}! Your 14-day trial has started.")
+            messages.success(
+                request, f"Welcome, {company_name}! Your {days}-day trial has started."
+            )
             return redirect("/")
         except Exception as e:
             messages.error(request, f"Sign-up failed: {e}")
             return redirect("subscription-signup")
-    return render(request, "subscriptions/signup.html", {})
+    trial_plan = Plan.objects.filter(is_active=True).order_by("price").first()
+    days = trial_plan.trial_days if trial_plan else 14
+    return render(request, "subscriptions/signup.html", {"trial_days": days})
 
 
 @login_required

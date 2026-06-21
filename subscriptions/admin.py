@@ -5,7 +5,7 @@ from .models import Plan, Subscription
 
 @admin.register(Plan)
 class PlanAdmin(admin.ModelAdmin):
-    list_display = ("name", "price", "billing_cycle", "seat_limit", "is_active")
+    list_display = ("name", "price", "billing_cycle", "trial_days", "seat_limit", "is_active")
     list_filter = ("billing_cycle", "is_active")
     prepopulated_fields = {"slug": ("name",)}
 

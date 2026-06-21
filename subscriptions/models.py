@@ -46,6 +46,8 @@ class Plan(models.Model):
     )
     # null seat_limit => unlimited
     seat_limit = models.PositiveIntegerField(null=True, blank=True)
+    # free-trial length in days when a company starts on this plan (owner-editable)
+    trial_days = models.PositiveIntegerField(default=14)
     # list of feature keys from features.PAID_FEATURES that this plan unlocks
     features = models.JSONField(default=list, blank=True)
     is_active = models.BooleanField(default=True)

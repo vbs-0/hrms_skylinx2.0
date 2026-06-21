@@ -26,7 +26,7 @@
     <div class="brand">Skylinx HRMS</div>
     <div class="card">
       <h1>{% trans "Start your free trial" %}</h1>
-      <p class="sub">{% trans "Create your company account — 14 days free, no card required." %}</p>
+      <p class="sub">{% blocktrans %}Create your company account — {{ trial_days }} days free, no card required.{% endblocktrans %}</p>
       {% if messages %}{% for m in messages %}<div class="msg">{{ m }}</div>{% endfor %}{% endif %}
       <form method="post" action="{% url 'subscription-signup' %}">
         {% csrf_token %}
