@@ -27,6 +27,14 @@ dependencies:
 
   cupertino_icons: ^1.0.8
 
+  # GPS for geo-fenced clock-in/out (geolocator's android module breaks our
+  # AGP/Flutter toolchain via flutter.compileSdkVersion; location uses a fixed
+  # compileSdk and builds cleanly)
+  location: ^5.0.3
+
+  # camera selfie capture for face-detection clock-in/out
+  image_picker: ^1.1.2
+
 dev_dependencies:
   flutter_lints: ^4.0.0
   flutter_test:

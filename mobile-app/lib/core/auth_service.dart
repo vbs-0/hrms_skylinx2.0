@@ -13,6 +13,8 @@ class AuthService extends ChangeNotifier {
   int? companyId;
   bool faceDetection = false;
   bool geoFencing = false;
+  bool isAdmin = false;
+  bool isManager = false;
   bool loaded = false;
 
   bool get isAuthenticated => token != null && token!.isNotEmpty;
@@ -25,6 +27,10 @@ class AuthService extends ChangeNotifier {
     employeeName = p.getString('empName');
     employeeProfile = p.getString('empProfile');
     companyId = p.getInt('companyId');
+    faceDetection = p.getBool('faceDetection') ?? false;
+    geoFencing = p.getBool('geoFencing') ?? false;
+    isAdmin = p.getBool('isAdmin') ?? false;
+    isManager = p.getBool('isManager') ?? false;
     ApiClient.I.token = token;
     loaded = true;
     notifyListeners();
@@ -47,6 +53,8 @@ class AuthService extends ChangeNotifier {
       companyId = d['company_id'] as int?;
       faceDetection = d['face_detection'] == true;
       geoFencing = d['geo_fencing'] == true;
+      isAdmin = d['is_admin'] == true;
+      isManager = d['is_manager'] == true;
       ApiClient.I.token = token;
 
       final p = await SharedPreferences.getInstance();
@@ -55,6 +63,8 @@ class AuthService extends ChangeNotifier {
       await p.setString('empName', employeeName ?? '');
       await p.setString('empProfile', employeeProfile ?? '');
       await p.setInt('companyId', companyId ?? 0);
+      await p.setBool('faceDetection', faceDetection);
+      await p.setBool('geoFencing', geoFencing);
       notifyListeners();
       return null;
     } on DioException catch (e) {

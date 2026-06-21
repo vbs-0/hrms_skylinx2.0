@@ -6,10 +6,20 @@ allprojects {
 }
 
 rootProject.buildDir = "../build"
+
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-subprojects {
+    // Backfill compileSdk/namespace for plugins that don't set them (AGP 8 needs both).
+    afterEvaluate { project ->
+        if (project.hasProperty("android")) {
+            project.android {
+                if (namespace == null && project.group != null) {
+                    namespace project.group.toString()
+                }
+                compileSdkVersion 35
+            }
+        }
+    }
     project.evaluationDependsOn(":app")
 }
 

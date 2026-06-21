@@ -13,8 +13,12 @@ class _Module {
   final String? titleField;
   final String? subtitleField;
   final String? statusField;
+  final bool adminOnly; // management modules — hidden from regular employees
   const _Module(this.icon, this.label, this.title, this.endpoint,
-      {this.titleField, this.subtitleField, this.statusField});
+      {this.titleField,
+      this.subtitleField,
+      this.statusField,
+      this.adminOnly = false});
 }
 
 class MoreScreen extends StatelessWidget {
@@ -42,9 +46,14 @@ class MoreScreen extends StatelessWidget {
     _Module(Icons.track_changes_outlined, 'Key Results', 'Key Results',
         '/pms/key-result/', titleField: 'title', subtitleField: 'progress_type'),
     _Module(Icons.work_outline, 'Recruitment', 'Recruitments',
-        '/recruitment/recruitment/', titleField: 'title', statusField: 'closed'),
+        '/recruitment/recruitment/',
+        titleField: 'title', statusField: 'closed', adminOnly: true),
     _Module(Icons.person_search_outlined, 'Candidates', 'Candidates',
-        '/recruitment/candidate/', titleField: 'name', subtitleField: 'email', statusField: 'hired'),
+        '/recruitment/candidate/',
+        titleField: 'name',
+        subtitleField: 'email',
+        statusField: 'hired',
+        adminOnly: true),
     _Module(Icons.support_agent_outlined, 'Helpdesk', 'Tickets',
         '/helpdesk/ticket/', titleField: 'title', statusField: 'status'),
     _Module(Icons.help_outline, 'FAQ', 'FAQs', '/helpdesk/faq/',
@@ -54,9 +63,11 @@ class MoreScreen extends StatelessWidget {
     _Module(Icons.checklist_outlined, 'Tasks', 'Tasks', '/project/task/',
         titleField: 'title', statusField: 'status'),
     _Module(Icons.login_outlined, 'Onboarding', 'Onboarding Tasks',
-        '/onboarding/candidate-task/', titleField: 'onboarding_task_id', statusField: 'status'),
+        '/onboarding/candidate-task/',
+        titleField: 'onboarding_task_id', statusField: 'status', adminOnly: true),
     _Module(Icons.logout_outlined, 'Offboarding', 'Offboarding',
-        '/offboarding/offboarding/', titleField: 'title', statusField: 'status'),
+        '/offboarding/offboarding/',
+        titleField: 'title', statusField: 'status', adminOnly: true),
     _Module(Icons.devices_other_outlined, 'Assets', 'Assets',
         '/asset/assets/', titleField: 'asset_name', statusField: 'asset_status'),
     _Module(Icons.notifications_outlined, 'Notifications', 'Notifications',
@@ -67,6 +78,9 @@ class MoreScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.read<AuthService>();
+    final modules = _modules
+        .where((m) => !m.adminOnly || auth.isAdmin || auth.isManager)
+        .toList();
     return Scaffold(
       appBar: AppBar(
         title: const Text('More'),
@@ -84,7 +98,7 @@ class MoreScreen extends StatelessWidget {
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
         childAspectRatio: 0.92,
-        children: _modules.map((mod) {
+        children: modules.map((mod) {
           return InkWell(
             onTap: () => Navigator.push(
               context,
