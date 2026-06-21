@@ -1,5 +1,5 @@
 name: skylinx_hrms
-description: Skylinx HRMS mobile shell — wraps the HRMS web app with native device features.
+description: Skylinx HRMS — native mobile app.
 publish_to: "none"
 version: 1.0.0+1
 
@@ -10,25 +10,20 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # WebView shell + JS<->Dart bridge
-  flutter_inappwebview: ^6.1.5
+  # networking
+  dio: ^5.7.0
 
-  # connectivity (offline detection)
-  connectivity_plus: ^6.1.0
+  # local storage (JWT token, prefs)
+  shared_preferences: ^2.3.2
 
-  # runtime permissions (camera, location, etc.)
-  permission_handler: ^11.3.1
+  # state management
+  provider: ^6.1.2
 
-  # NOTE: native geolocator removed for now — its current Android impl needs a
-  # newer Flutter than 3.24.5. Location for attendance works via the WebView's
-  # HTML5 geolocation (granted in webview_screen). Re-add geolocator after a
-  # Flutter SDK upgrade if a native GPS bridge is needed.
+  # date/number formatting
+  intl: ^0.19.0
 
-  # biometric / device-credential app lock
-  local_auth: ^2.3.0
-
-  # open external links in the system browser
-  url_launcher: ^6.3.1
+  # remote image display (avatars, profile photos)
+  cached_network_image: ^3.4.1
 
   cupertino_icons: ^1.0.8
 
