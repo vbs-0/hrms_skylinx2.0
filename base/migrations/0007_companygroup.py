@@ -7,7 +7,10 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('auth', '0014_remove_user_is_new_employee'),
+        # auth.Group has existed since auth's initial migration; pin to it so
+        # this migration is portable across environments (local has extra auth
+        # migrations that don't exist on prod).
+        ('auth', '0001_initial'),
         ('base', '0006_alter_company_date_format'),
     ]
 
