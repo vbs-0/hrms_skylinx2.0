@@ -91,13 +91,22 @@ class _ApiListScreenState extends State<ApiListScreen> {
                     fontSize: 18, fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
             ...m.entries
-                .where((e) => e.value != null && e.value.toString().isNotEmpty)
+                .where((e) =>
+                    !_noise.contains(e.key) &&
+                    e.value != null &&
+                    e.value.toString().isNotEmpty &&
+                    _scalar(e.value).isNotEmpty)
                 .map((e) => InfoRow(_label(e.key), _scalar(e.value))),
           ],
         ),
       ),
     );
   }
+
+  static const _noise = {
+    'id', 'is_active', 'created_by', 'modified_by', 'created_at', 'modified_at',
+    'sequence', 'company_id', 'add_assignees', 'is_template', 'skylinx_history',
+  };
 
   static String? _display(Map<String, dynamic> m, String? field) {
     if (field == null) return null;

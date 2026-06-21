@@ -38,9 +38,9 @@ class MoreScreen extends StatelessWidget {
         titleField: 'title', subtitleField: 'amount', statusField: 'status'),
     _Module(Icons.flag_outlined, 'Objectives', 'Objectives',
         '/pms/objective/',
-        titleField: 'objective', statusField: 'status'),
+        titleField: 'title', subtitleField: 'description'),
     _Module(Icons.track_changes_outlined, 'Key Results', 'Key Results',
-        '/pms/key-result/', titleField: 'title'),
+        '/pms/key-result/', titleField: 'title', subtitleField: 'progress_type'),
     _Module(Icons.work_outline, 'Recruitment', 'Recruitments',
         '/recruitment/recruitment/', titleField: 'title', statusField: 'closed'),
     _Module(Icons.person_search_outlined, 'Candidates', 'Candidates',
@@ -57,6 +57,11 @@ class MoreScreen extends StatelessWidget {
         '/onboarding/candidate-task/', titleField: 'onboarding_task_id', statusField: 'status'),
     _Module(Icons.logout_outlined, 'Offboarding', 'Offboarding',
         '/offboarding/offboarding/', titleField: 'title', statusField: 'status'),
+    _Module(Icons.devices_other_outlined, 'Assets', 'Assets',
+        '/asset/assets/', titleField: 'asset_name', statusField: 'asset_status'),
+    _Module(Icons.notifications_outlined, 'Notifications', 'Notifications',
+        '/notifications/notifications/list/all',
+        titleField: 'verb', subtitleField: 'level'),
   ];
 
   @override
