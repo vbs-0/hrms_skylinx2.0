@@ -129,7 +129,9 @@ from base.methods import (
     paginator_qry,
     sortby,
 )
+from base.rbac import current_company, groups_for_request, owns_group, scoped_name
 from base.models import (
+    CompanyGroup,
     WEEK_DAYS,
     WEEKS,
     AnnouncementExpire,
@@ -1243,9 +1245,17 @@ def user_group_table(request):
             )
         permissions.append({"app": app_name.capitalize(), "app_models": app_models})
     if request.method == "POST":
-        form = UserGroupForm(request.POST)
+        company = current_company(request)
+        post = request.POST.copy()
+        if company and not request.user.is_superuser:
+            post["name"] = scoped_name(company.id, post.get("name", ""))
+        form = UserGroupForm(post)
         if form.is_valid():
-            form.save()
+            group = form.save()
+            if company and not request.user.is_superuser:
+                CompanyGroup.objects.get_or_create(
+                    group=group, defaults={"company": company}
+                )
             messages.success(request, _("User group created."))
             return SkylinxRedirect(request)
     return render(
@@ -1273,15 +1283,22 @@ def update_group_permission(
     if not instance:
         messages.error(request, _("Group not found"))
         return JsonResponse({"message": "Group not found", "type": "danger"})
+    if not owns_group(request, instance.id):
+        return JsonResponse({"message": "Group not found", "type": "danger"})
+    company = current_company(request)
+    scope = company and not request.user.is_superuser
     form = UserGroupForm(request.POST, instance=instance)
     if form.is_valid():
-        form.save()
+        grp = form.save()
+        if scope:  # keep the tenant prefix the form may have stripped
+            grp.name = scoped_name(company.id, grp.name)
+            grp.save(update_fields=["name"])
         messages.success(request, _("Updated the permissions"))
         return JsonResponse({})
     if request.POST.get("name_update"):
         name = request.POST["name"]
         if len(name) > 3:
-            instance.name = name
+            instance.name = scoped_name(company.id, name) if scope else name
             instance.save()
             messages.success(request, _("Name updated"))
             return JsonResponse({"message": "Name updated", "type": "success"})
@@ -1320,7 +1337,7 @@ def user_group(request):
             {"app": app_name.capitalize().replace("_", " "), "app_models": app_models}
         )
     from django.db.models import Prefetch, Count
-    groups = Group.objects.all().prefetch_related(
+    groups = groups_for_request(request).prefetch_related(
         Prefetch('permissions')
     ).annotate(
         user_count=Count('user', distinct=True)
@@ -1364,7 +1381,7 @@ def user_group_search(request):
         search = str(request.GET["search"])
     # Optimize query with prefetch_related and annotate user count
     from django.db.models import Prefetch, Count
-    groups = Group.objects.filter(name__icontains=search).prefetch_related(
+    groups = groups_for_request(request).filter(name__icontains=search).prefetch_related(
         Prefetch('permissions')
     ).annotate(
         user_count=Count('user', distinct=True)
@@ -1389,6 +1406,8 @@ def group_permissions_table_view(request, group_id):
     """
     Lazy-loads permissions table for a specific group.
     """
+    if not owns_group(request, group_id):
+        return HttpResponse("Group not found", status=404)
     try:
         group = Group.objects.get(id=group_id)
     except Group.DoesNotExist:
@@ -1478,6 +1497,8 @@ def group_assign(request):
     group_id = request.GET.get("group")
     if not group_id:
         return SkylinxRedirect(request, message=_("Required parameters are missing"))
+    if not owns_group(request, group_id):
+        return SkylinxRedirect(request, message=_("Group not found"))
     form = AssignUserGroup(
         initial={
             "group": group_id,
@@ -1492,6 +1513,8 @@ def group_assign(request):
             return SkylinxRedirect(
                 request, message=_("Required parameters are missing")
             )
+        if not owns_group(request, group_id):
+            return SkylinxRedirect(request, message=_("Group not found"))
         form = AssignUserGroup(
             {"group": group_id, "employee": request.POST.getlist("employee")}
         )
@@ -1525,7 +1548,7 @@ def group_assign_view(request):
     search = ""
     if request.GET.get("search") is not None:
         search = request.GET.get("search")
-    groups = Group.objects.filter(name__icontains=search)
+    groups = groups_for_request(request).filter(name__icontains=search)
     previous_data = request.GET.urlencode()
     return render(
         request,

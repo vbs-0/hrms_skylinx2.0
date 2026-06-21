@@ -20,6 +20,16 @@ class BaseConfig(AppConfig):
         super().ready()
         check_for_no_permissions_models()
 
+        # Show tenant-scoped group names without their `c<id>::` storage prefix.
+        from django.contrib.auth.models import Group
+
+        from base.rbac import strip_name
+
+        Group.add_to_class("__str__", lambda self: strip_name(self.name))
+        Group.add_to_class(
+            "display_name", property(lambda self: strip_name(self.name))
+        )
+
 
 def check_for_no_permissions_models():
 

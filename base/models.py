@@ -2995,4 +2995,24 @@ class IntegrationApps(SkylinxModel, NoPermissionModel):
     is_enabled = models.BooleanField(default=False)
 
 
+class CompanyGroup(models.Model):
+    """
+    Tenant ownership for Django auth Groups. Each client (Company) owns its own
+    user groups/roles; queries are scoped via this link so one tenant never sees
+    or assigns another's groups. See base.rbac for the helpers.
+    """
+
+    from django.contrib.auth.models import Group
+
+    group = models.OneToOneField(
+        Group, on_delete=models.CASCADE, related_name="company_link"
+    )
+    company = models.ForeignKey(
+        Company, on_delete=models.CASCADE, related_name="user_groups"
+    )
+
+    def __str__(self):
+        return f"{self.company} · {self.group}"
+
+
 # User.add_to_class("is_new_employee", models.BooleanField(default=False))
