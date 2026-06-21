@@ -5,6 +5,7 @@ import '../core/auth_service.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 import 'api_list_screen.dart';
+import 'apply_leave_screen.dart';
 import 'attendance_screen.dart';
 import 'employee_detail_screen.dart';
 
@@ -95,8 +96,18 @@ class DashboardScreen extends StatelessWidget {
               _QuickTile(
                   icon: Icons.event_available_outlined,
                   label: 'My Leave',
-                  onTap: () => _open(context, 'My Leave', '/leave/user-request/',
-                      titleField: 'leave_type_id', subtitleField: 'start_date', statusField: 'status')),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => ApiListScreen(
+                                title: 'My Leave',
+                                endpoint: '/leave/user-request/',
+                                titleField: 'leave_type_id',
+                                subtitleField: 'start_date',
+                                statusField: 'status',
+                                actionLabel: 'Apply',
+                                actionScreen: (_) => const ApplyLeaveScreen(),
+                              )))),
               _QuickTile(
                   icon: Icons.receipt_long_outlined,
                   label: 'Payslips',

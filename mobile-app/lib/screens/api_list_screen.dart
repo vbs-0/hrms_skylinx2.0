@@ -6,12 +6,17 @@ import '../widgets/common.dart';
 /// Generic list screen for record-style modules (leave, payslips, assets,
 /// tickets, objectives, ...). Pulls a DRF list endpoint and renders each row
 /// using best-effort field extraction (handles scalars + nested FK maps).
-class ApiListScreen extends StatelessWidget {
+///
+/// Optional [actionLabel]/[actionScreen] adds a FAB; after it returns, the
+/// list refreshes.
+class ApiListScreen extends StatefulWidget {
   final String title;
   final String endpoint;
   final String? titleField;
   final String? subtitleField;
   final String? statusField;
+  final String? actionLabel;
+  final Widget Function(BuildContext)? actionScreen;
 
   const ApiListScreen({
     super.key,
@@ -20,19 +25,40 @@ class ApiListScreen extends StatelessWidget {
     this.titleField,
     this.subtitleField,
     this.statusField,
+    this.actionLabel,
+    this.actionScreen,
   });
+
+  @override
+  State<ApiListScreen> createState() => _ApiListScreenState();
+}
+
+class _ApiListScreenState extends State<ApiListScreen> {
+  int _reload = 0;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(title: Text(widget.title)),
+      floatingActionButton: widget.actionScreen == null
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () async {
+                await Navigator.push(context,
+                    MaterialPageRoute(builder: widget.actionScreen!));
+                if (mounted) setState(() => _reload++);
+              },
+              icon: const Icon(Icons.add),
+              label: Text(widget.actionLabel ?? 'New'),
+            ),
       body: AsyncListView<Map<String, dynamic>>(
-        emptyText: 'No $title yet.',
-        loader: () => ApiClient.I.getList(endpoint),
+        key: ValueKey(_reload),
+        emptyText: 'No ${widget.title} yet.',
+        loader: () => ApiClient.I.getList(widget.endpoint),
         itemBuilder: (c, m) {
-          final titleText = _display(m, titleField) ?? _firstText(m);
-          final sub = _display(m, subtitleField);
-          final status = _display(m, statusField);
+          final titleText = _display(m, widget.titleField) ?? _firstText(m);
+          final sub = _display(m, widget.subtitleField);
+          final status = _display(m, widget.statusField);
           return Card(
             child: ListTile(
               title: Text(titleText,
@@ -81,7 +107,6 @@ class ApiListScreen extends StatelessWidget {
     return s.isEmpty ? null : s;
   }
 
-  // first human-looking text field as a fallback title
   static String _firstText(Map<String, dynamic> m) {
     for (final k in ['name', 'title', 'full_name', 'subject']) {
       if (m[k] != null) return _scalar(m[k]);
