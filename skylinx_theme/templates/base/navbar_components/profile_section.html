@@ -80,6 +80,16 @@
                 </button>
             </li>
 
+            {% if not user.is_superuser %}
+            <li>
+                <button
+                    class="py-1.5 hover:text-primary-600 transition duration-300 text-sm gap-4 items-center flex w-full"
+                >
+                    <a class="text-[13px]" href="{% url 'subscription-plans' %}">{% trans "Subscription & Plans" %}</a>
+                </button>
+            </li>
+            {% endif %}
+
         <hr class="text-[#1c1c1c] my-2" />
         <li>
             <button
