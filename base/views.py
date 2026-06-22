@@ -8378,7 +8378,8 @@ def get_home_announcement(request):
 @login_required
 def edit_home_announcement(request):
     from django.http import HttpResponseForbidden
-    if not request.user.is_superuser:
+    # Allow superuser OR company admin with change_announcement permission
+    if not (request.user.is_superuser or request.user.has_perm("base.change_announcement")):
         return HttpResponseForbidden("Permission Denied")
         
     from base.models import Announcement
@@ -8405,15 +8406,17 @@ def edit_home_announcement(request):
 
 def get_home_logo_card(request):
     from base.models import Company
-    company = Company.objects.filter(hq=True).first()
+    company = current_company(request) or Company.objects.filter(hq=True).first() or Company.objects.first()
     
-    # Load social links from JSON file
+    # Load social links from JSON file (keyed by company ID)
     social_links_file = os.path.join(settings.BASE_DIR, "base", "company_social_links.json")
     social_links = {"linkedin": "", "facebook": "", "instagram": ""}
+    company_id_str = str(company.id) if company else "hq"
     if os.path.exists(social_links_file):
         try:
             with open(social_links_file, "r", encoding="utf-8") as f:
-                social_links.update(json.load(f))
+                all_links = json.load(f)
+                social_links.update(all_links.get(company_id_str, {}))
         except Exception:
             pass
             
@@ -8427,18 +8430,21 @@ def get_home_logo_card(request):
 @login_required
 def edit_home_logo_card(request):
     from django.http import HttpResponseForbidden
-    if not request.user.is_superuser:
+    # Allow superuser OR company admin with change_company permission
+    if not (request.user.is_superuser or request.user.has_perm("base.change_company")):
         return HttpResponseForbidden("Permission Denied")
         
     from base.models import Company
-    company = Company.objects.filter(hq=True).first()
+    company = current_company(request) or Company.objects.filter(hq=True).first() or Company.objects.first()
     
     social_links_file = os.path.join(settings.BASE_DIR, "base", "company_social_links.json")
     social_links = {"linkedin": "", "facebook": "", "instagram": ""}
+    company_id_str = str(company.id) if company else "hq"
     if os.path.exists(social_links_file):
         try:
             with open(social_links_file, "r", encoding="utf-8") as f:
-                social_links.update(json.load(f))
+                all_links = json.load(f)
+                social_links.update(all_links.get(company_id_str, {}))
         except Exception:
             pass
 
@@ -8479,10 +8485,15 @@ def edit_home_logo_card(request):
             "instagram": instagram,
         }
         
-        # Save social links to JSON
+        # Save social links to JSON (keyed by company ID)
         try:
+            all_links = {}
+            if os.path.exists(social_links_file):
+                with open(social_links_file, "r", encoding="utf-8") as f:
+                    all_links = json.load(f)
+            all_links[company_id_str] = social_links
             with open(social_links_file, "w", encoding="utf-8") as f:
-                json.dump(social_links, f, indent=4)
+                json.dump(all_links, f, indent=4)
         except Exception:
             pass
             
@@ -8502,11 +8513,12 @@ def edit_home_logo_card(request):
 @login_required
 def edit_home_logo_card_image(request):
     from django.http import HttpResponseForbidden
-    if not request.user.is_superuser:
+    # Allow superuser OR company admin with change_company permission
+    if not (request.user.is_superuser or request.user.has_perm("base.change_company")):
         return HttpResponseForbidden("Permission Denied")
         
     from base.models import Company
-    company = Company.objects.filter(hq=True).first()
+    company = current_company(request) or Company.objects.filter(hq=True).first() or Company.objects.first()
     
     if request.method == "POST" and request.FILES.get("icon"):
         import re
@@ -8560,13 +8572,15 @@ def edit_home_logo_card_image(request):
         except Exception:
             pass
             
-    # Load social links from JSON file
+    # Load social links from JSON file (keyed by company ID)
     social_links_file = os.path.join(settings.BASE_DIR, "base", "company_social_links.json")
     social_links = {"linkedin": "", "facebook": "", "instagram": ""}
+    company_id_str = str(company.id) if company else "hq"
     if os.path.exists(social_links_file):
         try:
             with open(social_links_file, "r", encoding="utf-8") as f:
-                social_links.update(json.load(f))
+                all_links = json.load(f)
+                social_links.update(all_links.get(company_id_str, {}))
         except Exception:
             pass
             

@@ -29,9 +29,9 @@
   </form>
   {% else %}
   
-  <!-- Logo Upload Box with Hover Effect (Dashed Blue on Hover + Plus Overlay) -->
+  <!-- Logo Upload Box with Hover Effect -->
   <div class="hp-logo-upload-wrapper" 
-       {% if request.user.is_superuser %}
+       {% if request.user.is_superuser or perms.base.change_company %}
        onclick="document.getElementById('hidden-logo-file-input').click();" 
        title="{% trans 'Click to change logo instantly' %}"
        {% endif %}>
@@ -44,7 +44,7 @@
       </div>
     {% endif %}
     
-    {% if request.user.is_superuser %}
+    {% if request.user.is_superuser or perms.base.change_company %}
     <!-- Plus Overlay on Hover -->
     <div class="hp-logo-overlay">
       <ion-icon name="add-circle" style="font-size: 2rem; color: #3b82f6;"></ion-icon>
@@ -54,7 +54,7 @@
   </div>
 
   <!-- Hidden Form for Direct Image Upload -->
-  {% if request.user.is_superuser %}
+  {% if request.user.is_superuser or perms.base.change_company %}
   <form style="display: none;" id="direct-logo-form">
     {% csrf_token %}
     <input type="file" id="hidden-logo-file-input" name="icon" 
@@ -66,9 +66,9 @@
   </form>
   {% endif %}
 
-  <!-- Company Name (Clickable to edit for superusers) -->
-  <div class="hp-logo-text {% if request.user.is_superuser %}hp-logo-text-editable{% endif %}"
-       {% if request.user.is_superuser %}
+  <!-- Company Name (Clickable to edit for superusers and company admins) -->
+  <div class="hp-logo-text {% if request.user.is_superuser or perms.base.change_company %}hp-logo-text-editable{% endif %}"
+       {% if request.user.is_superuser or perms.base.change_company %}
        hx-get="{% url 'edit-home-logo-card' %}"
        hx-target="#home-logo-container"
        hx-swap="outerHTML"
@@ -77,24 +77,38 @@
        {{ company.company|default:"SkyLinx" }}
   </div>
   
-  <!-- Social Links (LinkedIn, Facebook, Instagram) -->
-  <div class="hp-social-links" style="display: flex; gap: 12px; margin-top: 0.85rem;">
-    {% if social_links.linkedin %}
-      <a href="{{ social_links.linkedin }}" target="_blank" class="hp-social-link" style="color: #0077b5; font-size: 1.5rem; transition: transform 0.2s;"><ion-icon name="logo-linkedin"></ion-icon></a>
-    {% else %}
-      <a href="https://linkedin.com" target="_blank" class="hp-social-link" style="color: #cbd5e1; font-size: 1.5rem;"><ion-icon name="logo-linkedin"></ion-icon></a>
-    {% endif %}
+  <!-- Social Links with edit button for admins -->
+  <div class="hp-social-links-container" style="display: flex; align-items: center; gap: 8px; margin-top: 0.85rem;">
+    <div class="hp-social-links" style="display: flex; gap: 12px;">
+      {% if social_links.linkedin %}
+        <a href="{{ social_links.linkedin }}" target="_blank" class="hp-social-link" style="color: #0077b5; font-size: 1.5rem; transition: transform 0.2s;"><ion-icon name="logo-linkedin"></ion-icon></a>
+      {% else %}
+        <a href="https://linkedin.com" target="_blank" class="hp-social-link" style="color: #cbd5e1; font-size: 1.5rem;"><ion-icon name="logo-linkedin"></ion-icon></a>
+      {% endif %}
 
-    {% if social_links.facebook %}
-      <a href="{{ social_links.facebook }}" target="_blank" class="hp-social-link" style="color: #1877f2; font-size: 1.5rem; transition: transform 0.2s;"><ion-icon name="logo-facebook"></ion-icon></a>
-    {% else %}
-      <a href="https://facebook.com" target="_blank" class="hp-social-link" style="color: #cbd5e1; font-size: 1.5rem;"><ion-icon name="logo-facebook"></ion-icon></a>
-    {% endif %}
+      {% if social_links.facebook %}
+        <a href="{{ social_links.facebook }}" target="_blank" class="hp-social-link" style="color: #1877f2; font-size: 1.5rem; transition: transform 0.2s;"><ion-icon name="logo-facebook"></ion-icon></a>
+      {% else %}
+        <a href="https://facebook.com" target="_blank" class="hp-social-link" style="color: #cbd5e1; font-size: 1.5rem;"><ion-icon name="logo-facebook"></ion-icon></a>
+      {% endif %}
 
-    {% if social_links.instagram %}
-      <a href="{{ social_links.instagram }}" target="_blank" class="hp-social-link" style="color: #e4405f; font-size: 1.5rem; transition: transform 0.2s;"><ion-icon name="logo-instagram"></ion-icon></a>
-    {% else %}
-      <a href="https://instagram.com" target="_blank" class="hp-social-link" style="color: #cbd5e1; font-size: 1.5rem;"><ion-icon name="logo-instagram"></ion-icon></a>
+      {% if social_links.instagram %}
+        <a href="{{ social_links.instagram }}" target="_blank" class="hp-social-link" style="color: #e4405f; font-size: 1.5rem; transition: transform 0.2s;"><ion-icon name="logo-instagram"></ion-icon></a>
+      {% else %}
+        <a href="https://instagram.com" target="_blank" class="hp-social-link" style="color: #cbd5e1; font-size: 1.5rem;"><ion-icon name="logo-instagram"></ion-icon></a>
+      {% endif %}
+    </div>
+
+    {% if request.user.is_superuser or perms.base.change_company %}
+      <button type="button" 
+              hx-get="{% url 'edit-home-logo-card' %}" 
+              hx-target="#home-logo-container" 
+              hx-swap="outerHTML" 
+              class="oh-btn btn-sm hp-social-edit-btn" 
+              style="padding: 2px 6px; font-size: 0.75rem; border-radius: 6px; border: 1px solid #cbd5e1; background: transparent; color: #475569; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; height: 26px; transition: all 0.2s;"
+              title="{% trans 'Edit Links' %}">
+        <ion-icon name="create-outline" style="font-size: 0.95rem;"></ion-icon>
+      </button>
     {% endif %}
   </div>
   {% endif %}

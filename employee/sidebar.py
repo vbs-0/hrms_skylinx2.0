@@ -110,9 +110,8 @@ def rotating_work_type_accessibility(request, submenu, user_perms, *args, **kwar
 
 
 def shift_roster_accessibility(request, submenu, user_perms, *args, **kwargs):
-    return request.user.has_perm("base.view_roster") or is_reportingmanager(
-        request.user
-    )
+    # Hidden from UI — backend logic intact
+    return False
 
 
 def employee_accessibility(request, submenu, user_perms, *args, **kwargs):
