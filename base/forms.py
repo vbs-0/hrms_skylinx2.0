@@ -2983,14 +2983,17 @@ class PassWordResetForm(forms.Form):
             # unknown identifier — don't reveal that; just send nothing
             return
         employee = user.employee_get
-        email = employee.email
-        work_mail = None
-        try:
-            work_mail = employee.employee_work_info.email
-        except Exception as e:
-            pass
-        if work_mail:
-            email = work_mail
+        # send to every address the person might actually read: personal email,
+        # work email, and the login username if it looks like an email.
+        recipients = []
+        for addr in (
+            employee.email,
+            getattr(getattr(employee, "employee_work_info", None), "email", None),
+            user.email,
+            user.username if "@" in (user.username or "") else None,
+        ):
+            if addr and addr not in recipients:
+                recipients.append(addr)
 
         if not domain_override:
             current_site = get_current_site(request)
@@ -2998,10 +3001,10 @@ class PassWordResetForm(forms.Form):
             domain = current_site.domain
         else:
             site_name = domain = domain_override
-        if email:
+        if recipients:
             token = token_generator.make_token(user)
             context = {
-                "email": email,
+                "email": recipients[0],
                 "domain": domain,
                 "site_name": site_name,
                 "uid": urlsafe_base64_encode(force_bytes(user.pk)),
@@ -3010,14 +3013,15 @@ class PassWordResetForm(forms.Form):
                 "protocol": "https" if use_https else "http",
                 **(extra_email_context or {}),
             }
-            self.send_mail(
-                subject_template_name,
-                email_template_name,
-                context,
-                from_email,
-                email,
-                html_email_template_name=html_email_template_name,
-            )
+            for addr in recipients:
+                self.send_mail(
+                    subject_template_name,
+                    email_template_name,
+                    context,
+                    from_email,
+                    addr,
+                    html_email_template_name=html_email_template_name,
+                )
 
 
 def validate_ip_or_cidr(value):
