@@ -127,9 +127,12 @@
 <script>
     function selectAllPermissions(source) {
         const isChecked = $(source).is(":checked");
-        const table = $(source).closest("table"); // or your specific container
-        table
-            .find("tbody input.row-permission")
+        // Works for both the real <table> (create modal) and the div-based
+        // oh-sticky-table (lazy-loaded panel): scope to the nearest of either.
+        let scope = $(source).closest("table");
+        if (!scope.length) scope = $(source).closest(".oh-sticky-table");
+        scope
+            .find("input.row-permission")
             .prop("checked", isChecked)
             .trigger("change");
     }
@@ -138,7 +141,8 @@
         var groupId = elem.attr("data-group-id");
         var name = elem.attr("data-group-name");
         var permissions = [];
-        var panel = $(`#groupPanel${groupId}`); // or use a container class/id that wraps your entire permission section
+        // the lazy-loaded permission table lives in #panel<groupId> (group_lines.html)
+        var panel = $(`#panel${groupId}`);
         panel.find("[type=checkbox][name=permissions]").each(function () {
             if ($(this).is(":checked")) {
                 var permissionValue = $(this).val();
@@ -204,13 +208,15 @@
     $(document).ready(function () {
         updateBadge();
         var timeout;
-        $("#permissionContainer [name=permissions]").on("change", function (e) {
-            e.preventDefault();
-            clearTimeout();
+        // Delegated: the permission tables are lazy-loaded after a group is
+        // expanded, so bind on the container, not the (not-yet-existing) inputs.
+        $("#permissionContainer").on("change", "[name=permissions]", function (e) {
+            var target = $(e.target);
+            clearTimeout(timeout);
             timeout = setTimeout(function () {
-                updateBadge($(this));
-                updateGroupPermissions($(e.target));
-            }, 100);
+                updateBadge();
+                updateGroupPermissions(target);
+            }, 150);
         });
     });
 </script>
