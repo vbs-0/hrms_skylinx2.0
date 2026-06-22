@@ -132,11 +132,11 @@ function checkSelected(names, target, initial=false) {
     else          { $(target).find(`[value=${v}]`).prop("checked", true); }
   });
 }
-function selectAllPermissions(elem) {
-  $(elem).closest(".oh-sticky-table__thead")
-         .siblings(".oh-sticky-table__tbody")
-         .find(".row-permission")
-         .prop("checked", $(elem).is(":checked")).change();
+function selectAllPermissions(source) {
+  // themed permission_table.html renders a real <table>, so target tbody rows
+  var isChecked = $(source).is(":checked");
+  $(source).closest("table").find("tbody input.row-permission")
+           .prop("checked", isChecked).trigger("change");
 }
 function updateBadge() {
   $(".panel").each(function() {

@@ -47,7 +47,10 @@
               ▸
             </button>
           </td>
-          <td class="p-3 font-medium">{{ r.company.company }}</td>
+          <td class="p-3 font-medium">
+            {{ r.company.company }}
+            {% if r.admin_user %}<div class="text-xs text-gray-400 font-normal">{% trans "login" %}: {{ r.admin_user.username }}</div>{% endif %}
+          </td>
           <td class="p-3">
             <form method="post" action="{% url 'subscriptions-update' r.company.id %}" class="flex gap-1">
               {% csrf_token %}<input type="hidden" name="action" value="set_plan">
@@ -78,6 +81,12 @@
               </form>
               {% if r.admin_user %}
                 <a href="{% url 'subscriptions-impersonate' r.admin_user.id %}" class="text-xs text-primary-600" title="{% trans 'Log in as this client for support' %}">{% trans "Log in as" %}</a>
+                <form method="post" action="{% url 'subscriptions-update' r.company.id %}" class="inline-flex gap-1 items-center"
+                      title="{% trans 'Username' %}: {{ r.admin_user.username }}">
+                  {% csrf_token %}<input type="hidden" name="action" value="set_admin_password">
+                  <input type="text" name="password" placeholder="{% trans 'new pwd' %}" class="border rounded px-1 py-0.5 w-20 text-xs">
+                  <button class="text-xs text-orange-600" title="{% trans 'Set admin password. Username:' %} {{ r.admin_user.username }}">{% trans 'set pwd' %}</button>
+                </form>
               {% endif %}
             </div>
           </td>

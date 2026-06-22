@@ -280,6 +280,28 @@ def subscription_update(request, company_id):
         else:
             overrides.append(key)
         sub.feature_overrides = overrides
+    elif action == "set_admin_password":
+        new_pw = (request.POST.get("password") or "").strip()
+        admin = (
+            User.objects.filter(
+                is_superuser=False,
+                employee_get__employee_work_info__company_id=company,
+            )
+            .order_by("id")
+            .first()
+        )
+        if not admin:
+            messages.error(request, f"No admin user found for {company}.")
+            return redirect("subscriptions-console")
+        if len(new_pw) < 6:
+            messages.error(request, "Password must be at least 6 characters.")
+            return redirect("subscriptions-console")
+        admin.set_password(new_pw)
+        admin.save()
+        messages.success(
+            request, f"Admin password for {company} set. Login username: {admin.username}"
+        )
+        return redirect("subscriptions-console")
     sub.save()
     messages.success(request, f"Updated subscription for {company}.")
     return redirect("subscriptions-console")
