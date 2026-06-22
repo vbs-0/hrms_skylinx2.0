@@ -40,6 +40,17 @@ def generate_sidebar(request):
                 feature_key = APP_TO_FEATURE.get(app)
                 if feature_key and not _lic.is_feature_enabled(feature_key, request):
                     continue
+
+                # Per-company subscription: hide modules the client's plan doesn't
+                # include (superuser sees everything). Keeps the sidebar in sync
+                # with what the owner set on /manage.
+                if not request.user.is_superuser:
+                    from subscriptions.features import APP_TO_FEATURE as _SUB_FEAT
+                    sub_key = _SUB_FEAT.get(app)
+                    if sub_key and sub_key not in getattr(
+                        request, "company_features", []
+                    ):
+                        continue
                 try:
                     sidebar = importlib.import_module(app + ".sidebar")
 
@@ -99,15 +110,17 @@ def generate_sidebar(request):
 def get_MENUS(request):
     if not request.user.is_authenticated:
         return {"sidebar": []}
-    
-    # Use user ID for cache key instead of session key
-    cache_key = f"sidebar_menus_user_{request.user.id}"
+
+    # Cache key includes the company's feature set, so changing a plan on /manage
+    # busts the menu immediately instead of waiting out the TTL.
+    feats = "".join(sorted(getattr(request, "company_features", []) or []))
+    cache_key = f"sidebar_menus_user_{request.user.id}_{hash(feats)}"
     sidebar_menus = cache.get(cache_key)
-    
+
     if sidebar_menus is None:
         sidebar_menus = generate_sidebar(request)
-        cache.set(cache_key, sidebar_menus, timeout=getattr(settings, "CACHE_TIMEOUT", 3600))
-    
+        cache.set(cache_key, sidebar_menus, timeout=120)
+
     return {"sidebar": sidebar_menus}
 
 
