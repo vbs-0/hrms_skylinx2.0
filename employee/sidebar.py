@@ -55,11 +55,7 @@ SUBMENUS = [
         "redirect": reverse_lazy("rotating-work-type-assign"),
         "accessibility": "employee.sidebar.rotating_work_type_accessibility",
     },
-    {
-        "menu": _("Shift Roster"),
-        "redirect": reverse_lazy("roster-home"),
-        "accessibility": "employee.sidebar.shift_roster_accessibility",
-    },
+    # ponytail: Shift Roster removed from menu; backend/urls intact
     {
         "menu": _("Disciplinary Actions"),
         "redirect": reverse_lazy("disciplinary-actions"),

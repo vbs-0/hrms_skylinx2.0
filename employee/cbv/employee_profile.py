@@ -11,7 +11,6 @@ from django.utils.translation import gettext_lazy as _
 from django.views import View
 
 from base import views as base_views
-from base.cbv.mail_log_tab import MailLogTabList
 from base.cbv.work_shift_tab import WorkAndShiftTabView
 from base.context_processors import enable_profile_edit
 from base.forms import AddToUserGroupForm
@@ -112,9 +111,23 @@ class EmployeeProfileView(SkylinxProfileView):
 
 class UserProfileView(EmployeeProfileView):
 
+    # ponytail: keep only profile-intrinsic tabs; module tabs (Leave, Payroll,
+    # Attendance, Projects, etc.) live in their own menus, so drop them here.
+    KEEP_TABS = {
+        "About",
+        "Work Type & Shift",
+        "Groups & Permissions",
+        "Note",
+        "Documents",
+    }
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["instance_ids"] = None
+        if "visible_tabs" in context:
+            context["visible_tabs"] = [
+                t for t in context["visible_tabs"] if str(t["title"]) in self.KEEP_TABS
+            ]
         return context
 
 
@@ -145,16 +158,7 @@ EmployeeProfileView.add_tab(
             "view": views.document_tab,
             "accessibility": "employee.cbv.accessibility.document_accessibility",
         },
-        {
-            "title": _("Mail Log"),
-            "view": MailLogTabList.as_view(),
-            "accessibility": "employee.cbv.accessibility.mail_log_accessibility",
-        },
-        {
-            "title": _("History"),
-            "view": views.history_tab,
-            "accessibility": "employee.cbv.accessibility.history_accessibility",
-        },
+        # ponytail: Mail Log & History tabs removed from profile UI; backend/urls intact
     ]
 )
 

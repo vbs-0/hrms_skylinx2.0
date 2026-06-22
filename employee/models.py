@@ -105,6 +105,16 @@ class Employee(models.Model):
     gender = models.CharField(
         max_length=10, null=True, choices=choice_gender, default="male"
     )
+    blood_group = models.CharField(
+        max_length=3,
+        blank=True,
+        null=True,
+        choices=[
+            (g, g)
+            for g in ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"]
+        ],
+        verbose_name=_("Blood Group"),
+    )
     qualification = models.CharField(max_length=50, blank=True, null=True)
     experience = models.IntegerField(null=True, blank=True)
     marital_status = models.CharField(

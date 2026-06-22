@@ -1,0 +1,289 @@
+{% load i18n %}
+<div class="md-holiday-cal">
+    <style>
+        .md-holiday-cal {
+            font-family: inherit;
+        }
+        .md-holiday-cal__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .md-holiday-cal__title {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .md-holiday-cal__nav {
+            display: flex;
+            gap: 8px;
+        }
+        .md-holiday-cal__grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+        .md-cal-lbl {
+            text-align: center;
+            font-weight: 600;
+            font-size: 12px;
+            opacity: 0.6;
+            padding-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .md-cal-lbl--weekend {
+            color: #ef4444;
+        }
+        .md-cal-cell {
+            min-height: 90px;
+            border: 1px solid rgba(128, 128, 128, 0.12);
+            border-radius: 10px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: #ffffff;
+            transition: all 0.2s ease;
+        }
+        .md-cal-cell:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+            transform: translateY(-1px);
+        }
+        .md-cal-cell--empty {
+            background: transparent;
+            border-color: transparent;
+            pointer-events: none;
+        }
+        .md-cal-cell--today {
+            background: rgba(99, 102, 241, 0.04) !important;
+            border-color: #6366f1 !important;
+            box-shadow: 0 0 0 1px #6366f1;
+        }
+        .md-cal-cell-num {
+            font-size: 12px;
+            font-weight: 700;
+            opacity: 0.8;
+            color: #1e293b;
+        }
+        .md-cal-cell--weekend .md-cal-cell-num {
+            color: #ef4444;
+            opacity: 0.7;
+        }
+        .md-cal-events {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            overflow-y: auto;
+            max-height: 60px;
+            scrollbar-width: none;
+        }
+        .md-cal-events::-webkit-scrollbar {
+            display: none;
+        }
+        .md-cal-evt {
+            font-size: 10px;
+            padding: 3px 6px;
+            border-radius: 5px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .md-cal-evt--holiday {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .md-cal-evt--leave {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+        .md-holiday-lists {
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+        @media (min-width: 768px) {
+            .md-holiday-lists {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        .md-list-card {
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+            transition: all 0.2s ease;
+        }
+        .md-list-card--holidays {
+            background: rgba(245, 158, 11, 0.02);
+            border: 1px solid rgba(245, 158, 11, 0.12);
+        }
+        .md-list-card--leaves {
+            background: rgba(3, 105, 161, 0.02);
+            border: 1px solid rgba(3, 105, 161, 0.12);
+        }
+        .md-list-title {
+            margin-top: 0;
+            font-size: 15px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .md-list-title--holidays {
+            color: #b45309;
+        }
+        .md-list-title--leaves {
+            color: #0369a1;
+        }
+        .md-list-items {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .md-list-item {
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 14px;
+            background: #ffffff;
+            border-radius: 10px;
+            border: 1px solid rgba(128, 128, 128, 0.07);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+        }
+        .md-list-item:hover {
+            border-color: rgba(128, 128, 128, 0.15);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+        }
+        .md-list-item-title {
+            color: #0f172a;
+            font-weight: 600;
+        }
+        .md-list-item-date {
+            font-size: 12px;
+            opacity: 0.65;
+            font-weight: 500;
+            color: #475569;
+        }
+        .md-badge-type {
+            font-size: 11px;
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 2px 8px;
+            border-radius: 6px;
+            margin-left: 8px;
+            font-weight: 600;
+        }
+        .md-list-empty {
+            font-size: 13px;
+            opacity: 0.55;
+            padding: 16px;
+            text-align: center;
+            color: #64748b;
+        }
+    </style>
+
+    <div class="md-holiday-cal__header">
+        <h3 class="md-holiday-cal__title">{{ month_name }} {{ year }}</h3>
+        <div class="md-holiday-cal__nav">
+            <button class="oh-btn oh-btn--light-bkg" style="padding:4px 10px; font-size:12px; cursor:pointer;"
+                    hx-get="{% url 'holiday-calendar-view' %}?year={{ prev_year }}&month={{ prev_month }}&hx=1{{ extra_params }}"
+                    hx-target="closest div.md-holiday-cal"
+                    hx-swap="outerHTML">←</button>
+            <button class="oh-btn oh-btn--light-bkg" style="padding:4px 10px; font-size:12px; cursor:pointer;"
+                    hx-get="{% url 'holiday-calendar-view' %}?year={{ next_year }}&month={{ next_month }}&hx=1{{ extra_params }}"
+                    hx-target="closest div.md-holiday-cal"
+                    hx-swap="outerHTML">→</button>
+        </div>
+    </div>
+
+    <!-- Calendar Grid -->
+    <div class="md-holiday-cal__grid">
+        <!-- Weekday Labels -->
+        <div class="md-cal-lbl">{% trans "Mon" %}</div>
+        <div class="md-cal-lbl">{% trans "Tue" %}</div>
+        <div class="md-cal-lbl">{% trans "Wed" %}</div>
+        <div class="md-cal-lbl">{% trans "Thu" %}</div>
+        <div class="md-cal-lbl">{% trans "Fri" %}</div>
+        <div class="md-cal-lbl md-cal-lbl--weekend">{% trans "Sat" %}</div>
+        <div class="md-cal-lbl md-cal-lbl--weekend">{% trans "Sun" %}</div>
+
+        {% for week in weeks %}
+            {% for day in week %}
+                <div class="md-cal-cell {% if day.day == '' %}md-cal-cell--empty{% endif %} {% if day.is_weekend %}md-cal-cell--weekend{% endif %} {% if day.is_today %}md-cal-cell--today{% endif %}">
+                    {% if day.day %}
+                        <div class="md-cal-cell-num">{{ day.day }}</div>
+                        <div class="md-cal-events">
+                            {% for evt in day.events %}
+                                {% if evt.type == 'holiday' %}
+                                    <div class="md-cal-evt md-cal-evt--holiday" title="{{ evt.name }}">
+                                        🎉 {{ evt.name }}
+                                    </div>
+                                {% elif evt.type == 'leave' %}
+                                    <div class="md-cal-evt md-cal-evt--leave" title="{{ evt.employee }} ({{ evt.leave_type }})">
+                                        👤 {{ evt.employee }}
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% endfor %}
+    </div>
+
+    <!-- Category Based Lists (Holidays vs Leaves) -->
+    {% if show_list %}
+        <div class="md-holiday-lists">
+            <!-- Holidays Category -->
+            <div class="md-list-card md-list-card--holidays">
+                <h4 class="md-list-title md-list-title--holidays">
+                    🎉 {% trans "Public Holidays" %}
+                </h4>
+                <ul class="md-list-items">
+                    {% for h in holidays_list %}
+                        <li class="md-list-item">
+                            <span class="md-list-item-title">{{ h.name }}</span>
+                            <span class="md-list-item-date">{{ h.start_date }}{% if h.end_date and h.end_date != h.start_date %} – {{ h.end_date }}{% endif %}</span>
+                        </li>
+                    {% empty %}
+                        <li class="md-list-empty">{% trans "No public holidays this month" %}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- Approved Leaves Category -->
+            <div class="md-list-card md-list-card--leaves">
+                <h4 class="md-list-title md-list-title--leaves">
+                    👤 {% trans "Leave" %}
+                </h4>
+                <ul class="md-list-items">
+                    {% for l in leaves_list %}
+                        <li class="md-list-item">
+                            <div>
+                                <span class="md-list-item-title">{{ l.employee_id.get_full_name }}</span>
+                                <span class="md-badge-type">{{ l.leave_type_id.name }}</span>
+                            </div>
+                            <span class="md-list-item-date">{{ l.start_date }} – {{ l.end_date }} ({{ l.requested_days }}d)</span>
+                        </li>
+                    {% empty %}
+                        <li class="md-list-empty">{% trans "No leaves this month" %}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    {% endif %}
+</div>

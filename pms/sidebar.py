@@ -41,10 +41,7 @@ SUBMENUS = [
         "redirect": reverse_lazy("view-key-result"),
         "accessibility": "pms.sidebar.key_result_accessibility",
     },
-    {
-        "menu": _("Employee Bonus Point"),
-        "redirect": reverse_lazy("employee-bonus-point"),
-    },
+    # ponytail: Bonus Points hidden from UI; backend intact
     {
         "menu": _("Period"),
         "redirect": reverse_lazy("period-view"),
@@ -92,7 +89,8 @@ def bonus_point_accessibility(request, submenu, user_perms, *args, **kwargs):
 class PerformanceSettings:
     title = _("Performance")
     order = 8
-    condition = lambda self, request: apps.is_installed("pms")
+    # ponytail: only contained Bonus Point Setting, hidden from UI; backend intact
+    condition = lambda self, request: False
     items = [
         {
             "label": _("Bonus Point Setting"),

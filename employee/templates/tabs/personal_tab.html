@@ -28,6 +28,14 @@
 
 					<li class="oh-profile__card-info-item">
 						<span class="oh-profile__info-label mb-1">
+							<ion-icon name="water-outline"></ion-icon>
+							<span>{% trans "Blood Group" %}</span>
+						</span>
+						<span class="oh-profile__info-value">{{employee.blood_group|default:_("None")}}</span>
+					</li>
+
+					<li class="oh-profile__card-info-item">
+						<span class="oh-profile__info-label mb-1">
 							<ion-icon name="home-outline"></ion-icon>
 							<span>{% trans "Address" %}</span>
 						</span>

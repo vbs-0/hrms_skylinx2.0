@@ -556,7 +556,7 @@ aria-hidden="true">
 								>
 							</li>
 
-							{% if "payroll"|app_installed %}
+							{% if False %} {# ponytail: Bonus Points hidden from UI; backend intact #}
 							<li data-cell-index="10" data-cell-title="{% trans 'Bonus Points' %}" class="oh-general__tab">
 								<a
 								hx-get="{% url 'bonus-points-tab' employee.id %}"
