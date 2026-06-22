@@ -144,6 +144,59 @@ def main():
         else:
             actions += 1
 
+    # ── HIDDEN detection (multiple signals) ─────────────────────────────
+    # 1) curated: features we explicitly hid/removed this project
+    HIDDEN_ROUTE = {
+        "roster-home", "view-time-sheet", "employee-bonus-point",
+        "bonus-point-setting", "individual-email-log-list",
+        "individual-mail-log-detail",
+    }
+    HIDDEN_LABEL = {
+        "Shift Roster", "Timesheet", "Bonus Points", "Bonus Point Setting",
+        "Employee Bonus Point", "Mail Log", "History", "My Profile",
+    }
+    # 2) employee-profile KEEP_TABS whitelist -> every other add_tab tab is hidden there
+    KEEP_TABS = {"About", "Work Type & Shift", "Groups & Permissions", "Note", "Documents"}
+
+    # 3) sidebar accessibility funcs that hard-return False
+    hidden_acc = set()
+    for f in glob.glob("*/sidebar.py"):
+        s = open(f, encoding="utf-8").read()
+        for m in re.finditer(r"def (\w+)\(request[^)]*\):\s*\n(?:\s*#.*\n)*\s*return False\b", s):
+            hidden_acc.add(m.group(1))
+
+    # 4) settings_menu sections whose condition is False
+    hidden_setting_sec = set()
+    for f in glob.glob("**/*.py", recursive=True):
+        if "referance" in f:
+            continue
+        try:
+            s = open(f, encoding="utf-8").read()
+        except Exception:
+            continue
+        for blk in re.split(r"@settings_menu.register", s)[1:]:
+            t = re.search(r'title\s*=\s*_\("([^"]+)"', blk)
+            if t and re.search(r"condition\s*=\s*lambda[^\n:]*:\s*False\b", blk):
+                hidden_setting_sec.add(t.group(1))
+
+    def hidden(label=None, route=None, section=None):
+        if label and label in HIDDEN_LABEL:
+            return True
+        if route and route.strip("/").split("/")[-1] in HIDDEN_ROUTE:
+            return True
+        # route name match (Part B/F pass bare name)
+        if route in HIDDEN_ROUTE:
+            return True
+        if section and section in hidden_setting_sec:
+            return True
+        return False
+
+    counter = {"n": 0}
+    def line(text, is_hidden=False):
+        counter["n"] += 1
+        tag = "  **(hidden)**" if is_hidden else ""
+        w(f"{counter['n']}. {text}{tag}")
+
     L = []
     w = L.append
     w("# Skylinx HRMS — Page Inventory\n")
@@ -155,40 +208,46 @@ def main():
     w(f"- Classified: **{npages}** standalone pages, **{npart}** tab/list partials, "
       f"**{namb}** likely-pages (review), **{actions}** actions/fragments, "
       f"**{skipped}** skipped (admin/db-init)\n")
+    w("- Items tagged **(hidden)** are turned off in the UI (menu removed, "
+      "`accessibility`/`condition` False, KEEP_TABS whitelist, or `{% if False %}` "
+      "guard). Backend code usually still exists.\n")
 
     w("\n---\n## PART A — Navigable menu (what HR clicks)\n")
     w("### Modules\n")
     for title, items in side:
         w(f"\n**{title}**\n")
         for label, url in items:
-            w(f"- `{url}` — {label}")
+            line(f"`{url}` — {label}", hidden(label=label, route=url))
     w("\n### Settings\n")
     for title, items in sett:
-        w(f"\n**{title}**\n")
+        sec_hidden = title in hidden_setting_sec
+        suffix = "  _(section hidden)_" if sec_hidden else ""
+        w(f"\n**{title}**{suffix}\n")
         for label, url in items:
-            w(f"- `{url}` — {label}")
+            line(f"`{url}` — {label}", hidden(label=label, route=url, section=title) or sec_hidden)
     w("\n**Owner/Vendor:** `/manage/` Console · `/manage/analytics/` Analytics\n")
 
     w("\n---\n## PART B — All page-views found in code (incl. detail/tab/sub-views)\n")
     for app in sorted(pages):
         w(f"\n### {app}  ({len(pages[app])})\n")
         for name, url in sorted(pages[app]):
-            w(f"- `{url}`  ·  `{name}`")
+            line(f"`{url}`  ·  `{name}`", hidden(label=None, route=name))
 
     w("\n---\n## PART C — Tab / list partials (render inside a parent page)\n")
     for app in sorted(partials):
         w(f"\n### {app}  ({len(partials[app])})\n")
         for name, url in sorted(partials[app]):
-            w(f"- `{url}`  ·  `{name}`")
+            line(f"`{url}`  ·  `{name}`", hidden(route=name))
 
     w("\n---\n## PART D — Likely pages needing manual review (ambiguous)\n")
     for app in sorted(ambiguous):
         w(f"\n### {app}  ({len(ambiguous[app])})\n")
         for name, url in sorted(ambiguous[app]):
-            w(f"- `{url}`  ·  `{name}`")
+            line(f"`{url}`  ·  `{name}`", hidden(route=name))
 
     # ── Part E: registered profile tab-views (no own menu endpoint) ──────
     w("\n---\n## PART E — Profile tab-views (registered via add_tab, no menu link)\n")
+    w("_Employee-profile tabs not in KEEP_TABS are hidden; candidate-profile tabs stay._\n")
     tabreg = []
     for f in glob.glob("**/*.py", recursive=True):
         if "referance" in f:
@@ -197,11 +256,13 @@ def main():
             s = open(f, encoding="utf-8").read()
         except Exception:
             continue
-        for blk in re.findall(r'(?:EmployeeProfileView|CandidateProfileView)\.add_tab\((.*?)\)\s*\n', s, re.S):
+        for view, blk in re.findall(r'(EmployeeProfileView|CandidateProfileView)\.add_tab\((.*?)\)\s*\n', s, re.S):
             for title in re.findall(r'"title":\s*_\("([^"]+)"', blk):
-                tabreg.append((f.replace("\\", "/"), title))
-    for f, title in sorted(set(tabreg)):
-        w(f"- **{title}**  ·  `{f}`")
+                tabreg.append((f.replace("\\", "/"), view, title))
+    for f, view, title in sorted(set(tabreg)):
+        # only employee-profile tabs outside KEEP_TABS are hidden; candidate tabs stay
+        is_hidden = view == "EmployeeProfileView" and title not in KEEP_TABS
+        line(f"**{title}**  ·  _{view}_  ·  `{f}`", is_hidden)
 
     # ── Part F: complete raw dump — every named route, by path prefix ────
     w("\n---\n## PART F — Complete route dump (every named URL, nothing filtered)\n")
@@ -222,12 +283,14 @@ def main():
             continue
         w(f"\n### {bucket}  ({len(items)})\n")
         for name, url, view in items:
-            w(f"- `{url}`  ·  `{name}`  ·  _{view}_")
+            line(f"`{url}`  ·  `{name}`  ·  _{view}_", hidden(route=name))
+
+    w(f"\n---\n_End of inventory — **{counter['n']}** numbered entries total._")
 
     os.makedirs("docs", exist_ok=True)
     open("docs/page_inventory.md", "w", encoding="utf-8").write("\n".join(L))
     print("WROTE docs/page_inventory.md")
-    print("pages:", npages, "partials:", npart, "ambiguous:", namb,
-          "actions:", actions, "skipped:", skipped, "total:", len(rows))
+    print("numbered entries:", counter["n"], "pages:", npages, "partials:", npart,
+          "ambiguous:", namb, "actions:", actions, "skipped:", skipped, "total:", len(rows))
 
 main()
