@@ -1,0 +1,53 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% block content %}
+<div class="oh-wrapper">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h1 class="text-lg font-semibold">{% trans "Subscription Plans" %}</h1>
+      <p class="text-sm text-gray-500">{% trans "Manage available pricing plans." %}</p>
+    </div>
+    <div class="flex gap-2">
+      <a href="{% url 'subscriptions-console' %}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md text-sm border hover:bg-gray-200">{% trans "Back to Console" %}</a>
+      <a href="{% url 'subscriptions-plan-new' %}" class="px-4 py-2 bg-primary-600 text-white rounded-md text-sm">+ {% trans "Create Plan" %}</a>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-md shadow-card overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-left">
+        <tr class="border-b">
+          <th class="p-3">{% trans "Name" %}</th>
+          <th class="p-3">{% trans "Price" %}</th>
+          <th class="p-3">{% trans "Billing Cycle" %}</th>
+          <th class="p-3">{% trans "Seats" %}</th>
+          <th class="p-3">{% trans "Status" %}</th>
+          <th class="p-3">{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for plan in plans %}
+        <tr class="border-b hover:bg-gray-50">
+          <td class="p-3 font-medium">{{ plan.name }}</td>
+          <td class="p-3">${{ plan.price }}</td>
+          <td class="p-3">{{ plan.get_billing_cycle_display }}</td>
+          <td class="p-3">{{ plan.seat_limit }}</td>
+          <td class="p-3">
+            {% if plan.is_active %}
+              <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">{% trans "Active" %}</span>
+            {% else %}
+              <span class="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">{% trans "Inactive" %}</span>
+            {% endif %}
+          </td>
+          <td class="p-3">
+            <a href="{% url 'subscriptions-plan-edit' plan.id %}" class="text-blue-600 hover:underline">{% trans "Edit" %}</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="p-4 text-center text-gray-400">{% trans "No plans found." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

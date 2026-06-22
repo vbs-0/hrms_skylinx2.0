@@ -100,7 +100,8 @@ def user_perms(perms):
     """
     permission names return method
     """
-    return json.dumps(list(perms.values_list("codename", flat="True")))
+    perms_list = [f"{p['content_type__app_label']}.{p['codename']}" for p in perms.values("content_type__app_label", "codename")]
+    return json.dumps(perms_list)
 
 
 @register.filter(name="abs_value")

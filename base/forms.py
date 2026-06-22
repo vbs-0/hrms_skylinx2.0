@@ -400,7 +400,7 @@ class UserGroupForm(ModelForm):
         super().__init__(*args, **kwargs)
         try:
             self.fields["permissions"].choices = [
-                (perm.codename, perm.name) for perm in Permission.objects.all()
+                (f"{perm.content_type.app_label}.{perm.codename}", perm.name) for perm in Permission.objects.select_related("content_type").all()
             ]
         except Exception:
             # Safe fallback when DB is not ready
@@ -415,12 +415,42 @@ class UserGroupForm(ModelForm):
             group = self.instance
         group.save()
 
-        # Convert the selected codenames back to Permission instances
-        permissions_codenames = self.cleaned_data["permissions"]
-        permissions = Permission.objects.filter(codename__in=permissions_codenames)
+        # Convert the selected app_label.codenames back to Permission instances
+        permissions_values = self.cleaned_data["permissions"]
+        
+        from django.db.models import Q
+        from django.conf import settings
+        from django.apps import apps
+        
+        q_objs = Q()
+        for pv in permissions_values:
+            if "." in pv:
+                app_label, codename = pv.split(".", 1)
+                q_objs |= Q(content_type__app_label=app_label, codename=codename)
+        
+        if q_objs:
+            selected_permissions = Permission.objects.filter(q_objs)
+        else:
+            selected_permissions = Permission.objects.none()
 
-        # Set the associated permissions
-        group.permissions.set(permissions)
+        # Determine "editable" permissions to avoid wiping out hidden ones
+        editable_q = Q()
+        if hasattr(settings, 'APPS'):
+            for app_name in settings.APPS:
+                try:
+                    app_config = apps.get_app_config(app_name)
+                    model_names = [model._meta.model_name for model in app_config.get_models() if model.__name__ != "CompanyTheme" and model._meta.model_name not in settings.NO_PERMISSION_MODALS]
+                    if model_names:
+                        editable_q |= Q(content_type__app_label=app_name, content_type__model__in=model_names)
+                except Exception:
+                    pass
+        
+        if editable_q:
+            hidden_permissions = group.permissions.exclude(editable_q)
+            final_permissions = list(selected_permissions) + list(hidden_permissions)
+            group.permissions.set(final_permissions)
+        else:
+            group.permissions.set(selected_permissions)
 
         if commit:
             group.save()
@@ -542,7 +572,7 @@ class AssignPermission(Form):
         # Dynamically load permission choices only when DB is ready
         try:
             self.fields["permissions"].choices = [
-                (perm.codename, perm.name) for perm in Permission.objects.all()
+                (f"{perm.content_type.app_label}.{perm.codename}", perm.name) for perm in Permission.objects.select_related("content_type").all()
             ]
         except Exception:
             # Fallback in case the DB isn't ready yet
@@ -562,8 +592,20 @@ class AssignPermission(Form):
         user_ids = Employee.objects.filter(
             id__in=self.data.getlist("employee")
         ).values_list("employee_user_id", flat=True)
-        permissions = self.cleaned_data["permissions"]
-        permissions = Permission.objects.filter(codename__in=permissions)
+        permissions_values = self.cleaned_data["permissions"]
+        
+        from django.db.models import Q
+        q_objs = Q()
+        for pv in permissions_values:
+            if "." in pv:
+                app_label, codename = pv.split(".", 1)
+                q_objs |= Q(content_type__app_label=app_label, codename=codename)
+                
+        if q_objs:
+            permissions = Permission.objects.filter(q_objs)
+        else:
+            permissions = Permission.objects.none()
+            
         users = SkylinxUser.objects.filter(id__in=user_ids)
         for user in users:
             user.user_permissions.add(*permissions)

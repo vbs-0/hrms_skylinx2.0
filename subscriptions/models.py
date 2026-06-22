@@ -78,6 +78,8 @@ class Subscription(models.Model):
     notes = models.TextField(blank=True)
     # per-company feature overrides: keys here are enabled regardless of plan
     feature_overrides = models.JSONField(default=list, blank=True)
+    # per-company seat limit override (null = use plan.seat_limit)
+    seat_override = models.PositiveIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -102,6 +104,8 @@ class Subscription(models.Model):
 
     @property
     def seat_limit(self):
+        if self.seat_override is not None:
+            return self.seat_override
         return self.plan.seat_limit if self.plan else None
 
     def seats_used(self):

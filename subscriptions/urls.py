@@ -12,4 +12,7 @@ urlpatterns = [
     ),
     path("impersonate/<int:user_id>/", views.impersonate, name="subscriptions-impersonate"),
     path("stop-impersonate/", views.stop_impersonate, name="subscriptions-stop-impersonate"),
+    path("plans/", views.plans_list, name="subscriptions-plans"),
+    path("plans/new/", views.plan_edit, name="subscriptions-plan-new"),
+    path("plans/<int:plan_id>/edit/", views.plan_edit, name="subscriptions-plan-edit"),
 ]

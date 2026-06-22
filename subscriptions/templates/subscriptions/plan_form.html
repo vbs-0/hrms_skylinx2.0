@@ -1,0 +1,24 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% block content %}
+<div class="oh-wrapper">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-lg font-semibold">
+      {% if plan %}{% trans "Edit Plan" %}: {{ plan.name }}{% else %}{% trans "Create New Plan" %}{% endif %}
+    </h1>
+    <a href="{% url 'subscriptions-plans' %}" class="text-sm text-gray-500 hover:underline">{% trans "Back to Plans" %}</a>
+  </div>
+
+  <div class="bg-white rounded-md shadow-card p-6 max-w-2xl">
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="pt-4 border-t">
+        <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-md">
+          {% trans "Save Plan" %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

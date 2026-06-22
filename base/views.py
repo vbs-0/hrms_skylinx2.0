@@ -1312,11 +1312,6 @@ def update_group_permission(
             return JsonResponse({"message": "Name updated", "type": "success"})
         messages.info(request, _("At least 4 characters required"))
         return JsonResponse({})
-    perms = form.cleaned_data.get("permissions")
-    if not perms:
-        instance.permissions.clear()
-        messages.info(request, _("All permission cleared"))
-        return JsonResponse({})
     messages.error(request, _("Something went wrong"))
     return JsonResponse({"message": "Something went wrong", "type": "danger"})
 
@@ -1488,7 +1483,10 @@ def group_permissions_table_view(request, group_id):
             {"app": app_name.capitalize().replace("_", " "), "app_models": app_models}
         )
 
-    selected_perms = list(group.permissions.values_list("codename", flat=True))
+    selected_perms = [
+        f"{p['content_type__app_label']}.{p['codename']}"
+        for p in group.permissions.values("content_type__app_label", "codename")
+    ]
 
     return render(
         request,
@@ -1530,9 +1528,10 @@ def user_permission_table_view(request, emp_id):
             {"app": app_name.capitalize().replace("_", " "), "app_models": app_models}
         )
 
-    selected_perms = list(
-        employee.employee_user_id.user_permissions.values_list("codename", flat=True)
-    )
+    selected_perms = [
+        f"{p['content_type__app_label']}.{p['codename']}"
+        for p in employee.employee_user_id.user_permissions.values("content_type__app_label", "codename")
+    ]
 
     return render(
         request,
@@ -4006,15 +4005,29 @@ def update_permission(
         )
         user = employee.employee_user_id
 
-        all_codenames = [p["codename"] for p in permissions_data]
-        checked_codenames = [p["codename"] for p in permissions_data if p["checked"]]
+        all_values = [p["codename"] for p in permissions_data]
+        checked_values = [p["codename"] for p in permissions_data if p["checked"]]
 
-        existing_managed = user.user_permissions.filter(codename__in=all_codenames)
-        managed_permissions = Permission.objects.filter(codename__in=all_codenames)
-        checked_permissions = managed_permissions.filter(codename__in=checked_codenames)
+        from django.db.models import Q
+        all_q = Q()
+        for pv in all_values:
+            if "." in pv:
+                app_label, codename = pv.split(".", 1)
+                all_q |= Q(content_type__app_label=app_label, codename=codename)
+                
+        checked_q = Q()
+        for pv in checked_values:
+            if "." in pv:
+                app_label, codename = pv.split(".", 1)
+                checked_q |= Q(content_type__app_label=app_label, codename=codename)
 
-        user.user_permissions.remove(*existing_managed)
-        user.user_permissions.add(*checked_permissions)
+        if all_q:
+            existing_managed = user.user_permissions.filter(all_q)
+            user.user_permissions.remove(*existing_managed)
+            
+        if checked_q:
+            checked_permissions = Permission.objects.filter(checked_q)
+            user.user_permissions.add(*checked_permissions)
 
         messages.success(request, _("Permissions updated successfully"))
 
