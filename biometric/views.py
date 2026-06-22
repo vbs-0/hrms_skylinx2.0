@@ -23,8 +23,14 @@ from django.template.loader import render_to_string
 from django.utils import timezone as django_timezone
 from django.utils.translation import gettext as __
 from django.utils.translation import gettext_lazy as _
-from zk import ZK
-from zk import exception as zk_exception
+try:  # ponytail: optional ZKTeco hardware dep; app boots without it, only ZK device sync needs it
+    from zk import ZK
+    from zk import exception as zk_exception
+except ImportError:
+    ZK = None
+
+    class zk_exception:  # noqa: N801 - stub so `except zk_exception.ZKErrorResponse` resolves
+        ZKErrorResponse = ZKNetworkError = Exception
 
 from attendance.methods.utils import Request
 from attendance.models import AttendanceActivity

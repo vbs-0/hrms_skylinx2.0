@@ -2001,11 +2001,11 @@ class Payslip(SkylinxModel):
                 app_label="payroll", model="payrollsettings"
             )
             symbol = PayrollSettings.objects.first()
-            currency = symbol.currency_symbol if symbol else "$"
+            currency = symbol.currency_symbol if symbol else "₹"
             if symbol and symbol.position == "postfix":
                 return f"{amount_str} {currency}"
             return f"{currency} {amount_str}"
-        return f"$ {amount_str}"
+        return f"₹ {amount_str}"
 
     def deduction_text(self):
         """
@@ -2022,11 +2022,11 @@ class Payslip(SkylinxModel):
                 app_label="payroll", model="payrollsettings"
             )
             symbol = PayrollSettings.objects.first()
-            currency = symbol.currency_symbol if symbol else "$"
+            currency = symbol.currency_symbol if symbol else "₹"
             if symbol and symbol.position == "postfix":
                 return f"{amount_str} {currency}"
             return f"{currency} {amount_str}"
-        return f"$ {amount_str}"
+        return f"₹ {amount_str}"
 
     def net_pay_text(self):
         """
@@ -2043,11 +2043,11 @@ class Payslip(SkylinxModel):
                 app_label="payroll", model="payrollsettings"
             )
             symbol = PayrollSettings.objects.first()
-            currency = symbol.currency_symbol if symbol else "$"
+            currency = symbol.currency_symbol if symbol else "₹"
             if symbol and symbol.position == "postfix":
                 return f"{amount_str} {currency}"
             return f"{currency} {amount_str}"
-        return f"$ {amount_str}"
+        return f"₹ {amount_str}"
 
     def custom_status_col(self):
         """

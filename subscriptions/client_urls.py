@@ -13,4 +13,6 @@ urlpatterns = [
     path("plans/", views.client_plans, name="subscription-plans"),
     path("choose/", views.choose_plan, name="subscription-choose"),
     path("pay/verify/", views.pay_verify, name="subscription-pay-verify"),
+    path("pay/webhook/", views.razorpay_webhook, name="subscription-pay-webhook"),
+    path("admins/", views.company_admins, name="subscription-admins"),
 ]

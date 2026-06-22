@@ -12,13 +12,18 @@ Client pages:
   * /subscription/locked/    shown when a module isn't in the company's plan
 """
 
+import json
+import re
+
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import Group, Permission
 from django.db import transaction
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from datetime import timedelta
 
 from base.models import Company
@@ -370,3 +375,108 @@ def pay_verify(request):
     else:
         messages.error(request, "Payment could not be verified. You were not charged twice; contact support if money was deducted.")
     return redirect("subscription-plans")
+
+
+def _activate_from_receipt(receipt):
+    """receipt is 'plan<P>-co<C>' (set in choose_plan). Activate that plan.
+
+    Idempotent: safe to call again if the webhook is redelivered.
+    Returns True if a subscription was activated.
+    """
+    m = re.match(r"plan(\d+)-co(\d+)", receipt or "")
+    if not m:
+        return False
+    plan = Plan.objects.filter(id=m.group(1)).first()
+    sub = Subscription.objects.filter(company_id=m.group(2)).first()
+    if not (plan and sub):
+        return False
+    _activate_plan(sub, plan)
+    return True
+
+
+def _is_company_admin(user):
+    return user.is_superuser or user.groups.filter(name="Company Admin").exists()
+
+
+@login_required
+def company_admins(request):
+    """Client settings: grant/revoke admin within your own company (gap #30).
+
+    Prevents the 'lone admin leaves → tenant bricked' problem: any admin can
+    promote a colleague, so there's always a recoverable second owner.
+    """
+    company = company_for_user(request.user)
+    if not (company and _is_company_admin(request.user)):
+        messages.error(request, "Only a company admin can manage admins.")
+        return redirect("/")
+
+    admin_group = _company_admin_group()
+    people = (
+        Employee.objects.filter(employee_work_info__company_id=company)
+        .select_related("employee_user_id")
+        .order_by("employee_first_name")
+    )
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        emp = people.filter(id=request.POST.get("employee_id")).first()
+        target = getattr(emp, "employee_user_id", None)
+        if not target:
+            messages.error(request, "Employee not found in your company.")
+        elif action == "promote":
+            target.groups.add(admin_group)
+            messages.success(request, f"{emp} is now a company admin.")
+        elif action == "revoke":
+            # don't allow removing the last admin (re-bricking the tenant)
+            admin_ids = {
+                e.employee_user_id_id
+                for e in people
+                if e.employee_user_id_id
+                and e.employee_user_id.groups.filter(name="Company Admin").exists()
+            }
+            if admin_ids == {target.id}:
+                messages.error(request, "Can't remove the only admin — promote someone else first.")
+            else:
+                target.groups.remove(admin_group)
+                messages.success(request, f"{emp} is no longer a company admin.")
+        return redirect("subscription-admins")
+
+    rows = [
+        {
+            "emp": e,
+            "is_admin": bool(
+                e.employee_user_id
+                and e.employee_user_id.groups.filter(name="Company Admin").exists()
+            ),
+        }
+        for e in people
+    ]
+    return render(request, "subscriptions/admins.html", {"rows": rows, "company": company})
+
+
+@csrf_exempt
+def razorpay_webhook(request):
+    """Server-to-server payment confirmation (gap #5).
+
+    Activates the plan even if the buyer closed the browser before the redirect.
+    Configure in Razorpay dashboard → Webhooks → event `order.paid`, with the
+    same secret as RAZORPAY_WEBHOOK_SECRET.
+    """
+    if request.method != "POST":
+        return HttpResponseBadRequest("POST only")
+    if not billing.verify_webhook(request.body, request.headers.get("X-Razorpay-Signature", "")):
+        return HttpResponse("bad signature", status=400)
+    try:
+        payload = json.loads(request.body)
+    except ValueError:
+        return HttpResponseBadRequest("bad json")
+    # order.paid carries the order entity (with our receipt); ignore other events.
+    if payload.get("event") == "order.paid":
+        receipt = (
+            payload.get("payload", {})
+            .get("order", {})
+            .get("entity", {})
+            .get("receipt", "")
+        )
+        _activate_from_receipt(receipt)
+    return HttpResponse("ok")  # always 200 so Razorpay stops retrying

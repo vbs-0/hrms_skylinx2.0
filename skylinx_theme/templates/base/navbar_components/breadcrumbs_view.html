@@ -1,22 +1,24 @@
 {% load static i18n %}
-<ul class="breadcrumb ms-4">
+<ul class="breadcrumb ms-4" id="breadcrumbList">
     {% for breadcrumb in breadcrumbs %}
-        {% if forloop.last %}
+        {% if forloop.first or forloop.last %}
             <li>
-                {% if breadcrumb.found %}
-                    <a href="{{breadcrumb.url}}">{% trans breadcrumb.name %}</a>
-                {% else %}
-                    <a href="#">{% trans breadcrumb.name %}</a>
-                {% endif %}
+                <a href="{% if breadcrumb.found %}{{ breadcrumb.url }}{% else %}#{% endif %}">{% trans breadcrumb.name %}</a>
             </li>
         {% else %}
-            <li>
-                {% if breadcrumb.found %}
-                    <a href="{{breadcrumb.url}}">{% trans breadcrumb.name %}</a>
-                {% else %}
-                    <a href="#">{% trans breadcrumb.name %}</a>
-                {% endif %}
+            {% if forloop.counter == 2 and breadcrumbs|length > 2 %}
+                <li>
+                    <a href="#" class="breadcrumb-ellipsis"
+                       onclick="event.preventDefault();this.closest('.breadcrumb').classList.add('breadcrumb--expanded');this.closest('li').remove();">…</a>
+                </li>
+            {% endif %}
+            <li class="breadcrumb-collapsed">
+                <a href="{% if breadcrumb.found %}{{ breadcrumb.url }}{% else %}#{% endif %}">{% trans breadcrumb.name %}</a>
             </li>
         {% endif %}
     {% endfor %}
 </ul>
+<style>
+    .breadcrumb .breadcrumb-collapsed { display: none; }
+    .breadcrumb--expanded .breadcrumb-collapsed { display: inline-flex; }
+</style>

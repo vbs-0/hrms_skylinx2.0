@@ -396,6 +396,18 @@ AUDITLOG_EXCLUDE_TRACKING_MODELS = (
 
 EMAIL_BACKEND = "base.backends.ConfiguredEmailBackend"
 
+# Platform-default SMTP (gap #3). Used when a tenant has no DynamicEmailConfiguration
+# of its own — the backend falls back to these. Read from .env (SMTP_* names).
+EMAIL_HOST = env("SMTP_HOST", default="")
+EMAIL_PORT = env.int("SMTP_PORT", default=587)
+EMAIL_HOST_USER = env("SMTP_USER", default="")
+EMAIL_HOST_PASSWORD = env("SMTP_PASS", default="")
+# SMTP_SECURE=true => implicit SSL (port 465); false => STARTTLS (port 587, Gmail)
+EMAIL_USE_SSL = env.bool("SMTP_SECURE", default=False)
+EMAIL_USE_TLS = not EMAIL_USE_SSL
+DEFAULT_FROM_EMAIL = env("SUPPORT_EMAIL", default=EMAIL_HOST_USER)
+SUPPORT_EMAIL = env("SUPPORT_EMAIL", default=EMAIL_HOST_USER)
+
 """
 DB_INIT_PASSWORD: str
 

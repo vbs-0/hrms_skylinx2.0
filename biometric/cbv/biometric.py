@@ -13,7 +13,10 @@ from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
-from zk import ZK
+try:
+    from zk import ZK
+except ImportError:  # ponytail: optional ZKTeco hardware dep; app boots without it, only ZK device sync needs it
+    ZK = None
 
 from biometric.filters import BiometricDeviceFilter
 from biometric.forms import BiometricDeviceForm, BiometricDeviceSchedulerForm
@@ -247,6 +250,9 @@ class BiometricSheduleForm(SkylinxFormView):
                 device = BiometricDevices.objects.get(id=self.form.instance.pk)
 
                 if device.machine_type == "zk":
+                    if ZK is None:
+                        messages.error(self.request, _("ZK library not installed on the server."))
+                        return HttpResponse()
                     try:
                         port_no = device.port
                         machine_ip = device.machine_ip

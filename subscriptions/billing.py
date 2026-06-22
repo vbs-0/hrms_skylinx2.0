@@ -13,6 +13,8 @@ import os
 
 KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
 KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
+# separate secret set in the Razorpay dashboard when configuring the webhook
+WEBHOOK_SECRET = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "")
 
 
 def configured() -> bool:
@@ -47,4 +49,15 @@ def verify_signature(order_id: str, payment_id: str, signature: str) -> bool:
         f"{order_id}|{payment_id}".encode(),
         hashlib.sha256,
     ).hexdigest()
+    return hmac.compare_digest(expected, signature)
+
+
+def verify_webhook(raw_body: bytes, signature: str) -> bool:
+    """Verify a Razorpay webhook POST (server-to-server, gap #5).
+
+    Signature = HMAC-SHA256 of the raw request body with the webhook secret.
+    """
+    if not (WEBHOOK_SECRET and raw_body and signature):
+        return False
+    expected = hmac.new(WEBHOOK_SECRET.encode(), raw_body, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature)
