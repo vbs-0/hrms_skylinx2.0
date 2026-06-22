@@ -2996,9 +2996,14 @@ class PassWordResetForm(forms.Form):
                 recipients.append(addr)
 
         if not domain_override:
-            current_site = get_current_site(request)
-            site_name = current_site.name
-            domain = current_site.domain
+            try:
+                current_site = get_current_site(request)
+                site_name = current_site.name
+                domain = current_site.domain
+            except Exception:
+                # no django.contrib.sites row configured — use the request host
+                host = request.get_host() if request else "localhost"
+                site_name = domain = host
         else:
             site_name = domain = domain_override
         if recipients:
