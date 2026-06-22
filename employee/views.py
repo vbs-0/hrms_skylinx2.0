@@ -2710,6 +2710,12 @@ def employee_import(request):
         data_frame = pd.read_excel(file)
         # Convert the DataFrame to a list of dictionaries
         employee_dicts = data_frame.to_dict("records")
+        # Seat limit: how many new employees this company may still add (None = unlimited)
+        from subscriptions.utils import company_for_user, subscription_for_company
+
+        _sub = subscription_for_company(company_for_user(request.user))
+        seats_left = _sub.seats_available() if _sub else None
+        skipped_seat = 0
         # Create or update Employee objects from the list of dictionaries
         error_list = []
         for employee_dict in employee_dicts:
@@ -2719,6 +2725,9 @@ def employee_import(request):
                 employee_full_name = employee_dict["employee_full_name"]
                 existing_user = SkylinxUser.objects.filter(username=email).first()
                 if existing_user is None:
+                    if seats_left is not None and seats_left <= 0:
+                        skipped_seat += 1
+                        continue
                     employee_first_name = employee_full_name
                     employee_last_name = ""
                     if " " in employee_full_name:
@@ -2740,10 +2749,20 @@ def employee_import(request):
                     employee.email = email
                     employee.phone = phone
                     employee.save()
+                    if seats_left is not None:
+                        seats_left -= 1
             except Exception:
                 error_list.append(employee_dict)
+        note = ""
+        if skipped_seat:
+            note = (
+                f"<div class='alert-warning p-3 border-rounded'>"
+                f"{skipped_seat} row(s) skipped — seat limit reached. "
+                f"Upgrade your plan to add more employees.</div>"
+            )
         return HttpResponse(
-            """
+            note
+            + """
     <div class='alert-success p-3 border-rounded'>
         Employee data has been imported successfully.
     </div>
