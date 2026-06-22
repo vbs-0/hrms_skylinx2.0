@@ -187,6 +187,43 @@ def main():
         for name, url in sorted(ambiguous[app]):
             w(f"- `{url}`  ·  `{name}`")
 
+    # ── Part E: registered profile tab-views (no own menu endpoint) ──────
+    w("\n---\n## PART E — Profile tab-views (registered via add_tab, no menu link)\n")
+    tabreg = []
+    for f in glob.glob("**/*.py", recursive=True):
+        if "referance" in f:
+            continue
+        try:
+            s = open(f, encoding="utf-8").read()
+        except Exception:
+            continue
+        for blk in re.findall(r'(?:EmployeeProfileView|CandidateProfileView)\.add_tab\((.*?)\)\s*\n', s, re.S):
+            for title in re.findall(r'"title":\s*_\("([^"]+)"', blk):
+                tabreg.append((f.replace("\\", "/"), title))
+    for f, title in sorted(set(tabreg)):
+        w(f"- **{title}**  ·  `{f}`")
+
+    # ── Part F: complete raw dump — every named route, by path prefix ────
+    w("\n---\n## PART F — Complete route dump (every named URL, nothing filtered)\n")
+    allbuckets = {}
+    for path, name, cb in rows:
+        if not name:
+            continue
+        seg = [s for s in path.split("/") if s and "<" not in s]
+        bucket = seg[0] if seg else "(top-level)"
+        view = getattr(cb, "__module__", "") + "." + getattr(cb, "__qualname__", getattr(cb, "__name__", "?"))
+        allbuckets.setdefault(bucket, set()).add((name, "/" + path, view))
+    total_named = sum(len(v) for v in allbuckets.values())
+    w(f"_Total named routes: **{total_named}** across **{len(allbuckets)}** prefixes._\n")
+    for bucket in sorted(allbuckets):
+        items = sorted(allbuckets[bucket])
+        if bucket in ("admin", "api"):
+            w(f"\n### {bucket}  ({len(items)}) — _collapsed (framework internals)_\n")
+            continue
+        w(f"\n### {bucket}  ({len(items)})\n")
+        for name, url, view in items:
+            w(f"- `{url}`  ·  `{name}`  ·  _{view}_")
+
     os.makedirs("docs", exist_ok=True)
     open("docs/page_inventory.md", "w", encoding="utf-8").write("\n".join(L))
     print("WROTE docs/page_inventory.md")
