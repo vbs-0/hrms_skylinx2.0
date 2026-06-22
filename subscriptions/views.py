@@ -242,7 +242,8 @@ def impersonate(request, user_id):
         return redirect("subscriptions-console")
     original_id = request.user.id
     # login() flushes the session when switching users, so set the marker AFTER.
-    login(request, target)
+    # Multiple auth backends are configured, so name one explicitly.
+    login(request, target, backend="django.contrib.auth.backends.ModelBackend")
     request.session["impersonator_id"] = original_id
     messages.info(request, f"You are now viewing as {target.username}.")
     return redirect("/")
@@ -254,7 +255,7 @@ def stop_impersonate(request):
     if impersonator_id:
         original = User.objects.filter(id=impersonator_id).first()
         if original:
-            login(request, original)
+            login(request, original, backend="django.contrib.auth.backends.ModelBackend")
             messages.info(request, "Returned to your platform-owner account.")
     return redirect("subscriptions-console")
 
@@ -302,7 +303,7 @@ def signup(request):
         days = trial_plan.trial_days if trial_plan else 14
         try:
             _, user = create_tenant(company_name, username, email, password, trial_plan)
-            login(request, user)
+            login(request, user, backend="django.contrib.auth.backends.ModelBackend")
             messages.success(
                 request, f"Welcome, {company_name}! Your {days}-day trial has started."
             )
