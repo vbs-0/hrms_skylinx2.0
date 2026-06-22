@@ -1279,7 +1279,7 @@ def user_group_table(request):
 
 @login_required
 @require_http_methods(["POST"])
-@permission_required("auth.add_permission")
+@permission_required("auth.change_group")
 def update_group_permission(
     request,
 ):
