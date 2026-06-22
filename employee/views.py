@@ -1894,6 +1894,18 @@ def employee_create_update_personal_info(request, obj_id=None):
     This method is used to update employee's personal info.
     """
     employee = Employee.objects.filter(id=obj_id).first()
+    # Seat limit: block creating a NEW employee once the plan's cap is hit.
+    if obj_id is None:
+        from subscriptions.utils import can_add_employee, company_for_user
+
+        ok, msg = can_add_employee(company_for_user(request.user))
+        if not ok:
+            messages.error(request, msg)
+            return render(
+                request,
+                "employee/create_form/form_view.html",
+                {"form": EmployeeForm(request.POST)},
+            )
     form = EmployeeForm(request.POST, request.FILES, instance=employee)
     if form.is_valid():
         form.save()

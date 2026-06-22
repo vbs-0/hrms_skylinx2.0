@@ -17,8 +17,18 @@ def subscription_context(request):
     trial_days_left = None
     if sub and sub.status == "trial" and sub.trial_ends_on:
         trial_days_left = (sub.trial_ends_on - timezone.now().date()).days
+    # seat usage banner: surface when a company is at/near its plan's cap
+    seat_limit = seat_used = seat_left = None
+    if sub:
+        seat_limit = sub.seat_limit
+        if seat_limit is not None:
+            seat_used = sub.seats_used()
+            seat_left = max(0, seat_limit - seat_used)
     return {
         "company_features": feats,
         "company_subscription": sub,
         "trial_days_left": trial_days_left,
+        "seat_limit": seat_limit,
+        "seat_used": seat_used,
+        "seat_left": seat_left,
     }

@@ -255,6 +255,20 @@
                       {% endif %}
                     </div>
                     {% endif %}
+                    {% if not user.is_superuser and seat_limit is not None and seat_left <= 3 %}
+                    <div class="mb-4 rounded-md px-4 py-3 text-sm flex items-center justify-between
+                                {% if seat_left <= 0 %}bg-red-50 text-red-700 border border-red-200
+                                {% else %}bg-amber-50 text-amber-800 border border-amber-200{% endif %}">
+                      <span>
+                        {% if seat_left <= 0 %}
+                          You've used all <strong>{{ seat_limit }}</strong> employee seats on your plan. Upgrade to add more.
+                        {% else %}
+                          <strong>{{ seat_used }}/{{ seat_limit }}</strong> employee seats used — only {{ seat_left }} left.
+                        {% endif %}
+                      </span>
+                      <a href="{% url 'subscription-plans' %}" class="ml-4 px-3 py-1.5 rounded bg-primary-600 text-white whitespace-nowrap">Upgrade plan</a>
+                    </div>
+                    {% endif %}
                     {% block content %}
                         {% include "skylinx_theme/components/dashboard.html" %}
                     {% endblock %}
