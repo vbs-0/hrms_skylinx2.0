@@ -57,7 +57,14 @@ def features_for_request(request):
     if user and user.is_authenticated and user.is_superuser:
         return list(ALL_FEATURE_KEYS)
     sub = subscription_for_request(request)
-    return sub.feature_keys() if sub else []
+    if not sub:
+        return []
+    # plan features + per-company overrides (deduped, order-stable)
+    keys = list(sub.feature_keys())
+    for k in (sub.feature_overrides or []):
+        if k not in keys:
+            keys.append(k)
+    return keys
 
 
 def can_add_employee(company):
