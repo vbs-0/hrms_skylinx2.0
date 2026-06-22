@@ -4,6 +4,7 @@ from . import views
 
 urlpatterns = [
     path("", views.console, name="subscriptions-console"),
+    path("analytics/", views.console_analytics, name="subscriptions-analytics"),
     path("onboard/", views.onboard, name="subscriptions-onboard"),
     path(
         "company/<int:company_id>/update/",

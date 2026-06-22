@@ -184,6 +184,100 @@ def _activate_plan(sub, plan):
 
 @login_required
 @superuser_required
+def console_analytics(request):
+    """Owner-side hub: cross-tenant analytics + per-company access (roles/admins).
+
+    Read-only overview; actions (set plan, password, admins, impersonate) live on
+    the main console. This is purely 'see and track everything in one place'.
+    """
+    from django.contrib.auth.models import Group
+    from django.db.models import Count
+
+    from base.models import CompanyGroup
+    from base.rbac import strip_name
+    from employee.models import Employee
+    from .features import PAID_FEATURES
+
+    companies = Company.objects.all().order_by("company")
+    subs = {s.company_id: s for s in Subscription.objects.select_related("plan").all()}
+
+    # platform-wide totals
+    status_counts = {k: 0 for k in ["trial", "active", "past_due", "suspended", "cancelled"]}
+    total_seats_used = total_employees = mrr = 0
+    module_adoption = {k: 0 for k in PAID_FEATURES}
+
+    rows = []
+    for c in companies:
+        sub = subs.get(c.id)
+        if sub:
+            status_counts[sub.status] = status_counts.get(sub.status, 0) + 1
+            if sub.status in ("active",) and sub.plan:
+                mrr += float(sub.plan.price or 0)
+            feats = list(sub.feature_keys())
+            for k in sub.feature_overrides or []:
+                if k not in feats:
+                    feats.append(k)
+            for k in feats:
+                if k in module_adoption:
+                    module_adoption[k] += 1
+        else:
+            feats = []
+
+        seats_used = sub.seats_used() if sub else 0
+        total_seats_used += seats_used
+        emp_count = Employee.objects.filter(
+            is_active=True, employee_work_info__company_id=c
+        ).count()
+        total_employees += emp_count
+
+        # this tenant's roles (CompanyGroup) + admin count
+        groups = (
+            Group.objects.filter(company_link__company=c)
+            .annotate(member_count=Count("user", distinct=True))
+        )
+        roles = [
+            {"name": strip_name(g.name), "members": g.member_count,
+             "perms": g.permissions.count()}
+            for g in groups
+        ]
+        admin_count = User.objects.filter(
+            is_superuser=False,
+            employee_get__employee_work_info__company_id=c,
+            groups__name="Company Admin",
+        ).count()
+
+        rows.append({
+            "company": c,
+            "client_id": f"SKX-{c.id:05d}",
+            "sub": sub,
+            "seats_used": seats_used,
+            "seat_limit": sub.seat_limit if sub else None,
+            "employees": emp_count,
+            "roles": roles,
+            "role_count": len(roles),
+            "admin_count": admin_count,
+            "features": feats,
+        })
+
+    adoption = [
+        {"label": PAID_FEATURES[k]["label"], "count": n}
+        for k, n in module_adoption.items()
+    ]
+    context = {
+        "rows": rows,
+        "total_companies": companies.count(),
+        "status_counts": status_counts,
+        "live_count": status_counts["active"] + status_counts["trial"],
+        "total_seats_used": total_seats_used,
+        "total_employees": total_employees,
+        "mrr": mrr,
+        "module_adoption": adoption,
+    }
+    return render(request, "subscriptions/analytics.html", context)
+
+
+@login_required
+@superuser_required
 def console(request):
     search = request.GET.get("search", "").strip()
     status_filter = request.GET.get("status", "").strip()

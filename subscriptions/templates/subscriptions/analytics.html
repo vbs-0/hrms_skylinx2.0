@@ -1,0 +1,105 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% block content %}
+<div class="oh-wrapper">
+
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h1 class="text-lg font-semibold">{% trans "Analytics & Access Control" %}</h1>
+      <p class="text-sm text-gray-500">{% trans "Cross-tenant overview — usage, roles and admins for every client." %}</p>
+    </div>
+    <a href="{% url 'subscriptions-console' %}" class="px-4 py-2 bg-primary-600 text-white rounded-md text-sm">{% trans "Manage clients" %} →</a>
+  </div>
+
+  <!-- platform stat cards -->
+  <div class="grid gap-3 mb-5" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
+    <div class="bg-white rounded-md shadow-card p-4">
+      <div class="text-xs uppercase text-gray-400">{% trans "Companies" %}</div>
+      <div class="text-2xl font-bold">{{ total_companies }}</div>
+      <div class="text-xs text-gray-500">{{ live_count }} {% trans "live" %}</div>
+    </div>
+    <div class="bg-white rounded-md shadow-card p-4">
+      <div class="text-xs uppercase text-gray-400">{% trans "MRR (active)" %}</div>
+      <div class="text-2xl font-bold">₹{{ mrr|floatformat:0 }}</div>
+    </div>
+    <div class="bg-white rounded-md shadow-card p-4">
+      <div class="text-xs uppercase text-gray-400">{% trans "Seats used" %}</div>
+      <div class="text-2xl font-bold">{{ total_seats_used }}</div>
+    </div>
+    <div class="bg-white rounded-md shadow-card p-4">
+      <div class="text-xs uppercase text-gray-400">{% trans "Employees" %}</div>
+      <div class="text-2xl font-bold">{{ total_employees }}</div>
+    </div>
+    <div class="bg-white rounded-md shadow-card p-4">
+      <div class="text-xs uppercase text-gray-400">{% trans "Trial" %} / {% trans "Active" %}</div>
+      <div class="text-2xl font-bold">{{ status_counts.trial }} / {{ status_counts.active }}</div>
+      <div class="text-xs text-gray-500">{{ status_counts.suspended }} {% trans "suspended" %}</div>
+    </div>
+  </div>
+
+  <!-- module adoption -->
+  <div class="bg-white rounded-md shadow-card p-4 mb-5">
+    <div class="text-xs font-semibold text-gray-500 mb-2">{% trans "Module adoption" %} <span class="font-normal text-gray-400">({% trans "companies with each module enabled" %})</span></div>
+    <div class="flex flex-wrap gap-2">
+      {% for m in module_adoption %}
+      <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs border border-gray-200 bg-gray-50">
+        {{ m.label }} <span class="font-bold text-primary-600">{{ m.count }}</span>
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- per-company access table -->
+  <div class="bg-white rounded-md shadow-card overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-left">
+        <tr class="border-b">
+          <th class="p-3">{% trans "Company" %}</th>
+          <th class="p-3">{% trans "Plan / Status" %}</th>
+          <th class="p-3">{% trans "Seats" %}</th>
+          <th class="p-3">{% trans "Admins" %}</th>
+          <th class="p-3">{% trans "Roles" %}</th>
+          <th class="p-3">{% trans "Modules" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-b align-top hover:bg-gray-50">
+          <td class="p-3 font-medium">
+            {{ r.company.company }}
+            <div class="text-[0.65rem] text-gray-400 font-mono">{{ r.client_id }}</div>
+          </td>
+          <td class="p-3">
+            {{ r.sub.plan.name|default:"—" }}
+            <div class="text-xs text-gray-500">{{ r.sub.get_status_display|default:"—" }}</div>
+          </td>
+          <td class="p-3">{{ r.seats_used }}{% if r.seat_limit %} / {{ r.seat_limit }}{% else %} / ∞{% endif %}
+            <div class="text-xs text-gray-400">{{ r.employees }} {% trans "emp" %}</div>
+          </td>
+          <td class="p-3">{{ r.admin_count }}</td>
+          <td class="p-3">
+            {% if r.roles %}
+              <div class="flex flex-col gap-0.5">
+                {% for role in r.roles %}
+                <span class="text-xs"><span class="font-medium">{{ role.name }}</span>
+                  <span class="text-gray-400">· {{ role.members }} {% trans "ppl" %} · {{ role.perms }} {% trans "perms" %}</span></span>
+                {% endfor %}
+              </div>
+            {% else %}<span class="text-xs text-gray-400">{% trans "no roles" %}</span>{% endif %}
+          </td>
+          <td class="p-3">
+            {% if r.features %}
+              <div class="flex flex-wrap gap-1">
+                {% for f in r.features %}<span class="text-[0.6rem] px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full">{{ f }}</span>{% endfor %}
+              </div>
+            {% else %}<span class="text-xs text-gray-400">{% trans "core only" %}</span>{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="p-4 text-center text-gray-400">{% trans "No companies yet." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
