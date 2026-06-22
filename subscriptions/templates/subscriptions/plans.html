@@ -11,6 +11,23 @@
   <div class="mb-3 p-3 rounded-md text-sm {% if m.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-blue-50 text-blue-700{% endif %}">{{ m }}</div>
   {% endfor %}{% endif %}
 
+  <!-- account / support -->
+  <div class="bg-white rounded-md shadow-card p-5 mb-5 flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <div class="text-xs uppercase text-gray-400">{% trans "Client ID" %}</div>
+      <div class="text-lg font-bold tracking-wide">{{ client_id|default:"—" }}</div>
+      <div class="text-sm text-gray-500">{{ company.company }}</div>
+    </div>
+    {% if support_email %}
+    <div class="text-right">
+      <div class="text-xs uppercase text-gray-400">{% trans "Need help?" %}</div>
+      <a href="mailto:{{ support_email }}?subject=Support%20request%20({{ client_id }})"
+         class="text-sm text-primary-600 font-medium">{{ support_email }}</a>
+      <div class="text-xs text-gray-400">{% trans "Quote your Client ID when contacting support." %}</div>
+    </div>
+    {% endif %}
+  </div>
+
   <!-- current subscription -->
   <div class="bg-white rounded-md shadow-card p-5 mb-5">
     <div class="flex flex-wrap items-center justify-between gap-3">

@@ -473,8 +473,12 @@ def signup(request):
 @login_required
 def client_plans(request):
     """Client view: current subscription + available plans to switch/upgrade."""
+    from django.conf import settings
+
     company = company_for_user(request.user)
     sub = subscription_for_company(company)
+    # stable, human-friendly client id the client can quote to support
+    client_id = f"SKX-{company.id:05d}" if company else None
     return render(
         request,
         "subscriptions/plans.html",
@@ -484,6 +488,8 @@ def client_plans(request):
             "plans": Plan.objects.filter(is_active=True),
             "all_features": PAID_FEATURES,
             "billing_on": billing.configured(),
+            "client_id": client_id,
+            "support_email": getattr(settings, "SUPPORT_EMAIL", ""),
         },
     )
 
