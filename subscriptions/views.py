@@ -75,6 +75,56 @@ def _company_admin_group():
     return group
 
 
+# Default per-company roles seeded on company creation. Keys are display labels;
+# names are stored tenant-scoped (c<id>::Label) so each company owns its own.
+DEFAULT_COMPANY_ROLES = {
+    # broad HR access across the daily-use apps
+    "HR Manager": {"apps": COMPANY_ADMIN_APPS},
+    # team lead: see employees + approve attendance/leave
+    "Manager": {
+        "codenames": [
+            "view_employee",
+            "view_attendance", "change_attendance", "add_attendance",
+            "view_leaverequest", "change_leaverequest", "add_leaverequest",
+            "view_leaveallocationrequest",
+            "view_worktyperequest", "change_worktyperequest",
+            "view_shiftrequest", "change_shiftrequest",
+        ]
+    },
+    # individual contributor: own profile + raise own requests
+    "Employee": {
+        "codenames": [
+            "view_ownprofile", "change_ownprofile",
+            "add_leaverequest", "view_leaverequest",
+            "view_attendance",
+            "add_worktyperequest", "add_shiftrequest",
+        ]
+    },
+}
+
+
+def seed_company_groups(company):
+    """Create the default per-company roles (idempotent). Returns count created."""
+    from base.models import CompanyGroup
+    from base.rbac import scoped_name
+
+    created_n = 0
+    for label, spec in DEFAULT_COMPANY_ROLES.items():
+        name = scoped_name(company.id, label)
+        group, created = Group.objects.get_or_create(name=name)
+        CompanyGroup.objects.get_or_create(group=group, defaults={"company": company})
+        if created:
+            if spec.get("apps"):
+                perms = Permission.objects.filter(
+                    content_type__app_label__in=spec["apps"]
+                )
+            else:
+                perms = Permission.objects.filter(codename__in=spec["codenames"])
+            group.permissions.set(perms)
+            created_n += 1
+    return created_n
+
+
 def create_tenant(company_name, username, email, password, plan, trial_days=None):
     """
     Create Company + admin user + Employee + trial Subscription atomically.
@@ -89,6 +139,8 @@ def create_tenant(company_name, username, email, password, plan, trial_days=None
         email = f"{username}@{company_name.lower().replace(' ', '')}.local"
     with transaction.atomic():
         company = Company.objects.create(company=company_name)
+        # seed default roles (HR Manager / Manager / Employee) for this tenant
+        seed_company_groups(company)
         user = User.objects.create_user(
             username=username, email=email, password=password
         )
