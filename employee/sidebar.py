@@ -22,11 +22,7 @@ SUBMENUS = [
         "menu": _("My Dashboard"),
         "redirect": reverse_lazy("ess-dashboard"),
     },
-    {
-        "menu": _("My Profile"),
-        "redirect": reverse_lazy("employee-profile"),
-        "accessibility": "employee.sidebar.profile_accessibility",
-    },
+    # ponytail: My Profile removed from menu; reachable via top-right profile
     {
         "menu": _("Employees"),
         "redirect": reverse_lazy("employee-view"),
