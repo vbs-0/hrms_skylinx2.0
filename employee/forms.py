@@ -461,9 +461,37 @@ class EmployeeWorkInformationForm(ModelForm):
             del self.errors["employee_id"]
         return cleaned_data
 
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        # Multi-tenant safety: never leave company blank. A company-less work
+        # info row leaks the employee into EVERY tenant's list (manager's
+        # __isnull clause), so default to the acting user's company.
+        if instance.company_id is None:
+            instance.company_id = _default_company_id()
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
+
     def as_p(self, *args, **kwargs):
         context = {"form": self}
         return render_to_string("employee/create_form/personal_info_as_p.html", context)
+
+
+def _default_company_id():
+    """The Company the acting user is in, used to stamp company-less records."""
+    from base.models import Company
+
+    cid = skylinx_middlewares.get_selected_company()
+    if cid and cid != "all":
+        return Company.objects.filter(id=cid).first()
+    request = getattr(skylinx_middlewares._thread_locals, "request", None)
+    if request and getattr(request, "user", None) and request.user.is_authenticated:
+        try:
+            return request.user.employee_get.employee_work_info.company_id
+        except Exception:
+            return None
+    return None
 
 
 class EmployeeWorkInformationUpdateForm(ModelForm):

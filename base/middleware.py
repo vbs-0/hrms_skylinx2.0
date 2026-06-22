@@ -304,7 +304,19 @@ class CompanyMiddleware:
         selected_company = request.session.get("selected_company")
 
         # --- Determine company ---
-        if selected_company == "all":
+        # SECURITY: non-superusers are HARD-LOCKED to their own company. They
+        # cannot pick "all" or another tenant's id (would leak cross-company
+        # data). Only the platform owner (superuser) gets the company switcher.
+        if not request.user.is_superuser:
+            default_company = self._get_user_default_company(request)
+            if default_company:
+                company_id = default_company.id
+                request.session["selected_company"] = str(default_company.id)
+            else:
+                # no company assigned → see nothing rather than everything
+                company_id = None
+                request.session["selected_company"] = None
+        elif selected_company == "all":
             company_id = "all"
 
         elif selected_company:
