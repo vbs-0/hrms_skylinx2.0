@@ -2965,8 +2965,23 @@ class PassWordResetForm(forms.Form):
         Generate a one-use only link for resetting password and send it to the
         user.
         """
-        username = self.cleaned_data["email"]
-        user = SkylinxUser.objects.get(username=username)
+        from django.db.models import Q
+
+        ident = self.cleaned_data["email"].strip()
+        user = (
+            SkylinxUser.objects.filter(
+                Q(username__iexact=ident)
+                | Q(email__iexact=ident)
+                | Q(employee_get__email__iexact=ident)
+                | Q(employee_get__phone=ident)
+                | Q(employee_get__employee_work_info__email__iexact=ident)
+            )
+            .distinct()
+            .first()
+        )
+        if user is None:
+            # unknown identifier — don't reveal that; just send nothing
+            return
         employee = user.employee_get
         email = employee.email
         work_mail = None

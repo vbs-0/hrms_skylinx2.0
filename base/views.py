@@ -6,6 +6,7 @@ This module is used to map url pattens with django views or methods
 
 import csv
 import json
+import logging
 import os
 import threading
 import uuid
@@ -192,6 +193,8 @@ from skylinx_audit.models import AccountBlockUnblock, AuditTag, HistoryTrackingF
 from skylinx_auth.models import SkylinxUser
 from notifications.models import Notification
 from notifications.signals import notify
+
+logger = logging.getLogger(__name__)
 
 CHARTS = [
     ("employee_work_info", _("Employee Work Info")),
@@ -752,25 +755,30 @@ class SkylinxPasswordResetView(PasswordResetView):
             messages.error(self.request, _("Primary mail server is not configured"))
             return redirect("forgot-password")
 
-        username = form.cleaned_data["email"]
-        user = SkylinxUser.objects.filter(username=username).first()
-        if user:
-            opts = {
-                "use_https": self.request.is_secure(),
-                "token_generator": self.token_generator,
-                "from_email": email_backend.dynamic_from_email_with_display_name,
-                "email_template_name": self.email_template_name,
-                "subject_template_name": self.subject_template_name,
-                "request": self.request,
-                "html_email_template_name": self.html_email_template_name,
-                "extra_email_context": self.extra_email_context,
-            }
+        opts = {
+            "use_https": self.request.is_secure(),
+            "token_generator": self.token_generator,
+            "from_email": email_backend.dynamic_from_email_with_display_name,
+            "email_template_name": self.email_template_name,
+            "subject_template_name": self.subject_template_name,
+            "request": self.request,
+            "html_email_template_name": self.html_email_template_name,
+            "extra_email_context": self.extra_email_context,
+        }
+        try:
             form.save(**opts)
-            if self.request.user.is_authenticated:
-                messages.success(
-                    self.request, _("Password reset link sent successfully")
-                )
-                return SkylinxRedirect(self.request)
+        except Exception as exc:
+            # SMTP refused / bad creds / network — tell the truth, don't fake success.
+            logger.exception("Password reset email failed: %s", exc)
+            messages.error(
+                self.request,
+                _("Could not send the reset email. Please check the mail server settings or contact support."),
+            )
+            return redirect("forgot-password")
+
+        if self.request.user.is_authenticated:
+            messages.success(self.request, _("Password reset link sent successfully"))
+            return SkylinxRedirect(self.request)
 
         return redirect(reverse_lazy("reset-send-success"))
 

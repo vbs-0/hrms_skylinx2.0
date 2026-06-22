@@ -533,6 +533,7 @@ DEFAULT_LDAP_CONFIG = {
 }
 
 AUTHENTICATION_BACKENDS = [
+    "base.auth_backends.IdentifierBackend",
     "django.contrib.auth.backends.ModelBackend",
     # "django_auth_ldap.backend.LDAPBackend",
 ]
