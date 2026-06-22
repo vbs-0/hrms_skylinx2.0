@@ -349,6 +349,7 @@ urlpatterns = [
         name="employee-reset-password",
     ),
     path("reset-send-success/", views.reset_send_success, name="reset-send-success"),
+    path("password-reset-otp/", views.password_reset_otp, name="password-reset-otp"),
     path("change-password/", views.change_password, name="change-password"),
     path("change-username/", views.change_username, name="change-username"),
     path("two-factor/", views.two_factor_auth, name="two-factor"),

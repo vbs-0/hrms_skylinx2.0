@@ -169,6 +169,10 @@ def create_tenant(company_name, username, email, password, plan, trial_days=None
             status="trial",
             trial_ends_on=timezone.now().date() + timedelta(days=trial_days),
         )
+    # welcome the new company admin (best-effort, host-aware link)
+    from base.email_utils import send_company_welcome
+
+    send_company_welcome(company, user, username)
     return company, user
 
 

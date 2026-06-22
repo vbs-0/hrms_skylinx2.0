@@ -731,6 +731,109 @@ def include_employee_instance(request, form):
     return form
 
 
+def _resolve_login_user(ident):
+    """Find a user by username / email / work-email / phone (shared with login)."""
+    from django.db.models import Q
+
+    ident = (ident or "").strip()
+    if not ident:
+        return None
+    return (
+        SkylinxUser.objects.filter(
+            Q(username__iexact=ident)
+            | Q(email__iexact=ident)
+            | Q(employee_get__email__iexact=ident)
+            | Q(employee_get__phone=ident)
+            | Q(employee_get__employee_work_info__email__iexact=ident)
+        )
+        .distinct()
+        .first()
+    )
+
+
+def _user_emails(user):
+    """Every distinct address this user might read."""
+    emp = getattr(user, "employee_get", None)
+    addrs = [user.email]
+    if emp:
+        addrs.append(emp.email)
+        addrs.append(getattr(getattr(emp, "employee_work_info", None), "email", None))
+    seen = []
+    for a in addrs:
+        if a and a not in seen:
+            seen.append(a)
+    return seen
+
+
+def password_reset_otp(request):
+    """OTP-based password reset — no email link, just a 6-digit code.
+
+    Stage 'request': enter email/phone -> emails a code (10-min TTL, in session).
+    Stage 'verify': enter code + new password -> sets it. Host-agnostic (no
+    hardcoded domain; the code works on any subdomain)."""
+    from base.methods import generate_otp
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "request":
+            ident = request.POST.get("identifier", "")
+            user = _resolve_login_user(ident)
+            if not user:
+                messages.error(request, _("No account found for that email or phone."))
+                return render(request, "otp_reset.html", {"stage": "request"})
+            otp = generate_otp()
+            request.session["reset_otp"] = otp
+            request.session["reset_otp_user"] = user.pk
+            request.session["reset_otp_ts"] = timezone.now().timestamp()
+            request.session.save()
+            backend = ConfiguredEmailBackend()
+            try:
+                EmailMessage(
+                    subject="Your Skylinx HRMS password reset code",
+                    body=(
+                        f"Your password reset code is {otp}\n\n"
+                        "It expires in 10 minutes. If you didn't request this, ignore this email."
+                    ),
+                    from_email=backend.dynamic_from_email_with_display_name,
+                    to=_user_emails(user),
+                ).send(fail_silently=False)
+            except Exception as exc:
+                logger.exception("OTP reset email failed: %s", exc)
+                messages.error(request, _("Could not send the code. Contact support."))
+                return render(request, "otp_reset.html", {"stage": "request"})
+            messages.success(request, _("We emailed a 6-digit code to your registered address."))
+            return render(request, "otp_reset.html", {"stage": "verify", "ident": ident})
+
+        if action == "verify":
+            otp = request.session.get("reset_otp")
+            uid = request.session.get("reset_otp_user")
+            ts = request.session.get("reset_otp_ts", 0)
+            if not otp or (timezone.now().timestamp() - ts) > 600:
+                messages.error(request, _("Code expired. Please request a new one."))
+                return render(request, "otp_reset.html", {"stage": "request"})
+            if request.POST.get("otp", "").strip() != otp:
+                messages.error(request, _("Invalid code."))
+                return render(request, "otp_reset.html", {"stage": "verify"})
+            pw1 = request.POST.get("password", "")
+            pw2 = request.POST.get("confirm", "")
+            if len(pw1) < 6 or pw1 != pw2:
+                messages.error(request, _("Passwords must match and be at least 6 characters."))
+                return render(request, "otp_reset.html", {"stage": "verify"})
+            user = SkylinxUser.objects.filter(pk=uid).first()
+            if not user:
+                messages.error(request, _("Something went wrong. Start again."))
+                return render(request, "otp_reset.html", {"stage": "request"})
+            user.set_password(pw1)
+            user.save()
+            for k in ("reset_otp", "reset_otp_user", "reset_otp_ts"):
+                request.session.pop(k, None)
+            messages.success(request, _("Password updated. Please log in."))
+            return redirect("login")
+
+    return render(request, "otp_reset.html", {"stage": "request"})
+
+
 def reset_send_success(request):
     return render(request, "reset_send.html")
 

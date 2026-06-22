@@ -1910,6 +1910,9 @@ def employee_create_update_personal_info(request, obj_id=None):
     if form.is_valid():
         form.save()
         if obj_id is None:
+            from base.email_utils import send_employee_welcome
+
+            send_employee_welcome(form.instance)
             messages.success(request, _("New Employee Added."))
             form = EmployeeForm(request.POST, instance=form.instance)
             work_form = EmployeeWorkInformationForm(
@@ -2749,6 +2752,9 @@ def employee_import(request):
                     employee.email = email
                     employee.phone = phone
                     employee.save()
+                    from base.email_utils import send_employee_welcome
+
+                    send_employee_welcome(employee)
                     if seats_left is not None:
                         seats_left -= 1
             except Exception:
