@@ -361,6 +361,7 @@ urlpatterns = [
         "settings/user-group-create/", views.user_group_table, name="user-group-create"
     ),
     path("settings/user-group-view/", views.user_group, name="user-group-view"),
+    path("settings/roles/", views.roles_page, name="roles-page"),
     path(
         "settings/user-group-search/", views.user_group_search, name="user-group-search"
     ),

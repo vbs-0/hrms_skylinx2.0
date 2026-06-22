@@ -1355,6 +1355,57 @@ def user_group(request):
 
 
 @login_required
+@permission_required("auth.view_group")
+def roles_page(request):
+    """Friendly card-based roles & permissions overview."""
+    from base.rbac import groups_for_request, strip_name
+    from django.db.models import Count
+
+    raw_groups = (
+        groups_for_request(request)
+        .annotate(user_count=Count("user", distinct=True))
+        .prefetch_related("permissions")
+    )
+    roles = [
+        {
+            "id": g.id,
+            "name": strip_name(g.name),
+            "user_count": g.user_count,
+            "perm_count": g.permissions.count(),
+        }
+        for g in raw_groups
+    ]
+
+    # build permission table data for create modal (reuse existing logic)
+    permissions = []
+    no_permission_models = settings.NO_PERMISSION_MODALS
+    form = UserGroupForm()
+    for app_name in settings.APPS:
+        app_models = []
+        for model in get_models_in_app(app_name):
+            app_models.append(
+                {
+                    "verbose_name": model._meta.verbose_name.capitalize(),
+                    "model_name": model._meta.model_name,
+                }
+            )
+        permissions.append(
+            {"app": app_name.capitalize().replace("_", " "), "app_models": app_models}
+        )
+
+    return render(
+        request,
+        "base/auth/roles.html",
+        {
+            "roles": roles,
+            "form": form,
+            "permissions": permissions,
+            "no_permission_models": no_permission_models,
+        },
+    )
+
+
+@login_required
 @hx_request_required
 @permission_required("auth.view_group")
 def user_group_search(request):

@@ -133,6 +133,16 @@
 											<div class="oh-input-group">
 												{% if perms.auth.view_group %}
 													<a
+														id="rolesPage"
+														href="{% url 'roles-page' %}"
+														class="oh-inner-sidebar__link oh-dropdown__link"
+														>{% trans "Roles & Permissions" %}</a
+													>
+												{% endif %}
+											</div>
+											<div class="oh-input-group">
+												{% if perms.auth.view_group %}
+													<a
 														id="userGroup"
 														href="{% url 'user-group-view' %}"
 														class="oh-inner-sidebar__link oh-dropdown__link"
