@@ -9,8 +9,10 @@
     transition: background 0.15s;
   }
   .feature-pill--on  { background: #dcfce7; border-color: #86efac; color: #166534; }
+  .feature-pill--plan { background: #dbeafe; border-color: #93c5fd; color: #1e40af; cursor: default; }
   .feature-pill--off { background: #f1f5f9; border-color: #cbd5e1; color: #64748b; }
   .feature-pill form { display:inline; margin:0; padding:0; }
+  .pill-tag { font-size: 0.6rem; opacity: 0.75; font-weight: 500; }
   .expand-row { display:none; }
   .expand-row.open { display:table-row; }
   
@@ -153,24 +155,35 @@
         <tr class="expand-row border-b bg-gray-50" id="features-{{ r.company.id }}">
           <td></td>
           <td colspan="6" class="px-4 py-3">
-            <div class="text-xs font-semibold text-gray-500 mb-2">{% trans "Module overrides" %} <span class="font-normal text-gray-400">(on = enabled for this company regardless of plan)</span></div>
+            <div class="text-xs font-semibold text-gray-500 mb-2">{% trans "Modules" %}
+              <span class="font-normal text-gray-400">— <span style="color:#1e40af">blue = in plan</span> (auto-off if you downgrade) · <span style="color:#166534">green = extra grant</span> (stays until removed) · grey = off</span>
+            </div>
             <div class="flex flex-wrap gap-2">
               {% for key, meta in paid_features.items %}
-              <form method="post" action="{% url 'subscriptions-update' r.company.id %}" style="margin:0">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="toggle_feature">
-                <input type="hidden" name="feature_key" value="{{ key }}">
                 {% if r.sub %}
-                  <button type="submit"
-                    class="feature-pill {% if key in r.sub.feature_overrides %}feature-pill--on{% else %}feature-pill--off{% endif %}">
-                    {% if key in r.sub.feature_overrides %}✓{% else %}+{% endif %}
-                    {{ meta.label }}
-                    {% if r.sub.plan and key in r.sub.plan.features %}<span style="font-size:0.65rem;opacity:0.7">(plan)</span>{% endif %}
-                  </button>
+                  {% if r.sub.plan and key in r.sub.plan.features %}
+                    {# enabled by the plan — not a toggle; change the plan to remove #}
+                    <span class="feature-pill feature-pill--plan" title="{% trans 'Included in the current plan.' %}">
+                      ✓ {{ meta.label }} <span class="pill-tag">{% trans "in plan" %}</span>
+                    </span>
+                  {% elif key in r.sub.feature_overrides %}
+                    <form method="post" action="{% url 'subscriptions-update' r.company.id %}" style="margin:0">
+                      {% csrf_token %}<input type="hidden" name="action" value="toggle_feature"><input type="hidden" name="feature_key" value="{{ key }}">
+                      <button type="submit" class="feature-pill feature-pill--on" title="{% trans 'Extra grant beyond the plan. Click to remove.' %}">
+                        ✓ {{ meta.label }} <span class="pill-tag">{% trans "extra" %}</span>
+                      </button>
+                    </form>
+                  {% else %}
+                    <form method="post" action="{% url 'subscriptions-update' r.company.id %}" style="margin:0">
+                      {% csrf_token %}<input type="hidden" name="action" value="toggle_feature"><input type="hidden" name="feature_key" value="{{ key }}">
+                      <button type="submit" class="feature-pill feature-pill--off" title="{% trans 'Off. Click to grant this module on top of the plan.' %}">
+                        + {{ meta.label }}
+                      </button>
+                    </form>
+                  {% endif %}
                 {% else %}
-                  <button type="button" class="feature-pill feature-pill--off" disabled title="{% trans 'No subscription yet' %}">+ {{ meta.label }}</button>
+                  <span class="feature-pill feature-pill--off" title="{% trans 'No subscription yet' %}">+ {{ meta.label }}</span>
                 {% endif %}
-              </form>
               {% endfor %}
             </div>
           </td>
