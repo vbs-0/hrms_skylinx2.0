@@ -1,0 +1,16 @@
+{
+    "name": "Skylinx",
+    "short_name": "Skylinx",
+    "description": "Free and Open Source HR Software",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#1a5f9e",
+    "theme_color": "#1a5f9e",
+    "icons": [
+      {
+        "src": "/static/favicons/apple-touch-icon.png",
+        "sizes": "192x192",
+        "type": "image/png"
+      }
+    ]
+  }

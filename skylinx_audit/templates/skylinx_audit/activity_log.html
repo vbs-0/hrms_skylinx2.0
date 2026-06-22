@@ -1,0 +1,162 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% load static %}
+{% block content %}
+
+<style>
+.activity-log-table td, .activity-log-table th {
+    vertical-align: middle;
+    font-size: 0.875rem;
+}
+.badge-create  { background: #d4edda; color: #155724; border-radius: 4px; padding: 2px 8px; }
+.badge-update  { background: #fff3cd; color: #856404; border-radius: 4px; padding: 2px 8px; }
+.badge-delete  { background: #f8d7da; color: #721c24; border-radius: 4px; padding: 2px 8px; }
+.badge-unknown { background: #e2e3e5; color: #383d41; border-radius: 4px; padding: 2px 8px; }
+.activity-search-form { max-width: 400px; }
+</style>
+
+<section class="oh-wrapper oh-main__topbar">
+    <div class="oh-main__titlebar oh-main__titlebar--left">
+        <h1 class="oh-main__titlebar-title fw-bold">
+            <ion-icon name="time-outline" class="me-2"></ion-icon>
+            {% trans "Activity Log" %}
+        </h1>
+        <span class="ms-3 text-muted" style="font-size:0.85rem;">
+            {% blocktrans with count=total_count %}{{ count }} recent changes found{% endblocktrans %}
+        </span>
+    </div>
+    <div class="oh-main__titlebar oh-main__titlebar--right">
+        <a href="{% url 'audit-model-settings' %}" class="oh-btn oh-btn--light oh-btn--sm">
+            <ion-icon name="settings-outline" class="me-1"></ion-icon>
+            {% trans "Configure Tracking" %}
+        </a>
+    </div>
+</section>
+
+<div class="oh-wrapper">
+    <div class="oh-card">
+        {# Search bar #}
+        <form method="get" class="activity-search-form mb-3 d-flex gap-2" action="">
+            <input
+                type="text"
+                name="q"
+                class="oh-input form-control"
+                placeholder="{% trans 'Search by actor, model…' %}"
+                value="{{ search_query|default:'' }}"
+            >
+            <button type="submit" class="oh-btn oh-btn--secondary oh-btn--sm">
+                <ion-icon name="search-outline"></ion-icon>
+            </button>
+            {% if search_query %}
+                <a href="{% url 'audit-activity-log' %}" class="oh-btn oh-btn--light oh-btn--sm">
+                    {% trans "Clear" %}
+                </a>
+            {% endif %}
+        </form>
+
+        {% if page_obj.object_list %}
+        <div class="table-responsive">
+            <table class="table activity-log-table">
+                <thead class="table-light">
+                    <tr>
+                        <th>{% trans "Date / Time" %}</th>
+                        <th>{% trans "Module" %}</th>
+                        <th>{% trans "Record" %}</th>
+                        <th>{% trans "Action" %}</th>
+                        <th>{% trans "Changed By" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in page_obj %}
+                    <tr>
+                        <td class="text-nowrap">
+                            <span class="dateformat_changer">{{ entry.history_date|date:"d M Y" }}</span>
+                            &nbsp;
+                            <span class="timeformat_changer text-muted">{{ entry.history_date|date:"g:i A" }}</span>
+                        </td>
+                        <td>
+                            <span class="badge-unknown">{{ entry.model_verbose_name }}</span>
+                        </td>
+                        <td>
+                            {{ entry.instance|default:entry.history_id }}
+                        </td>
+                        <td>
+                            {% if entry.history_type == '+' %}
+                                <span class="badge-create">{% trans "Created" %}</span>
+                            {% elif entry.history_type == '~' %}
+                                <span class="badge-update">{% trans "Updated" %}</span>
+                            {% elif entry.history_type == '-' %}
+                                <span class="badge-delete">{% trans "Deleted" %}</span>
+                            {% else %}
+                                <span class="badge-unknown">{{ entry.history_type }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if entry.history_user %}
+                                {% if entry.history_user.employee_get %}
+                                    <img src="{{ entry.history_user.employee_get.get_avatar }}" alt=""
+                                         style="width:24px;height:24px;border-radius:50%;margin-right:6px;">
+                                    {{ entry.history_user.employee_get.get_full_name }}
+                                {% else %}
+                                    {{ entry.history_user }}
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">{% trans "System" %}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# Pagination #}
+        {% if page_obj.has_other_pages %}
+        <nav class="d-flex justify-content-center mt-3">
+            <ul class="pagination">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}">
+                            &laquo;
+                        </a>
+                    </li>
+                {% endif %}
+                <li class="page-item disabled">
+                    <span class="page-link">
+                        {% blocktrans with curr=page_obj.number total=page_obj.paginator.num_pages %}
+                            Page {{ curr }} of {{ total }}
+                        {% endblocktrans %}
+                    </span>
+                </li>
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}">
+                            &raquo;
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <div class="d-flex justify-content-center align-items-center" style="height: 40vh;">
+            <div class="text-center">
+                <ion-icon name="document-text-outline" style="font-size:4rem;color:#ccc;"></ion-icon>
+                <h5 class="oh-404__subtitle mt-3">
+                    {% if search_query %}
+                        {% trans "No activity found for your search." %}
+                    {% else %}
+                        {% trans "No activity recorded yet. Make sure Audit Tracking is configured." %}
+                    {% endif %}
+                </h5>
+                <a href="{% url 'audit-model-settings' %}" class="oh-btn oh-btn--secondary mt-2">
+                    {% trans "Configure Audit Tracking" %}
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock content %}

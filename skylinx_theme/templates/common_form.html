@@ -1,0 +1,125 @@
+{% load widget_tweaks %}
+{% load i18n %}
+<style>
+    .condition-highlight {
+        background-color: #ffa5000f;
+    }
+    .skylinx-advanced-section { display: none; }
+    .skylinx-advanced-section.show { display: contents; }
+    .skylinx-advanced-toggle {
+        cursor: pointer;
+        font-size: 0.82rem;
+        color: var(--oh-primary, #5a8dee);
+        background: none;
+        border: none;
+        padding: 4px 0;
+        margin-top: 6px;
+        text-decoration: underline;
+    }
+</style>
+
+<div class="rounded-xl bg-white" id="personal">
+    <div class="border rounded-xl p-4">
+    {% if form.verbose_name %}
+        <div class="oh-payslip__header">
+            <div class="oh-payslip__header-left">
+                <h2 class="text-xl font-semibold mb-3">
+                    {{ form.verbose_name }}
+                </h2>
+            </div>
+        </div>
+    {% endif %}
+    <div class="oh-profile-section__card">
+        <div class="row" id="personal_basic_fields">
+            <div class="col-12">{{ form.non_field_errors }}</div>
+            {% for field in form.visible_fields %}
+                {% if field.field.widget.attrs.data_advanced %}
+                    {# advanced — skip here, rendered below #}
+                {% else %}
+                    <div class="col-12 {% if form.cols.employee_id %} col-md-12 {% endif %} col-md-6" id="id_{{field.name}}_parent_div">
+                        <div class="oh-label__info" style="display:ruby;" for="id_{{ field.name }}">
+                            <label class="oh-label {% if field.field.required %} required-star{% endif %}"
+                                for="id_{{ field.name }}">{% trans field.label %} </label>
+                            {% if field.help_text != '' %}
+                                <span class="oh-info mr-2" title="{{ field.help_text }}"></span>
+                            {% endif %}
+                        </div>
+
+                        {% if field.field.widget.input_type == 'checkbox' %}
+                            <div class="oh-switch w-[30px]">{{ field|add_class:'oh-switch__checkbox' }}</div>
+                        {% else %}
+                            {% comment %} {{ field|add_class:'form-control' }} {% endcomment %}
+                            {{ field|add_class:"form-control oh-input"|attr:"data-widget:" }}
+                        {% endif %}
+                        {{ field.errors }}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        {# ---- Advanced fields section ---- #}
+        <div class="row skylinx-advanced-section" id="personal_advanced_fields">
+            {% for field in form.visible_fields %}
+                {% if field.field.widget.attrs.data_advanced %}
+                    <div class="col-12 col-md-6" id="id_{{field.name}}_parent_div">
+                        <div class="oh-label__info" style="display:ruby;" for="id_{{ field.name }}">
+                            <label class="oh-label {% if field.field.required %} required-star{% endif %}"
+                                for="id_{{ field.name }}">{% trans field.label %} </label>
+                            {% if field.help_text != '' %}
+                                <span class="oh-info mr-2" title="{{ field.help_text }}"></span>
+                            {% endif %}
+                        </div>
+                        {% if field.field.widget.input_type == 'checkbox' %}
+                            <div class="oh-switch w-[30px]">{{ field|add_class:'oh-switch__checkbox' }}</div>
+                        {% else %}
+                            {{ field|add_class:"form-control oh-input"|attr:"data-widget:" }}
+                        {% endif %}
+                        {{ field.errors }}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        <div id="personal_advanced_toggle_row">
+          <button type="button" class="skylinx-advanced-toggle" onclick="toggleAdvancedFields(this)"
+                  data-target="personal_advanced_fields" id="skylinx_advanced_toggle_btn" style="display:none">
+            {% trans '+ Show Advanced Settings' %}
+          </button>
+        </div>
+
+        {% for field in form.hidden_fields %}
+            {{ field }}
+        {% endfor %}
+
+        <div class="d-flex flex-row-reverse">
+            <button type="submit" class="oh-btn oh-btn--secondary mt-2 mr-0 pl-4 pr-5 oh-btn--w-100-resp">{% trans 'Save' %}</button>
+        </div>
+    </div>
+</div>
+</div>
+<script>
+    $("#personal").closest(".oh-modal--show").find("button[aria-label='Close']").attr("style", "top: 33px; right: 20px; z-index:1");
+</script>
+
+<script>
+(function(){
+    var advSection = document.getElementById('personal_advanced_fields');
+    var toggleBtn  = document.getElementById('skylinx_advanced_toggle_btn');
+    if (advSection && advSection.querySelector('.col-12')) {
+        toggleBtn && (toggleBtn.style.display = 'inline-block');
+    }
+    window.toggleAdvancedFields = function(btn) {
+        var sec = document.getElementById(btn.dataset.target);
+        if (!sec) return;
+        var showing = sec.classList.toggle('show');
+        btn.textContent = showing ? '{% trans "- Hide Advanced Settings" %}' : '{% trans "+ Show Advanced Settings" %}';
+    };
+    // If form has errors in advanced fields, auto-expand
+    if (advSection) {
+        var errFields = advSection.querySelectorAll('.errorlist');
+        if (errFields.length > 0) {
+            advSection.classList.add('show');
+            if (toggleBtn) toggleBtn.textContent = '{% trans "- Hide Advanced Settings" %}';
+        }
+    }
+})();
+</script>

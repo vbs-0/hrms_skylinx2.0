@@ -1,0 +1,70 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% block content %}
+<div class="oh-wrapper">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h1 class="text-lg font-semibold">{% trans "Clients & Subscriptions" %}</h1>
+      <p class="text-sm text-gray-500">{{ live_count }} {% trans "active" %} / {{ total_companies }} {% trans "companies" %}</p>
+    </div>
+    <a href="{% url 'subscriptions-onboard' %}" class="px-4 py-2 bg-primary-600 text-white rounded-md text-sm">+ {% trans "Onboard client" %}</a>
+  </div>
+
+  <div class="bg-white rounded-md shadow-card overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-left">
+        <tr class="border-b">
+          <th class="p-3">{% trans "Company" %}</th>
+          <th class="p-3">{% trans "Plan" %}</th>
+          <th class="p-3">{% trans "Status" %}</th>
+          <th class="p-3">{% trans "Seats" %}</th>
+          <th class="p-3">{% trans "Expires" %}</th>
+          <th class="p-3">{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-b hover:bg-gray-50 align-top">
+          <td class="p-3 font-medium">{{ r.company.company }}</td>
+          <td class="p-3">
+            <form method="post" action="{% url 'subscriptions-update' r.company.id %}" class="flex gap-1">
+              {% csrf_token %}<input type="hidden" name="action" value="set_plan">
+              <select name="plan" class="border rounded px-2 py-1 text-xs">
+                <option value="">—</option>
+                {% for p in plans %}<option value="{{ p.id }}" {% if r.sub.plan_id == p.id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+              </select>
+              <button class="text-xs text-primary-600">{% trans "set" %}</button>
+            </form>
+          </td>
+          <td class="p-3">
+            <form method="post" action="{% url 'subscriptions-update' r.company.id %}" class="flex gap-1">
+              {% csrf_token %}<input type="hidden" name="action" value="set_status">
+              <select name="status" class="border rounded px-2 py-1 text-xs">
+                {% for s in statuses %}<option value="{{ s }}" {% if r.sub.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+              </select>
+              <button class="text-xs text-primary-600">{% trans "set" %}</button>
+            </form>
+          </td>
+          <td class="p-3">{{ r.seats_used }}{% if r.seat_limit %} / {{ r.seat_limit }}{% else %} / ∞{% endif %}</td>
+          <td class="p-3">{{ r.sub.expires_on|default:"—" }}</td>
+          <td class="p-3">
+            <div class="flex items-center gap-3">
+              <form method="post" action="{% url 'subscriptions-update' r.company.id %}" class="inline-flex gap-1 items-center">
+                {% csrf_token %}<input type="hidden" name="action" value="extend">
+                <input type="number" name="days" value="30" class="border rounded px-1 py-0.5 w-14 text-xs">
+                <button class="text-xs text-green-600">+{% trans "days" %}</button>
+              </form>
+              {% if r.admin_user %}
+                <a href="{% url 'subscriptions-impersonate' r.admin_user.id %}" class="text-xs text-primary-600" title="{% trans 'Log in as this client for support' %}">{% trans "Log in as" %}</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="p-4 text-center text-gray-400">{% trans "No companies yet." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

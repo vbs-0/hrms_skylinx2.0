@@ -1,0 +1,112 @@
+{% extends 'index.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="oh-wrapper" style="max-width: 1100px;">
+  <h1 class="text-lg font-semibold mb-1">{% trans "Licensing — Vendor" %}</h1>
+  <p class="text-sm text-gray mb-4">{% trans "Create plans, generate license keys, track subscriptions." %}</p>
+
+  {% if messages %}
+    {% for m in messages %}
+      <div class="p-2 mb-2 rounded text-sm {% if m.tags == 'error' %}bg-red-50 text-red-700{% else %}bg-green-50 text-green-700{% endif %}">{{ m }}</div>
+    {% endfor %}
+  {% endif %}
+
+  {% if new_license_key %}
+    <div class="p-3 mb-4 rounded border border-green-300 bg-green-50">
+      <div class="text-sm font-semibold text-green-800">{% trans "New license key — copy it now" %}</div>
+      <code class="block mt-1 text-sm break-all select-all">{{ new_license_key }}</code>
+    </div>
+  {% endif %}
+
+  <!-- Stats -->
+  <div class="grid grid-cols-4 gap-3 mb-5">
+    <div class="border rounded-lg p-3"><div class="text-xs text-gray">{% trans "Total licenses" %}</div><div class="text-xl font-bold">{{ stats.total }}</div></div>
+    <div class="border rounded-lg p-3"><div class="text-xs text-gray">{% trans "Active" %}</div><div class="text-xl font-bold text-green-600">{{ stats.active }}</div></div>
+    <div class="border rounded-lg p-3"><div class="text-xs text-gray">{% trans "Expiring ≤14d" %}</div><div class="text-xl font-bold text-yellow-600">{{ stats.expiring }}</div></div>
+    <div class="border rounded-lg p-3"><div class="text-xs text-gray">{% trans "Revenue" %}</div><div class="text-xl font-bold">{{ stats.revenue }}</div></div>
+  </div>
+
+  <div class="grid grid-cols-2 gap-4 mb-5">
+    <!-- Create plan -->
+    <div class="border rounded-lg p-4">
+      <h2 class="font-semibold mb-2">{% trans "Create plan" %}</h2>
+      <form method="post" action="{% url 'license-plan-create' %}" class="space-y-2 text-sm">
+        {% csrf_token %}
+        <input name="name" placeholder="{% trans 'Plan name' %}" class="w-full border rounded p-2" required>
+        <div class="flex gap-2">
+          <select name="billing_period" class="border rounded p-2 flex-1">
+            <option value="weekly">{% trans "Weekly" %}</option>
+            <option value="monthly" selected>{% trans "Monthly" %}</option>
+            <option value="yearly">{% trans "Yearly" %}</option>
+          </select>
+          <input name="price" type="number" step="0.01" placeholder="{% trans 'Price' %}" class="border rounded p-2 w-28">
+          <input name="employee_limit" type="number" placeholder="{% trans 'Emp cap' %}" class="border rounded p-2 w-28" title="{% trans 'Blank = unlimited' %}">
+        </div>
+        <div>
+          <div class="text-xs text-gray mb-1">{% trans "Included features" %}</div>
+          <div class="grid grid-cols-2 gap-1">
+            {% for key, label in feature_choices %}
+              <label class="flex items-center gap-1"><input type="checkbox" name="features" value="{{ key }}"> {{ label }}</label>
+            {% endfor %}
+          </div>
+        </div>
+        <button class="oh-btn oh-btn--secondary" type="submit">{% trans "Create plan" %}</button>
+      </form>
+    </div>
+
+    <!-- Generate license -->
+    <div class="border rounded-lg p-4">
+      <h2 class="font-semibold mb-2">{% trans "Generate license" %}</h2>
+      <form method="post" action="{% url 'license-generate' %}" class="space-y-2 text-sm">
+        {% csrf_token %}
+        <select name="plan" class="w-full border rounded p-2" required>
+          <option value="">{% trans "Select plan…" %}</option>
+          {% for p in plans %}
+            <option value="{{ p.id }}">{{ p.name }} — {{ p.get_billing_period_display }} — {{ p.price }}</option>
+          {% endfor %}
+        </select>
+        <input name="customer_name" placeholder="{% trans 'Customer / company' %}" class="w-full border rounded p-2" required>
+        <input name="customer_email" type="email" placeholder="{% trans 'Customer email' %}" class="w-full border rounded p-2">
+        <div class="flex gap-2">
+          <input name="discount_percent" type="number" step="0.01" placeholder="{% trans 'Discount %' %}" class="border rounded p-2 w-28">
+          <input name="expires_on" type="date" class="border rounded p-2 flex-1" title="{% trans 'Blank = from billing period' %}">
+        </div>
+        <textarea name="notes" placeholder="{% trans 'Notes' %}" class="w-full border rounded p-2" rows="2"></textarea>
+        <button class="oh-btn oh-btn--secondary" type="submit">{% trans "Generate key" %}</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Tracking table -->
+  <div class="border rounded-lg p-4">
+    <h2 class="font-semibold mb-2">{% trans "Issued licenses" %}</h2>
+    <table class="w-full text-sm">
+      <thead><tr class="text-left text-gray border-b">
+        <th class="py-1">{% trans "Customer" %}</th><th>{% trans "Plan" %}</th>
+        <th>{% trans "Status" %}</th><th>{% trans "Expires" %}</th>
+        <th>{% trans "Cap" %}</th><th>{% trans "Paid" %}</th><th>{% trans "Key" %}</th>
+      </tr></thead>
+      <tbody>
+        {% for lic in licenses %}
+          <tr class="border-b">
+            <td class="py-1">{{ lic.customer_name }}</td>
+            <td>{{ lic.plan.name|default:"—" }}</td>
+            <td>
+              {% if lic.status == 'active' %}<span class="text-green-600">{% trans "Active" %}</span>
+              {% elif lic.status == 'expired' %}<span class="text-red-600">{% trans "Expired" %}</span>
+              {% else %}<span class="text-gray-500">{{ lic.get_status_display }}</span>{% endif %}
+            </td>
+            <td>{{ lic.expires_on|default:"—" }}</td>
+            <td>{{ lic.employee_limit|default:"∞" }}</td>
+            <td>{{ lic.amount_paid }}</td>
+            <td><code class="text-xs break-all">{{ lic.key|truncatechars:16 }}</code></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="py-3 text-gray text-center">{% trans "No licenses yet." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

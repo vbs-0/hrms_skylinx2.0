@@ -1,0 +1,81 @@
+{% load static i18n skylinxfilters %}
+{% comment %} <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> {% endcomment %}
+{% comment %} <script src="{% static 'build/js/web.frontend.min.js' %}"></script> {% endcomment %}
+<script src="{% url 'javascript-catalog' %}"></script>
+
+<script src="{% static 'htmx/htmx.min.js' %}"></script>
+<script>
+  // Only run this script once
+  if (typeof window.skylinxLoaderInitialized === 'undefined') {
+    window.skylinxLoaderInitialized = true;
+
+    document.body.addEventListener('htmx:configRequest', (event) => {
+      event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}'
+    });
+
+    // Global loading indicator - Add only if doesn't exist
+    let globalLoader = document.getElementById('global-loader');
+    if (!globalLoader) {
+      globalLoader = document.createElement('div');
+      globalLoader.id = 'global-loader';
+      globalLoader.innerHTML = `
+        <div class="flex flex-col items-center gap-3">
+          <span class="oh-spinner"></span>
+          <span class="text-sm text-gray-600">Loading...</span>
+        </div>
+      `;
+      document.body.prepend(globalLoader);
+    }
+    
+    document.addEventListener('htmx:beforeSend', () => {
+      if (globalLoader) globalLoader.classList.add('active');
+    });
+
+    const hideLoader = () => {
+      if (globalLoader) globalLoader.classList.remove('active');
+    };
+
+    document.addEventListener('htmx:afterRequest', hideLoader);
+    document.addEventListener('htmx:sendError', hideLoader);
+    document.addEventListener('htmx:responseError', hideLoader);
+    document.addEventListener('htmx:abort', hideLoader);
+  }
+</script>
+<script src="{% static '/index/index.js' %}"></script>
+<script src="{% static '/index/saveFilters.js' %}"></script>
+<script src="{% static 'skylinx_theme/assets/js/htmxSelect2.js' %}"></script>
+<script src="{% static 'build/js/summernote-lite.min.js' %}"></script>
+<script src="{% static '/index/country.js' %}"></script>
+
+<!-- This CDN is for date format change -->
+<script src="{% static 'build/js/moment.js' %}"></script>
+<script src="{% static 'cdn/ajax/scripts/moment-with-locales.min.js' %}"></script>
+
+<script src="{% static '/base/date_settings.js' %}"></script>
+<script src="{% static '/base/time_formatting.js' %}"></script>
+<script src="{% static '/base/time_settings.js' %}"></script>
+<script src="{% static '/base/date_formatting.js' %}"></script>
+
+<script src="{% static 'build/js/pivottable.min.js' %}"></script>
+<script src="{% static 'build/js/pivottable_plot.min.js' %}"></script>
+<script src="{% static 'build/js/pivottable_ploty.min.js' %}"></script>
+<script src="{% static 'build/js/pivottable_excel.min.js' %}"></script>
+{% if 'attendance'|app_installed %}
+  <script src="{% static 'attendance/actions.js' %}"></script>
+{% endif %}
+<script type="module" src="{% static 'images/ionicons/ui_icons/ionicons/ionicons.esm.js' %}"></script>
+<script src="{% static '/build/js/sweetAlert.js' %}"></script>
+<script>
+  // Clear all query parameters from the URL
+  function clearQueryParameters() {
+    var urlWithoutQuery = window.location.origin + window.location.pathname
+    window.history.replaceState({}, document.title, urlWithoutQuery)
+  }
+</script>
+<script src="{% static 'cbv/work_type_request/work_request_bulk_action.js' %}"></script>
+<script src="{% static 'skylinx_theme/assets/js/footerScripts.js' %}"></script>
+
+
+{% block footer_scripts %}
+
+{% endblock %}

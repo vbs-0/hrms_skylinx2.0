@@ -1,0 +1,199 @@
+{% load static i18n %}
+
+<div class="hp-logo-card" id="home-logo-container" style="position: relative; background: transparent; border: none; box-shadow: none; display: flex; flex-direction: column; align-items: center; text-align: center; width: 100%; padding: 0.5rem 0;">
+  
+  {% if edit_mode %}
+  <!-- Premium Inline Edit Form (Dark-Mode Compatible) -->
+  <form hx-post="{% url 'edit-home-logo-card' %}" hx-target="#home-logo-container" hx-swap="outerHTML" class="w-100 text-start hp-logo-edit-form" style="padding: 1rem; background: rgba(255, 255, 255, 0.95); border-radius: 14px; border: 1px solid rgba(226, 232, 240, 0.8); box-shadow: 0 10px 25px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 12px;">
+    {% csrf_token %}
+    <div>
+      <label class="oh-label" style="font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; color: #475569; display: block;">{% trans "Company Name" %}</label>
+      <input type="text" name="company_name" value="{{ company.company|default:'SkyLinx' }}" class="oh-input form-control form-control-sm" style="font-size: 0.85rem; padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff;" required>
+    </div>
+    <div>
+      <label class="oh-label" style="font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; color: #475569; display: block;">{% trans "LinkedIn URL" %}</label>
+      <input type="url" name="linkedin" value="{{ social_links.linkedin }}" class="oh-input form-control form-control-sm" placeholder="https://linkedin.com/company/..." style="font-size: 0.85rem; padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff;">
+    </div>
+    <div>
+      <label class="oh-label" style="font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; color: #475569; display: block;">{% trans "Facebook URL" %}</label>
+      <input type="url" name="facebook" value="{{ social_links.facebook }}" class="oh-input form-control form-control-sm" placeholder="https://facebook.com/..." style="font-size: 0.85rem; padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff;">
+    </div>
+    <div>
+      <label class="oh-label" style="font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; color: #475569; display: block;">{% trans "Instagram URL" %}</label>
+      <input type="url" name="instagram" value="{{ social_links.instagram }}" class="oh-input form-control form-control-sm" placeholder="https://instagram.com/..." style="font-size: 0.85rem; padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff;">
+    </div>
+    <div class="d-flex justify-content-end" style="gap: 8px; margin-top: 4px;">
+      <button type="button" class="oh-btn oh-btn--light-danger btn-sm" hx-get="{% url 'get-home-logo-card' %}" hx-target="#home-logo-container" hx-swap="outerHTML" style="font-size: 0.8rem; padding: 6px 12px; border-radius: 8px;">{% trans "Cancel" %}</button>
+      <button type="submit" class="oh-btn oh-btn--secondary btn-sm" style="font-size: 0.8rem; padding: 6px 12px; border-radius: 8px; background-color: #3b82f6; border-color: #3b82f6; color: #fff;">{% trans "Save" %}</button>
+    </div>
+  </form>
+  {% else %}
+  
+  <!-- Logo Upload Box with Hover Effect (Dashed Blue on Hover + Plus Overlay) -->
+  <div class="hp-logo-upload-wrapper" 
+       {% if request.user.is_superuser or perms.base.change_company %}
+       onclick="document.getElementById('hidden-logo-file-input').click();" 
+       title="{% trans 'Click to change logo instantly' %}"
+       {% endif %}>
+    {% if company.icon %}
+      <img src="{{ company.icon.url }}" class="hp-logo-img" alt="{{ company.company }}" style="max-height: 100%; max-width: 100%; object-fit: contain;">
+    {% else %}
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: #64748b; font-size: 0.75rem;">
+        <img src="{% static 'images/logo/logo.png' %}" class="hp-logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" style="max-height: 90px; max-width: 100%; object-fit: contain;">
+        <div style="display: none; font-weight: 700; color: #475569;">Your Company Logo comes here</div>
+      </div>
+    {% endif %}
+    
+    {% if request.user.is_superuser or perms.base.change_company %}
+    <!-- Plus Overlay on Hover -->
+    <div class="hp-logo-overlay">
+      <ion-icon name="add-circle" style="font-size: 2rem; color: #3b82f6;"></ion-icon>
+      <span style="font-size: 0.7rem; color: #1e3a8a; line-height: 1.2;">{% trans "Change Logo" %}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Hidden Form for Direct Image Upload -->
+  {% if request.user.is_superuser or perms.base.change_company %}
+  <form style="display: none;" id="direct-logo-form">
+    {% csrf_token %}
+    <input type="file" id="hidden-logo-file-input" name="icon" 
+           hx-post="{% url 'edit-home-logo-card-image' %}" 
+           hx-encoding="multipart/form-data" 
+           hx-trigger="change" 
+           hx-target="#home-logo-container" 
+           hx-swap="outerHTML">
+  </form>
+  {% endif %}
+
+  <!-- Company Name (Clickable to edit for superusers and company admins) -->
+  <div class="hp-logo-text {% if request.user.is_superuser or perms.base.change_company %}hp-logo-text-editable{% endif %}"
+       {% if request.user.is_superuser or perms.base.change_company %}
+       hx-get="{% url 'edit-home-logo-card' %}"
+       hx-target="#home-logo-container"
+       hx-swap="outerHTML"
+       title="{% trans 'Click to edit company details' %}"
+       {% endif %}>
+       {{ company.company|default:"SkyLinx" }}
+  </div>
+  
+  <!-- Social Links (LinkedIn, Facebook, Instagram) -->
+  <div class="hp-social-links-container" style="display: flex; align-items: center; gap: 8px; margin-top: 0.85rem;">
+    <div class="hp-social-links" style="display: flex; gap: 12px;">
+      {% if social_links.linkedin %}
+        <a href="{{ social_links.linkedin }}" target="_blank" class="hp-social-link" style="color: #0077b5; font-size: 1.5rem; transition: transform 0.2s;"><ion-icon name="logo-linkedin"></ion-icon></a>
+      {% else %}
+        <a href="https://linkedin.com" target="_blank" class="hp-social-link" style="color: #cbd5e1; font-size: 1.5rem;"><ion-icon name="logo-linkedin"></ion-icon></a>
+      {% endif %}
+
+      {% if social_links.facebook %}
+        <a href="{{ social_links.facebook }}" target="_blank" class="hp-social-link" style="color: #1877f2; font-size: 1.5rem; transition: transform 0.2s;"><ion-icon name="logo-facebook"></ion-icon></a>
+      {% else %}
+        <a href="https://facebook.com" target="_blank" class="hp-social-link" style="color: #cbd5e1; font-size: 1.5rem;"><ion-icon name="logo-facebook"></ion-icon></a>
+      {% endif %}
+
+      {% if social_links.instagram %}
+        <a href="{{ social_links.instagram }}" target="_blank" class="hp-social-link" style="color: #e4405f; font-size: 1.5rem; transition: transform 0.2s;"><ion-icon name="logo-instagram"></ion-icon></a>
+      {% else %}
+        <a href="https://instagram.com" target="_blank" class="hp-social-link" style="color: #cbd5e1; font-size: 1.5rem;"><ion-icon name="logo-instagram"></ion-icon></a>
+      {% endif %}
+    </div>
+
+    {% if request.user.is_superuser or perms.base.change_company %}
+      <button type="button" 
+              hx-get="{% url 'edit-home-logo-card' %}" 
+              hx-target="#home-logo-container" 
+              hx-swap="outerHTML" 
+              class="oh-btn btn-sm hp-social-edit-btn" 
+              style="padding: 2px 6px; font-size: 0.75rem; border-radius: 6px; border: 1px solid #cbd5e1; background: transparent; color: #475569; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; height: 26px; transition: all 0.2s;"
+              title="{% trans 'Edit Links' %}">
+        <ion-icon name="create-outline" style="font-size: 0.95rem;"></ion-icon>
+      </button>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<style>
+  .hp-logo-upload-wrapper {
+    position: relative;
+    width: 160px;
+    height: 160px;
+    border-radius: 12px;
+    border: 2px dashed rgba(226,232,240,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    overflow: hidden;
+    background: transparent;
+    transition: all 0.3s ease;
+    margin-bottom: 0.5rem;
+  }
+  .hp-logo-upload-wrapper:hover {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  }
+  .hp-logo-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(59, 130, 246, 0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    color: #3b82f6;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: center;
+    padding: 8px;
+  }
+  .hp-logo-upload-wrapper:hover .hp-logo-overlay {
+    opacity: 1;
+  }
+  .hp-logo-img {
+    mix-blend-mode: multiply;
+  }
+  .hp-logo-text {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-top: 0.25rem;
+    transition: color 0.2s ease;
+  }
+  .hp-logo-text-editable {
+    cursor: pointer;
+    border-bottom: 1.5px dashed rgba(59, 130, 246, 0.4);
+    padding-bottom: 1px;
+  }
+  .hp-logo-text-editable:hover {
+    color: #3b82f6 !important;
+    border-bottom-color: #3b82f6;
+  }
+  .dark .hp-logo-text {
+    color: #f8fafc !important;
+  }
+  .hp-social-link:hover {
+    transform: scale(1.15);
+  }
+
+  /* Edit Form Dark Mode Styling */
+  .dark .hp-logo-edit-form {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.35) !important;
+  }
+  .dark .hp-logo-edit-form label {
+    color: #94a3b8 !important;
+  }
+  .dark .hp-logo-edit-form input {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+  }
+  .dark .hp-logo-edit-form input::placeholder {
+    color: #475569 !important;
+  }
+</style>

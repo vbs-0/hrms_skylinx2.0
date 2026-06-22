@@ -1,0 +1,272 @@
+{% load recruitmentfilters %}
+{% load i18n %}
+<div>
+    <div class="card rounded-3">
+        <form  enctype="multipart/form-data">
+        <div class="card-body pl-5 pr-5 pb-5 pt-5">
+          <h3 class="mb-4">{{form.instance.employee_first_name}}'s {% trans "Work Info" %}</h3>
+          <div class="row">
+                <div class="col-md-6 ">
+                {{work_form.job_position_id.errors}}
+                <div class="form-outline mb-4">{{work_form.job_position_id}}</div>
+                </div>
+                <div class="col-md-6 mb-2">
+                {{work_form.department_id.errors}}
+                <div class="form-outline mb-4">{{work_form.department_id}}</div>
+                </div>
+                <div class="col-md-6 mb-2">
+                {{work_form.shift_id.errors}}
+                <div class="form-outline mb-4">{{work_form.shift_id}}</div>
+                </div>
+                <div class="col-md-6 mb-2">
+                {{work_form.work_type_id.errors}}
+                <div class="form-outline mb-4">{{work_form.work_type_id}}</div>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <div class="form-outline mb-4">
+                    {{work_form.employee_type_id.errors}}
+                    {{work_form.employee_type_id}}
+                    </div>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <div class="form-outline mb-4">
+                    {{work_form.job_role_id.errors}}
+                    {{work_form.job_role_id}}
+                    </div>
+                </div>
+                <div class="col-md-6 mb-4">
+                    {{work_form.reporting_manager_id.errors}}
+                    {{work_form.reporting_manager_id}}
+                </div>
+                <div class="col-md-6 mb-4">
+                    {{work_form.company_id.errors}}
+                    {{work_form.company_id}}
+                </div>
+                <div class="col-md-6 mb-4">
+                    {{work_form.location.errors}}
+                    {{work_form.location}}
+                </div>
+                <div class="col-md-6 mb-4">
+                    {{work_form.email.errors}}
+                    {{work_form.email}}
+                </div>
+                <div class="col-md-6 mb-4">
+                    {{work_form.mobile.errors}}
+                    {{work_form.mobile}}
+                </div>
+                <div class="col-md-6 mb-4">
+                    {{work_form.date_joining.errors}}
+                    {{work_form.date_joining}}
+                </div>
+                <div class="col-md-6 mb-4">
+                    {{work_form.contract_end_date.errors}}
+                    {{work_form.contract_end_date}}
+                </div>
+                <div class="col-md-6 mb-4">
+                    {{work_form.basic_salary.errors}}
+                    {{work_form.basic_salary}}
+                </div>
+                <div class="col-md-6 mb-4">
+                    {{work_form.salary_hour.errors}}
+                    {{work_form.salary_hour}}
+                </div>
+
+            </div>
+            {% if perms.employee.change_employeeworkinformation %}
+            {% if form.instance.employee_work_info %}
+                <button
+                hx-post="{% url 'employee-work-info-view-update' work_form.instance.id  %}"
+                hx-target = '#section'
+                hx-encoding = 'multipart/form-data'
+                class="btn btn-success btn-lg ml-auto mr-auto"
+                >
+                {% trans "Submit" %}
+                </button>
+            {% else %}
+            <button
+            hx-post="{% url 'employee-work-info-view-create' form.instance.id  %}"
+            hx-target = '#section'
+            hx-encoding = 'multipart/form-data'
+            class="btn btn-success btn-lg ml-auto mr-auto"
+            >
+            {% trans "Submit" %}
+            </button>
+            {% endif %}
+            {% endif %}
+          </div>
+          <div>
+        </div>
+        </div>
+        </form>
+    </div>
+
+    <div class="card rounded-3 mt-4">
+        <form  enctype="multipart/form-data">
+            <div class="card-body pl-5 pr-5 pb-5 pt-5">
+              <h3 class="mb-4">{{form.instance.employee_first_name}}'s {% trans "Bank Info" %}</h3>
+              <div class="row">
+                    <!-- 1. IFSC -->
+                    <div class="col-md-6 mb-2">
+                    {{bank_form.any_other_code1.errors}}
+                    <div class="form-outline mb-4">{{bank_form.any_other_code1}}</div>
+                    </div>
+                    <!-- 2. Account Name -->
+                    <div class="col-md-6 mb-2">
+                    {{bank_form.bank_name.errors}}
+                    <div class="form-outline mb-4">{{bank_form.bank_name}}</div>
+                    </div>
+                    <!-- 3. Branch -->
+                    <div class="col-md-6 mb-2">
+                    {{bank_form.branch.errors}}
+                    <div class="form-outline mb-4">{{bank_form.branch}}</div>
+                    </div>
+                    <!-- 4. Account Type -->
+                    <div class="col-md-6 mb-2">
+                    {{bank_form.account_type.errors}}
+                    <div class="form-outline mb-4">{{bank_form.account_type}}</div>
+                    </div>
+                    <!-- 5. Account Number -->
+                    <div class="col-md-6 mb-2">
+                    {{bank_form.account_number.errors}}
+                    <div class="form-outline mb-4">{{bank_form.account_number}}</div>
+                    </div>
+                    <!-- 6. City -->
+                    <div class="col-md-6 mb-2">
+                        {{bank_form.city.errors}}
+                        <div class="form-outline mb-4">{{bank_form.city}}</div>
+                    </div>
+                    <!-- 7. State -->
+                    <div class="col-md-6 mb-2">
+                        {{bank_form.state.errors}}
+                        <div class="form-outline mb-4">
+                            <select name="state" id="id_state" class="oh-input w-100" data-selected="{{ bank_form.state.value|default:'' }}"></select>
+                        </div>
+                    </div>
+                    <!-- 8. Country -->
+                    <div class="col-md-6 mb-2">
+                        {{bank_form.country.errors}}
+                        <div class="form-outline mb-4">
+                            <select name="country" id="id_country" class="oh-input w-100" data-selected="{{ bank_form.country.value|default:'' }}"></select>
+                        </div>
+                    </div>
+                </div>
+                {% if perms.employee.change_employeebankdetails %}
+                {% if form.instance.employee_bank_details %}
+                    <button
+                    hx-post="{% url 'employee-bank-details-view-update' bank_form.instance.id  %}"
+                    hx-target = '#section'
+                    hx-encoding = 'multipart/form-data'
+                    class="btn btn-success btn-lg ml-auto mr-auto"
+                    >
+                    {% trans "Submit" %}
+                    </button>
+                {% else %}
+                <button
+                hx-post="{% url 'employee-bank-details-view-create' form.instance.id  %}"
+                hx-target = '#section'
+                hx-encoding = 'multipart/form-data'
+                class="btn btn-success btn-lg ml-auto mr-auto"
+                >
+                {% trans "Submit" %}
+                </button>
+                {% endif %}
+                {% endif %}
+              </div>
+              <div>
+            </div>
+            </div>
+            </form>
+    </div>
+</div>
+
+<script>
+    if (window.ifscFetchListenerInitialized === undefined) {
+        window.ifscFetchListenerInitialized = true;
+        $(document).on('input change', '#id_any_other_code1', function() {
+            var ifsc = $(this).val().trim().toUpperCase();
+            $(this).val(ifsc);
+            
+            // Validate IFSC format (11 characters: 4 letters, 0, 6 alphanumeric)
+            var ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+            if (ifscRegex.test(ifsc)) {
+                var $bankName = $('#id_bank_name');
+                var $branch = $('#id_branch');
+                var $address = $('#id_address');
+                
+                if ($bankName.length || $branch.length || $address.length) {
+                    console.log("Fetching bank details for IFSC:", ifsc);
+                    fetch('https://ifsc.razorpay.com/' + ifsc)
+                        .then(function(response) {
+                            if (response.ok) {
+                                return response.json();
+                            }
+                            throw new Error('IFSC not found');
+                        })
+                        .then(function(data) {
+                            if (data) {
+                                if ($bankName.length) {
+                                    $bankName.val(data.BANK || '');
+                                    $bankName.trigger('change');
+                                }
+                                if ($branch.length) {
+                                    $branch.val(data.BRANCH || '');
+                                    $branch.trigger('change');
+                                }
+                                if ($address.length) {
+                                    $address.val((data.ADDRESS || '') + ', ' + (data.CITY || '') + ', ' + (data.STATE || ''));
+                                    $address.trigger('change');
+                                }
+
+                                // Update Country to India
+                                var $country = $('#id_country').length ? $('#id_country') : $('#country');
+                                var $state = $('#id_state').length ? $('#id_state') : $('#state');
+                                if ($country.length) {
+                                    $country.val("India").trigger('change');
+                                    if ($state.length) {
+                                        populateStates($country.attr('id'), $state.attr('id'));
+                                    }
+                                }
+                                
+                                // Update State dropdown matching data.STATE
+                                var $state = $('#id_state').length ? $('#id_state') : $('#state');
+                                if ($state.length && data.STATE) {
+                                    var stateToFind = data.STATE.trim().toUpperCase();
+                                    var foundValue = null;
+                                    $state.find('option').each(function() {
+                                        var optText = $(this).text().trim().toUpperCase();
+                                        if (optText === stateToFind) {
+                                            foundValue = $(this).val();
+                                            return false;
+                                        }
+                                    });
+                                    if (foundValue) {
+                                        $state.val(foundValue).trigger('change');
+                                    } else {
+                                        $state.find('option').each(function() {
+                                            var optText = $(this).text().trim().toUpperCase();
+                                            if (optText.indexOf(stateToFind) !== -1 || stateToFind.indexOf(optText) !== -1) {
+                                                foundValue = $(this).val();
+                                                return false;
+                                            }
+                                        });
+                                        if (foundValue) {
+                                            $state.val(foundValue).trigger('change');
+                                        }
+                                    }
+                                }
+                                
+                                // Update City input field
+                                var $city = $('#id_city').length ? $('#id_city') : $('#city');
+                                if ($city.length) {
+                                    $city.val(data.CITY || '').trigger('change');
+                                }
+                            }
+                        })
+                        .catch(function(error) {
+                            console.error("Error fetching IFSC details:", error);
+                        });
+                }
+            }
+        });
+    }
+</script>

@@ -1,0 +1,27 @@
+{% load i18n %}
+<div class="oh-modal__dialog oh-modal__dialog--time-off">
+    <div class="oh-modal__dialog-header">
+        <h2 class="oh-modal__dialog-title" id="createTitle">
+            {% trans "Upload Form 16" %}
+        </h2>
+        <button type="button" class="oh-modal__close" aria-label="Close">
+            <ion-icon name="close-outline"></ion-icon>
+        </button>
+    </div>
+    <div class="oh-modal__dialog-body">
+        <form method="post" action="{% url 'form16-upload' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <div class="d-flex flex-row-reverse">
+                <button type="submit" class="oh-btn oh-btn--secondary mt-2 w-100">{% trans "Upload" %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    $(document).ready(function() {
+        $('.select2').select2({
+            width: '100%'
+        });
+    });
+</script>

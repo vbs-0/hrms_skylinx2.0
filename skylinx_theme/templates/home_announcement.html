@@ -1,0 +1,105 @@
+{% load i18n %}
+{% if edit_mode %}
+<form hx-post="{% url 'edit-home-announcement' %}" hx-target="#home-announcement-container" hx-swap="innerHTML" class="w-100">
+    {% csrf_token %}
+    <div style="margin-bottom: 1rem;">
+        <label class="oh-label hp-announcement-label" style="display: block; font-weight: 600; margin-bottom: 0.4rem;">Title</label>
+        <input type="text" name="title" value="{{ latest_announcement.title|default:'Company Announcement' }}" class="oh-input w-100 form-control hp-announcement-input" required style="border: 1px solid #cdd5df; border-radius: 8px; padding: 10px; font-size: 0.9rem;">
+    </div>
+    <div style="margin-bottom: 1.25rem;">
+        <label class="oh-label hp-announcement-label" style="display: block; font-weight: 600; margin-bottom: 0.4rem;">Description</label>
+        <textarea name="description" class="oh-input w-100 form-control hp-announcement-input" rows="5" required style="border: 1px solid #cdd5df; border-radius: 8px; padding: 10px; font-size: 0.9rem; line-height: 1.5;">{{ latest_announcement.description|safe }}</textarea>
+    </div>
+    <div class="d-flex justify-content-end" style="gap: 8px;">
+        <button type="button" class="oh-btn oh-btn--light-danger" hx-get="{% url 'get-home-announcement' %}" hx-target="#home-announcement-container" hx-swap="innerHTML" style="border-radius: 8px; padding: 8px 16px;">Cancel</button>
+        <button type="submit" class="oh-btn oh-btn--secondary" style="border-radius: 8px; padding: 8px 16px; background-color: #3b82f6; border-color: #3b82f6;">Save</button>
+    </div>
+</form>
+{% else %}
+<div class="w-100" style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+    <div class="d-flex align-items-center justify-content-between" style="margin-bottom: 1rem;">
+        <h3 class="fw-bold mb-0 text-dark" style="font-size: 1.15rem; font-weight: 800; letter-spacing: -0.4px; display: flex; align-items: center; gap: 6px;">
+            <ion-icon name="megaphone-outline" style="font-size: 1.3rem;"></ion-icon>
+            {{ latest_announcement.title|default:"Company Announcement" }}
+        </h3>
+    </div>
+    
+    <!-- Smooth Horizontal Scrolling Ticker Container -->
+    <div class="announcement-scroll-container {% if request.user.is_superuser or perms.base.change_announcement %}announcement-scroll-container-editable{% endif %}" 
+         {% if request.user.is_superuser or perms.base.change_announcement %}
+         hx-get="{% url 'edit-home-announcement' %}" 
+         hx-target="#home-announcement-container" 
+         hx-swap="innerHTML"
+         title="{% trans 'Click to edit announcement' %}"
+         {% else %}
+         title="{% trans 'Hover to pause scrolling' %}"
+         {% endif %}>
+         <span class="announcement-scroll-text">
+            {{ latest_announcement.description|safe|default:"Your Company's Announcements come here. Click to post one!" }}
+         </span>
+    </div>
+</div>
+
+<style>
+  .announcement-scroll-container {
+    width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    box-sizing: border-box;
+    background: rgba(15, 23, 42, 0.03);
+    border-radius: 10px;
+    padding: 14px 10px;
+    margin-top: 0.5rem;
+    position: relative;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+  }
+  
+  .announcement-scroll-container-editable {
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .announcement-scroll-container-editable:hover {
+    background: rgba(15, 23, 42, 0.06) !important;
+    border-color: rgba(15, 23, 42, 0.12) !important;
+  }
+  
+  .announcement-scroll-text {
+    display: inline-block;
+    padding-left: 100%;
+    animation: scroll-left-announcement 20s linear infinite;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #334155;
+  }
+  
+  /* Pause scrolling when user hovers */
+  .announcement-scroll-container:hover .announcement-scroll-text {
+    animation-play-state: paused;
+    color: #0284c7; /* Sky-600 accent color on hover */
+  }
+  
+  @keyframes scroll-left-announcement {
+    0% {
+      transform: translate3d(0, 0, 0);
+    }
+    100% {
+      transform: translate3d(-100%, 0, 0);
+    }
+  }
+
+  /* Dark mode overrides */
+  .dark .hp-announcement-label {
+    color: #f8fafc !important;
+  }
+  .dark .hp-announcement-input {
+    background-color: #1e293b !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+  }
+  .dark .announcement-scroll-container-editable:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+  }
+</style>
+{% endif %}
+

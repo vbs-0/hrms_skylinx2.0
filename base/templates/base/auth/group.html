@@ -1,0 +1,17 @@
+{% extends 'settings.html' %} {% load i18n %} {% block settings %}{% load basefilters %}
+<script>
+  $(document).ready(function () {
+  });
+  function checkSelected(names, target,initial=false) {
+    names = JSON.parse(`${names}`);
+    $.each(names, function (indexInArray, valueOfElement) {
+      if (!initial) {
+        $(target).find(`[value=${valueOfElement}]`).prop("checked", true).change();
+      }else{
+        $(target).find(`[value=${valueOfElement}]`).prop("checked", true);
+      }
+    });
+  }
+</script>
+{% include "base/auth/group_accordion.html" %}
+{% endblock settings %}

@@ -1,0 +1,769 @@
+/* =====================================================================
+   SKYLINX HRMS — "Atelier" Redesign Theme
+   Painted-art aesthetic · Enterprise grade
+   Loaded LAST; overrides legacy .oh-* styles without breaking markup.
+   ===================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap');
+
+/* ---------------------------------------------------------------------
+   1. DESIGN TOKENS — light "gallery" mode
+   --------------------------------------------------------------------- */
+:root {
+  /* Painterly brand — deep indigo ink + ochre + teal wash */
+  --sx-ink:           #16223b;
+  --sx-ink-soft:      #243657;
+  --sx-primary:       #2b4a7a;   /* deep ink-blue */
+  --sx-primary-600:   #1c75bc;
+  --sx-primary-500:   #29abe2;   /* sky wash      */
+  --sx-primary-300:   #9ec9ea;
+  --sx-primary-100:   #e6f1fb;
+  --sx-accent:        #c97b3a;   /* burnt ochre   */
+  --sx-accent-soft:   #f3d9b1;
+  --sx-mint:          #4c9c8a;   /* sage teal     */
+  --sx-rose:          #c95d6b;
+
+  --sx-primary-grad:
+      linear-gradient(135deg, #1c75bc 0%, #2b4a7a 55%, #16223b 100%);
+  --sx-accent-grad:
+      linear-gradient(135deg, #e6a96b 0%, #c97b3a 100%);
+  --sx-wash-grad:
+      radial-gradient(120% 80% at 0% 0%,
+        rgba(41,171,226,.14) 0%, rgba(41,171,226,0) 55%),
+      radial-gradient(120% 80% at 100% 100%,
+        rgba(201,123,58,.10) 0%, rgba(201,123,58,0) 55%);
+
+  /* Paper canvas */
+  --sx-bg:            #f5f1ea;        /* warm paper */
+  --sx-bg-tint:       #ece6da;
+  --sx-surface:       #fffdf8;        /* card paper */
+  --sx-surface-2:     #f1ece2;
+  --sx-text:          #1a2238;
+  --sx-text-muted:    #6b6a78;
+  --sx-border:        #d9d2c2;        /* soft pencil edge */
+  --sx-border-strong: #b9af97;
+
+  /* Sidebar — dark inked wall */
+  --sx-side-bg:       #111b30;
+  --sx-side-bg-2:     #1a2a48;
+  --sx-side-text:     #b9c3d7;
+  --sx-side-active:   #ffffff;
+
+  /* Status palette (muted gouache) */
+  --sx-success: #3f9d7a;
+  --sx-warning: #d99b3a;
+  --sx-danger:  #c95d6b;
+  --sx-info:    #4aa6cf;
+
+  --sx-radius:    16px;
+  --sx-radius-sm: 10px;
+  --sx-radius-lg: 22px;
+  --sx-shadow:
+      0 1px 0 rgba(255,255,255,.7) inset,
+      0 10px 28px -14px rgba(22,34,59,.28),
+      0 2px 4px rgba(22,34,59,.06);
+  --sx-shadow-sm:
+      0 1px 0 rgba(255,255,255,.6) inset,
+      0 4px 14px -8px rgba(22,34,59,.22);
+  --sx-shadow-lift:
+      0 22px 50px -24px rgba(22,34,59,.45),
+      0 6px 14px -6px rgba(22,34,59,.18);
+
+  /* Painted paper grain (inline SVG, no external requests) */
+  --sx-grain:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.09  0 0 0 0 0.13  0 0 0 0 0.22  0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+
+  /* Watercolor blob for hero/accents */
+  --sx-watercolor:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 400'><defs><radialGradient id='g' cx='30%25' cy='30%25' r='70%25'><stop offset='0%25' stop-color='%2329abe2' stop-opacity='0.35'/><stop offset='60%25' stop-color='%232b4a7a' stop-opacity='0.10'/><stop offset='100%25' stop-color='%23ffffff' stop-opacity='0'/></radialGradient></defs><ellipse cx='200' cy='160' rx='260' ry='160' fill='url(%23g)'/></svg>");
+}
+
+/* ---------------------------------------------------------------------
+   2. DARK "midnight studio" mode
+   --------------------------------------------------------------------- */
+body.skylinx-dark {
+  --sx-bg:            #0c1422;
+  --sx-bg-tint:       #101b2f;
+  --sx-surface:       #15243d;
+  --sx-surface-2:     #1c2e4d;
+  --sx-text:          #ece9f7;
+  --sx-text-muted:    #97a3bd;
+  --sx-border:        #25385a;
+  --sx-border-strong: #36527f;
+  --sx-side-bg:       #08111f;
+  --sx-side-bg-2:     #0f1d33;
+  --sx-side-text:     #b9c3d7;
+  --sx-shadow:
+      0 1px 0 rgba(255,255,255,.04) inset,
+      0 16px 40px -18px rgba(0,0,0,.7);
+  --sx-shadow-sm:
+      0 1px 0 rgba(255,255,255,.03) inset,
+      0 6px 18px -10px rgba(0,0,0,.6);
+  --sx-shadow-lift:
+      0 26px 60px -22px rgba(0,0,0,.85);
+}
+
+/* ---------------------------------------------------------------------
+   3. Global typography + canvas (painted paper)
+   --------------------------------------------------------------------- */
+body,
+.oh-main, .oh-wrapper, .oh-wrapper-main,
+input, select, textarea, button,
+.oh-sidebar, .oh-navbar {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system,
+               "Segoe UI", Roboto, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: var(--sx-bg) !important;
+  background-image: var(--sx-wash-grad), var(--sx-grain) !important;
+  background-attachment: fixed, fixed;
+  background-size: auto, 220px 220px;
+  color: var(--sx-text) !important;
+}
+.oh-main, .oh-main__topbar, .oh-wrapper-main {
+  background: transparent !important;
+}
+
+/* Display headings get the serif painter font */
+h1, h2, h3, .oh-titlebar__title, .oh-title,
+.oh-main__titlebar-title, .oh-card-dashboard__title {
+  font-family: 'Fraunces', 'Plus Jakarta Sans', Georgia, serif !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em;
+  color: var(--sx-ink) !important;
+}
+body.skylinx-dark h1,
+body.skylinx-dark h2,
+body.skylinx-dark h3,
+body.skylinx-dark .oh-titlebar__title,
+body.skylinx-dark .oh-title,
+body.skylinx-dark .oh-main__titlebar-title {
+  color: var(--sx-text) !important;
+}
+
+/* Hand-drawn underline on the main page title */
+.oh-main__titlebar-title,
+.oh-titlebar__title {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 6px;
+}
+.oh-main__titlebar-title::after,
+.oh-titlebar__title::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 12%; bottom: 0;
+  height: 8px;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'><path d='M2 5 C 40 1, 80 7, 120 4 S 198 2, 198 5' stroke='%23c97b3a' stroke-width='2.5' fill='none' stroke-linecap='round'/></svg>")
+    no-repeat center / 100% 100%;
+  opacity: .85;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------
+   4. SIDEBAR — full-width navigation rail with retractable stack menu
+   No hover-glide flyouts. Submenus expand inline as an accordion stack,
+   pushing the rest of the list down. Labels are always visible.
+   --------------------------------------------------------------------- */
+
+/* Sidebar width tokens — tweak here to retune the whole rail */
+:root {
+  --sx-side-w: 268px;
+  --sx-side-w-retracted: 0px; /* fully retracted (off-canvas) */
+  --sx-side-pad-x: 14px;
+}
+
+.oh-sidebar {
+  background:
+    radial-gradient(120% 60% at 0% 0%, rgba(41,171,226,.10), transparent 60%),
+    linear-gradient(180deg, var(--sx-side-bg) 0%, var(--sx-side-bg-2) 100%) !important;
+  border-right: 1px solid rgba(255,255,255,.06) !important;
+  padding: 10px var(--sx-side-pad-x) 24px !important;
+  position: sticky !important;
+  top: 0 !important;
+  height: 100vh !important;
+  width: var(--sx-side-w) !important;
+  min-width: var(--sx-side-w) !important;
+  max-width: var(--sx-side-w) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  z-index: 40;
+  transition: width .32s cubic-bezier(.2,.7,.2,1),
+              min-width .32s cubic-bezier(.2,.7,.2,1),
+              max-width .32s cubic-bezier(.2,.7,.2,1),
+              transform .32s cubic-bezier(.2,.7,.2,1);
+}
+.oh-sidebar::before {
+  content: "";
+  position: absolute; inset: 0;
+  background-image: var(--sx-grain);
+  background-size: 220px 220px;
+  opacity: .12;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+/* ---- Retracted state ----------------------------------------------------
+   Trigger by adding one of these classes (whichever your existing toggle
+   button already sets):
+     body.oh-sidebar--collapsed
+     body.sidebar-collapsed
+     .oh-wrapper.sidebar-collapsed
+     .oh-sidebar.is-collapsed
+   The rail slides off-canvas as a clean stack panel (no icon-only mode,
+   no hover popovers). Content area reclaims the space.
+------------------------------------------------------------------------- */
+body.oh-sidebar--collapsed .oh-sidebar,
+body.sidebar-collapsed .oh-sidebar,
+.oh-wrapper.sidebar-collapsed .oh-sidebar,
+.oh-sidebar.is-collapsed {
+  width: var(--sx-side-w-retracted) !important;
+  min-width: var(--sx-side-w-retracted) !important;
+  max-width: var(--sx-side-w-retracted) !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  border-right-color: transparent !important;
+}
+body.oh-sidebar--collapsed .oh-sidebar > *,
+body.sidebar-collapsed .oh-sidebar > *,
+.oh-wrapper.sidebar-collapsed .oh-sidebar > *,
+.oh-sidebar.is-collapsed > * { opacity: 0; pointer-events: none; }
+
+/* ---- Company header ---------------------------------------------------- */
+.oh-sidebar__company {
+  background: rgba(255,255,255,.05) !important;
+  border: 1px solid rgba(255,255,255,.06) !important;
+  border-radius: var(--sx-radius) !important;
+  margin: 6px 2px 14px !important;
+  padding: 10px 12px !important;
+  backdrop-filter: blur(8px);
+  position: sticky; top: 0; z-index: 9;
+  transition: background .2s ease;
+}
+.oh-sidebar__company:hover { background: rgba(255,255,255,.08) !important; }
+.oh-sidebar__company-title,
+.oh-sidebar__company-link { color: #fff !important; font-weight: 700 !important; }
+
+/* ---- Menu (top-level) -------------------------------------------------- */
+.oh-sidebar__menu { width: 100%; }
+.oh-sidebar__menu-items {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.oh-sidebar__menu-item {
+  display: block !important;
+  width: 100% !important;
+  position: relative;
+}
+
+.oh-sidebar__menu-link {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  width: 100% !important;
+  color: var(--sx-side-text) !important;
+  text-decoration: none !important;
+  border-radius: 10px !important;
+  margin: 0 !important;
+  padding: 11px 14px !important;
+  font-weight: 600 !important;
+  letter-spacing: .01em;
+  position: relative;
+  cursor: pointer;
+  transition: background .18s ease, color .18s ease, padding-left .2s ease;
+  overflow: hidden;
+}
+.oh-sidebar__menu-link:hover {
+  background: rgba(255,255,255,.06) !important;
+  color: #fff !important;
+  padding-left: 18px !important;
+}
+
+/* Caret indicator for items that own a submenu */
+.oh-sidebar__menu-item:has(> .oh-sidebar__submenu) > .oh-sidebar__menu-link::after {
+  content: "";
+  margin-left: auto;
+  width: 8px; height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  opacity: .55;
+  transition: transform .25s cubic-bezier(.2,.7,.2,1), opacity .2s ease;
+}
+.oh-sidebar__menu-item:has(> .oh-sidebar__submenu:not([style*="display: none"])) > .oh-sidebar__menu-link::after,
+.oh-sidebar__menu-link--active::after,
+.oh-sidebar__menu-link.active::after {
+  transform: rotate(45deg);
+  opacity: 1;
+}
+
+/* Active state */
+.oh-sidebar__menu-link--active,
+.oh-sidebar__menu-link.active {
+  background: var(--sx-primary-grad) !important;
+  color: #fff !important;
+  box-shadow:
+    0 8px 22px -10px rgba(28,117,188,.55),
+    0 1px 0 rgba(255,255,255,.12) inset !important;
+  padding-left: 14px !important;
+}
+.oh-sidebar__menu-link--active::before,
+.oh-sidebar__menu-link.active::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 18%;
+  width: 3px; height: 64%;
+  border-radius: 0 4px 4px 0;
+  background: var(--sx-accent);
+  box-shadow: 0 0 12px rgba(201,123,58,.5);
+}
+
+/* Icons stay clean & readable */
+.oh-sidebar__menu-icon {
+  display: inline-flex !important;
+  align-items: center; justify-content: center;
+  width: 22px; height: 22px; flex: 0 0 22px;
+}
+.oh-sidebar__menu-icon img {
+  width: 18px; height: 18px;
+  filter: brightness(0) invert(1) !important;
+  opacity: .82;
+  transition: opacity .18s ease;
+}
+.oh-sidebar__menu-link:hover .oh-sidebar__menu-icon img,
+.oh-sidebar__menu-link--active .oh-sidebar__menu-icon img { opacity: 1; }
+
+/* ---- Submenu (stack / accordion) --------------------------------------
+   The original markup toggles inline `display:none` via Alpine + jQuery.
+   We keep that behavior but render the panel INLINE (no absolute popover,
+   no hover-glide). When visible, it sits underneath its parent and pushes
+   the rest of the nav down — a true stack.
+------------------------------------------------------------------------ */
+.oh-sidebar__submenu {
+  position: static !important;
+  left: auto !important; top: auto !important;
+  transform: none !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  background: rgba(0,0,0,.18) !important;
+  border: 1px solid rgba(255,255,255,.05) !important;
+  border-radius: 10px !important;
+  margin: 4px 0 6px !important;
+  padding: 6px 6px 6px 14px !important;
+  box-shadow: none !important;
+  overflow: hidden;
+  animation: sxStackOpen .25s cubic-bezier(.2,.7,.2,1);
+}
+@keyframes sxStackOpen {
+  from { opacity: 0; transform: translateY(-4px); max-height: 0; }
+  to   { opacity: 1; transform: translateY(0);  max-height: 1200px; }
+}
+
+.oh-sidebar__submenu-items,
+.oh-sidebar__submenu-items_re {
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 4px 0 4px 10px !important;
+  border-left: 2px dashed rgba(255,255,255,.14) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1px;
+}
+.oh-sidebar__submenu-item { display: block !important; width: 100%; }
+
+.oh-sidebar__submenu-link {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  width: 100% !important;
+  padding: 8px 12px !important;
+  color: rgba(255,255,255,.78) !important;
+  text-decoration: none !important;
+  border-radius: 8px !important;
+  font-size: .88rem !important;
+  font-weight: 500 !important;
+  transition: background .15s ease, color .15s ease, padding-left .18s ease;
+  position: relative;
+}
+.oh-sidebar__submenu-link::before {
+  content: "";
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(255,255,255,.25);
+  transition: background .15s ease, transform .15s ease;
+  flex: 0 0 5px;
+}
+.oh-sidebar__submenu-link:hover {
+  background: rgba(255,255,255,.07) !important;
+  color: #fff !important;
+  padding-left: 16px !important;
+}
+.oh-sidebar__submenu-link:hover::before { background: var(--sx-accent); transform: scale(1.4); }
+.oh-sidebar__submenu-link--active,
+.oh-sidebar__submenu-link.active {
+  background: rgba(41,171,226,.16) !important;
+  color: #fff !important;
+}
+.oh-sidebar__submenu-link--active::before,
+.oh-sidebar__submenu-link.active::before { background: var(--sx-accent); }
+
+.oh-sidebar__submenu-items_re li::before {
+  /* preserve original star bullet hook but recolored */
+  color: var(--sx-accent) !important;
+  content: "✦" !important;
+  font-size: 10px;
+  margin-right: 6px;
+}
+
+/* ---- Scrollbar --------------------------------------------------------- */
+.oh-sidebar::-webkit-scrollbar { width: 6px; }
+.oh-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.18); border-radius: 6px;
+}
+
+/* ---------------------------------------------------------------------
+   5. NAVBAR / topbar
+   --------------------------------------------------------------------- */
+.oh-navbar {
+  background: var(--sx-surface) !important;
+  border-bottom: 1px solid var(--sx-border) !important;
+  box-shadow: var(--sx-shadow-sm);
+  backdrop-filter: blur(6px);
+}
+.oh-navbar__search,
+.oh-input--search,
+.oh-navbar input[type="search"] {
+  background: var(--sx-surface-2) !important;
+  border: 1px solid var(--sx-border) !important;
+  border-radius: 999px !important;
+  color: var(--sx-text) !important;
+  transition: box-shadow .2s ease, border-color .2s ease, background .2s ease;
+}
+.oh-navbar__search:focus,
+.oh-input--search:focus,
+.oh-navbar input[type="search"]:focus {
+  outline: none;
+  border-color: var(--sx-primary-500) !important;
+  background: var(--sx-surface) !important;
+  box-shadow: 0 0 0 4px var(--sx-primary-100) !important;
+}
+
+/* ---------------------------------------------------------------------
+   6. BUTTONS — painted swatches
+   --------------------------------------------------------------------- */
+.oh-btn, .btn {
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: .01em;
+  position: relative;
+  transition:
+    transform .14s cubic-bezier(.2,.7,.2,1),
+    box-shadow .22s ease,
+    filter .2s ease;
+  overflow: hidden;
+}
+.oh-btn::after {
+  content: ""; position: absolute; inset: 0;
+  background-image: var(--sx-grain);
+  background-size: 180px 180px;
+  opacity: .06; pointer-events: none; mix-blend-mode: overlay;
+}
+.oh-btn:hover { transform: translateY(-1px); }
+.oh-btn:active { transform: translateY(0) scale(.985); }
+
+.oh-btn--secondary,
+.oh-btn--primary,
+.btn-primary,
+.oh-btn--shadow {
+  background: var(--sx-primary-grad) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow:
+    0 10px 22px -10px rgba(28,117,188,.55),
+    0 1px 0 rgba(255,255,255,.18) inset !important;
+}
+.oh-btn--secondary:hover,
+.oh-btn--primary:hover,
+.btn-primary:hover,
+.oh-btn--shadow:hover {
+  filter: brightness(1.05) saturate(1.05);
+  box-shadow:
+    0 16px 28px -12px rgba(28,117,188,.65),
+    0 1px 0 rgba(255,255,255,.2) inset !important;
+}
+
+.oh-btn--light-bkg, .oh-btn--light {
+  background: var(--sx-primary-100) !important;
+  color: var(--sx-primary) !important;
+  border-color: transparent !important;
+}
+.oh-btn--light-bkg:hover, .oh-btn--light:hover {
+  background: #d9e9f7 !important;
+}
+
+.oh-btn--danger-outline, .oh-btn--danger {
+  color: var(--sx-danger) !important;
+  border-color: rgba(201,93,107,.4) !important;
+}
+.oh-btn--danger:hover { background: rgba(201,93,107,.08) !important; }
+
+/* Accent (ochre) button utility */
+.oh-btn--accent {
+  background: var(--sx-accent-grad) !important;
+  color: #fff !important; border-color: transparent !important;
+  box-shadow: 0 10px 22px -10px rgba(201,123,58,.55) !important;
+}
+
+/* ---------------------------------------------------------------------
+   7. CARDS / PANELS — painted paper with deckled edge feel
+   --------------------------------------------------------------------- */
+.oh-card,
+.oh-card-dashboard,
+.oh-sticky-table,
+.card,
+.oh-kanban-card,
+.oh-profile-section,
+.oh-dropdown__menu,
+.oh-modal__dialog,
+.oh-accordion {
+  background-color: var(--sx-surface) !important;
+  background-image: var(--sx-grain) !important;
+  background-size: 220px 220px !important;
+  background-blend-mode: multiply;
+  border: 1px solid var(--sx-border) !important;
+  border-radius: var(--sx-radius) !important;
+  box-shadow: var(--sx-shadow) !important;
+  transition: transform .2s ease, box-shadow .25s ease, border-color .2s ease;
+}
+.oh-card:hover,
+.oh-card-dashboard:hover,
+.oh-kanban-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sx-shadow-lift) !important;
+  border-color: var(--sx-border-strong) !important;
+}
+
+.oh-card-dashboard {
+  position: relative;
+  overflow: hidden;
+}
+.oh-card-dashboard::before {
+  /* watercolor wash in upper-left corner */
+  content: "";
+  position: absolute; top: -40px; left: -40px;
+  width: 240px; height: 160px;
+  background: var(--sx-watercolor) no-repeat;
+  background-size: cover;
+  opacity: .55;
+  pointer-events: none;
+}
+.oh-card-dashboard__title,
+.oh-card__title {
+  color: var(--sx-ink) !important;
+  position: relative;
+}
+
+/* ---------------------------------------------------------------------
+   8. INPUTS
+   --------------------------------------------------------------------- */
+.oh-input, .oh-select,
+select.oh-input, textarea.oh-input,
+.select2-selection,
+input.form-control, select.form-control, textarea.form-control {
+  background: var(--sx-surface) !important;
+  border: 1.5px solid var(--sx-border) !important;
+  border-radius: var(--sx-radius-sm) !important;
+  color: var(--sx-text) !important;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.oh-input:hover,
+.oh-select:hover,
+input.form-control:hover,
+textarea.form-control:hover { border-color: var(--sx-border-strong) !important; }
+
+.oh-input:focus, .oh-select:focus,
+input.form-control:focus, textarea.form-control:focus,
+.select2-container--focus .select2-selection {
+  outline: none !important;
+  border-color: var(--sx-primary-500) !important;
+  box-shadow: 0 0 0 4px var(--sx-primary-100) !important;
+}
+.oh-label, label {
+  color: var(--sx-text-muted) !important;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
+/* ---------------------------------------------------------------------
+   9. TABLES
+   --------------------------------------------------------------------- */
+.oh-sticky-table__th,
+table thead th,
+.oh-table thead th {
+  background: var(--sx-surface-2) !important;
+  color: var(--sx-text-muted) !important;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: .08em;
+  font-weight: 700;
+  border-bottom: 1px solid var(--sx-border) !important;
+}
+.oh-sticky-table__tr,
+table tbody tr { transition: background .15s ease; }
+.oh-sticky-table__tr:hover,
+table tbody tr:hover {
+  background: linear-gradient(90deg,
+    var(--sx-primary-100) 0%, transparent 100%) !important;
+}
+.oh-sticky-table__td, table td {
+  color: var(--sx-text) !important;
+  border-color: var(--sx-border) !important;
+}
+
+/* sticky right column keeps painted paper */
+.oh-sticky-table__right,
+.lastTh, .lastTd {
+  background-color: var(--sx-surface) !important;
+}
+
+/* ---------------------------------------------------------------------
+   10. BADGES / CHIPS / TABS
+   --------------------------------------------------------------------- */
+.oh-badge, .badge, .oh-chip {
+  border-radius: 999px !important;
+  font-weight: 600 !important;
+  letter-spacing: .02em;
+  padding: 4px 10px !important;
+}
+.oh-tabs__tab,
+.nav-tabs .nav-link {
+  position: relative;
+  transition: color .18s ease;
+}
+.oh-tabs__tab--active,
+.oh-tabs__link--active,
+.nav-tabs .active {
+  color: var(--sx-primary) !important;
+  border-color: transparent !important;
+}
+.oh-tabs__tab--active::after,
+.oh-tabs__link--active::after,
+.nav-tabs .active::after {
+  content: "";
+  position: absolute;
+  left: 8%; right: 8%; bottom: -2px;
+  height: 6px;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 6' preserveAspectRatio='none'><path d='M2 3 C 25 0, 55 6, 98 2' stroke='%232b4a7a' stroke-width='2' fill='none' stroke-linecap='round'/></svg>")
+    no-repeat center / 100% 100%;
+}
+
+/* ---------------------------------------------------------------------
+   11. MODALS / DROPDOWNS
+   --------------------------------------------------------------------- */
+.oh-modal__dialog {
+  box-shadow: var(--sx-shadow-lift) !important;
+  animation: sx-modal-in .25s cubic-bezier(.2,.7,.2,1);
+}
+@keyframes sx-modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+.oh-dropdown__menu {
+  animation: sx-fade-in .18s ease;
+}
+@keyframes sx-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------------------------------------------------------------------
+   12. DARK-MODE legacy surface fixes
+   --------------------------------------------------------------------- */
+body.skylinx-dark .oh-navbar,
+body.skylinx-dark .oh-modal__dialog,
+body.skylinx-dark .oh-dropdown__menu,
+body.skylinx-dark .oh-card,
+body.skylinx-dark .oh-card-dashboard,
+body.skylinx-dark .oh-sticky-table,
+body.skylinx-dark .oh-profile-section {
+  background-color: var(--sx-surface) !important;
+  background-image: var(--sx-grain) !important;
+  background-blend-mode: overlay;
+  color: var(--sx-text) !important;
+}
+body.skylinx-dark .oh-main,
+body.skylinx-dark .oh-wrapper-main { background: transparent !important; }
+body.skylinx-dark .oh-sticky-table__th,
+body.skylinx-dark table thead th { background: var(--sx-surface-2) !important; }
+body.skylinx-dark p,
+body.skylinx-dark span,
+body.skylinx-dark td,
+body.skylinx-dark div { color: inherit; }
+body.skylinx-dark .oh-sticky-table__right,
+body.skylinx-dark .lastTh,
+body.skylinx-dark .lastTd { background-color: var(--sx-surface) !important; }
+
+/* ---------------------------------------------------------------------
+   13. THEME TOGGLE button (existing)
+   --------------------------------------------------------------------- */
+.sx-theme-toggle {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--sx-border);
+  background: var(--sx-surface);
+  color: var(--sx-text);
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  transition: background .2s ease, transform .15s ease, box-shadow .2s ease;
+  box-shadow: var(--sx-shadow-sm);
+}
+.sx-theme-toggle:hover {
+  background: var(--sx-primary-100);
+  transform: translateY(-1px) rotate(-6deg);
+}
+
+/* ---------------------------------------------------------------------
+   14. Scrollbars
+   --------------------------------------------------------------------- */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--sx-primary-300), var(--sx-primary-500));
+  border-radius: 10px;
+  border: 2px solid var(--sx-bg);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--sx-primary-500), var(--sx-primary));
+}
+body.skylinx-dark *::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #2a4870, #16223b);
+  border-color: var(--sx-bg);
+}
+
+/* ---------------------------------------------------------------------
+   15. Subtle entrance animation for cards/rows
+   --------------------------------------------------------------------- */
+@keyframes sx-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.oh-card,
+.oh-card-dashboard,
+.oh-sticky-table { animation: sx-rise .35s cubic-bezier(.2,.7,.2,1) both; }
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}
