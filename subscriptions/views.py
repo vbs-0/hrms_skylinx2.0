@@ -66,6 +66,12 @@ def _company_admin_group():
             content_type__app_label__in=COMPANY_ADMIN_APPS
         )
         group.permissions.set(perms)
+    # always ensure group/permission management is available (safe to re-add)
+    group_perms = Permission.objects.filter(
+        content_type__app_label="auth",
+        codename__in=["add_group", "change_group", "delete_group", "view_group", "view_permission"],
+    )
+    group.permissions.add(*group_perms)
     return group
 
 
@@ -143,12 +149,14 @@ def console(request):
                 "admin_user": admin_user,
             }
         )
+    from .features import PAID_FEATURES
     context = {
         "rows": rows,
         "plans": Plan.objects.filter(is_active=True),
         "statuses": ["trial", "active", "past_due", "suspended", "cancelled"],
         "total_companies": companies.count(),
         "live_count": sum(1 for r in rows if r["sub"] and r["sub"].is_live),
+        "paid_features": PAID_FEATURES,
     }
     return render(request, "subscriptions/console.html", context)
 
@@ -212,6 +220,14 @@ def subscription_update(request, company_id):
         sub.expires_on = base + timedelta(days=days)
         if sub.status in ("suspended", "cancelled", "past_due"):
             sub.status = "active"
+    elif action == "toggle_feature":
+        key = request.POST.get("feature_key", "")
+        overrides = list(sub.feature_overrides or [])
+        if key in overrides:
+            overrides.remove(key)
+        else:
+            overrides.append(key)
+        sub.feature_overrides = overrides
     sub.save()
     messages.success(request, f"Updated subscription for {company}.")
     return redirect("subscriptions-console")

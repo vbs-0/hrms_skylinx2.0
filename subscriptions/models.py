@@ -76,6 +76,8 @@ class Subscription(models.Model):
     trial_ends_on = models.DateField(null=True, blank=True)
     expires_on = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True)
+    # per-company feature overrides: keys here are enabled regardless of plan
+    feature_overrides = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -116,4 +118,6 @@ class Subscription(models.Model):
         return max(0, self.seat_limit - self.seats_used())
 
     def has_feature(self, key):
+        if key in (self.feature_overrides or []):
+            return True
         return key in self.feature_keys()
