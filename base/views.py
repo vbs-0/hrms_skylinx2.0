@@ -3982,7 +3982,7 @@ def employee_permission_search(request, codename=None, uid=None):
 
 @login_required
 @require_http_methods(["POST"])
-@permission_required("auth.add_permission")
+@permission_required("auth.view_permission")
 def update_permission(
     request,
 ):
@@ -4037,7 +4037,7 @@ def update_permission(
 
 @login_required
 @hx_request_required
-@permission_required("auth.add_permission")
+@permission_required("auth.view_permission")
 def permission_table(request):
     """
     This method is used to render the permission table
