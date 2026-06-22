@@ -38,7 +38,9 @@ User = get_user_model()
 
 superuser_required = user_passes_test(lambda u: u.is_superuser)
 
-# apps a freshly onboarded company admin can manage
+# apps a freshly onboarded company admin can manage. Must cover every module
+# that shows in the sidebar, otherwise that module's permission-gated nav entry
+# is hidden for company admins (e.g. Projects needs a project.* perm).
 COMPANY_ADMIN_APPS = [
     "employee",
     "attendance",
@@ -48,6 +50,9 @@ COMPANY_ADMIN_APPS = [
     "pms",
     "asset",
     "base",
+    "project",
+    "helpdesk",
+    "biometric",
 ]
 
 
@@ -61,11 +66,12 @@ def _plan_or_none(plan_id):
 def _company_admin_group():
     """A reusable group granting broad (non-superuser) management permissions."""
     group, created = Group.objects.get_or_create(name="Company Admin")
-    if created:
-        perms = Permission.objects.filter(
-            content_type__app_label__in=COMPANY_ADMIN_APPS
-        )
-        group.permissions.set(perms)
+    # Additively ensure all managed-app perms are present (self-heals existing
+    # groups when COMPANY_ADMIN_APPS grows, e.g. adding Projects).
+    app_perms = Permission.objects.filter(
+        content_type__app_label__in=COMPANY_ADMIN_APPS
+    )
+    group.permissions.add(*app_perms)
     # always ensure group/permission management is available (safe to re-add)
     group_perms = Permission.objects.filter(
         content_type__app_label="auth",
@@ -179,26 +185,44 @@ def _activate_plan(sub, plan):
 @login_required
 @superuser_required
 def console(request):
-    companies = Company.objects.all().order_by("company")
+    search = request.GET.get("search", "").strip()
+    status_filter = request.GET.get("status", "").strip()
+
+    companies = Company.objects.all()
+    if search:
+        companies = companies.filter(company__icontains=search)
+    if status_filter:
+        companies = companies.filter(subscription__status=status_filter)
+
+    companies = companies.order_by("company")
     rows = []
     for c in companies:
         sub = getattr(c, "subscription", None)
-        # a non-superuser user in this company we can impersonate for support
-        admin_user = (
-            User.objects.filter(
+        admins = User.objects.filter(
+            is_superuser=False,
+            employee_get__employee_work_info__company_id=c,
+            groups__name="Company Admin"
+        ).order_by("id")
+        
+        if not admins.exists():
+            admins = User.objects.filter(
                 is_superuser=False,
                 employee_get__employee_work_info__company_id=c,
-            )
-            .order_by("id")
-            .first()
-        )
+            ).order_by("id")
+
+        employee_count = EmployeeWorkInformation.objects.filter(company_id=c).count()
+        last_login_admin = admins.order_by("-last_login").first() if admins.exists() else None
+
         rows.append(
             {
                 "company": c,
                 "sub": sub,
                 "seats_used": sub.seats_used() if sub else 0,
                 "seat_limit": sub.seat_limit if sub else None,
-                "admin_user": admin_user,
+                "admins": admins,
+                "admin_user": admins.first() if admins.exists() else None,
+                "employee_count": employee_count,
+                "last_login": last_login_admin.last_login if last_login_admin else None,
             }
         )
     from .features import PAID_FEATURES
@@ -206,9 +230,11 @@ def console(request):
         "rows": rows,
         "plans": Plan.objects.filter(is_active=True),
         "statuses": ["trial", "active", "past_due", "suspended", "cancelled"],
-        "total_companies": companies.count(),
-        "live_count": sum(1 for r in rows if r["sub"] and r["sub"].is_live),
+        "total_companies": Company.objects.count(),
+        "live_count": Subscription.objects.filter(status__in=["active", "trial"]).count(),
         "paid_features": PAID_FEATURES,
+        "search": search,
+        "current_status": status_filter,
     }
     return render(request, "subscriptions/console.html", context)
 
@@ -280,16 +306,70 @@ def subscription_update(request, company_id):
         else:
             overrides.append(key)
         sub.feature_overrides = overrides
+    elif action == "edit_company":
+        company_name = request.POST.get("company_name", "").strip()
+        seat_override = request.POST.get("seat_override", "").strip()
+        if company_name:
+            company.company = company_name
+            company.save()
+        if seat_override and seat_override.isdigit():
+            sub.seat_override = int(seat_override)
+        else:
+            sub.seat_override = None
+    elif action == "delete_tenant":
+        confirm_text = request.POST.get("confirm_text", "").strip()
+        if confirm_text == company.company:
+            company.delete()
+            messages.success(request, f"Deleted tenant {confirm_text}.")
+            return redirect("subscriptions-console")
+        else:
+            messages.error(request, "Confirmation text did not match. Tenant not deleted.")
+            return redirect("subscriptions-console")
+    elif action == "update_admin":
+        user_id = request.POST.get("user_id")
+        admin = User.objects.filter(id=user_id).first()
+        if admin:
+            username = request.POST.get("username", "").strip()
+            email = request.POST.get("email", "").strip()
+            if username:
+                admin.username = username
+            if email:
+                admin.email = email
+            admin.save()
+            messages.success(request, f"Updated admin {admin.username}.")
+    elif action == "resend_email":
+        user_id = request.POST.get("user_id")
+        admin = User.objects.filter(id=user_id).first()
+        if admin:
+            from django.core.mail import send_mail
+            from base.backends import ConfiguredEmailBackend
+            try:
+                backend = ConfiguredEmailBackend()
+                send_mail(
+                    subject="Welcome to Skylinx!",
+                    message=f"Your account for {company.company} has been set up.\nUsername: {admin.username}\nLogin at our portal.",
+                    from_email=None,
+                    recipient_list=[admin.email],
+                    connection=backend,
+                    fail_silently=False,
+                )
+                messages.success(request, f"Email sent to {admin.email}.")
+            except Exception as e:
+                messages.error(request, f"Failed to send email: {e}")
     elif action == "set_admin_password":
-        new_pw = (request.POST.get("password") or "").strip()
-        admin = (
-            User.objects.filter(
-                is_superuser=False,
-                employee_get__employee_work_info__company_id=company,
+        user_id = request.POST.get("user_id")
+        if user_id:
+            admin = User.objects.filter(id=user_id).first()
+        else:
+            admin = (
+                User.objects.filter(
+                    is_superuser=False,
+                    employee_get__employee_work_info__company_id=company,
+                )
+                .order_by("id")
+                .first()
             )
-            .order_by("id")
-            .first()
-        )
+        new_pw = (request.POST.get("password") or "").strip()
         if not admin:
             messages.error(request, f"No admin user found for {company}.")
             return redirect("subscriptions-console")
@@ -571,3 +651,37 @@ def razorpay_webhook(request):
         )
         _activate_from_receipt(receipt)
     return HttpResponse("ok")  # always 200 so Razorpay stops retrying
+
+
+@login_required
+@superuser_required
+def plans_list(request):
+    plans = Plan.objects.all().order_by("price")
+    return render(request, "subscriptions/plan_list.html", {"plans": plans})
+
+
+@login_required
+@superuser_required
+def plan_edit(request, plan_id=None):
+    from django import forms
+
+    class PlanForm(forms.ModelForm):
+        class Meta:
+            model = Plan
+            fields = "__all__"
+
+    if plan_id:
+        plan = get_object_or_404(Plan, id=plan_id)
+    else:
+        plan = None
+
+    if request.method == "POST":
+        form = PlanForm(request.POST, instance=plan)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Plan saved.")
+            return redirect("subscriptions-plans")
+    else:
+        form = PlanForm(instance=plan)
+
+    return render(request, "subscriptions/plan_form.html", {"form": form, "plan": plan})
