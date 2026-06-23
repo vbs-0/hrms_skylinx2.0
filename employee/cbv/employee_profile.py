@@ -38,6 +38,17 @@ class EmployeeProfileView(SkylinxProfileView):
     push_url = "employee-view-individual"
     key_name = "obj_id"
 
+    # ponytail: only profile-intrinsic tabs; module tabs (Leave, Payroll,
+    # Attendance, Projects, Key Results, Scheduled Interviews, Penalty Account,
+    # Bonus Points, etc.) live in their own menus, so they're dropped here.
+    KEEP_TABS = {
+        "About",
+        "Work Type & Shift",
+        "Groups & Permissions",
+        "Note",
+        "Documents",
+    }
+
     def get_queryset(self):
         return Employee.objects.entire()
 
@@ -45,6 +56,12 @@ class EmployeeProfileView(SkylinxProfileView):
 
         if not request.user.is_authenticated:
             return redirect("login")
+
+        # ponytail: hard-filter tabs at the source so every render path (page +
+        # any tab-list partial) only ever sees the profile-intrinsic tabs. Drops
+        # Penalty Account, Key Results, Scheduled Interviews, Bonus Points, Leave,
+        # Payroll, Attendance, Projects, etc. — they live in their own menus.
+        self.tabs = [t for t in type(self).tabs if str(t.get("title")) in self.KEEP_TABS]
 
         obj_id = kwargs.get("pk")
         if not Employee.objects.entire().filter(id=obj_id).exists():
@@ -110,16 +127,6 @@ class EmployeeProfileView(SkylinxProfileView):
 
 
 class UserProfileView(EmployeeProfileView):
-
-    # ponytail: keep only profile-intrinsic tabs; module tabs (Leave, Payroll,
-    # Attendance, Projects, etc.) live in their own menus, so drop them here.
-    KEEP_TABS = {
-        "About",
-        "Work Type & Shift",
-        "Groups & Permissions",
-        "Note",
-        "Documents",
-    }
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
