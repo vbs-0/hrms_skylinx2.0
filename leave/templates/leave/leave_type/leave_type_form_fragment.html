@@ -250,6 +250,19 @@
             </div>
           </div>
 
+          <div class="col-sm-12 col-md-6">
+            <div class="oh-input-group oh-label__info justify-content-between">
+              <div class="d-flex align-items-center">
+                <label class="oh-label">{{ form.exclude_during_probation.label }}</label>
+                <span class="oh-info me-3" title="{% trans 'Block employees in their probation period from applying for this leave type' %}"></span>
+              </div>
+              <div class="oh-switch p-3">
+                {{ form.exclude_during_probation }}
+                {{ form.exclude_during_probation.errors }}
+              </div>
+            </div>
+          </div>
+
           {# ── Hidden fields ─────────────────────────────── #}
           {{ form.period_in }}
           {{ form.total_days }}

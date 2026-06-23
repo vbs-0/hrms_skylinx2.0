@@ -98,6 +98,56 @@ def block_unblock_disciplinary():
                 SkylinxUser.objects.filter(id__in=user_ids).update(is_active=active)
 
 
+def notify_probation_end():
+    """
+    Daily task: email HR (and the reporting manager) when an employee's probation
+    period ends today, so they can confirm the employee.
+    """
+    from django.conf import settings
+    from django.core.mail import send_mail
+
+    from employee.models import EmployeeWorkInformation
+
+    today = date.today()
+    ending = EmployeeWorkInformation.objects.filter(
+        probation_end=today, employee_id__is_active=True
+    ).select_related("employee_id", "company_id", "reporting_manager_id")
+
+    for wi in ending:
+        emp = wi.employee_id
+        recipients = set()
+
+        mgr = wi.reporting_manager_id
+        if mgr and mgr.get_mail():
+            recipients.add(mgr.get_mail())
+
+        # HR = users with employee.change_employee in the same company.
+        # ponytail: per-user perm check; fine for a daily job over the handful
+        # of employees whose probation ends on a given day.
+        for hwi in EmployeeWorkInformation.objects.filter(
+            company_id=wi.company_id
+        ).select_related("employee_id__employee_user_id"):
+            user = hwi.employee_id.employee_user_id
+            if user and user.has_perm("employee.change_employee"):
+                mail = hwi.employee_id.get_mail()
+                if mail:
+                    recipients.add(mail)
+
+        if not recipients:
+            continue
+
+        send_mail(
+            subject=f"Probation period ended: {emp.get_full_name()}",
+            message=(
+                f"The probation period for {emp.get_full_name()} ended on {today}. "
+                "Please review and confirm their employment status."
+            ),
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            recipient_list=list(recipients),
+            fail_silently=True,
+        )
+
+
 if not any(
     cmd in sys.argv
     for cmd in ["makemigrations", "migrate", "compilemessages", "flush", "shell", "test"]
@@ -110,4 +160,5 @@ if not any(
     # ponytail: was seconds=60 (debug leftover) — disciplinary block/unblock is
     # date-range based, so hourly is ample and stops the per-minute DB load.
     scheduler.add_job(block_unblock_disciplinary, "interval", hours=1)
+    scheduler.add_job(notify_probation_end, "cron", hour=8)
     scheduler.start()

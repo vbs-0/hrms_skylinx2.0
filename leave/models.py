@@ -246,6 +246,12 @@ class LeaveType(SkylinxModel):
     total_days = models.FloatField(null=True, default=1)
     reset = models.BooleanField(default=False, verbose_name=_("Reset"))
     is_encashable = models.BooleanField(default=False, verbose_name=_("Is Encashable"))
+    # When True, employees still within their probation period cannot apply for
+    # this leave type. Editable per leave type (enable on "Casual" to block it
+    # during probation).
+    exclude_during_probation = models.BooleanField(
+        default=False, verbose_name=_("Block During Probation")
+    )
     reset_based = models.CharField(
         max_length=30,
         choices=RESET_BASED,
@@ -1640,6 +1646,20 @@ class LeaveRequest(SkylinxModel):
                     )
                 }
             )
+
+        # Probation block: leave types flagged exclude_during_probation can't be
+        # applied while the employee is still within their probation period.
+        if getattr(leave_type, "exclude_during_probation", False):
+            work_info = getattr(self.employee_id, "employee_work_info", None)
+            probation_end = getattr(work_info, "probation_end", None)
+            if probation_end and self.start_date and self.start_date <= probation_end:
+                raise ValidationError(
+                    _(
+                        "%(leave)s cannot be applied during the probation period "
+                        "(ends %(date)s)."
+                    )
+                    % {"leave": leave_type.name, "date": probation_end}
+                )
 
         # Date validations
         if self.start_date > self.end_date:
