@@ -19,6 +19,7 @@ import pandas as pd
 from dateutil import parser
 from django import forms
 from django.apps import apps
+from django.apps import apps as django_apps
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
