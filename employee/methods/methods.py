@@ -50,8 +50,7 @@ error_data_template = {
         "Location",
         "Date Joining",
         "Contract End Date",
-        "Basic Salary",
-        "Salary Hour",
+        "CTC",
         "Email Error",
         "First Name Error",
         "Name and Email Error",
@@ -60,8 +59,7 @@ error_data_template = {
         "Joining Date Error",
         "Contract Date Error",
         "Employee ID Error",
-        "Basic Salary Error",
-        "Salary Hour Error",
+        "CTC Error",
         "User ID Error",
         "Company Error",
     ]
@@ -242,8 +240,7 @@ def valid_import_file_headers(data_frame):
         "Location",
         "Date Joining",
         "Contract End Date",
-        "Basic Salary",
-        "Salary Hour",
+        "CTC",
     ]
 
     missing_keys = [key for key in required_keys if key not in data_frame.columns]
@@ -298,8 +295,7 @@ def process_employee_records(data_frame):
         address = emp.get("Address")
         gender = str(gender).strip().lower() if gender else None
         company = emp.get("Company")
-        basic_salary = emp.get("Basic Salary")
-        salary_hour = emp.get("Salary Hour")
+        ctc = emp.get("CTC")
 
         # Date validation
         joining_date = import_valid_date(
@@ -381,25 +377,14 @@ def process_employee_records(data_frame):
             errors["Company Error"] = f"Company '{company}' does not exist."
             save = False
 
-        # Salary validation
-        if basic_salary not in [None, ""]:
+        # CTC validation
+        if ctc not in [None, ""]:
             try:
-                basic_salary_val = float(basic_salary)
-                if basic_salary_val <= 0:
+                ctc_val = float(ctc)
+                if ctc_val <= 0:
                     raise ValueError
             except (ValueError, TypeError):
-                errors["Basic Salary Error"] = "Basic salary must be a positive number."
-                save = False
-
-        if salary_hour not in [None, ""]:
-            try:
-                salary_hour_val = float(salary_hour)
-                if salary_hour_val < 0:
-                    raise ValueError
-            except (ValueError, TypeError):
-                errors["Salary Hour Error"] = (
-                    "Salary hour must be a non-negative number."
-                )
+                errors["CTC Error"] = "CTC must be a positive number."
                 save = False
 
         # Final processing
@@ -884,12 +869,11 @@ def bulk_create_work_info_import(success_lists):
             if not pd.isnull(work_info["Contract End Date"])
             else None
         )
-        basic_salary = (
-            work_info.get("Basic Salary") if work_info.get("Basic Salary") else 0
+        ctc_val = (
+            work_info.get("CTC") if work_info.get("CTC") else 0
         )
-        salary_hour = (
-            work_info.get("Salary Hour") if work_info.get("Salary Hour") else 0
-        )
+        # ponytail: default salary components: 50% basic, 20% HRA, 30% other
+        default_components = {"basic": 50, "hra": 20, "other": 30}
 
         if employee_work_info is None:
             # Create a new instance
@@ -911,8 +895,8 @@ def bulk_create_work_info_import(success_lists):
                 contract_end_date=(
                     contract_end_date if not pd.isnull(contract_end_date) else None
                 ),
-                basic_salary=basic_salary,
-                salary_hour=salary_hour,
+                ctc=ctc_val,
+                salary_components=default_components,
             )
             new_work_info_list.append(employee_work_info)
         else:
@@ -933,8 +917,8 @@ def bulk_create_work_info_import(success_lists):
             employee_work_info.contract_end_date = (
                 contract_end_date if not pd.isnull(contract_end_date) else None
             )
-            employee_work_info.basic_salary = basic_salary
-            employee_work_info.salary_hour = salary_hour
+            employee_work_info.ctc = ctc_val
+            employee_work_info.salary_components = default_components
             update_work_info_list.append(employee_work_info)
     if new_work_info_list:
         EmployeeWorkInformation.objects.bulk_create(
@@ -956,8 +940,8 @@ def bulk_create_work_info_import(success_lists):
                 "location",
                 "date_joining",
                 "contract_end_date",
-                "basic_salary",
-                "salary_hour",
+                "ctc",
+                "salary_components",
             ],
             batch_size=None if is_postgres else 999,
         )

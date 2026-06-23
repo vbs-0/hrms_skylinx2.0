@@ -928,14 +928,16 @@ class EmployeeWorkInformation(models.Model):
     contract_end_date = models.DateField(
         blank=True, null=True, verbose_name=_("Contract End Date")
     )
-    probation_end = models.DateField(
-        blank=True, null=True, verbose_name=_("Probation End Date")
+    probation_days = models.IntegerField(
+        blank=True, null=True, verbose_name=_("Probation Period (Days)")
     )
-    basic_salary = models.IntegerField(
-        null=True, blank=True, default=0, verbose_name=_("Basic Salary")
+    ctc = models.IntegerField(
+        null=True, blank=True, default=0, verbose_name=_("CTC")
     )
-    salary_hour = models.IntegerField(
-        null=True, blank=True, default=0, verbose_name=_("Salary Per Hour")
+    salary_components = models.JSONField(
+        null=True, blank=True, default=dict,
+        verbose_name=_("Salary Components"),
+        help_text=_("Breakdown of CTC: e.g. {\"basic\": 50, \"hra\": 20, \"other\": 30}")
     )
     additional_info = models.JSONField(null=True, blank=True)
     experience = models.FloatField(null=True, blank=True, default=0)
@@ -949,6 +951,21 @@ class EmployeeWorkInformation(models.Model):
 
     def __str__(self) -> str:
         return f"{self.employee_id} - {self.job_position_id}"
+
+    @property
+    def probation_end(self):
+        """Calculate probation end date from joining date + probation days."""
+        if self.date_joining and self.probation_days:
+            return self.date_joining + timedelta(days=self.probation_days)
+        return None
+
+    @property
+    def basic_salary(self):
+        """Calculate basic salary from CTC and component percentages."""
+        if not self.ctc or not self.salary_components:
+            return 0
+        basic_pct = self.salary_components.get("basic", 0)
+        return int(self.ctc * basic_pct / 100) if basic_pct > 0 else 0
 
     def save(self, *args, **kwargs):
         # Multi-tenant: default an employee's company to the company the creating
@@ -985,8 +1002,8 @@ class EmployeeWorkInformation(models.Model):
             "shift_id",
             "date_joining",
             "contract_end_date",
-            "basic_salary",
-            "salary_hour",
+            "ctc",
+            "probation_days",
         ]
 
         completed_field_count = sum(

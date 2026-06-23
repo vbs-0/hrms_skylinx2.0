@@ -380,12 +380,11 @@ class EmployeeWorkInformationForm(ModelForm):
 
         model = EmployeeWorkInformation
         fields = "__all__"
-        exclude = ("employee_id", "additional_info", "experience", "tags")
+        exclude = ("employee_id", "additional_info", "experience", "tags", "salary_hour")
 
         widgets = {
             "date_joining": DateInput(attrs={"type": "date"}),
             "contract_end_date": DateInput(attrs={"type": "date"}),
-            "probation_end": DateInput(attrs={"type": "date"}),
         }
         labels = {
             "job_position_id": _("Designation"),
@@ -396,7 +395,9 @@ class EmployeeWorkInformationForm(ModelForm):
             "reporting_manager_id": _("Reporting Manager"),
             "department_id": _("Department"),
             "company_id": _("Company"),
-            "basic_salary": _("CTC"),
+            "ctc": _("CTC"),
+            "probation_days": _("Probation Period (Days)"),
+            "salary_components": _("Salary Components (%)"),
         }
 
     def __init__(self, *args, disable=False, **kwargs):

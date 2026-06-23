@@ -88,22 +88,23 @@
         <div class="row">
             <div class="col-12 col-sm-12 col-md-12 col-lg-6">
             <div class="oh-input-group">
-                <label class="oh-label">{% trans "Probation End Date" %}</label>
-                {{work_form.probation_end}}
+                <label class="oh-label">{% trans "Probation Period (Days)" %}</label>
+                {{work_form.probation_days}}
             </div>
             </div>
         </div>
         <div class="row">
             <div class="col-12 col-sm-12 col-md-12 col-lg-6">
             <div class="oh-input-group">
-                <label class="oh-label">{% trans "Basic Salary" %}</label>
-                {{work_form.basic_salary}}
+                <label class="oh-label">{% trans "CTC" %}</label>
+                {{work_form.ctc}}
             </div>
             </div>
             <div class="col-12 col-sm-12 col-md-12 col-lg-6">
             <div class="oh-input-group">
-                <label class="oh-label" for="workEmail">{% trans "Salary Per Hour" %}</label>
-                {{work_form.salary_hour}}
+                <label class="oh-label">{% trans "Salary Components (%)" %}</label>
+                {{work_form.salary_components}}
+                <small class="form-text text-muted">e.g. {"basic": 50, "hra": 20, "other": 30}</small>
             </div>
             </div>
         </div>
