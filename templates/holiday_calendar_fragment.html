@@ -235,11 +235,11 @@
                             {% for evt in day.events %}
                                 {% if evt.type == 'holiday' %}
                                     <div class="md-cal-evt {% if evt.is_optional %}md-cal-evt--holiday-optional{% else %}md-cal-evt--holiday{% endif %}" title="{{ evt.name }}{% if evt.is_optional %} ({% trans 'Optional' %}){% endif %}">
-                                        🎉 {{ evt.name }}
+                                        {{ evt.name }}
                                     </div>
                                 {% elif evt.type == 'leave' %}
                                     <div class="md-cal-evt md-cal-evt--leave" title="{{ evt.employee }} ({{ evt.leave_type }})">
-                                        👤 {{ evt.employee }}
+                                        {{ evt.employee }}
                                     </div>
                                 {% endif %}
                             {% endfor %}
@@ -256,7 +256,7 @@
             <!-- Holidays Category -->
             <div class="md-list-card md-list-card--holidays">
                 <h4 class="md-list-title md-list-title--holidays">
-                    🎉 {% trans "Public Holidays" %}
+                    {% trans "Public Holidays" %}
                 </h4>
                 <ul class="md-list-items">
                     {% for h in holidays_list %}
@@ -273,7 +273,7 @@
             <!-- Approved Leaves Category -->
             <div class="md-list-card md-list-card--leaves">
                 <h4 class="md-list-title md-list-title--leaves">
-                    👤 {% trans "Leave" %}
+                    {% trans "Leave" %}
                 </h4>
                 <ul class="md-list-items">
                     {% for l in leaves_list %}
