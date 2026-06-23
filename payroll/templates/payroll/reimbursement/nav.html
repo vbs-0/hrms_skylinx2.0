@@ -1,7 +1,7 @@
 {% load i18n %}
 <section class="oh-wrapper oh-main__topbar">
   <div class="oh-main__titlebar oh-main__titlebar--left oh-d-flex-column--resp oh-mb-3--small">
-    <h1 class="oh-main__titlebar-title fw-bold">{% trans 'Reimbursements' %}</h1>
+    <h1 class="oh-main__titlebar-title fw-bold">{% trans 'Expenses' %}</h1>
   </div>
 
   <form hx-get="{% url 'search-reimbursement' %}" hx-target="#reimbursementContainer" onsubmit="event.stopPropagation(); event.preventDefault();">

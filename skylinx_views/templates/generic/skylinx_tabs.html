@@ -12,6 +12,7 @@
     <div class="HTV"></div>
     <ul class="oh-tabs__tablist">
       {% for tab in tabs %}
+      {% if not tab.hide_if_zero or tab.badge|default:"0"|stringformat:"s" != "0" %}
       <li
         class="oh-tabs__tab d-flex {% if forloop.counter == 1 and not active_target %} oh-tabs__tab--active {% endif %}"
         data-target="#{{view_id}}{{forloop.counter}}"
@@ -80,16 +81,19 @@
           {% endif %}
         </div>
       </li>
+      {% endif %}
       {% endfor %}
     </ul>
     <div class="oh-tabs__contents">
       {% for tab in tabs %}
+      {% if not tab.hide_if_zero or tab.badge|default:"0"|stringformat:"s" != "0" %}
       <div
         class="oh-tabs__content {% if forloop.counter == 1 and not active_target %} oh-tabs__content--active {% endif %}"
         id="{{view_id}}{{forloop.counter}}"
       >
     <div class="animated-background"></div>
     </div>
+    {% endif %}
       {% endfor %}
     </div>
   </div>

@@ -203,7 +203,7 @@
 
 				<p class="text-xs text-[#565E6C] mt-1">
 					{% trans "By" %}
-					<span class="text-primary-600"> <b>{{ comment.employee_id.get_full_name }}</b></span> {% trans "on" %} <b>{{comment.request_id.employee_id.get_full_name }}</b>{% trans "'s reimbursement request" %}
+					<span class="text-primary-600"> <b>{{ comment.employee_id.get_full_name }}</b></span> {% trans "on" %} <b>{{comment.request_id.employee_id.get_full_name }}</b>{% trans "'s expense request" %}
 					<br />
 					{% trans "on" %} <span class="dateformat_changer"> {{ comment.created_at.date }} </span> {% trans "at" %} <span class="timeformat_changer"> {{ comment.created_at|time:"h:i A" }} </sapn>
 				</p>
@@ -225,7 +225,7 @@
 							class="mb-4"
 						/>
 						<p class="text-[#666] mb-5">
-							{% trans "No Comments have been added for this reimbursement request" %}
+							{% trans "No Comments have been added for this expense request" %}
 						</p>
 					</div>
 				</div>

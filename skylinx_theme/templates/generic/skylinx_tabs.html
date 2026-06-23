@@ -38,6 +38,7 @@
 		<div class="flex flex-wrap gap-2 justify-between mb-3">
 			<div class="flex gap-1 flex-wrap">
 				{% for tab in tabs %}
+				{% if not tab.hide_if_zero or tab.badge|default:"0"|stringformat:"s" != "0" %}
 				<div class="relative inline-block dropdown-wrapper-tab">
 					<button
 						class="oh-tabs__tab flex {% if forloop.counter == 1 and not active_target %} oh-tabs__tab--active {% endif %}"
@@ -111,16 +112,19 @@
 					</div>
 					{% endif %}
 				</div>
+				{% endif %}
 				{% endfor %}
 			</div>
 		</div>
 
 		<div class="oh-tabs__contents">
 			{% for tab in tabs %}
+			{% if not tab.hide_if_zero or tab.badge|default:"0"|stringformat:"s" != "0" %}
 			<div
 				class="oh-tabs__content {% if forloop.counter == 1 and not active_target %} oh-tabs__content--active {% endif %}"
 				id="{{view_id}}{{forloop.counter}}"
 			></div>
+			{% endif %}
 			{% endfor %}
 		</div>
 	</div>

@@ -209,9 +209,9 @@
                     <div class="pd-chart-card__body"><div id="chart-dept-cost"></div></div>
                 </div>
 
-                <!-- Reimbursement Summary -->
-                <div class="pd-chart-card" data-chart-id="reimbursement" data-chart-label="{% trans 'Reimbursements' %}">
-                    <div class="pd-chart-card__header"><div><div class="pd-chart-card__title">{% trans "Reimbursements" %}</div><div class="pd-chart-card__subtitle">{% trans "Requests by type and status" %}</div></div></div>
+                <!-- Expenses Summary -->
+                <div class="pd-chart-card" data-chart-id="reimbursement" data-chart-label="{% trans 'Expenses' %}">
+                    <div class="pd-chart-card__header"><div><div class="pd-chart-card__title">{% trans "Expenses" %}</div><div class="pd-chart-card__subtitle">{% trans "Requests by type and status" %}</div></div></div>
                     <div class="pd-chart-card__body"><div id="chart-reimbursement"></div></div>
                 </div>
 
@@ -240,7 +240,7 @@
             </div>
             <div class="pd-info-panel">
                 <div class="pd-info-panel__header">
-                    <div class="pd-info-panel__title">{% trans "Contracts Ending" %}</div>
+                    <div class="pd-info-panel__title">{% trans "Registers Ending" %}</div>
                     <span style="font-size:11px;opacity:0.5;">{% trans "Next 60 days" %}</span>
                 </div>
                 <div class="pd-info-panel__body" id="pd-contracts">
@@ -428,7 +428,7 @@
 
                 <a href="{% url 'view-reimbursement' %}" class="pd-kpi-card">
                     <div class="pd-kpi-card__icon pd-kpi-card__icon--purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
-                    <div class="pd-kpi-card__label">{% trans "Reimbursements" %}</div>
+                    <div class="pd-kpi-card__label">{% trans "Expenses" %}</div>
                     <div class="pd-kpi-card__value">${data.pending_reimbursements}</div>
                     <div class="pd-kpi-card__sub">{% trans "Pending requests" %}</div>
                 </a>`;
@@ -509,7 +509,7 @@
         .then(data => {
             const s = data.summary;
             const el = document.querySelector("#chart-reimbursement");
-            if (s.requested === 0 && s.approved === 0 && s.rejected === 0) { el.innerHTML = emptyHtml('{% trans "No reimbursements" %}'); return; }
+            if (s.requested === 0 && s.approved === 0 && s.rejected === 0) { el.innerHTML = emptyHtml('{% trans "No expenses" %}'); return; }
 
             if (data.by_type.length) {
                 new ApexCharts(el, {

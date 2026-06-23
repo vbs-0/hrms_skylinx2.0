@@ -1668,7 +1668,7 @@
                     </a>
                     <a href="{% url 'view-reimbursement' %}" class="md-pending-card md-pending-card--purple">
                         <div class="md-pending-card__count">${p.reimbursements}</div>
-                        <div class="md-pending-card__label">{% trans "Reimbursements" %}</div>
+                        <div class="md-pending-card__label">{% trans "Expenses" %}</div>
                     </a>
                 </div>`;
         }).catch(() => { document.getElementById('md-pending-approvals').innerHTML = '<div class="md-info-panel__empty">{% trans "Unable to load" %}</div>'; });

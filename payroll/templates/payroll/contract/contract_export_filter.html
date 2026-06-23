@@ -1,7 +1,7 @@
 {% load static %} {% load i18n %}
 <div class="oh-modal__dialog-header">
     <h2 class="oh-modal__dialog-title" id="hxContractExportLavel">
-        {% trans "Export Contracts" %}
+        {% trans "Export Registers" %}
     </h2>
     <button class="oh-modal__close" aria-label="Close">
         <ion-icon name="close-outline"></ion-icon>
@@ -136,13 +136,13 @@
                     <div class="row">
                         <div class="col-sm-6">
                             <div class="oh-input-group">
-                                <label class="oh-label" for="{{export_filter.form.contract_start_date_from.id_for_label}}">{% trans "Contract Start Date From" %}</label>
+                                <label class="oh-label" for="{{export_filter.form.contract_start_date_from.id_for_label}}">{% trans "Register Start Date From" %}</label>
                                 {{ export_filter.form.contract_start_date_from }}
                             </div>
                         </div>
                         <div class="col-sm-6">
                             <div class="oh-input-group">
-                                <label class="oh-label" for="{{export_filter.form.contract_start_date_till.id_for_label}}">{% trans "Contract Start Date Till" %}</label>
+                                <label class="oh-label" for="{{export_filter.form.contract_start_date_till.id_for_label}}">{% trans "Register Start Date Till" %}</label>
                                 {{ export_filter.form.contract_start_date_till }}
                             </div>
                         </div>
@@ -150,13 +150,13 @@
                     <div class="row">
                         <div class="col-sm-6">
                             <div class="oh-input-group">
-                                <label class="oh-label" for="{{export_filter.form.contract_end_date_from.id_for_label}}">{% trans "Contract End Date From" %}</label>
+                                <label class="oh-label" for="{{export_filter.form.contract_end_date_from.id_for_label}}">{% trans "Register End Date From" %}</label>
                                 {{ export_filter.form.contract_end_date_from }}
                             </div>
                         </div>
                         <div class="col-sm-6">
                             <div class="oh-input-group">
-                                <label class="oh-label" for="{{export_filter.form.contract_end_date_till.id_for_label}}">{% trans "Contract End Date Till" %}</label>
+                                <label class="oh-label" for="{{export_filter.form.contract_end_date_till.id_for_label}}">{% trans "Register End Date Till" %}</label>
                                 {{ export_filter.form.contract_end_date_till }}
                             </div>
                         </div>

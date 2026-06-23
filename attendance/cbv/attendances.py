@@ -163,6 +163,7 @@ class AttendancesTabView(SkylinxTabView):
             {
                 "title": _(" OT Attendances"),
                 "url": f"{reverse('ot-attendance-tab')}",
+                "hide_if_zero": True,
                 "actions": [
                     {
                         "action": _("Approve OT"),
