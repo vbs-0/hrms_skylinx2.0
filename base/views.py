@@ -8671,9 +8671,13 @@ def holiday_calendar_view(request):
     end_date = date(year, month, num_days)
 
     # Holidays in this range
+    from base.rbac import current_company
+    company = current_company(request)
     holidays = Holidays.objects.filter(
         Q(start_date__lte=end_date) & Q(end_date__gte=start_date)
     )
+    if company:
+        holidays = holidays.filter(Q(company_id=company) | Q(company_id__isnull=True))
 
     # Approved leaves in this range
     leaves_qs = LeaveRequest.objects.filter(
@@ -8721,8 +8725,12 @@ def holiday_calendar_view(request):
     
     # Determine weekends dynamically based on company leaves / work week
     from base.models import CompanyLeaves
-    company_leaves = CompanyLeaves.objects.all()
+    if company:
+        company_leaves = CompanyLeaves.objects.filter(company_id=company)
+    else:
+        company_leaves = CompanyLeaves.objects.none()
     company_leaves_exist = company_leaves.exists()
+    
     if company_leaves_exist:
         from leave.methods import company_leave_dates_list
         company_leave_dates = set(company_leave_dates_list(company_leaves, start_date))
