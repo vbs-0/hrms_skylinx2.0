@@ -86,28 +86,28 @@ sits open. Inline the minimal layout + collapse rules.
           <div class="oh-sticky-table__td" style="width: 80px;">
             <div class="d-flex justify-content-center">
               <div class="oh-switch">
-                <input type="checkbox" name="permissions" value="{{perm.app}}.add_{{ model.model_name }}" class="oh-switch__checkbox"{% if perm.app|add:"."|add:"add_"|add:model.model_name in selected_perms %} checked{% endif %} onchange="if(!$(this).is(':checked')){$(this).closest('.oh-sticky-table__tr').find('.row-permission').prop('checked',false)}" data-group-id="{{ group.id }}" data-group-name="{{ group.name }}" />
+                <input type="checkbox" name="permissions" value="{{perm.app_label}}.add_{{ model.model_name }}" class="oh-switch__checkbox"{% if perm.app|add:"."|add:"add_"|add:model.model_name in selected_perms %} checked{% endif %} onchange="if(!$(this).is(':checked')){$(this).closest('.oh-sticky-table__tr').find('.row-permission').prop('checked',false)}" data-group-id="{{ group.id }}" data-group-name="{{ group.name }}" />
               </div>
             </div>
           </div>
           <div class="oh-sticky-table__td" style="width: 80px;">
             <div class="d-flex justify-content-center">
               <div class="oh-switch">
-                <input type="checkbox" name="permissions" value="{{perm.app}}.view_{{ model.model_name }}" class="oh-switch__checkbox view-permission"{% if perm.app|add:"."|add:"view_"|add:model.model_name in selected_perms %} checked{% endif %} onchange="if(!$(this).is(':checked')){$(this).closest('.oh-sticky-table__tr').find('.row-permission').prop('checked',false)}" data-group-id="{{ group.id }}" data-group-name="{{ group.name }}" />
+                <input type="checkbox" name="permissions" value="{{perm.app_label}}.view_{{ model.model_name }}" class="oh-switch__checkbox view-permission"{% if perm.app|add:"."|add:"view_"|add:model.model_name in selected_perms %} checked{% endif %} onchange="if(!$(this).is(':checked')){$(this).closest('.oh-sticky-table__tr').find('.row-permission').prop('checked',false)}" data-group-id="{{ group.id }}" data-group-name="{{ group.name }}" />
               </div>
             </div>
           </div>
           <div class="oh-sticky-table__td" style="width: 80px;">
             <div class="d-flex justify-content-center">
               <div class="oh-switch">
-                <input type="checkbox" name="permissions" value="{{perm.app}}.change_{{ model.model_name }}" class="oh-switch__checkbox"{% if perm.app|add:"."|add:"change_"|add:model.model_name in selected_perms %} checked{% endif %} onchange="if(!$(this).is(':checked')){$(this).closest('.oh-sticky-table__tr').find('.row-permission').prop('checked',false)}" data-group-id="{{ group.id }}" data-group-name="{{ group.name }}" />
+                <input type="checkbox" name="permissions" value="{{perm.app_label}}.change_{{ model.model_name }}" class="oh-switch__checkbox"{% if perm.app|add:"."|add:"change_"|add:model.model_name in selected_perms %} checked{% endif %} onchange="if(!$(this).is(':checked')){$(this).closest('.oh-sticky-table__tr').find('.row-permission').prop('checked',false)}" data-group-id="{{ group.id }}" data-group-name="{{ group.name }}" />
               </div>
             </div>
           </div>
           <div class="oh-sticky-table__td" style="width: 80px;">
             <div class="d-flex justify-content-center">
               <div class="oh-switch">
-                <input type="checkbox" name="permissions" value="{{perm.app}}.delete_{{ model.model_name }}" class="oh-switch__checkbox"{% if perm.app|add:"."|add:"delete_"|add:model.model_name in selected_perms %} checked{% endif %} onchange="if(!$(this).is(':checked')){$(this).closest('.oh-sticky-table__tr').find('.row-permission').prop('checked',false)}" data-group-id="{{ group.id }}" data-group-name="{{ group.name }}" />
+                <input type="checkbox" name="permissions" value="{{perm.app_label}}.delete_{{ model.model_name }}" class="oh-switch__checkbox"{% if perm.app|add:"."|add:"delete_"|add:model.model_name in selected_perms %} checked{% endif %} onchange="if(!$(this).is(':checked')){$(this).closest('.oh-sticky-table__tr').find('.row-permission').prop('checked',false)}" data-group-id="{{ group.id }}" data-group-name="{{ group.name }}" />
               </div>
             </div>
           </div>
