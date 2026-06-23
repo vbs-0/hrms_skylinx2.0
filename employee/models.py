@@ -948,6 +948,18 @@ class EmployeeWorkInformation(models.Model):
         return f"{self.employee_id} - {self.job_position_id}"
 
     def save(self, *args, **kwargs):
+        # Multi-tenant: default an employee's company to the company the creating
+        # admin is acting in. Without this the work info saves company=None, which
+        # makes get_company() None -> no subscription features -> Payroll/Payslip
+        # hidden and the profile shows "Company: None".
+        if self.company_id_id is None:
+            from base.rbac import current_company
+
+            request = getattr(_thread_locals, "request", None)
+            if request is not None:
+                company = current_company(request)
+                if company is not None:
+                    self.company_id = company
         self.full_clean()
         super().save(*args, **kwargs)
 
