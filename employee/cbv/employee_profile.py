@@ -43,7 +43,7 @@ class EmployeeProfileView(SkylinxProfileView):
     # Bonus Points, etc.) live in their own menus, so they're dropped here.
     KEEP_TABS = {
         "About",
-        "Work Type & Shift",
+        # ponytail: Work Type & Shift dropped — it's already in the sub-module menu
         "Groups & Permissions",
         "Note",
         "Documents",
