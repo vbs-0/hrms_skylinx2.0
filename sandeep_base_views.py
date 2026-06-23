@@ -31,6 +31,7 @@ from django.core.management import call_command
 from django.core.validators import validate_ipv46_address
 from django.db.models import ProtectedError, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.apps import apps as django_apps
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse, reverse_lazy
@@ -1277,7 +1278,7 @@ def user_group_table(request):
                     "model_name": model._meta.model_name,
                 }
             )
-        permissions.append({"app": app_name.capitalize(), "app_models": app_models})
+        permissions.append({"app": django_apps.get_app_config(app_name).verbose_name, "app_models": app_models})
     if request.method == "POST":
         company = current_company(request)
         post = request.POST.copy()
@@ -1368,7 +1369,7 @@ def user_group(request):
                 }
             )
         permissions.append(
-            {"app": app_name.capitalize().replace("_", " "), "app_models": app_models}
+            {"app": django_apps.get_app_config(app_name).verbose_name, "app_models": app_models}
         )
     from django.db.models import Prefetch, Count
     groups = groups_for_request(request).prefetch_related(
@@ -1409,7 +1410,7 @@ def user_group_search(request):
                     "model_name": model._meta.model_name,
                 }
             )
-        permissions.append({"app": app_name.capitalize(), "app_models": app_models})
+        permissions.append({"app": django_apps.get_app_config(app_name).verbose_name, "app_models": app_models})
     search = ""
     if request.GET.get("search"):
         search = str(request.GET["search"])
@@ -1460,7 +1461,7 @@ def group_permissions_table_view(request, group_id):
                 }
             )
         permissions.append(
-            {"app": app_name.capitalize().replace("_", " "), "app_models": app_models}
+            {"app": django_apps.get_app_config(app_name).verbose_name, "app_models": app_models}
         )
 
     selected_perms = list(group.permissions.values_list("codename", flat=True))
@@ -1502,7 +1503,7 @@ def user_permission_table_view(request, emp_id):
                 }
             )
         permissions.append(
-            {"app": app_name.capitalize().replace("_", " "), "app_models": app_models}
+            {"app": django_apps.get_app_config(app_name).verbose_name, "app_models": app_models}
         )
 
     selected_perms = list(
@@ -3891,7 +3892,7 @@ def employee_permission_assign(request, pk=None):
         context["show_assign"] = True
     permissions = [
         {
-            "app": app_name.capitalize().replace("_", " "),
+            "app": django_apps.get_app_config(app_name).verbose_name,
             "app_models": [
                 {
                     "verbose_name": model._meta.verbose_name.capitalize(),
@@ -3933,7 +3934,7 @@ def employee_permission_search(request, codename=None, uid=None):
         context["show_assign"] = True
     permissions = [
         {
-            "app": app_name.capitalize().replace("_", " "),
+            "app": django_apps.get_app_config(app_name).verbose_name,
             "app_models": [
                 {
                     "verbose_name": model._meta.verbose_name.capitalize(),
@@ -4034,7 +4035,7 @@ def permission_table(request):
                     }
                 )
         permissions.append(
-            {"app": app_name.capitalize().replace("_", " "), "app_models": app_models}
+            {"app": django_apps.get_app_config(app_name).verbose_name, "app_models": app_models}
         )
     if request.method == "POST":
         form = AssignPermission(request.POST)

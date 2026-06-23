@@ -54,23 +54,8 @@ SUBMENUS = [
         "menu": _("Organization Chart"),
         "redirect": reverse_lazy("organisation-chart"),
     },
-    {
-        "menu": _("My Payslips"),
-        "redirect": reverse_lazy("view-payslip"),
-        "accessibility": "employee.sidebar.my_payslips_accessibility",
-    },
 ]
 
-
-
-def my_payslips_accessibility(request, submenu, user_perms, *args, **kwargs):
-    """Show 'My Payslips' when payroll is in the company plan AND user has the perm."""
-    from django.apps import apps as django_apps
-    if not django_apps.is_installed("payroll"):
-        return False
-    if "payroll" not in getattr(request, "company_features", []):
-        return False
-    return request.user.has_perm("payroll.view_payslip")
 
 
 def document_accessibility(request, submenu, user_perms, *args, **kwargs):
