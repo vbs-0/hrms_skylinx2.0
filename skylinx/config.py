@@ -15,6 +15,18 @@ from django.core.cache import cache
 logger = logging.getLogger(__name__)
 
 
+def bump_sidebar_gen(user_id):
+    """Invalidate every cached sidebar variant for a user (any feature-hash)."""
+    try:
+        cache.set(
+            f"sidebar_gen_{user_id}",
+            (cache.get(f"sidebar_gen_{user_id}", 0) or 0) + 1,
+            timeout=None,
+        )
+    except Exception:
+        pass
+
+
 def get_apps_in_base_dir():
     return settings.SIDEBARS
 
@@ -114,12 +126,17 @@ def get_MENUS(request):
     # Cache key includes the company's feature set, so changing a plan on /manage
     # busts the menu immediately instead of waiting out the TTL.
     feats = "".join(sorted(getattr(request, "company_features", []) or []))
-    cache_key = f"sidebar_menus_user_{request.user.id}_{hash(feats)}"
+    # ponytail: generation counter makes invalidation work despite the feats-hash
+    # suffix — bump_sidebar_gen() orphans every variant key for a user at once.
+    gen = cache.get(f"sidebar_gen_{request.user.id}", 0)
+    cache_key = f"sidebar_menus_user_{request.user.id}_{gen}_{hash(feats)}"
     sidebar_menus = cache.get(cache_key)
 
     if sidebar_menus is None:
         sidebar_menus = generate_sidebar(request)
-        cache.set(cache_key, sidebar_menus, timeout=120)
+        # 120s meant a full sidebar rebuild every 2 min; invalidation now works
+        # (generation bump on perm/feature change), so 1h is safe.
+        cache.set(cache_key, sidebar_menus, timeout=3600)
 
     return {"sidebar": sidebar_menus}
 

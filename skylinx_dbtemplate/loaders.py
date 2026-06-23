@@ -25,6 +25,30 @@ from .utils.cache import cache, get_cache_key, get_cache_notfound_key, set_and_r
 from .utils.site import get_site_for_request
 
 
+def _any_active_templates():
+    """Cheap cached check: are there ANY active DB templates? Avoids per-include DB hits.
+
+    Cached 5 min; new/removed templates also clear it via signals (best-effort).
+    Fails open (True) so a cache/DB hiccup never hides real DB templates.
+    """
+    key = "dbtemplate:any_active"
+    try:
+        val = cache.get(key) if cache else None
+    except Exception:
+        val = None
+    if val is None:
+        try:
+            val = Template.objects.filter(state=STATE_ACTIVE).exists()
+        except Exception:
+            return True
+        if cache:
+            try:
+                cache.set(key, val, 300)
+            except Exception:
+                pass
+    return val
+
+
 class Loader(BaseLoader):
     """
     Load templates from the database with host-based site resolution,
@@ -115,6 +139,12 @@ class Loader(BaseLoader):
           6. DB: global + language-agnostic
           7. Mark not-found, raise TemplateDoesNotExist
         """
+        # ponytail: the common case is 0 active DB templates — then this loader
+        # ran ~34 useless DB lookups per page (one per {% include %}/{% extends %})
+        # before falling through to the filesystem. Short-circuit on a cached flag.
+        if not _any_active_templates():
+            raise TemplateDoesNotExist(template_name)
+
         site = self._resolve_site()
         language = self._get_language()
         cache_key = get_cache_key(template_name, site, language)
