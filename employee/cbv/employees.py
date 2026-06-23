@@ -340,8 +340,21 @@ class EmployeesList(SkylinxListView):
         employees' records.
         """
         queryset = super().get_queryset()
-        return filtersubordinatesemployeemodel(
+        queryset = filtersubordinatesemployeemodel(
             self.request, queryset, "employee.view_employee"
+        )
+        # ponytail: kill the N+1 — every row reads work_info + its FKs + user.
+        return queryset.select_related(
+            "employee_user_id",
+            "employee_work_info",
+            "employee_work_info__department_id",
+            "employee_work_info__job_position_id",
+            "employee_work_info__job_role_id",
+            "employee_work_info__shift_id",
+            "employee_work_info__work_type_id",
+            "employee_work_info__employee_type_id",
+            "employee_work_info__company_id",
+            "employee_work_info__reporting_manager_id",
         )
 
 
@@ -775,8 +788,21 @@ class EmployeeCard(SkylinxCardView):
         ``EmployeesList.get_queryset``).
         """
         queryset = super().get_queryset()
-        return filtersubordinatesemployeemodel(
+        queryset = filtersubordinatesemployeemodel(
             self.request, queryset, "employee.view_employee"
+        )
+        # ponytail: kill the N+1 — every row reads work_info + its FKs + user.
+        return queryset.select_related(
+            "employee_user_id",
+            "employee_work_info",
+            "employee_work_info__department_id",
+            "employee_work_info__job_position_id",
+            "employee_work_info__job_role_id",
+            "employee_work_info__shift_id",
+            "employee_work_info__work_type_id",
+            "employee_work_info__employee_type_id",
+            "employee_work_info__company_id",
+            "employee_work_info__reporting_manager_id",
         )
 
 
