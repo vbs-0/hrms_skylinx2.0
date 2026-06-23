@@ -3,6 +3,13 @@
 from django.db import migrations, models
 
 
+def drop_if_exists(table, column):
+    return migrations.RunSQL(
+        sql=f"ALTER TABLE {table} DROP COLUMN IF EXISTS {column};",
+        reverse_sql=migrations.RunSQL.noop,
+    )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,30 +17,14 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='employeeworkinformation',
-            name='basic_salary',
-        ),
-        migrations.RemoveField(
-            model_name='employeeworkinformation',
-            name='probation_end',
-        ),
-        migrations.RemoveField(
-            model_name='employeeworkinformation',
-            name='salary_hour',
-        ),
-        migrations.RemoveField(
-            model_name='historicalemployeeworkinformation',
-            name='basic_salary',
-        ),
-        migrations.RemoveField(
-            model_name='historicalemployeeworkinformation',
-            name='probation_end',
-        ),
-        migrations.RemoveField(
-            model_name='historicalemployeeworkinformation',
-            name='salary_hour',
-        ),
+        # Use IF EXISTS so this is safe on DBs that already lack these columns.
+        drop_if_exists("employee_employeeworkinformation", "basic_salary"),
+        drop_if_exists("employee_employeeworkinformation", "probation_end"),
+        drop_if_exists("employee_employeeworkinformation", "salary_hour"),
+        drop_if_exists("employee_historicalemployeeworkinformation", "basic_salary"),
+        drop_if_exists("employee_historicalemployeeworkinformation", "probation_end"),
+        drop_if_exists("employee_historicalemployeeworkinformation", "salary_hour"),
+
         migrations.AddField(
             model_name='employeeworkinformation',
             name='ctc',
