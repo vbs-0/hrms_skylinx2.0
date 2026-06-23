@@ -1368,6 +1368,47 @@ class SettingsView(LoginRequiredMixin, TemplateView):
     template_name = "settings.html"
 
 
+def _admin_perm_set(user):
+    """Return the set of 'app_label.codename' perms the user holds (direct + via groups).
+    Superusers get None, meaning 'show all'.
+    """
+    if user.is_superuser:
+        return None
+    direct = Permission.objects.filter(user=user).values("content_type__app_label", "codename")
+    via_group = Permission.objects.filter(group__user=user).values("content_type__app_label", "codename")
+    return {f"{p['content_type__app_label']}.{p['codename']}" for p in direct} | \
+           {f"{p['content_type__app_label']}.{p['codename']}" for p in via_group}
+
+
+def _build_permissions(apps_list, no_perm_models, admin_perms=None):
+    """Build the permissions list, filtering models to only those the admin can grant."""
+    permissions = []
+    for app_name in apps_list:
+        app_models = []
+        for model in get_models_in_app(app_name):
+            mn = model._meta.model_name
+            if mn in no_perm_models:
+                continue
+            if admin_perms is not None:
+                # only include model if admin holds at least one CRUD perm for it
+                if not any(
+                    f"{app_name}.{action}_{mn}" in admin_perms
+                    for action in ("add", "view", "change", "delete")
+                ):
+                    continue
+            app_models.append({
+                "verbose_name": model._meta.verbose_name.capitalize(),
+                "model_name": mn,
+            })
+        if app_models:
+            permissions.append({
+                "app": app_name.capitalize().replace("_", " "),
+                "app_label": app_name,
+                "app_models": app_models,
+            })
+    return permissions
+
+
 @login_required
 @hx_request_required
 @permission_required("auth.add_group")
@@ -1375,20 +1416,10 @@ def user_group_table(request):
     """
     Group assign htmx view
     """
-    permissions = []
-    apps = settings.APPS
     no_permission_models = settings.NO_PERMISSION_MODALS
+    admin_perms = _admin_perm_set(request.user)
+    permissions = _build_permissions(settings.APPS, no_permission_models, admin_perms)
     form = UserGroupForm()
-    for app_name in apps:
-        app_models = []
-        for model in get_models_in_app(app_name):
-            app_models.append(
-                {
-                    "verbose_name": model._meta.verbose_name.capitalize(),
-                    "model_name": model._meta.model_name,
-                }
-            )
-        permissions.append({"app": app_name.capitalize(), "app_label": app_name, "app_models": app_models})
     if request.method == "POST":
         company = current_company(request)
         post = request.POST.copy()
@@ -1459,23 +1490,10 @@ def user_group(request):
     """
     This method is used to create user permission group
     """
-    permissions = []
-
-    apps = settings.APPS
     no_permission_models = settings.NO_PERMISSION_MODALS
+    admin_perms = _admin_perm_set(request.user)
+    permissions = _build_permissions(settings.APPS, no_permission_models, admin_perms)
     form = UserGroupForm()
-    for app_name in apps:
-        app_models = []
-        for model in get_models_in_app(app_name):
-            app_models.append(
-                {
-                    "verbose_name": model._meta.verbose_name.capitalize(),
-                    "model_name": model._meta.model_name,
-                }
-            )
-        permissions.append(
-            {"app": app_name.capitalize().replace("_", " "), "app_label": app_name, "app_models": app_models}
-        )
     from django.db.models import Prefetch, Count
     groups = groups_for_request(request).prefetch_related(
         Prefetch('permissions')
@@ -1604,21 +1622,9 @@ def group_permissions_table_view(request, group_id):
     except Group.DoesNotExist:
         return HttpResponse("Group not found", status=404)
 
-    permissions = []
-    apps = settings.APPS
     no_permission_models = settings.NO_PERMISSION_MODALS
-    for app_name in apps:
-        app_models = []
-        for model in get_models_in_app(app_name):
-            app_models.append(
-                {
-                    "verbose_name": model._meta.verbose_name.capitalize(),
-                    "model_name": model._meta.model_name,
-                }
-            )
-        permissions.append(
-            {"app": app_name.capitalize().replace("_", " "), "app_label": app_name, "app_models": app_models}
-        )
+    admin_perms = _admin_perm_set(request.user)
+    permissions = _build_permissions(settings.APPS, no_permission_models, admin_perms)
 
     selected_perms = [
         f"{p['content_type__app_label']}.{p['codename']}"
@@ -1640,7 +1646,7 @@ def group_permissions_table_view(request, group_id):
 
 @login_required
 @hx_request_required
-@permission_required("view_permissions")
+@permission_required("auth.change_group")
 def user_permission_table_view(request, emp_id):
     """
     Lazy-loads the permission table for a specific employee (user).
@@ -1651,19 +1657,8 @@ def user_permission_table_view(request, emp_id):
     if not employee or not employee.employee_user_id:
         return HttpResponse("Employee not found", status=404)
 
-    permissions = []
-    for app_name in settings.APPS:
-        app_models = []
-        for model in get_models_in_app(app_name):
-            app_models.append(
-                {
-                    "verbose_name": model._meta.verbose_name.capitalize(),
-                    "model_name": model._meta.model_name,
-                }
-            )
-        permissions.append(
-            {"app": app_name.capitalize().replace("_", " "), "app_label": app_name, "app_models": app_models}
-        )
+    admin_perms = _admin_perm_set(request.user)
+    permissions = _build_permissions(settings.APPS, settings.NO_PERMISSION_MODALS, admin_perms)
 
     selected_perms = [
         f"{p['content_type__app_label']}.{p['codename']}"
@@ -4025,7 +4020,7 @@ def get_models_in_app(app_name):
 
 
 @login_required
-@manager_can_enter("auth.view_permission")
+@manager_can_enter("auth.change_group")
 def employee_permission_assign(request, pk=None):
     """
     This method is used to assign permissions to employee user
@@ -4050,22 +4045,8 @@ def employee_permission_assign(request, pk=None):
             employee_user_id__user_permissions__isnull=False
         ).distinct()
         context["show_assign"] = True
-    permissions = [
-        {
-            "app": app_name.capitalize().replace("_", " "),
-            "app_label": app_name,
-            "app_models": [
-                {
-                    "verbose_name": model._meta.verbose_name.capitalize(),
-                    "model_name": model._meta.model_name,
-                }
-                for model in get_models_in_app(app_name)
-                if model._meta.model_name not in settings.NO_PERMISSION_MODALS
-            ],
-        }
-        for app_name in settings.APPS
-    ]
-    context["permissions"] = permissions
+    admin_perms = _admin_perm_set(request.user)
+    context["permissions"] = _build_permissions(settings.APPS, settings.NO_PERMISSION_MODALS, admin_perms)
     context["no_permission_models"] = settings.NO_PERMISSION_MODALS
     context["employees"] = paginator_qry(employees, request.GET.get("page"))
     return render(
@@ -4077,7 +4058,7 @@ def employee_permission_assign(request, pk=None):
 
 @login_required
 @hx_request_required
-@permission_required("view_permissions")
+@permission_required("auth.change_group")
 def employee_permission_search(request, codename=None, uid=None):
     """
     This method renders template to view all instances of user permissions
@@ -4093,22 +4074,8 @@ def employee_permission_search(request, codename=None, uid=None):
             employee_user_id__user_permissions__isnull=False
         ).distinct()
         context["show_assign"] = True
-    permissions = [
-        {
-            "app": app_name.capitalize().replace("_", " "),
-            "app_label": app_name,
-            "app_models": [
-                {
-                    "verbose_name": model._meta.verbose_name.capitalize(),
-                    "model_name": model._meta.model_name,
-                }
-                for model in get_models_in_app(app_name)
-                if model._meta.model_name not in settings.NO_PERMISSION_MODALS
-            ],
-        }
-        for app_name in settings.APPS
-    ]
-    context["permissions"] = permissions
+    admin_perms = _admin_perm_set(request.user)
+    context["permissions"] = _build_permissions(settings.APPS, settings.NO_PERMISSION_MODALS, admin_perms)
     context["no_permission_models"] = settings.NO_PERMISSION_MODALS
     context["employees"] = paginator_qry(employees, request.GET.get("page"))
     return render(
