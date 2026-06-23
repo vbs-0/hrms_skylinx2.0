@@ -67,5 +67,6 @@ def monitor_employee_bulk_update(sender, queryset, *args, **kwargs):
     """
     _sender = sender
     _queryset = queryset
-    thread = threading.Thread(target=_clear_bulk_employees_cache(queryset))
+    # ponytail: was target=_fn(queryset) — that ran it inline and threaded None.
+    thread = threading.Thread(target=_clear_bulk_employees_cache, args=(queryset,))
     thread.start()

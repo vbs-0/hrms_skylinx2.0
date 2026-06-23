@@ -551,8 +551,13 @@ class EmployeeTask(SkylinxModel):
         unique_together = ["employee_id", "task_id"]
 
     def save(self, *args, **kwargs):
+        # ponytail: only notify on first assignment, and never crash when there's
+        # no request (scheduler/shell/import) — was firing on every save + NPE.
+        is_new = self._state.adding
         super().save(*args, **kwargs)
         request = getattr(_thread_locals, "request", None)
+        if not is_new or request is None or not getattr(request, "user", None):
+            return
         notify.send(
             request.user.employee_get,
             recipient=self.employee_id.employee_id.employee_user_id,
