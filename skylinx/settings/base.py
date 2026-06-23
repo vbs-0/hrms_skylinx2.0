@@ -234,7 +234,10 @@ if DATABASES.get("default", {}).get("ENGINE") == "django.db.backends.sqlite3":
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
+# ponytail: manifest = hashed names -> WhiteNoise serves 1yr immutable cache
+# (was max-age=60, so browsers re-downloaded all CSS/JS every minute). Subclass
+# sets manifest_strict=False so a stray static ref can't 500 a page.
+STATICFILES_STORAGE = "skylinx.storage.StaticStorage"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media/")
