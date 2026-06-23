@@ -1014,7 +1014,9 @@ def cal_effective_requested_days(start_date, end_date, leave_type_id, requested_
     holidays and company leave days.
     """
     requested_dates = leave_requested_dates(start_date, end_date)
-    holidays = set(holiday_dates_list(Holidays.objects.all()))
+    # ponytail: optional holidays are working days for leave — only mandatory
+    # holidays are excluded from the leave-day count.
+    holidays = set(holiday_dates_list(Holidays.objects.filter(is_optional=False)))
     company_leave_dates = set(
         company_leave_dates_list(CompanyLeaves.objects.all(), start_date)
     )
@@ -1466,7 +1468,8 @@ class LeaveRequest(SkylinxModel):
         :return: this functions returns a list of all holiday dates.
         """
         holiday_dates = []
-        holidays = Holidays.objects.all()
+        # ponytail: optional holidays count as working days, exclude only mandatory
+        holidays = Holidays.objects.filter(is_optional=False)
         for holiday in holidays:
             holiday_start_date = holiday.start_date
             holiday_end_date = holiday.end_date

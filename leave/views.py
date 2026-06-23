@@ -2369,7 +2369,7 @@ def user_leave_request(request, id):
         )
         requested_dates = leave_requested_dates(start_date, end_date)
         requested_dates = [date.date() for date in requested_dates]
-        holidays = Holidays.objects.all()
+        holidays = Holidays.objects.filter(is_optional=False)  # ponytail: optional holidays are working days
         holiday_dates = holiday_dates_list(holidays)
         company_leaves = CompanyLeaves.objects.all()
         company_leave_dates = company_leave_dates_list(company_leaves, start_date)
@@ -2546,7 +2546,7 @@ def user_request_update(request, id):
                         start_date, end_date, start_date_breakdown, end_date_breakdown
                     )
                     requested_dates = leave_requested_dates(start_date, end_date)
-                    holidays = Holidays.objects.all()
+                    holidays = Holidays.objects.filter(is_optional=False)  # ponytail: optional holidays are working days
                     holiday_dates = holiday_dates_list(holidays)
                     company_leaves = CompanyLeaves.objects.all()
                     company_leave_dates = company_leave_dates_list(
