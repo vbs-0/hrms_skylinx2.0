@@ -110,8 +110,8 @@ def generate_sidebar(request):
         # Skylinx: explicit module ordering for the main navigation
         SIDEBAR_ORDER = [
             "employee", "recruitment", "onboarding", "attendance", "leave",
-            "payroll", "pms", "project", "asset", "helpdesk", "offboarding",
-            "report",
+            "payroll", "project", "asset", "helpdesk", "offboarding",
+            "report", "pms",
         ]
         order_index = {app: i for i, app in enumerate(SIDEBAR_ORDER)}
         MENUS.sort(key=lambda m: order_index.get(m.get("app"), len(SIDEBAR_ORDER)))

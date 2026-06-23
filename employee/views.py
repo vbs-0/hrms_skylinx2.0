@@ -561,7 +561,6 @@ def shift_tab(request, pk):
 
 
 @login_required
-@manager_can_enter("skylinx_documents.view_documentrequest")
 def document_request_view(request):
     """
     This function is used to view documents requests of employees.
@@ -597,7 +596,6 @@ def document_request_view(request):
 
 @login_required
 @hx_request_required
-@manager_can_enter("skylinx_documents.view_documentrequest")
 def document_filter_view(request):
     """
     This method is used to filter employee.
