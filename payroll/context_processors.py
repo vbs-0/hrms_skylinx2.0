@@ -15,7 +15,7 @@ def default_currency(request):
     """
     if models.PayrollSettings.objects.first() is None:
         settings = models.PayrollSettings()
-        settings.currency_symbol = "$"
+        settings.currency_symbol = "₹"  # ponytail: default to rupee, prefix
         settings.company_id = getattr(request, "selected_company_instance", None)
         settings.save()
     symbol = models.PayrollSettings.objects.first().currency_symbol
