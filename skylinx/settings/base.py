@@ -63,14 +63,19 @@ CSRF_COOKIE_SAMESITE = "Lax"
 # In production (DEBUG off) require HTTPS for cookies and enable HSTS. Left
 # relaxed under DEBUG so local http://localhost development keeps working.
 if not DEBUG:
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+    # ponytail: env-gated so an http-only IP box runs without TLS; True once behind HTTPS
+    SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=True)
+    CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=True)
     SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=31536000)
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# ponytail: pin default Site so admin/django.contrib.sites works regardless of
+# request host (IP, localhost, domain) instead of host-matching the Site table.
+SITE_ID = 1
 
 THEME_APP = "skylinx_theme"
 
