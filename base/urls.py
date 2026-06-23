@@ -1805,6 +1805,11 @@ urlpatterns = [
         views.holiday_select_filter,
         name="holiday-select-filter",
     ),
+    path(
+        "holiday-calendar/",
+        views.holiday_calendar_view,
+        name="holiday-calendar-view",
+    ),
     # path(
     #     "company-leave-creation",
     #     views.company_leave_creation,
