@@ -218,13 +218,9 @@
     <!-- Calendar Grid -->
     <div class="md-holiday-cal__grid">
         <!-- Weekday Labels -->
-        <div class="md-cal-lbl">{% trans "Mon" %}</div>
-        <div class="md-cal-lbl">{% trans "Tue" %}</div>
-        <div class="md-cal-lbl">{% trans "Wed" %}</div>
-        <div class="md-cal-lbl">{% trans "Thu" %}</div>
-        <div class="md-cal-lbl">{% trans "Fri" %}</div>
-        <div class="md-cal-lbl md-cal-lbl--weekend">{% trans "Sat" %}</div>
-        <div class="md-cal-lbl md-cal-lbl--weekend">{% trans "Sun" %}</div>
+        {% for idx, label in weekday_headers %}
+            <div class="md-cal-lbl {% if idx in weekend_indices %}md-cal-lbl--weekend{% endif %}">{{ label }}</div>
+        {% endfor %}
 
         {% for week in weeks %}
             {% for day in week %}

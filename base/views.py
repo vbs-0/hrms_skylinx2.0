@@ -8718,6 +8718,18 @@ def holiday_calendar_view(request):
     weeks = []
     current_week = []
     
+    # Determine weekends dynamically based on company leaves / work week
+    from base.models import CompanyLeaves
+    company_leaves = CompanyLeaves.objects.all()
+    company_leaves_exist = company_leaves.exists()
+    if company_leaves_exist:
+        from leave.methods import company_leave_dates_list
+        company_leave_dates = set(company_leave_dates_list(company_leaves, start_date))
+        weekend_indices = {int(cl.based_on_week_day) for cl in company_leaves}
+    else:
+        company_leave_dates = set()
+        weekend_indices = {5, 6}
+
     # Pad start of month (0=Mon, ..., 6=Sun)
     for _ in range(first_weekday):
         current_week.append({"day": "", "events": [], "is_weekend": False})
@@ -8725,7 +8737,11 @@ def holiday_calendar_view(request):
     for day in range(1, num_days + 1):
         cur_date = date(year, month, day)
         day_of_week = cur_date.weekday()
-        is_weekend = day_of_week >= 5
+        
+        if company_leaves_exist:
+            is_weekend = cur_date in company_leave_dates
+        else:
+            is_weekend = day_of_week >= 5
 
         current_week.append({
             "day": day,
@@ -8760,6 +8776,17 @@ def holiday_calendar_view(request):
 
     month_name = calendar.month_name[month]
 
+    from django.utils.translation import gettext
+    weekday_headers = [
+        (0, gettext("Mon")),
+        (1, gettext("Tue")),
+        (2, gettext("Wed")),
+        (3, gettext("Thu")),
+        (4, gettext("Fri")),
+        (5, gettext("Sat")),
+        (6, gettext("Sun")),
+    ]
+
     dashboard = (request.GET.get("dashboard") == "1")
     context = {
         "weeks": weeks,
@@ -8775,6 +8802,8 @@ def holiday_calendar_view(request):
         "leaves_list": leaves,
         "show_list": not dashboard,
         "extra_params": "&dashboard=1" if dashboard else "",
+        "weekday_headers": weekday_headers,
+        "weekend_indices": weekend_indices,
     }
 
     if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.GET.get("hx") == "1":
