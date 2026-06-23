@@ -234,10 +234,14 @@ if DATABASES.get("default", {}).get("ENGINE") == "django.db.backends.sqlite3":
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-# ponytail: manifest = hashed names -> WhiteNoise serves 1yr immutable cache
-# (was max-age=60, so browsers re-downloaded all CSS/JS every minute). Subclass
-# sets manifest_strict=False so a stray static ref can't 500 a page.
-STATICFILES_STORAGE = "skylinx.storage.StaticStorage"
+# Django 6 ignores STATICFILES_STORAGE — must use STORAGES. The old setting
+# being a no-op is why prod had no compression and max-age=60 (default storage).
+# Manifest storage = hashed names -> WhiteNoise serves 1yr immutable cache +
+# precompressed .gz/.br. manifest_strict=False so a stray ref can't 500 a page.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "skylinx.storage.StaticStorage"},
+}
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media/")
