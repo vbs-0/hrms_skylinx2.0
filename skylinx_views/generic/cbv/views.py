@@ -2121,17 +2121,12 @@ class SkylinxFormView(FormView):
                             "model": form._meta.model,
                         },
                     )
-
-                    from django.urls import path
-
-                    from skylinx.urls import urlpatterns
-
-                    urlpatterns.append(
-                        path(
-                            f"dynamic-path-{field}-{self.request.session.session_key}",
-                            view.as_view(),
-                            name=f"dynamic-path-{field}-{self.request.session.session_key}",
-                        )
+                    view_path = self.dynamic_create_path.get(field)["path"]
+                    view = import_method(view_path)
+                    CACHE.set(
+                        f"dynamic-view-{field}-{self.request.session.session_key}",
+                        view_path,
+                        3600,
                     )
                     queryset = form.fields[field].queryset
                     choices = [(instance.id, instance) for instance in queryset]

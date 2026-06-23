@@ -1229,10 +1229,21 @@ class DynamicView(View):
     """
 
     def get(self, request, *args, **kwargs):
+        return self._dispatch(request, *args, **kwargs)
 
+    def post(self, request, *args, **kwargs):
+        return self._dispatch(request, *args, **kwargs)
+
+    def _dispatch(self, request, *args, **kwargs):
         field = kwargs.get("field")
         session_key = kwargs.get("session_key")
         if session_key != request.session.session_key:
             return HttpResponseForbidden("Invalid session key.")
 
-        return render(request, "dynamic.html", {"field": field})
+        view_path = CACHE.get(f"dynamic-view-{field}-{session_key}")
+        if view_path:
+            from skylinx.config import import_method
+            view_class = import_method(view_path)
+            return view_class.as_view()(request, *args, **kwargs)
+
+        return HttpResponse("<script>window.location.reload()</script>", status=200)

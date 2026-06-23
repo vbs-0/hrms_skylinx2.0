@@ -29,8 +29,12 @@ def get_filter_form(request):
     This method will return filtering from
     """
     try:
-        widget_instance = ALL_INSTANCES[str(request.user.id)]
-        template_path = request.GET["template_path"]
+        widget_instance = ALL_INSTANCES.get(str(request.user.id))
+        if not widget_instance:
+            return HttpResponse("")
+        template_path = request.GET.get("template_path")
+        if not template_path:
+            return HttpResponse("")
         return render(request, template_path, {"f": widget_instance.filter_class()})
-    except KeyError:
+    except Exception:
         return HttpResponse("")

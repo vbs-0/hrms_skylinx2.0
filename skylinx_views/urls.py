@@ -71,7 +71,7 @@ urlpatterns = [
         name="update-kanban-group-sequence",
     ),
     path(
-        "dynamic-path/<str:field>/<str:session_key>/",
+        "dynamic-path-<str:field>-<str:session_key>",
         views.DynamicView.as_view(),
         name="dynamic-path",
     ),
