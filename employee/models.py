@@ -928,6 +928,9 @@ class EmployeeWorkInformation(models.Model):
     contract_end_date = models.DateField(
         blank=True, null=True, verbose_name=_("Contract End Date")
     )
+    probation_end = models.DateField(
+        blank=True, null=True, verbose_name=_("Probation End Date")
+    )
     basic_salary = models.IntegerField(
         null=True, blank=True, default=0, verbose_name=_("Basic Salary")
     )
