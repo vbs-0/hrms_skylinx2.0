@@ -28,16 +28,6 @@ SUBMENUS = [
     },
 
     {
-        "menu": _("Work Records"),
-        "redirect": reverse_lazy("work-records"),
-        "accessibility": "attendance.sidebar.work_record_accessibility",
-    },
-    {
-        "menu": _("Attendance Activities"),
-        "redirect": reverse_lazy("attendance-activity-view"),
-    },
-
-    {
         "menu": _("My Attendances"),
         "redirect": reverse_lazy("view-my-attendance"),
     },

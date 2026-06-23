@@ -38,9 +38,8 @@ SUBMENUS = [
         "redirect": reverse_lazy("leave-allocation-request-view"),
     },
     {
-        "menu": _("Holidays"),
-        "redirect": reverse_lazy("holiday-view"),
-        "accessibility": "leave.sidebar.holiday_accessibility",
+        "menu": _("Holiday Calendar"),
+        "redirect": reverse_lazy("holiday-calendar-view"),
     },
     {
         "menu": _("Company Leaves"),

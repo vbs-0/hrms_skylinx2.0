@@ -33,18 +33,9 @@ SUBMENUS = [
         "redirect": reverse_lazy("shift-request-view"),
     },
     {
-        "menu": _("Work Type Requests"),
-        "redirect": reverse_lazy("work-type-request-view"),
-    },
-    {
         "menu": _("Rotating Shift Assign"),
         "redirect": reverse_lazy("rotating-shift-assign"),
         "accessibility": "employee.sidebar.rotating_shift_accessibility",
-    },
-    {
-        "menu": _("Rotating Work Type Assign"),
-        "redirect": reverse_lazy("rotating-work-type-assign"),
-        "accessibility": "employee.sidebar.rotating_work_type_accessibility",
     },
     {
         "menu": _("Shift Roster"),
