@@ -5,7 +5,7 @@ from django.conf import settings
 class SkylinxMeetConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "skylinx_meet"
-    verbose_name = "Skylinx Meet"
+    verbose_name = "Meet"
 
     def ready(self):
         from django.urls import include, path

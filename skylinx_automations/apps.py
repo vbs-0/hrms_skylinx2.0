@@ -15,6 +15,8 @@ class SkylinxAutomationConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "skylinx_automations"
 
+    verbose_name = "Automations"
+
     def ready(self) -> None:
         ready = super().ready()
         if any(

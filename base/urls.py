@@ -1,6 +1,7 @@
 from django.contrib.auth.models import Group
 from django.urls import path, re_path
 from django.utils.translation import gettext_lazy as _
+from django.views.generic import TemplateView
 
 from base import announcement
 from base import dashboard as dashboard_module
@@ -66,6 +67,9 @@ from skylinx_audit.models import AuditTag
 
 urlpatterns = [
     path("", views.home, name="home-page"),
+    path("privacy-policy/", TemplateView.as_view(template_name="legal/privacy_policy.html"), name="privacy-policy"),
+    path("terms-and-conditions/", TemplateView.as_view(template_name="legal/terms_and_conditions.html"), name="terms-and-conditions"),
+    path("user-agreement/", TemplateView.as_view(template_name="legal/user_agreement.html"), name="user-agreement"),
     path(
         "get-home-logo-card/",
         views.get_home_logo_card,

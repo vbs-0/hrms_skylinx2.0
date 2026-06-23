@@ -237,8 +237,14 @@
                         <div id="dynamicCreateModalTarget" class="oh-modal__dialog" style="max-width: 550px"></div>
                     </div>
                 </div>
-            </div>
             <!-- End of main section -->
+            <footer class="text-center mt-auto py-3" style="border-top: 1px solid var(--sx-border); margin-top: 40px !important;">
+                <small class="sx-muted d-flex justify-content-center gap-3">
+                    <a href="{% url 'terms-and-conditions' %}" class="oh-link oh-link--secondary" target="_blank">{% trans "Terms" %}</a>
+                    <a href="{% url 'privacy-policy' %}" class="oh-link oh-link--secondary" target="_blank">{% trans "Privacy" %}</a>
+                    <a href="{% url 'user-agreement' %}" class="oh-link oh-link--secondary" target="_blank">{% trans "User Agreement" %}</a>
+                </small>
+            </footer>
         </div>
     </div>
 

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SkyLinx Legal Docs Editor</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; background: #f4f4f5; margin: 0; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .tabs { display: flex; border-bottom: 2px solid #e4e4e7; margin-bottom: 20px; }
+        .tab { padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; font-weight: 500; color: #71717a; }
+        .tab.active { border-bottom-color: #2563eb; color: #2563eb; }
+        .tab-content { display: none; }
+        .tab-content.active { display: flex; gap: 20px; height: 75vh; }
+        .editor, .preview { flex: 1; display: flex; flex-direction: column; width: 50%; }
+        textarea { flex: 1; resize: none; padding: 15px; border: 1px solid #d4d4d8; border-radius: 6px; font-family: monospace; font-size: 14px; outline: none; }
+        .preview-box { flex: 1; overflow-y: auto; padding: 15px; border: 1px solid #d4d4d8; border-radius: 6px; background: #fafafa; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        button { background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 500; }
+        button:hover { background: #1d4ed8; }
+        button:disabled { background: #94a3b8; cursor: not-allowed; }
+        .preview-box table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .preview-box th, .preview-box td { border: 1px solid #e4e4e7; padding: 8px; text-align: left; }
+        .preview-box th { background: #f4f4f5; }
+        .status { margin-left: 10px; font-size: 14px; color: #16a34a; display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin: 0;">SkyLinx Legal Docs Editor</h2>
+            <div style="font-size: 14px; color: #52525b;">Edit the Markdown on the left. Click Save to update the website instantly.</div>
+        </div>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('privacy_policy', event)">Privacy Policy</div>
+            <div class="tab" onclick="switchTab('terms_and_conditions', event)">Terms & Conditions</div>
+            <div class="tab" onclick="switchTab('user_agreement', event)">User Agreement</div>
+        </div>
+
+        <div id="privacy_policy" class="tab-content active">
+            <div class="editor">
+                <div class="header">
+                    <strong>Markdown Editor</strong>
+                    <div>
+                        <span id="privacy_policy_status" class="status">Saved!</span>
+                        <button id="privacy_policy_btn" onclick="saveDoc('privacy_policy')">Save & Publish</button>
+                    </div>
+                </div>
+                <textarea id="privacy_policy_input" oninput="updatePreview('privacy_policy')">{{ md_contents.privacy_policy|safe }}</textarea>
+            </div>
+            <div class="preview">
+                <div class="header">
+                    <strong>Live Preview</strong>
+                </div>
+                <div id="privacy_policy_preview" class="preview-box"></div>
+            </div>
+        </div>
+
+        <div id="terms_and_conditions" class="tab-content">
+            <div class="editor">
+                <div class="header">
+                    <strong>Markdown Editor</strong>
+                    <div>
+                        <span id="terms_and_conditions_status" class="status">Saved!</span>
+                        <button id="terms_and_conditions_btn" onclick="saveDoc('terms_and_conditions')">Save & Publish</button>
+                    </div>
+                </div>
+                <textarea id="terms_and_conditions_input" oninput="updatePreview('terms_and_conditions')">{{ md_contents.terms_and_conditions|safe }}</textarea>
+            </div>
+            <div class="preview">
+                <div class="header">
+                    <strong>Live Preview</strong>
+                </div>
+                <div id="terms_and_conditions_preview" class="preview-box"></div>
+            </div>
+        </div>
+
+        <div id="user_agreement" class="tab-content">
+            <div class="editor">
+                <div class="header">
+                    <strong>Markdown Editor</strong>
+                    <div>
+                        <span id="user_agreement_status" class="status">Saved!</span>
+                        <button id="user_agreement_btn" onclick="saveDoc('user_agreement')">Save & Publish</button>
+                    </div>
+                </div>
+                <textarea id="user_agreement_input" oninput="updatePreview('user_agreement')">{{ md_contents.user_agreement|safe }}</textarea>
+            </div>
+            <div class="preview">
+                <div class="header">
+                    <strong>Live Preview</strong>
+                </div>
+                <div id="user_agreement_preview" class="preview-box"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function unescapeHtml(text) {
+            const temp = document.createElement('textarea');
+            temp.innerHTML = text;
+            return temp.value;
+        }
+
+        // Unescape the django variables
+        document.getElementById('privacy_policy_input').value = unescapeHtml(document.getElementById('privacy_policy_input').value);
+        document.getElementById('terms_and_conditions_input').value = unescapeHtml(document.getElementById('terms_and_conditions_input').value);
+        document.getElementById('user_agreement_input').value = unescapeHtml(document.getElementById('user_agreement_input').value);
+
+        function switchTab(tabId, event) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+        function updatePreview(id) {
+            const markdown = document.getElementById(id + '_input').value;
+            document.getElementById(id + '_preview').innerHTML = marked.parse(markdown);
+        }
+        
+        async function saveDoc(id) {
+            const btn = document.getElementById(id + '_btn');
+            const status = document.getElementById(id + '_status');
+            const markdown = document.getElementById(id + '_input').value;
+            const html = marked.parse(markdown);
+            
+            btn.disabled = true;
+            btn.innerText = 'Saving...';
+            
+            try {
+                const response = await fetch("{% url 'legal-editor' %}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: id,
+                        markdown: markdown,
+                        html: html
+                    })
+                });
+                
+                if (response.ok) {
+                    status.style.display = 'inline';
+                    setTimeout(() => { status.style.display = 'none'; }, 2000);
+                } else {
+                    alert('Error saving document');
+                }
+            } catch (err) {
+                alert('Network error');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Save & Publish';
+            }
+        }
+        
+        // Initial render
+        updatePreview('privacy_policy');
+        updatePreview('terms_and_conditions');
+        updatePreview('user_agreement');
+    </script>
+</body>
+</html>

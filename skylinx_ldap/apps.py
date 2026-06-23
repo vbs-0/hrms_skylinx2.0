@@ -6,6 +6,8 @@ class SkylinxLdapConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "skylinx_ldap"
 
+    verbose_name = "LDAP"
+
     def ready(self):
         from django.urls import include, path
 

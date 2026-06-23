@@ -102,6 +102,11 @@
                             </button>
                         </div>
                     </div>
+                    <p class="sx-muted text-center" style="font-size: 12px; margin-top: 10px;">
+                        {% trans "By signing in, you agree to our" %}
+                        <a href="{% url 'terms-and-conditions' %}" target="_blank" class="oh-link oh-link--secondary">{% trans "Terms" %}</a> {% trans "and" %}
+                        <a href="{% url 'privacy-policy' %}" target="_blank" class="oh-link oh-link--secondary">{% trans "Privacy Policy" %}</a>.
+                    </p>
                     <button type="submit"
                         class="oh-btn oh-onboarding-card__button mt-4 oh-btn--secondary oh-btn--shadow w-100 mb-3"
                         role="button">
@@ -144,6 +149,14 @@
                 {% if white_label_company %}
                     <p class="sx-muted text-center mt-3">{{white_label_company}}</p>
                 {% endif %}
+
+                <div class="text-center mt-4 pt-3" style="border-top: 1px solid var(--sx-border);">
+                    <small class="sx-muted d-flex justify-content-center gap-3">
+                        <a href="{% url 'terms-and-conditions' %}" class="oh-link oh-link--secondary" target="_blank">{% trans "Terms" %}</a>
+                        <a href="{% url 'privacy-policy' %}" class="oh-link oh-link--secondary" target="_blank">{% trans "Privacy" %}</a>
+                        <a href="{% url 'user-agreement' %}" class="oh-link oh-link--secondary" target="_blank">{% trans "User Agreement" %}</a>
+                    </small>
+                </div>
             </div>
         </main>
     </div>

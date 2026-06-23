@@ -5,6 +5,8 @@ class BackupConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "skylinx_backup"
 
+    verbose_name = "Backup"
+
     def ready(self):
         from django.urls import include, path
 

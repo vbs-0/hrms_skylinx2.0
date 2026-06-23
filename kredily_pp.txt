@@ -1,0 +1,206 @@
+Title: Live Content
+
+Description: Fetched live
+
+Source: https://kredily.com/privacy-policy/
+
+---
+Kredily Privacy: Policy Overview & Details
+Home
+Features
+Payroll
+Tax Management
+Salary Structure
+Statutory Compliance
+Payslip Generator
+Attendance
+Leave
+HR Software
+Performance Management Software
+Attendance App
+Blog
+CA Partner
+Support
+Sign In
+Get Started
+May 23, 2023
+Privacy Policy
+Welcome to the Kredily App & website (the “App” / “Kredily.com”), operated by PeopleProsper Technologies Pvt. Ltd., a company incorporated under the Companies Act 2013 (“we”, “us”, or “our”). We share your concern about the protection of your personal information online. This privacy policy (“Policy”) describes how we maintain the privacy of the personal information we collect online in connection with the App.
+Our visitors have the full right to know what information we collect and how it is used. Our Policy applies to all the services and products offered by us. Our Policy is based upon the principle of security, choice, notice, access, data integrity and enforcement.
+Accepting our Policy by registering or visiting the App represents your consent to us collecting the information. You also express your consent for the use and disclosure of the visitors’ personal information according to the Policy. Using the App, you also agree to abide by our
+Terms and Conditions
+(the “Terms”). If you have any queries, you can write to us. Please feel free to send us an email at
+hello@kredily.com
+.
+Please note that we may need to change the Policy from time to time to address new issues and to reflect changes on the App or in the law. We reserve the right to revise or make any changes to the Policy, and your continued use of the App after any changes to this Policy will mean that you agree to and accept such changes. Therefore, bookmark this page and review it periodically to ensure familiarity with the Policy’s most current version. We will post all changes to the Policy here so that you will always know what information we gather, how we might use that information, and when and how we will disclose that information. You can tell if the Policy has been updated by checking the last revised date posted on the top of this page. If, due to such changes, you decide that you want to delete any portion of your personal information from our database, please notify us at
+hello@kredily.com
+.
+We collect several different types of information for various purposes to provide and improve our Service to you.
+Data We collect :
+Personal Data
+We collect and utilize several kinds of information to enhance our Services for you. We collect personal information to contact or identify you while using our Service. Every time you use our Service, we might ask for certain personally identifiable information, such as your email address or phone number, that we can use to reach you. It might include, but isn’t limited to, your name, phone number, and face data. Selfie Attendance requires face data to function. You can share face data with us by permitting us to access your device’s camera. You will see what kind of data we’re collecting, and you can choose whether or not to share it with us.
+Usage Data
+We may gather Usage Data from the way you use our Service. It may include details such as your computer’s IP address (e.g., an IP address), browser type, version, the pages of our App you visit, the time and date of your visit, how long you spend on the pages, unique device identifiers, and other diagnostic information.
+Contact List Data
+We access and use Contact List Data to help Admins for onboarding of employees.
+Cookies Data
+Cookies and other monitoring technologies are used to track our Web’s activity and collect data. A cookie is a small text file sent to your browser from a web and stored on your device. We also use log information using beacons, tags, and scripts. We use these to improve and analyze our Service.
+Collection of information
+Here is the list of various ways we use to collect information –
+Information through registration
+–
+We collect information from our users when they register at
+kredily App and Website
+. Registration is required when creating a kredily App and Website using any kredily App and Website
+service or promotion. We collect general information, including your name, Email address, and password of your kredily App and Website
+account.
+When you voluntarily send us electronic mail / fillup the form, we will keep a record of this information so that we can respond to you. We only collect information from you when you register on our site or fill out a form. Also, when filling out a form on our site, you may be asked to enter your: name, email address or phone number. You, however, visit our site anonymously. In case you have submitted your personal information and contact details, we reserve the right to call, SMS, Email or WhatsApp about our product and offers even if your number has
+DND activated on it.
+Log information
+–
+Access to kredily App and Website services requires an automatic record of information. Your browser sends this information by default whenever you visit the Application. This information is known as log information and involves your IP address, web request, browser type and language, and the date and time of your request.
+User communications
+–
+When you communicate or send mail through kredily App and Website, some communication may be retained for processing your inquiries. This will improve our services and help us respond better to your request.
+Location
+–
+We take the user’s location data after consent from the user if the user has opted for the live geo-tracking attendance feature.
+How is Your Data Used?
+The data collected by Kredily is used for a variety of purposes:
+Used to inform you about changes to the Service.
+Allow you to participate in its interactive features.
+Sending you customer care and support via phone, SMS, WhatsApp, email, or any other form you choose.
+Provide valuable information, improve the Service, monitor its usage, detect, prevent, and address technical issues.
+Sending promotional messages via SMS
+Sending push notifications via the web and Android apps
+Sending promotional messages via WhatsApp messages
+Customizing your experience and delivering the sort of content and goods you find most intriguing.
+Processing your transactions quickly.
+Improving our App to serve you better.
+Running a contest
+Offering surveys and accepting questions
+As well as administering other App activities.
+To ask for ratings and reviews of services or products.
+Follow up after correspondence (call, SMS, live chat, email or phone inquiries).
+We use your KYC data to provide you with offers from Partner Companies.
+Face Data is used to Update KYC.
+Device details like app version, OS Version , Device Manufacturer’s Name, Device Model Name are being Collected for optimizing the attendance System
+Your face data and pictures are only used to verify your attendance. Your face data is not distributed to third parties. It is secured online data storage and only shows to your employer while using the services.
+Kredily doesn’t use your face data or photos other than to check your attendance. Your face data is not shared with any third parties. While using the services, Kredily displays uploaded content to your company exclusively from secure cloud storage. Amazon Web Services is a secure cloud storage service that Kredily uses. Amazon Web Services is a company that provides AWS services. Amazon Web Services (AWS) is one of the only cloud infrastructure providers built and operated to meet the highest compliance standards. AWS Regions in each country comply with national and local data protection laws.
+3rd Party tools Used by Kredily
+Kredily uses Google’s mobile platform, Firebase, to build high-quality apps.
+AppsFlyer, a mobile attribution and marketing analytics firm, helps Kredily advertise the App.
+Lead Squared is used by kredily to send marketing communications.
+Sentry is used for real-time insight into production deployments with info to reproduce and fix crashes.
+Shipbook is used to remotely gather, search and analyze your logs and exceptions in the cloud on a per-user & session basis.
+Kredily does not control third-party platforms, apps, or online services, and Kredily is not responsible for its actions. It would be best for you to read the privacy policies of these platforms, applications, and online services to learn more about your usage data. Kredily encourages you to do the same.
+We do not use customer data for any purposes apart from the ones mentioned above.
+Customer information
+We will not share, distribute, review or refer to any customer data, i.e. host data and information. The customer data is used or reviewed only in case it is required for any support issue, resolving any problem or if required by law as per mentioned in terms of services. Customers are expected to be responsible for keeping the user id and password secure and confidential.
+Location Collection & Storage
+Kredily app and website collects live location data to enable live geo tracking attendance feature even when the App is closed or not in use. We do not share users’ location details with any third party, and a user can raise a request to delete the data by mailing it to
+support@kredily.com.
+Data integrity
+The information collected by the App is used only for the purpose mentioned in the Policy. The data collected is stored and processed to ensure the collection and storage of the personal information of users to improve the services. The App takes reasonable steps to ensure the accuracy and updating of information. In this process, we depend on our customers to update and correct the information if required.
+Information Sharing
+We share the information with other individuals and companies only in the following situations –
+The information collected from our users is provided to our affiliated companies, subsidiaries and trusted business partners to process our personal information. We ensure that these parties should work to process the information according to our instructions and privacy policy. We ensure the security and confidentiality of the information during its processing.
+The information is required to be accessed, used, disclosed or preserved for the following reasons –
+For the satisfaction of any regulation, law or legal procedure
+For enforcing the applicable terms of services
+For investigation of a violation of rules
+For prevention of fraudulent activities
+To avoid technical issues
+For protection against threats to the rights and safety
+Suppose we require revealing personal information; in case we need to be involved in selling some or all the assets. In that case, a notice is sent to the user before transferring the public information. The information is subjected to a different privacy policy in such cases.
+Financial Services and Data Sharing
+As part of our financial services, Kredily has partnered with
+Aditya Birla Capital
+to provide personal loans to eligible users. To facilitate this service, we may share certain user information with Aditya Birla Capital, including but not limited to:
+Basic Identification Details
+: Name, contact information, and employment details.
+Credit Assessment Information
+: PAN details, salary information, and credit history.
+This information is shared to:
+Enable pre-approved loan offers.
+Facilitate credit bureau checks to determine eligibility.
+Public forums
+We may use blogs, chat rooms and bulletin boards on the App. The personal information selected for submission in such a forum can be collected, read or used by other forum visitors. We may also use this for sending inexplicit content to you by fraudulent users. We will not hold the responsibility of protecting the personally identifiable information that you choose to submit in the forums.
+Access and update of the information
+Every customer at Kredily may edit or update the registration or any other information by editing the user record. You must log in to the relevant App to update the user profile information. Employees of an organization may get the registration information through their HR Administrator. Please send an Email to hello@kredily.com if you want to discontinue your account. We will consider your request for accessing, changing or deleting the information within 7 days.
+Security
+We use hi-tech security measures to maintain accuracy, protect customer data from unauthorized access and ensure the appropriate use of the data. As modern web browsers are also used for accessing the Service, the robust transport layer security technology protects customer data through data encryption and server authentication. The technology is capable enough to keep the data safe and secure. The information is available only to the customer who owns it. The App has implemented an advanced security method to prevent interference and unauthenticated access. The security method is based upon encoded session identifications which use a firewall and advanced security technology. Some improved security features are availed to the customers for configuring security settings higher.
+However, it would be best if you also recognized that there is no such thing as “perfect security” on the internet, and we cannot guarantee the security of your information. In addition, because internet communications are unsecure, it is also possible that the information you supply to us or your access to any information via the App will be intercepted during transmission. We are not liable for any breach of our systems or interception of our transmission. As a result, we fully disclaim, to the fullest extent possible under law, any liability associated with any claim relating to a breach of security, data or information.
+Compliance with Laws
+We reserve the right to disclose any information to comply with any law, regulation, decree, judgment, order, subpoena or any other governmental order (“Order”) without any obligation to contest or verify the accuracy of such order.
+Applicable Laws
+This Policy will be governed by and construed as per the laws of India, without regard to any principles of conflicts of law. You agree that any action at law or in equity that arises out of or relates to any use of the App will be filed only in the courts of Bengaluru, and you hereby consent and submit to the personal jurisdiction of such courts to litigate any such action.
+Miscellaneous
+The section titles in this Policy are for convenience only and have no legal or contractual effect. Some of the services may be subject to additional terms and conditions regarding privacy and the use of information. Your use of those services is subject to the terms and conditions incorporated into this Policy by reference. In the event of an inconsistency between this Policy and any additional posted conditions, the provisions of the additional conditions shall control.
+Ab Payroll hua aasaan!
+Company
+About Us
+Referral
+Contact
+Pricing
+Partners
+About Us
+Referral
+Contact
+Pricing
+Partners
+Products
+Payroll
+Face Recognition Attendance System
+Klocky – Auto Clock In & Clock Out
+Leave Management System
+Performance Management Software
+HR Toolkit
+Payslip Generator
+Timesheet Software
+HRMS Software
+Payroll
+Face Recognition Attendance System
+Klocky – Auto Clock In & Clock Out
+Leave Management System
+Performance Management Software
+HR Toolkit
+Payslip Generator
+Timesheet Software
+HRMS Software
+Knowledge Base
+#10 Best HRMS Software in India (2025) – Ditch the HR Headache
+Defining a Job Description: Meaning and Definition
+Gratuity in India: A Comprehensive Guide to Eligibility, Calculation, and Taxation
+Inside Payroll: Your Complete Guide to Effective Management
+Mastering Talent Acquisition: Strategies and Software for Success
+#10 Best HRMS Software in India (2025) – Ditch the HR Headache
+Defining a Job Description: Meaning and Definition
+Gratuity in India: A Comprehensive Guide to Eligibility, Calculation, and Taxation
+Inside Payroll: Your Complete Guide to Effective Management
+Mastering Talent Acquisition: Strategies and Software for Success
+Compare Kredily
+vs Keka HR
+vs Greythr
+vs Zoho
+vs Bamboo HR
+vs Razorpay
+vs Pagarbook
+vs Keka HR
+vs Greythr
+vs Zoho
+vs Bamboo HR
+vs Razorpay
+vs Pagarbook
+#451, 2nd Floor, 17th Cross Road, Sector 4, HSR Layout, Bengaluru, Karnataka 560102
+080 4709 2710
+hello@kredily.com
+Copyright © 2026  All Right Reserved PeopleProsper Technologies Pvt Ltd
+Terms and Conditions
+Privacy Policy
+Refund and Cancellation Policy
+Account Deletion
+Terms and Conditions
+Privacy Policy
+Refund and Cancellation Policy
+Account Deletion

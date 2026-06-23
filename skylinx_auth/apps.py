@@ -5,4 +5,4 @@ from django.utils.translation import gettext_lazy as _
 class SkylinxAuthConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "skylinx_auth"
-    verbose_name = _("Skylinx Auth")
+    verbose_name = _("Auth")

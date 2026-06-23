@@ -606,8 +606,8 @@ class CompanyTheme(SkylinxModel):
         Meta option for CompanyTheme model
         """
 
-        verbose_name = _("Company Theme")
-        verbose_name_plural = _("Company Themes")
+        verbose_name = _("Theme")
+        verbose_name_plural = _("Themes")
 
     def __str__(self):
         return f"{self.theme} - {self.company}"
