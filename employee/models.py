@@ -961,11 +961,17 @@ class EmployeeWorkInformation(models.Model):
 
     @property
     def basic_salary(self):
-        """Calculate basic salary from CTC and component percentages."""
+        """Monthly basic pay = (CTC / 12) * basic%.
+
+        This is the per-month basic that feeds the contract wage and the pay
+        register. basic% comes from salary_components (single editable field).
+        """
         if not self.ctc or not self.salary_components:
             return 0
         basic_pct = self.salary_components.get("basic", 0)
-        return int(self.ctc * basic_pct / 100) if basic_pct > 0 else 0
+        if basic_pct <= 0:
+            return 0
+        return int(self.ctc / 12 * basic_pct / 100)
 
     def save(self, *args, **kwargs):
         # Multi-tenant: default an employee's company to the company the creating

@@ -20,19 +20,27 @@ def employeeworkinformation_pre_save(sender, instance, **_kwargs):
         else None
     )
     if active_employee is not None:
-        all_contracts = Contract.objects.entire()
-        contract_exists = all_contracts.filter(employee_id_id=active_employee).exists()
-        if not contract_exists:
+        # Monthly basic = (CTC / 12) * basic% — keep the contract wage (what the
+        # pay register uses) in sync with the employee's CTC/basic% automatically.
+        monthly_basic = instance.basic_salary or 0
+        employee_contracts = Contract.objects.entire().filter(
+            employee_id_id=active_employee
+        )
+        if not employee_contracts.exists():
             contract = Contract()
             contract.contract_name = f"{active_employee}'s Contract"
             contract.employee_id = active_employee
             contract.contract_start_date = (
                 instance.date_joining if instance.date_joining else datetime.today()
             )
-            contract.wage = (
-                instance.basic_salary if instance.basic_salary is not None else 0
-            )
+            contract.wage = monthly_basic
             contract.save()
+        elif monthly_basic:
+            # Sync active contract(s) wage to the formula. .update() bypasses
+            # Contract.save() so there's no recursion back into this signal.
+            employee_contracts.filter(contract_status="active").update(
+                wage=monthly_basic
+            )
 
 
 @receiver(post_save, sender=LoanAccount)

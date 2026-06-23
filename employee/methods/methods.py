@@ -872,8 +872,8 @@ def bulk_create_work_info_import(success_lists):
         ctc_val = (
             work_info.get("CTC") if work_info.get("CTC") else 0
         )
-        # ponytail: default salary components: 50% basic, 20% HRA, 30% other
-        default_components = {"basic": 50, "hra": 20, "other": 30}
+        # ponytail: default basic % of CTC (monthly basic = CTC/12 * basic%)
+        default_components = {"basic": 50}
 
         if employee_work_info is None:
             # Create a new instance

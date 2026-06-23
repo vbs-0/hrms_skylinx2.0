@@ -373,17 +373,10 @@ class EmployeeWorkInformationForm(ModelForm):
     Form for EmployeeWorkInformation model
     """
 
-    # CTC breakdown as editable percentage inputs (stored in salary_components JSON)
+    # Basic % of CTC (stored in salary_components JSON). Monthly basic pay =
+    # (CTC / 12) * basic% — fed into the contract wage / pay register.
     basic_pct = forms.IntegerField(
         label=_("Basic (%)"), required=False, min_value=0, max_value=100,
-        widget=forms.NumberInput(attrs={"class": "oh-input w-100", "onchange": "updateSalaryComponents()"}),
-    )
-    hra_pct = forms.IntegerField(
-        label=_("HRA (%)"), required=False, min_value=0, max_value=100,
-        widget=forms.NumberInput(attrs={"class": "oh-input w-100", "onchange": "updateSalaryComponents()"}),
-    )
-    other_pct = forms.IntegerField(
-        label=_("Other (%)"), required=False, min_value=0, max_value=100,
         widget=forms.NumberInput(attrs={"class": "oh-input w-100", "onchange": "updateSalaryComponents()"}),
     )
 
@@ -420,11 +413,9 @@ class EmployeeWorkInformationForm(ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["email"].widget.attrs["autocomplete"] = "email"
 
-        # Seed the percentage inputs from the stored JSON (default 50/20/30).
+        # Seed the basic % from the stored JSON (default 50).
         components = (self.instance.salary_components or {}) if self.instance else {}
         self.fields["basic_pct"].initial = components.get("basic", 50)
-        self.fields["hra_pct"].initial = components.get("hra", 20)
-        self.fields["other_pct"].initial = components.get("other", 30)
 
         self.fields["job_position_id"].widget.attrs.update(
             {
@@ -483,18 +474,6 @@ class EmployeeWorkInformationForm(ModelForm):
         cleaned_data = super().clean()
         if "employee_id" in self.errors:
             del self.errors["employee_id"]
-        # CTC breakdown percentages must sum to 100 (only enforced if any is set).
-        basic = cleaned_data.get("basic_pct")
-        hra = cleaned_data.get("hra_pct")
-        other = cleaned_data.get("other_pct")
-        if any(v is not None for v in (basic, hra, other)):
-            total = (basic or 0) + (hra or 0) + (other or 0)
-            if total != 100:
-                self.add_error(
-                    "basic_pct",
-                    _("Salary components must add up to 100%% (currently %(total)s%%).")
-                    % {"total": total},
-                )
         return cleaned_data
 
     def save(self, commit=True):
@@ -504,12 +483,8 @@ class EmployeeWorkInformationForm(ModelForm):
         # __isnull clause), so default to the acting user's company.
         if instance.company_id is None:
             instance.company_id = _default_company_id()
-        # Persist the percentage inputs back into the salary_components JSON.
-        instance.salary_components = {
-            "basic": self.cleaned_data.get("basic_pct") or 0,
-            "hra": self.cleaned_data.get("hra_pct") or 0,
-            "other": self.cleaned_data.get("other_pct") or 0,
-        }
+        # Persist the basic % into the salary_components JSON.
+        instance.salary_components = {"basic": self.cleaned_data.get("basic_pct") or 0}
         if commit:
             instance.save()
             self.save_m2m()
@@ -541,17 +516,10 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
     Form for EmployeeWorkInformation model
     """
 
-    # CTC breakdown as editable percentage inputs (stored in salary_components JSON)
+    # Basic % of CTC (stored in salary_components JSON). Monthly basic pay =
+    # (CTC / 12) * basic% — fed into the contract wage / pay register.
     basic_pct = forms.IntegerField(
         label=_("Basic (%)"), required=False, min_value=0, max_value=100,
-        widget=forms.NumberInput(attrs={"class": "oh-input w-100", "onchange": "updateSalaryComponents()"}),
-    )
-    hra_pct = forms.IntegerField(
-        label=_("HRA (%)"), required=False, min_value=0, max_value=100,
-        widget=forms.NumberInput(attrs={"class": "oh-input w-100", "onchange": "updateSalaryComponents()"}),
-    )
-    other_pct = forms.IntegerField(
-        label=_("Other (%)"), required=False, min_value=0, max_value=100,
         widget=forms.NumberInput(attrs={"class": "oh-input w-100", "onchange": "updateSalaryComponents()"}),
     )
 
@@ -604,34 +572,13 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
                 "hx-get": "/employee/get-job-roles-hx",
             }
         )
-        # Seed the percentage inputs from the stored JSON (default 50/20/30).
+        # Seed the basic % from the stored JSON (default 50).
         components = (self.instance.salary_components or {}) if self.instance else {}
         self.fields["basic_pct"].initial = components.get("basic", 50)
-        self.fields["hra_pct"].initial = components.get("hra", 20)
-        self.fields["other_pct"].initial = components.get("other", 30)
-
-    def clean(self):
-        cleaned_data = super().clean()
-        basic = cleaned_data.get("basic_pct")
-        hra = cleaned_data.get("hra_pct")
-        other = cleaned_data.get("other_pct")
-        if any(v is not None for v in (basic, hra, other)):
-            total = (basic or 0) + (hra or 0) + (other or 0)
-            if total != 100:
-                self.add_error(
-                    "basic_pct",
-                    _("Salary components must add up to 100%% (currently %(total)s%%).")
-                    % {"total": total},
-                )
-        return cleaned_data
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        instance.salary_components = {
-            "basic": self.cleaned_data.get("basic_pct") or 0,
-            "hra": self.cleaned_data.get("hra_pct") or 0,
-            "other": self.cleaned_data.get("other_pct") or 0,
-        }
+        instance.salary_components = {"basic": self.cleaned_data.get("basic_pct") or 0}
         if commit:
             instance.save()
             self.save_m2m()

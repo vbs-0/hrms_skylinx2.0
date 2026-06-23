@@ -102,48 +102,26 @@
             </div>
         </div>
         <div class="row">
-            <div class="col-12 mb-1">
-                <label class="oh-label">{% trans "Salary Components" %}</label>
-            </div>
-            <div class="col-4">
+            <div class="col-12 col-sm-12 col-md-12 col-lg-6">
             <div class="oh-input-group">
                 <label class="oh-label">{% trans "Basic (%)" %}</label>
                 {{work_form.basic_pct}}
             </div>
             </div>
-            <div class="col-4">
-            <div class="oh-input-group">
-                <label class="oh-label">{% trans "HRA (%)" %}</label>
-                {{work_form.hra_pct}}
-            </div>
-            </div>
-            <div class="col-4">
-            <div class="oh-input-group">
-                <label class="oh-label">{% trans "Other (%)" %}</label>
-                {{work_form.other_pct}}
-            </div>
-            </div>
             <div class="col-12 mt-1">
-                <small class="form-text text-muted" id="salaryComponentHint">{% trans "Must add up to 100%." %}</small>
+                <small class="form-text text-muted" id="salaryComponentHint"></small>
             </div>
         </div>
         <script>
         function updateSalaryComponents() {
             var b = parseInt($('#id_basic_pct').val()) || 0;
-            var h = parseInt($('#id_hra_pct').val()) || 0;
-            var o = parseInt($('#id_other_pct').val()) || 0;
-            var total = b + h + o;
             var ctc = parseInt($('#id_ctc').val()) || 0;
             var hint = $('#salaryComponentHint');
-            if (total !== 100) {
-                hint.html('{% trans "Total" %}: ' + total + '% — {% trans "must add up to 100%." %}').css('color', '#d9534f');
-            } else if (ctc) {
-                hint.html('{% trans "Basic" %}: ' + Math.round(ctc*b/100) + ' · HRA: ' + Math.round(ctc*h/100) + ' · {% trans "Other" %}: ' + Math.round(ctc*o/100)).css('color', '#5cb85c');
-            } else {
-                hint.html('{% trans "Total" %}: 100% ✓').css('color', '#5cb85c');
-            }
+            // Monthly basic = (CTC / 12) * basic%
+            var monthlyBasic = ctc ? Math.round(ctc / 12 * b / 100) : 0;
+            hint.html('{% trans "Monthly basic pay" %}: ' + monthlyBasic + ' = ({% trans "CTC" %}/12) × ' + b + '%').css('color', '#5cb85c');
         }
-        $(document).ready(function(){ $('#id_ctc').on('change keyup', updateSalaryComponents); updateSalaryComponents(); });
+        $(document).ready(function(){ $('#id_ctc, #id_basic_pct').on('change keyup', updateSalaryComponents); updateSalaryComponents(); });
         </script>
 
 

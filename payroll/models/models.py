@@ -471,16 +471,9 @@ class Contract(SkylinxModel):
                 _("A draft contract already exists for this employee.")
             )
         super().save(*args, **kwargs)
-        if self.contract_status == "active" and self.wage is not None:
-            try:
-                wage_int = int(self.wage)
-                work_info = self.employee_id.employee_work_info
-                work_info.basic_salary = wage_int
-                work_info.save()
-            except ValueError:
-                logger.error((f"Failed to convert wage '{self.wage}' to an integer."))
-            except Exception as e:
-                logger.error(f"An unexpected error occurred: {e}")
+        # NOTE: basic_salary is now a computed property on EmployeeWorkInformation
+        # (monthly basic = CTC/12 * basic%), so it is derived FROM the employee's
+        # CTC/basic% and must not be written back from the contract wage.
         return self
 
     class Meta:
