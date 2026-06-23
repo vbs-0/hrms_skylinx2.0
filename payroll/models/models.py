@@ -160,9 +160,8 @@ class Contract(SkylinxModel):
         ("daily", _("Daily")),
         ("monthly", _("Monthly")),
     ]
-
-    if apps.is_installed("attendance"):
-        WAGE_CHOICES.append(("hourly", _("Hourly")))
+    # ponytail: Hourly wage type removed — not used. (was appended when attendance
+    # is installed) Re-add the append below if hourly payroll is ever needed.
 
     CONTRACT_STATUS_CHOICES = (
         ("draft", _("Draft")),
