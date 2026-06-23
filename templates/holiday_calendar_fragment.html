@@ -97,13 +97,18 @@
             align-items: center;
             gap: 4px;
         }
+        /* ponytail: mandatory holiday = blue, optional = grey, leave = red */
         .md-cal-evt--holiday {
-            background: #fef3c7;
-            color: #92400e;
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .md-cal-evt--holiday-optional {
+            background: #e5e7eb;
+            color: #4b5563;
         }
         .md-cal-evt--leave {
-            background: #e0f2fe;
-            color: #0369a1;
+            background: #fee2e2;
+            color: #b91c1c;
         }
         .md-holiday-lists {
             margin-top: 30px;
@@ -229,7 +234,7 @@
                         <div class="md-cal-events">
                             {% for evt in day.events %}
                                 {% if evt.type == 'holiday' %}
-                                    <div class="md-cal-evt md-cal-evt--holiday" title="{{ evt.name }}">
+                                    <div class="md-cal-evt {% if evt.is_optional %}md-cal-evt--holiday-optional{% else %}md-cal-evt--holiday{% endif %}" title="{{ evt.name }}{% if evt.is_optional %} ({% trans 'Optional' %}){% endif %}">
                                         🎉 {{ evt.name }}
                                     </div>
                                 {% elif evt.type == 'leave' %}

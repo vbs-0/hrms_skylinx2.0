@@ -8690,6 +8690,7 @@ def holiday_calendar_view(request):
             events_by_day.setdefault(curr.day, []).append({
                 "type": "holiday",
                 "name": h.name,
+                "is_optional": h.is_optional,
             })
             curr += timedelta(days=1)
 

@@ -2713,6 +2713,16 @@ class Holidays(SkylinxModel):
     start_date = models.DateField(verbose_name=_("Start Date"))
     end_date = models.DateField(null=True, blank=True, verbose_name=_("End Date"))
     recurring = models.BooleanField(default=False, verbose_name=_("Recurring"))
+    # ponytail: optional holiday -> employee may apply leave (grey in calendar);
+    # mandatory (default) -> no leave allowed (blue in calendar).
+    is_optional = models.BooleanField(
+        default=False,
+        verbose_name=_("Optional Holiday"),
+        help_text=_(
+            "If on, employees may apply leave on this day. If off, it's a "
+            "mandatory holiday and no leave can be applied."
+        ),
+    )
     company_id = models.ForeignKey(
         Company,
         null=True,
