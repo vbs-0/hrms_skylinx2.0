@@ -53,6 +53,7 @@ COMPANY_ADMIN_APPS = [
     "project",
     "helpdesk",
     "biometric",
+    "skylinx_documents",
 ]
 
 
