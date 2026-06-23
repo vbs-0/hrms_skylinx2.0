@@ -98,6 +98,21 @@ urlpatterns = [
     path("global-search/", views.global_search, name="global-search"),
     path("dashboard/", dashboard_module.main_dashboard_view, name="dashboard"),
     path(
+        "dashboard/api/projects/",
+        dashboard_module.dashboard_project_status,
+        name="dashboard-project-status",
+    ),
+    path(
+        "dashboard/api/tickets/",
+        dashboard_module.dashboard_ticket_status,
+        name="dashboard-ticket-status",
+    ),
+    path(
+        "dashboard/api/assets/",
+        dashboard_module.dashboard_asset_status,
+        name="dashboard-asset-status",
+    ),
+    path(
         "dashboard/api/kpi/",
         dashboard_module.dashboard_kpi_data,
         name="dashboard-kpi-data",
