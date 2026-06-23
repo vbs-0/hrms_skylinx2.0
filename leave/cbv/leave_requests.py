@@ -238,15 +238,7 @@ class LeaveRequestsNavView(SkylinxNavView):
             },
         ]
 
-        if self.request.user.has_perm("leave.add_leaverequest") or is_reportingmanager(
-            self.request
-        ):
-            self.create_attrs = f"""
-                hx-get="{reverse_lazy("request-creation")}"
-                hx-target="#genericModalBody"
-                data-target="#genericModal"
-                data-toggle="oh-modal-toggle"
-            """
+        self.create_attrs = ""
 
     nav_title = _("Leave Requests")
     filter_instance = LeaveRequestFilter()

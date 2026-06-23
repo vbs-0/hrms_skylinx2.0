@@ -15,11 +15,6 @@ IMG_SRC = "images/ui/leave.svg"
 
 SUBMENUS = [
     {
-        "menu": _("Dashboard"),
-        "redirect": reverse_lazy("leave-dashboard"),
-        "accessibility": "leave.sidebar.dashboard_accessibility",
-    },
-    {
         "menu": _("Apply Leave"),
         "redirect": reverse_lazy("user-request-view"),
     },

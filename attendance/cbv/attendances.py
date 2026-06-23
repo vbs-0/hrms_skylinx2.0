@@ -213,12 +213,7 @@ class AttendancesNavView(SkylinxNavView):
             ),
             ("employee_id__employee_work_info__company_id", _("Company")),
         ]
-        self.create_attrs = f"""
-             hx-get="{reverse_lazy("attendance-create")}"
-             hx-target="#genericModalBody"
-             data-target="#genericModal"
-             data-toggle="oh-modal-toggle"
-         """
+        self.create_attrs = ""
         actions = [
             {
                 "action": _("Import"),

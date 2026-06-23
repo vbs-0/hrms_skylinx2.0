@@ -201,6 +201,7 @@ class PayslipNav(SkylinxNavView):
                 hx-get="{reverse('payroll-create-form-view')}"
                 hx-target="#genericModalBody"
             """
+            self.create_label = _("Generate")
 
             self.actions = [
                 {

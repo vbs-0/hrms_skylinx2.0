@@ -1,4 +1,4 @@
-"""
+﻿"""
 views.py
 
 This module is used to map url pattens with django views or methods
@@ -6,7 +6,6 @@ This module is used to map url pattens with django views or methods
 
 import csv
 import json
-import logging
 import os
 import threading
 import uuid
@@ -193,8 +192,6 @@ from skylinx_audit.models import AccountBlockUnblock, AuditTag, HistoryTrackingF
 from skylinx_auth.models import SkylinxUser
 from notifications.models import Notification
 from notifications.signals import notify
-
-logger = logging.getLogger(__name__)
 
 CHARTS = [
     ("employee_work_info", _("Employee Work Info")),
@@ -731,109 +728,6 @@ def include_employee_instance(request, form):
     return form
 
 
-def _resolve_login_user(ident):
-    """Find a user by username / email / work-email / phone (shared with login)."""
-    from django.db.models import Q
-
-    ident = (ident or "").strip()
-    if not ident:
-        return None
-    return (
-        SkylinxUser.objects.filter(
-            Q(username__iexact=ident)
-            | Q(email__iexact=ident)
-            | Q(employee_get__email__iexact=ident)
-            | Q(employee_get__phone=ident)
-            | Q(employee_get__employee_work_info__email__iexact=ident)
-        )
-        .distinct()
-        .first()
-    )
-
-
-def _user_emails(user):
-    """Every distinct address this user might read."""
-    emp = getattr(user, "employee_get", None)
-    addrs = [user.email]
-    if emp:
-        addrs.append(emp.email)
-        addrs.append(getattr(getattr(emp, "employee_work_info", None), "email", None))
-    seen = []
-    for a in addrs:
-        if a and a not in seen:
-            seen.append(a)
-    return seen
-
-
-def password_reset_otp(request):
-    """OTP-based password reset — no email link, just a 6-digit code.
-
-    Stage 'request': enter email/phone -> emails a code (10-min TTL, in session).
-    Stage 'verify': enter code + new password -> sets it. Host-agnostic (no
-    hardcoded domain; the code works on any subdomain)."""
-    from base.methods import generate_otp
-
-    if request.method == "POST":
-        action = request.POST.get("action")
-
-        if action == "request":
-            ident = request.POST.get("identifier", "")
-            user = _resolve_login_user(ident)
-            if not user:
-                messages.error(request, _("No account found for that email or phone."))
-                return render(request, "otp_reset.html", {"stage": "request"})
-            otp = generate_otp()
-            request.session["reset_otp"] = otp
-            request.session["reset_otp_user"] = user.pk
-            request.session["reset_otp_ts"] = timezone.now().timestamp()
-            request.session.save()
-            backend = ConfiguredEmailBackend()
-            try:
-                EmailMessage(
-                    subject="Your Skylinx HRMS password reset code",
-                    body=(
-                        f"Your password reset code is {otp}\n\n"
-                        "It expires in 10 minutes. If you didn't request this, ignore this email."
-                    ),
-                    from_email=backend.dynamic_from_email_with_display_name,
-                    to=_user_emails(user),
-                ).send(fail_silently=False)
-            except Exception as exc:
-                logger.exception("OTP reset email failed: %s", exc)
-                messages.error(request, _("Could not send the code. Contact support."))
-                return render(request, "otp_reset.html", {"stage": "request"})
-            messages.success(request, _("We emailed a 6-digit code to your registered address."))
-            return render(request, "otp_reset.html", {"stage": "verify", "ident": ident})
-
-        if action == "verify":
-            otp = request.session.get("reset_otp")
-            uid = request.session.get("reset_otp_user")
-            ts = request.session.get("reset_otp_ts", 0)
-            if not otp or (timezone.now().timestamp() - ts) > 600:
-                messages.error(request, _("Code expired. Please request a new one."))
-                return render(request, "otp_reset.html", {"stage": "request"})
-            if request.POST.get("otp", "").strip() != otp:
-                messages.error(request, _("Invalid code."))
-                return render(request, "otp_reset.html", {"stage": "verify"})
-            pw1 = request.POST.get("password", "")
-            pw2 = request.POST.get("confirm", "")
-            if len(pw1) < 6 or pw1 != pw2:
-                messages.error(request, _("Passwords must match and be at least 6 characters."))
-                return render(request, "otp_reset.html", {"stage": "verify"})
-            user = SkylinxUser.objects.filter(pk=uid).first()
-            if not user:
-                messages.error(request, _("Something went wrong. Start again."))
-                return render(request, "otp_reset.html", {"stage": "request"})
-            user.set_password(pw1)
-            user.save()
-            for k in ("reset_otp", "reset_otp_user", "reset_otp_ts"):
-                request.session.pop(k, None)
-            messages.success(request, _("Password updated. Please log in."))
-            return redirect("login")
-
-    return render(request, "otp_reset.html", {"stage": "request"})
-
-
 def reset_send_success(request):
     return render(request, "reset_send.html")
 
@@ -858,30 +752,25 @@ class SkylinxPasswordResetView(PasswordResetView):
             messages.error(self.request, _("Primary mail server is not configured"))
             return redirect("forgot-password")
 
-        opts = {
-            "use_https": self.request.is_secure(),
-            "token_generator": self.token_generator,
-            "from_email": email_backend.dynamic_from_email_with_display_name,
-            "email_template_name": self.email_template_name,
-            "subject_template_name": self.subject_template_name,
-            "request": self.request,
-            "html_email_template_name": self.html_email_template_name,
-            "extra_email_context": self.extra_email_context,
-        }
-        try:
+        username = form.cleaned_data["email"]
+        user = SkylinxUser.objects.filter(username=username).first()
+        if user:
+            opts = {
+                "use_https": self.request.is_secure(),
+                "token_generator": self.token_generator,
+                "from_email": email_backend.dynamic_from_email_with_display_name,
+                "email_template_name": self.email_template_name,
+                "subject_template_name": self.subject_template_name,
+                "request": self.request,
+                "html_email_template_name": self.html_email_template_name,
+                "extra_email_context": self.extra_email_context,
+            }
             form.save(**opts)
-        except Exception as exc:
-            # SMTP refused / bad creds / network — tell the truth, don't fake success.
-            logger.exception("Password reset email failed: %s", exc)
-            messages.error(
-                self.request,
-                _("Could not send the reset email. Please check the mail server settings or contact support."),
-            )
-            return redirect("forgot-password")
-
-        if self.request.user.is_authenticated:
-            messages.success(self.request, _("Password reset link sent successfully"))
-            return SkylinxRedirect(self.request)
+            if self.request.user.is_authenticated:
+                messages.success(
+                    self.request, _("Password reset link sent successfully")
+                )
+                return SkylinxRedirect(self.request)
 
         return redirect(reverse_lazy("reset-send-success"))
 
@@ -1133,7 +1022,7 @@ class Workinfo:
 @login_required
 def home(request):
     """
-    Renders the Home Page — a visual launchpad showing all module navigation cards.
+    Renders the Home Page ΓÇö a visual launchpad showing all module navigation cards.
     """
     if not request.user.is_authenticated:
         return redirect("login")
@@ -1188,7 +1077,7 @@ def global_search(request):
 
     q_lower = query.lower()
 
-    # ── 1. Employee search (permission-scoped) ───────────────────────────────
+    # ΓöÇΓöÇ 1. Employee search (permission-scoped) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     if request.user.has_perm("employee.view_employee"):
         try:
             from employee.models import Employee
@@ -1234,7 +1123,7 @@ def global_search(request):
         except Exception:
             pass
 
-    # ── 2. Module / feature search from permission-filtered sidebar ─────────
+    # ΓöÇΓöÇ 2. Module / feature search from permission-filtered sidebar ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     from skylinx.config import get_MENUS
 
     menus = get_MENUS(request).get("sidebar", [])
@@ -1361,7 +1250,7 @@ def common_settings(request):
 
 class SettingsView(LoginRequiredMixin, TemplateView):
     """
-    Settings page — builds the sidebar menu from registered app menu.py
+    Settings page ΓÇö builds the sidebar menu from registered app menu.py
     entries and passes it directly into the template context.
     """
 
@@ -1416,7 +1305,7 @@ def user_group_table(request):
 
 @login_required
 @require_http_methods(["POST"])
-@permission_required("auth.change_group")
+@permission_required("auth.add_permission")
 def update_group_permission(
     request,
 ):
@@ -1448,6 +1337,11 @@ def update_group_permission(
             messages.success(request, _("Name updated"))
             return JsonResponse({"message": "Name updated", "type": "success"})
         messages.info(request, _("At least 4 characters required"))
+        return JsonResponse({})
+    perms = form.cleaned_data.get("permissions")
+    if not perms:
+        instance.permissions.clear()
+        messages.info(request, _("All permission cleared"))
         return JsonResponse({})
     messages.error(request, _("Something went wrong"))
     return JsonResponse({"message": "Something went wrong", "type": "danger"})
@@ -1489,57 +1383,6 @@ def user_group(request):
             "permissions": permissions,
             "form": form,
             "groups": paginator_qry(groups, request.GET.get("page")),
-            "no_permission_models": no_permission_models,
-        },
-    )
-
-
-@login_required
-@permission_required("auth.view_group")
-def roles_page(request):
-    """Friendly card-based roles & permissions overview."""
-    from base.rbac import groups_for_request, strip_name
-    from django.db.models import Count
-
-    raw_groups = (
-        groups_for_request(request)
-        .annotate(user_count=Count("user", distinct=True))
-        .prefetch_related("permissions")
-    )
-    roles = [
-        {
-            "id": g.id,
-            "name": strip_name(g.name),
-            "user_count": g.user_count,
-            "perm_count": g.permissions.count(),
-        }
-        for g in raw_groups
-    ]
-
-    # build permission table data for create modal (reuse existing logic)
-    permissions = []
-    no_permission_models = settings.NO_PERMISSION_MODALS
-    form = UserGroupForm()
-    for app_name in settings.APPS:
-        app_models = []
-        for model in get_models_in_app(app_name):
-            app_models.append(
-                {
-                    "verbose_name": model._meta.verbose_name.capitalize(),
-                    "model_name": model._meta.model_name,
-                }
-            )
-        permissions.append(
-            {"app": app_name.capitalize().replace("_", " "), "app_models": app_models}
-        )
-
-    return render(
-        request,
-        "base/auth/roles.html",
-        {
-            "roles": roles,
-            "form": form,
-            "permissions": permissions,
             "no_permission_models": no_permission_models,
         },
     )
@@ -1620,10 +1463,7 @@ def group_permissions_table_view(request, group_id):
             {"app": app_name.capitalize().replace("_", " "), "app_models": app_models}
         )
 
-    selected_perms = [
-        f"{p['content_type__app_label']}.{p['codename']}"
-        for p in group.permissions.values("content_type__app_label", "codename")
-    ]
+    selected_perms = list(group.permissions.values_list("codename", flat=True))
 
     return render(
         request,
@@ -1665,10 +1505,9 @@ def user_permission_table_view(request, emp_id):
             {"app": app_name.capitalize().replace("_", " "), "app_models": app_models}
         )
 
-    selected_perms = [
-        f"{p['content_type__app_label']}.{p['codename']}"
-        for p in employee.employee_user_id.user_permissions.values("content_type__app_label", "codename")
-    ]
+    selected_perms = list(
+        employee.employee_user_id.user_permissions.values_list("codename", flat=True)
+    )
 
     return render(
         request,
@@ -2797,10 +2636,10 @@ def rotating_work_type_assign_add(request):
                 request.user.employee_get,
                 recipient=users,
                 verb="You are added to rotating work type",
-                verb_ar="تمت إضافتك إلى نوع العمل المتناوب",
-                verb_de="Sie werden zum rotierenden Arbeitstyp hinzugefügt",
+                verb_ar="╪¬┘à╪¬ ╪Ñ╪╢╪º┘ü╪¬┘â ╪Ñ┘ä┘ë ┘å┘ê╪╣ ╪º┘ä╪╣┘à┘ä ╪º┘ä┘à╪¬┘å╪º┘ê╪¿",
+                verb_de="Sie werden zum rotierenden Arbeitstyp hinzugef├╝gt",
                 verb_es="Se le agrega al tipo de trabajo rotativo",
-                verb_fr="Vous êtes ajouté au type de travail rotatif",
+                verb_fr="Vous ├¬tes ajout├⌐ au type de travail rotatif",
                 icon="infinite",
                 redirect=reverse("employee-profile"),
             )
@@ -3487,10 +3326,10 @@ def rotating_shift_assign_add(request):
                 request.user.employee_get,
                 recipient=users,
                 verb="You are added to rotating shift",
-                verb_ar="تمت إضافتك إلى وردية الدورية",
-                verb_de="Sie werden der rotierenden Arbeitsschicht hinzugefügt",
-                verb_es="Estás agregado a turno rotativo",
-                verb_fr="Vous êtes ajouté au quart de travail rotatif",
+                verb_ar="╪¬┘à╪¬ ╪Ñ╪╢╪º┘ü╪¬┘â ╪Ñ┘ä┘ë ┘ê╪▒╪»┘è╪⌐ ╪º┘ä╪»┘ê╪▒┘è╪⌐",
+                verb_de="Sie werden der rotierenden Arbeitsschicht hinzugef├╝gt",
+                verb_es="Est├ís agregado a turno rotativo",
+                verb_fr="Vous ├¬tes ajout├⌐ au quart de travail rotatif",
                 icon="infinite",
                 redirect=reverse("employee-profile"),
             )
@@ -3701,7 +3540,7 @@ def rotating_shift_assign_import(request):
             start_date = parser.parse(str(start_date), dayfirst=True).date()
 
         for total_rows, row in enumerate(work_info_dicts, start=1):
-            employee_ids.append(row["Employee ID"])
+            employee_ids.append(row["Badge Id"])
             current_list = list(row.values())[3:]
             current_list = normalize_list(current_list)
             if start_date < datetime.today().date():
@@ -3775,7 +3614,7 @@ def rotating_shift_assign_import(request):
                 else:
                     error_message = f"Rotating Shift with ID {rshift.name} is already assigned to employee {employee}"
                     for row in work_info_dicts:
-                        if row["Employee ID"] == employee.badge_id:
+                        if row["Badge Id"] == employee.badge_id:
                             row["Employee Error"] = error_message
                             error_list.append(row)
                             break
@@ -3792,7 +3631,7 @@ def rotating_shift_assign_import(request):
         unique_error_list = []
 
         for row in error_list:
-            badge_id = row["Employee ID"]
+            badge_id = row["Badge Id"]
             if badge_id not in flg:
                 unique_error_list.append(row)
                 flg.add(badge_id)
@@ -4118,7 +3957,7 @@ def employee_permission_search(request, codename=None, uid=None):
 
 @login_required
 @require_http_methods(["POST"])
-@permission_required("auth.view_permission")
+@permission_required("auth.add_permission")
 def update_permission(
     request,
 ):
@@ -4142,29 +3981,15 @@ def update_permission(
         )
         user = employee.employee_user_id
 
-        all_values = [p["codename"] for p in permissions_data]
-        checked_values = [p["codename"] for p in permissions_data if p["checked"]]
+        all_codenames = [p["codename"] for p in permissions_data]
+        checked_codenames = [p["codename"] for p in permissions_data if p["checked"]]
 
-        from django.db.models import Q
-        all_q = Q()
-        for pv in all_values:
-            if "." in pv:
-                app_label, codename = pv.split(".", 1)
-                all_q |= Q(content_type__app_label=app_label, codename=codename)
-                
-        checked_q = Q()
-        for pv in checked_values:
-            if "." in pv:
-                app_label, codename = pv.split(".", 1)
-                checked_q |= Q(content_type__app_label=app_label, codename=codename)
+        existing_managed = user.user_permissions.filter(codename__in=all_codenames)
+        managed_permissions = Permission.objects.filter(codename__in=all_codenames)
+        checked_permissions = managed_permissions.filter(codename__in=checked_codenames)
 
-        if all_q:
-            existing_managed = user.user_permissions.filter(all_q)
-            user.user_permissions.remove(*existing_managed)
-            
-        if checked_q:
-            checked_permissions = Permission.objects.filter(checked_q)
-            user.user_permissions.add(*checked_permissions)
+        user.user_permissions.remove(*existing_managed)
+        user.user_permissions.add(*checked_permissions)
 
         messages.success(request, _("Permissions updated successfully"))
 
@@ -4187,7 +4012,7 @@ def update_permission(
 
 @login_required
 @hx_request_required
-@permission_required("auth.view_permission")
+@permission_required("auth.add_permission")
 def permission_table(request):
     """
     This method is used to render the permission table
@@ -4427,14 +4252,14 @@ def work_type_request(request):
                     ),
                     verb=f"You have new work type request to \
                             validate for {instance.employee_id}",
-                    verb_ar=f"لديك طلب نوع وظيفة جديد للتحقق من \
+                    verb_ar=f"┘ä╪»┘è┘â ╪╖┘ä╪¿ ┘å┘ê╪╣ ┘ê╪╕┘è┘ü╪⌐ ╪¼╪»┘è╪» ┘ä┘ä╪¬╪¡┘é┘é ┘à┘å \
                             {instance.employee_id}",
                     verb_de=f"Sie haben eine neue Arbeitstypanfrage zur \
-                            Validierung für {instance.employee_id}",
+                            Validierung f├╝r {instance.employee_id}",
                     verb_es=f"Tiene una nueva solicitud de tipo de trabajo para \
                             validar para {instance.employee_id}",
                     verb_fr=f"Vous avez une nouvelle demande de type de travail\
-                            à valider pour {instance.employee_id}",
+                            ├á valider pour {instance.employee_id}",
                     icon="information",
                     redirect=reverse("work-type-request-view") + f"?id={instance.id}",
                 )
@@ -4521,10 +4346,10 @@ def work_type_request_cancel(request, id):
         request.user.employee_get,
         recipient=work_type_request.employee_id.employee_user_id,
         verb="Your work type request has been rejected.",
-        verb_ar="تم إلغاء طلب نوع وظيفتك",
+        verb_ar="╪¬┘à ╪Ñ┘ä╪║╪º╪í ╪╖┘ä╪¿ ┘å┘ê╪╣ ┘ê╪╕┘è┘ü╪¬┘â",
         verb_de="Ihre Arbeitstypanfrage wurde storniert",
         verb_es="Su solicitud de tipo de trabajo ha sido cancelada",
-        verb_fr="Votre demande de type de travail a été annulée",
+        verb_fr="Votre demande de type de travail a ├⌐t├⌐ annul├⌐e",
         redirect=reverse("work-type-request-view") + f"?id={work_type_request.id}",
         icon="close",
     )
@@ -4566,10 +4391,10 @@ def work_type_request_bulk_cancel(request):
                 request.user.employee_get,
                 recipient=work_type_request.employee_id.employee_user_id,
                 verb="Your work type request has been canceled.",
-                verb_ar="تم إلغاء طلب نوع وظيفتك.",
+                verb_ar="╪¬┘à ╪Ñ┘ä╪║╪º╪í ╪╖┘ä╪¿ ┘å┘ê╪╣ ┘ê╪╕┘è┘ü╪¬┘â.",
                 verb_de="Ihre Arbeitstypanfrage wurde storniert.",
                 verb_es="Su solicitud de tipo de trabajo ha sido cancelada.",
-                verb_fr="Votre demande de type de travail a été annulée.",
+                verb_fr="Votre demande de type de travail a ├⌐t├⌐ annul├⌐e.",
                 redirect=reverse("work-type-request-view")
                 + f"?id={work_type_request.id}",
                 icon="close",
@@ -4609,10 +4434,10 @@ def work_type_request_approve(request, id):
             request.user.employee_get,
             recipient=work_type_request.employee_id.employee_user_id,
             verb="Your work type request has been approved.",
-            verb_ar="تمت الموافقة على طلب نوع وظيفتك.",
+            verb_ar="╪¬┘à╪¬ ╪º┘ä┘à┘ê╪º┘ü┘é╪⌐ ╪╣┘ä┘ë ╪╖┘ä╪¿ ┘å┘ê╪╣ ┘ê╪╕┘è┘ü╪¬┘â.",
             verb_de="Ihre Arbeitstypanfrage wurde genehmigt.",
             verb_es="Su solicitud de tipo de trabajo ha sido aprobada.",
-            verb_fr="Votre demande de type de travail a été approuvée.",
+            verb_fr="Votre demande de type de travail a ├⌐t├⌐ approuv├⌐e.",
             redirect=reverse("work-type-request-view") + f"?id={work_type_request.id}",
             icon="checkmark",
         )
@@ -4662,10 +4487,10 @@ def work_type_request_bulk_approve(request):
                 request.user.employee_get,
                 recipient=work_type_request.employee_id.employee_user_id,
                 verb="Your work type request has been approved.",
-                verb_ar="تمت الموافقة على طلب نوع وظيفتك.",
+                verb_ar="╪¬┘à╪¬ ╪º┘ä┘à┘ê╪º┘ü┘é╪⌐ ╪╣┘ä┘ë ╪╖┘ä╪¿ ┘å┘ê╪╣ ┘ê╪╕┘è┘ü╪¬┘â.",
                 verb_de="Ihre Arbeitstypanfrage wurde genehmigt.",
                 verb_es="Su solicitud de tipo de trabajo ha sido aprobada.",
-                verb_fr="Votre demande de type de travail a été approuvée.",
+                verb_fr="Votre demande de type de travail a ├⌐t├⌐ approuv├⌐e.",
                 redirect=reverse("work-type-request-view")
                 + f"?id={work_type_request.id}",
                 icon="checkmark",
@@ -4720,10 +4545,10 @@ def work_type_request_delete(request, obj_id):
             request.user.employee_get,
             recipient=employee.employee_user_id,
             verb="Your work type request has been deleted.",
-            verb_ar="تم حذف طلب نوع وظيفتك.",
-            verb_de="Ihre Arbeitstypanfrage wurde gelöscht.",
+            verb_ar="╪¬┘à ╪¡╪░┘ü ╪╖┘ä╪¿ ┘å┘ê╪╣ ┘ê╪╕┘è┘ü╪¬┘â.",
+            verb_de="Ihre Arbeitstypanfrage wurde gel├╢scht.",
             verb_es="Su solicitud de tipo de trabajo ha sido eliminada.",
-            verb_fr="Votre demande de type de travail a été supprimée.",
+            verb_fr="Votre demande de type de travail a ├⌐t├⌐ supprim├⌐e.",
             redirect="#",
             icon="trash",
         )
@@ -4826,10 +4651,10 @@ def work_type_request_bulk_delete(request):
                 request.user.employee_get,
                 recipient=user,
                 verb="Your work type request has been deleted.",
-                verb_ar="تم حذف طلب نوع وظيفتك.",
-                verb_de="Ihre Arbeitstypanfrage wurde gelöscht.",
+                verb_ar="╪¬┘à ╪¡╪░┘ü ╪╖┘ä╪¿ ┘å┘ê╪╣ ┘ê╪╕┘è┘ü╪¬┘â.",
+                verb_de="Ihre Arbeitstypanfrage wurde gel├╢scht.",
                 verb_es="Su solicitud de tipo de trabajo ha sido eliminada.",
-                verb_fr="Votre demande de type de travail a été supprimée.",
+                verb_fr="Votre demande de type de travail a ├⌐t├⌐ supprim├⌐e.",
                 redirect="#",
                 icon="trash",
             )
@@ -4884,13 +4709,13 @@ def shift_request(request):
                     ),
                     verb=f"You have new shift request to approve \
                         for {instance.employee_id}",
-                    verb_ar=f"لديك طلب وردية جديد للموافقة عليه لـ {instance.employee_id}",
-                    verb_de=f"Sie müssen eine neue Schichtanfrage \
-                        für {instance.employee_id} genehmigen",
+                    verb_ar=f"┘ä╪»┘è┘â ╪╖┘ä╪¿ ┘ê╪▒╪»┘è╪⌐ ╪¼╪»┘è╪» ┘ä┘ä┘à┘ê╪º┘ü┘é╪⌐ ╪╣┘ä┘è┘ç ┘ä┘Ç {instance.employee_id}",
+                    verb_de=f"Sie m├╝ssen eine neue Schichtanfrage \
+                        f├╝r {instance.employee_id} genehmigen",
                     verb_es=f"Tiene una nueva solicitud de turno para \
                         aprobar para {instance.employee_id}",
                     verb_fr=f"Vous avez une nouvelle demande de quart de\
-                        travail à approuver pour {instance.employee_id}",
+                        travail ├á approuver pour {instance.employee_id}",
                     icon="information",
                     redirect=reverse("shift-request-view") + f"?id={instance.id}",
                 )
@@ -4957,10 +4782,10 @@ def shift_request_allocation(request):
                         instance.employee_id.employee_work_info.reporting_manager_id.employee_user_id
                     ),
                     verb=f"You have a new shift reallocation request to approve for {instance.employee_id}.",
-                    verb_ar=f"لديك طلب تخصيص جديد للورديات يتعين عليك الموافقة عليه لـ {instance.employee_id}.",
-                    verb_de=f"Sie haben eine neue Anfrage zur Verschiebung der Schichtzuteilung zur Genehmigung für {instance.employee_id}.",
-                    verb_es=f"Tienes una nueva solicitud de reasignación de turnos para aprobar para {instance.employee_id}.",
-                    verb_fr=f"Vous avez une nouvelle demande de réaffectation de shift à approuver pour {instance.employee_id}.",
+                    verb_ar=f"┘ä╪»┘è┘â ╪╖┘ä╪¿ ╪¬╪«╪╡┘è╪╡ ╪¼╪»┘è╪» ┘ä┘ä┘ê╪▒╪»┘è╪º╪¬ ┘è╪¬╪╣┘è┘å ╪╣┘ä┘è┘â ╪º┘ä┘à┘ê╪º┘ü┘é╪⌐ ╪╣┘ä┘è┘ç ┘ä┘Ç {instance.employee_id}.",
+                    verb_de=f"Sie haben eine neue Anfrage zur Verschiebung der Schichtzuteilung zur Genehmigung f├╝r {instance.employee_id}.",
+                    verb_es=f"Tienes una nueva solicitud de reasignaci├│n de turnos para aprobar para {instance.employee_id}.",
+                    verb_fr=f"Vous avez une nouvelle demande de r├⌐affectation de shift ├á approuver pour {instance.employee_id}.",
                     icon="information",
                     redirect=reverse("shift-request-view") + f"?id={instance.id}",
                 )
@@ -4972,10 +4797,10 @@ def shift_request_allocation(request):
                     instance.employee_id,
                     recipient=reallocate_emp,
                     verb=f"You have a new shift reallocation request from {instance.employee_id}.",
-                    verb_ar=f"لديك طلب تخصيص جديد للورديات من {instance.employee_id}.",
+                    verb_ar=f"┘ä╪»┘è┘â ╪╖┘ä╪¿ ╪¬╪«╪╡┘è╪╡ ╪¼╪»┘è╪» ┘ä┘ä┘ê╪▒╪»┘è╪º╪¬ ┘à┘å {instance.employee_id}.",
                     verb_de=f"Sie haben eine neue Anfrage zur Verschiebung der Schichtzuteilung von {instance.employee_id}.",
-                    verb_es=f"Tienes una nueva solicitud de reasignación de turnos de {instance.employee_id}.",
-                    verb_fr=f"Vous avez une nouvelle demande de réaffectation de shift de {instance.employee_id}.",
+                    verb_es=f"Tienes una nueva solicitud de reasignaci├│n de turnos de {instance.employee_id}.",
+                    verb_fr=f"Vous avez une nouvelle demande de r├⌐affectation de shift de {instance.employee_id}.",
                     icon="information",
                     redirect=reverse("shift-request-view") + f"?id={instance.id}",
                 )
@@ -5319,10 +5144,10 @@ def shift_allocation_request_update(request, shift_request_id):
                         instance.employee_id.employee_work_info.reporting_manager_id.employee_user_id
                     ),
                     verb=f"You have a new shift reallocation request to approve for {instance.employee_id}.",
-                    verb_ar=f"لديك طلب تخصيص جديد للورديات يتعين عليك الموافقة عليه لـ {instance.employee_id}.",
-                    verb_de=f"Sie haben eine neue Anfrage zur Verschiebung der Schichtzuteilung zur Genehmigung für {instance.employee_id}.",
-                    verb_es=f"Tienes una nueva solicitud de reasignación de turnos para aprobar para {instance.employee_id}.",
-                    verb_fr=f"Vous avez une nouvelle demande de réaffectation de shift à approuver pour {instance.employee_id}.",
+                    verb_ar=f"┘ä╪»┘è┘â ╪╖┘ä╪¿ ╪¬╪«╪╡┘è╪╡ ╪¼╪»┘è╪» ┘ä┘ä┘ê╪▒╪»┘è╪º╪¬ ┘è╪¬╪╣┘è┘å ╪╣┘ä┘è┘â ╪º┘ä┘à┘ê╪º┘ü┘é╪⌐ ╪╣┘ä┘è┘ç ┘ä┘Ç {instance.employee_id}.",
+                    verb_de=f"Sie haben eine neue Anfrage zur Verschiebung der Schichtzuteilung zur Genehmigung f├╝r {instance.employee_id}.",
+                    verb_es=f"Tienes una nueva solicitud de reasignaci├│n de turnos para aprobar para {instance.employee_id}.",
+                    verb_fr=f"Vous avez une nouvelle demande de r├⌐affectation de shift ├á approuver pour {instance.employee_id}.",
                     icon="information",
                     redirect=reverse("shift-request-view") + f"?id={instance.id}",
                 )
@@ -5334,10 +5159,10 @@ def shift_allocation_request_update(request, shift_request_id):
                     instance.employee_id,
                     recipient=reallocate_emp,
                     verb=f"You have a new shift reallocation request from {instance.employee_id}.",
-                    verb_ar=f"لديك طلب تخصيص جديد للورديات من {instance.employee_id}.",
+                    verb_ar=f"┘ä╪»┘è┘â ╪╖┘ä╪¿ ╪¬╪«╪╡┘è╪╡ ╪¼╪»┘è╪» ┘ä┘ä┘ê╪▒╪»┘è╪º╪¬ ┘à┘å {instance.employee_id}.",
                     verb_de=f"Sie haben eine neue Anfrage zur Verschiebung der Schichtzuteilung von {instance.employee_id}.",
-                    verb_es=f"Tienes una nueva solicitud de reasignación de turnos de {instance.employee_id}.",
-                    verb_fr=f"Vous avez une nouvelle demande de réaffectation de shift de {instance.employee_id}.",
+                    verb_es=f"Tienes una nueva solicitud de reasignaci├│n de turnos de {instance.employee_id}.",
+                    verb_fr=f"Vous avez une nouvelle demande de r├⌐affectation de shift de {instance.employee_id}.",
                     icon="information",
                     redirect=reverse("shift-request-view") + f"?id={instance.id}",
                 )
@@ -5405,10 +5230,10 @@ def shift_request_cancel(request, id):
         request.user.employee_get,
         recipient=shift_request.employee_id.employee_user_id,
         verb="Your shift request has been canceled.",
-        verb_ar="تم إلغاء طلبك للوردية.",
+        verb_ar="╪¬┘à ╪Ñ┘ä╪║╪º╪í ╪╖┘ä╪¿┘â ┘ä┘ä┘ê╪▒╪»┘è╪⌐.",
         verb_de="Ihr Schichtantrag wurde storniert.",
         verb_es="Se ha cancelado su solicitud de turno.",
-        verb_fr="Votre demande de quart a été annulée.",
+        verb_fr="Votre demande de quart a ├⌐t├⌐ annul├⌐e.",
         redirect=reverse("shift-request-view") + f"?id={shift_request.id}",
         icon="close",
     )
@@ -5417,10 +5242,10 @@ def shift_request_cancel(request, id):
             request.user.employee_get,
             recipient=shift_request.reallocate_to.employee_user_id,
             verb="Your shift request has been rejected.",
-            verb_ar="تم إلغاء طلبك للوردية.",
+            verb_ar="╪¬┘à ╪Ñ┘ä╪║╪º╪í ╪╖┘ä╪¿┘â ┘ä┘ä┘ê╪▒╪»┘è╪⌐.",
             verb_de="Ihr Schichtantrag wurde storniert.",
             verb_es="Se ha cancelado su solicitud de turno.",
-            verb_fr="Votre demande de quart a été annulée.",
+            verb_fr="Votre demande de quart a ├⌐t├⌐ annul├⌐e.",
             redirect=reverse("shift-request-view") + f"?id={shift_request.id}",
             icon="close",
         )
@@ -5458,10 +5283,10 @@ def shift_allocation_request_cancel(request, id):
         request.user.employee_get,
         recipient=shift_request.employee_id.employee_user_id,
         verb="Your shift request has been canceled.",
-        verb_ar="تم إلغاء طلبك للوردية.",
+        verb_ar="╪¬┘à ╪Ñ┘ä╪║╪º╪í ╪╖┘ä╪¿┘â ┘ä┘ä┘ê╪▒╪»┘è╪⌐.",
         verb_de="Ihr Schichtantrag wurde storniert.",
         verb_es="Se ha cancelado su solicitud de turno.",
-        verb_fr="Votre demande de quart a été annulée.",
+        verb_fr="Votre demande de quart a ├⌐t├⌐ annul├⌐e.",
         redirect=reverse("shift-request-view") + f"?id={shift_request.id}",
         icon="close",
     )
@@ -5506,10 +5331,10 @@ def shift_request_bulk_cancel(request):
                 request.user.employee_get,
                 recipient=shift_request.employee_id.employee_user_id,
                 verb="Your shift request has been canceled.",
-                verb_ar="تم إلغاء طلبك للوردية.",
+                verb_ar="╪¬┘à ╪Ñ┘ä╪║╪º╪í ╪╖┘ä╪¿┘â ┘ä┘ä┘ê╪▒╪»┘è╪⌐.",
                 verb_de="Ihr Schichtantrag wurde storniert.",
                 verb_es="Se ha cancelado su solicitud de turno.",
-                verb_fr="Votre demande de quart a été annulée.",
+                verb_fr="Votre demande de quart a ├⌐t├⌐ annul├⌐e.",
                 redirect=reverse("shift-request-view") + f"?id={shift_request.id}",
                 icon="close",
             )
@@ -5518,10 +5343,10 @@ def shift_request_bulk_cancel(request):
                     request.user.employee_get,
                     recipient=shift_request.employee_id.employee_user_id,
                     verb="Your shift request has been canceled.",
-                    verb_ar="تم إلغاء طلبك للوردية.",
+                    verb_ar="╪¬┘à ╪Ñ┘ä╪║╪º╪í ╪╖┘ä╪¿┘â ┘ä┘ä┘ê╪▒╪»┘è╪⌐.",
                     verb_de="Ihr Schichtantrag wurde storniert.",
                     verb_es="Se ha cancelado su solicitud de turno.",
-                    verb_fr="Votre demande de quart a été annulée.",
+                    verb_fr="Votre demande de quart a ├⌐t├⌐ annul├⌐e.",
                     redirect=reverse("shift-request-view") + f"?id={shift_request.id}",
                     icon="close",
                 )
@@ -5589,10 +5414,10 @@ def shift_request_approve(request, id):
             user.employee_get,
             recipient=recipient,
             verb="Your shift request has been approved.",
-            verb_ar="تمت الموافقة على طلبك للوردية.",
+            verb_ar="╪¬┘à╪¬ ╪º┘ä┘à┘ê╪º┘ü┘é╪⌐ ╪╣┘ä┘ë ╪╖┘ä╪¿┘â ┘ä┘ä┘ê╪▒╪»┘è╪⌐.",
             verb_de="Ihr Schichtantrag wurde genehmigt.",
             verb_es="Se ha aprobado su solicitud de turno.",
-            verb_fr="Votre demande de quart a été approuvée.",
+            verb_fr="Votre demande de quart a ├⌐t├⌐ approuv├⌐e.",
             redirect=reverse("shift-request-view") + f"?id={shift_request.id}",
             icon="checkmark",
         )
@@ -5623,10 +5448,10 @@ def shift_allocation_request_approve(request, id):
             request.user.employee_get,
             recipient=shift_request.employee_id.employee_user_id,
             verb=f"{request.user.employee_get} is available for shift reallocation.",
-            verb_ar=f"{request.user.employee_get} متاح لإعادة توزيع الورديات.",
-            verb_de=f"{request.user.employee_get} steht für die Verschiebung der Schichtzuteilung zur Verfügung.",
-            verb_es=f"{request.user.employee_get} está disponible para la reasignación de turnos.",
-            verb_fr=f"{request.user.employee_get} est disponible pour la réaffectation de shift.",
+            verb_ar=f"{request.user.employee_get} ┘à╪¬╪º╪¡ ┘ä╪Ñ╪╣╪º╪»╪⌐ ╪¬┘ê╪▓┘è╪╣ ╪º┘ä┘ê╪▒╪»┘è╪º╪¬.",
+            verb_de=f"{request.user.employee_get} steht f├╝r die Verschiebung der Schichtzuteilung zur Verf├╝gung.",
+            verb_es=f"{request.user.employee_get} est├í disponible para la reasignaci├│n de turnos.",
+            verb_fr=f"{request.user.employee_get} est disponible pour la r├⌐affectation de shift.",
             redirect=reverse("shift-request-view") + f"?id={shift_request.id}",
             icon="checkmark",
         )
@@ -5678,10 +5503,10 @@ def shift_request_bulk_approve(request):
                 request.user.employee_get,
                 recipient=shift_request.employee_id.employee_user_id,
                 verb="Your shift request has been approved.",
-                verb_ar="تمت الموافقة على طلبك للوردية.",
+                verb_ar="╪¬┘à╪¬ ╪º┘ä┘à┘ê╪º┘ü┘é╪⌐ ╪╣┘ä┘ë ╪╖┘ä╪¿┘â ┘ä┘ä┘ê╪▒╪»┘è╪⌐.",
                 verb_de="Ihr Schichtantrag wurde genehmigt.",
                 verb_es="Se ha aprobado su solicitud de turno.",
-                verb_fr="Votre demande de quart a été approuvée.",
+                verb_fr="Votre demande de quart a ├⌐t├⌐ approuv├⌐e.",
                 redirect=reverse("shift-request-view") + f"?id={shift_request.id}",
                 icon="checkmark",
             )
@@ -5708,10 +5533,10 @@ def shift_request_delete(request, id):
             request.user.employee_get,
             recipient=user,
             verb="Your shift request has been deleted.",
-            verb_ar="تم حذف طلب الوردية الخاص بك.",
-            verb_de="Ihr Schichtantrag wurde gelöscht.",
+            verb_ar="╪¬┘à ╪¡╪░┘ü ╪╖┘ä╪¿ ╪º┘ä┘ê╪▒╪»┘è╪⌐ ╪º┘ä╪«╪º╪╡ ╪¿┘â.",
+            verb_de="Ihr Schichtantrag wurde gel├╢scht.",
             verb_es="Se ha eliminado su solicitud de turno.",
-            verb_fr="Votre demande de quart a été supprimée.",
+            verb_fr="Votre demande de quart a ├⌐t├⌐ supprim├⌐e.",
             redirect="#",
             icon="trash",
         )
@@ -5773,10 +5598,10 @@ def shift_request_bulk_delete(request):
                 request.user.employee_get,
                 recipient=user,
                 verb="Your shift request has been deleted.",
-                verb_ar="تم حذف طلب الوردية الخاص بك.",
-                verb_de="Ihr Schichtantrag wurde gelöscht.",
+                verb_ar="╪¬┘à ╪¡╪░┘ü ╪╖┘ä╪¿ ╪º┘ä┘ê╪▒╪»┘è╪⌐ ╪º┘ä╪«╪º╪╡ ╪¿┘â.",
+                verb_de="Ihr Schichtantrag wurde gel├╢scht.",
                 verb_es="Se ha eliminado su solicitud de turno.",
-                verb_fr="Votre demande de quart a été supprimée.",
+                verb_fr="Votre demande de quart a ├⌐t├⌐ supprim├⌐e.",
                 redirect="#",
                 icon="trash",
             )
@@ -5886,7 +5711,7 @@ def mark_as_read_notification(request, notification_id):
         return SkylinxRedirect(
             request, message=_("No notification found matching the query.")
         )
-    # ponytail: scope to own notifications — else any user marks anyone's read by id.
+    # ponytail: scope to own notifications ΓÇö else any user marks anyone's read by id.
     notification = request.user.notifications.get(id=notification_id)
     notification.mark_as_read()
     if not request.user.notifications.unread():
@@ -6963,10 +6788,10 @@ def create_shiftrequest_comment(request, shift_id):
                             request.user.employee_get,
                             recipient=rec,
                             verb=f"{shift.employee_id}'s shift request has received a comment.",
-                            verb_ar=f"تلقت طلب تحويل {shift.employee_id} تعليقًا.",
+                            verb_ar=f"╪¬┘ä┘é╪¬ ╪╖┘ä╪¿ ╪¬╪¡┘ê┘è┘ä {shift.employee_id} ╪¬╪╣┘ä┘è┘é┘ï╪º.",
                             verb_de=f"{shift.employee_id}s Schichtantrag hat einen Kommentar erhalten.",
                             verb_es=f"La solicitud de turno de {shift.employee_id} ha recibido un comentario.",
-                            verb_fr=f"La demande de changement de poste de {shift.employee_id} a reçu un commentaire.",
+                            verb_fr=f"La demande de changement de poste de {shift.employee_id} a re├ºu un commentaire.",
                             redirect=reverse("shift-request-view") + f"?id={shift.id}",
                             icon="chatbox-ellipses",
                         )
@@ -6979,10 +6804,10 @@ def create_shiftrequest_comment(request, shift_id):
                             request.user.employee_get,
                             recipient=rec,
                             verb="Your shift request has received a comment.",
-                            verb_ar="تلقت طلبك للتحول تعليقًا.",
+                            verb_ar="╪¬┘ä┘é╪¬ ╪╖┘ä╪¿┘â ┘ä┘ä╪¬╪¡┘ê┘ä ╪¬╪╣┘ä┘è┘é┘ï╪º.",
                             verb_de="Ihr Schichtantrag hat einen Kommentar erhalten.",
                             verb_es="Tu solicitud de turno ha recibido un comentario.",
-                            verb_fr="Votre demande de changement de poste a reçu un commentaire.",
+                            verb_fr="Votre demande de changement de poste a re├ºu un commentaire.",
                             redirect=reverse("shift-request-view") + f"?id={shift.id}",
                             icon="chatbox-ellipses",
                         )
@@ -6995,10 +6820,10 @@ def create_shiftrequest_comment(request, shift_id):
                             request.user.employee_get,
                             recipient=rec,
                             verb=f"{shift.employee_id}'s shift request has received a comment.",
-                            verb_ar=f"تلقت طلب تحويل {shift.employee_id} تعليقًا.",
+                            verb_ar=f"╪¬┘ä┘é╪¬ ╪╖┘ä╪¿ ╪¬╪¡┘ê┘è┘ä {shift.employee_id} ╪¬╪╣┘ä┘è┘é┘ï╪º.",
                             verb_de=f"{shift.employee_id}s Schichtantrag hat einen Kommentar erhalten.",
                             verb_es=f"La solicitud de turno de {shift.employee_id} ha recibido un comentario.",
-                            verb_fr=f"La demande de changement de poste de {shift.employee_id} a reçu un commentaire.",
+                            verb_fr=f"La demande de changement de poste de {shift.employee_id} a re├ºu un commentaire.",
                             redirect=reverse("shift-request-view") + f"?id={shift.id}",
                             icon="chatbox-ellipses",
                         )
@@ -7008,10 +6833,10 @@ def create_shiftrequest_comment(request, shift_id):
                         request.user.employee_get,
                         recipient=rec,
                         verb="Your shift request has received a comment.",
-                        verb_ar="تلقت طلبك للتحول تعليقًا.",
+                        verb_ar="╪¬┘ä┘é╪¬ ╪╖┘ä╪¿┘â ┘ä┘ä╪¬╪¡┘ê┘ä ╪¬╪╣┘ä┘è┘é┘ï╪º.",
                         verb_de="Ihr Schichtantrag hat einen Kommentar erhalten.",
                         verb_es="Tu solicitud de turno ha recibido un comentario.",
-                        verb_fr="Votre demande de changement de poste a reçu un commentaire.",
+                        verb_fr="Votre demande de changement de poste a re├ºu un commentaire.",
                         redirect=reverse("shift-request-view") + f"?id={shift.id}",
                         icon="chatbox-ellipses",
                     )
@@ -7250,10 +7075,10 @@ def create_worktyperequest_comment(request, worktype_id):
                             request.user.employee_get,
                             recipient=rec,
                             verb=f"{work_type.employee_id}'s work type request has received a comment.",
-                            verb_ar=f"تلقت طلب نوع العمل {work_type.employee_id} تعليقًا.",
+                            verb_ar=f"╪¬┘ä┘é╪¬ ╪╖┘ä╪¿ ┘å┘ê╪╣ ╪º┘ä╪╣┘à┘ä {work_type.employee_id} ╪¬╪╣┘ä┘è┘é┘ï╪º.",
                             verb_de=f"{work_type.employee_id}s Arbeitsart-Antrag hat einen Kommentar erhalten.",
                             verb_es=f"La solicitud de tipo de trabajo de {work_type.employee_id} ha recibido un comentario.",
-                            verb_fr=f"La demande de type de travail de {work_type.employee_id} a reçu un commentaire.",
+                            verb_fr=f"La demande de type de travail de {work_type.employee_id} a re├ºu un commentaire.",
                             redirect=reverse("work-type-request-view")
                             + f"?id={work_type.id}",
                             icon="chatbox-ellipses",
@@ -7267,10 +7092,10 @@ def create_worktyperequest_comment(request, worktype_id):
                             request.user.employee_get,
                             recipient=rec,
                             verb="Your work type request has received a comment.",
-                            verb_ar="تلقى طلب نوع العمل الخاص بك تعليقًا.",
+                            verb_ar="╪¬┘ä┘é┘ë ╪╖┘ä╪¿ ┘å┘ê╪╣ ╪º┘ä╪╣┘à┘ä ╪º┘ä╪«╪º╪╡ ╪¿┘â ╪¬╪╣┘ä┘è┘é┘ï╪º.",
                             verb_de="Ihr Arbeitsart-Antrag hat einen Kommentar erhalten.",
                             verb_es="Tu solicitud de tipo de trabajo ha recibido un comentario.",
-                            verb_fr="Votre demande de type de travail a reçu un commentaire.",
+                            verb_fr="Votre demande de type de travail a re├ºu un commentaire.",
                             redirect=reverse("work-type-request-view")
                             + f"?id={work_type.id}",
                             icon="chatbox-ellipses",
@@ -7284,10 +7109,10 @@ def create_worktyperequest_comment(request, worktype_id):
                             request.user.employee_get,
                             recipient=rec,
                             verb=f"{work_type.employee_id}'s work type request has received a comment.",
-                            verb_ar=f"تلقت طلب نوع العمل {work_type.employee_id} تعليقًا.",
+                            verb_ar=f"╪¬┘ä┘é╪¬ ╪╖┘ä╪¿ ┘å┘ê╪╣ ╪º┘ä╪╣┘à┘ä {work_type.employee_id} ╪¬╪╣┘ä┘è┘é┘ï╪º.",
                             verb_de=f"{work_type.employee_id}s Arbeitsart-Antrag hat einen Kommentar erhalten.",
                             verb_es=f"La solicitud de tipo de trabajo de {work_type.employee_id} ha recibido un comentario.",
-                            verb_fr=f"La demande de type de travail de {work_type.employee_id} a reçu un commentaire.",
+                            verb_fr=f"La demande de type de travail de {work_type.employee_id} a re├ºu un commentaire.",
                             redirect=reverse("work-type-request-view")
                             + f"?id={work_type.id}",
                             icon="chatbox-ellipses",
@@ -7298,10 +7123,10 @@ def create_worktyperequest_comment(request, worktype_id):
                         request.user.employee_get,
                         recipient=rec,
                         verb="Your work type request has received a comment.",
-                        verb_ar="تلقى طلب نوع العمل الخاص بك تعليقًا.",
+                        verb_ar="╪¬┘ä┘é┘ë ╪╖┘ä╪¿ ┘å┘ê╪╣ ╪º┘ä╪╣┘à┘ä ╪º┘ä╪«╪º╪╡ ╪¿┘â ╪¬╪╣┘ä┘è┘é┘ï╪º.",
                         verb_de="Ihr Arbeitsart-Antrag hat einen Kommentar erhalten.",
                         verb_es="Tu solicitud de tipo de trabajo ha recibido un comentario.",
-                        verb_fr="Votre demande de type de travail a reçu un commentaire.",
+                        verb_fr="Votre demande de type de travail a re├ºu un commentaire.",
                         redirect=reverse("work-type-request-view")
                         + f"?id={work_type.id}",
                         icon="chatbox-ellipses",
@@ -8353,7 +8178,7 @@ def protected_media(request, path):
     # Media paths follow "app_label/model_name/field_name/...". These prefixes
     # hold sensitive employee data (payslips, biometric face templates, HR
     # documents/notes, disciplinary records). Direct /media/ access to them
-    # requires the corresponding view permission — ordinary employees reach
+    # requires the corresponding view permission ΓÇö ordinary employees reach
     # their own copies through the dedicated, ownership-checked views that
     # stream the file rather than linking to /media/.
     sensitive_media_prefixes = {
@@ -8404,9 +8229,15 @@ def protected_media(request, path):
 
 def get_home_announcement(request):
     from base.models import Announcement
-    latest_announcement = Announcement.objects.filter(is_active=True).order_by('id').last()
-    if not latest_announcement:
-        latest_announcement = Announcement.objects.order_by('id').last()
+    company = current_company(request)
+    if company:
+        latest_announcement = Announcement.objects.filter(company_id=company, is_active=True).order_by('id').last()
+        if not latest_announcement:
+            latest_announcement = Announcement.objects.filter(company_id=company).order_by('id').last()
+    else:
+        latest_announcement = Announcement.objects.filter(is_active=True).order_by('id').last()
+        if not latest_announcement:
+            latest_announcement = Announcement.objects.order_by('id').last()
     return render(request, "home_announcement.html", {"latest_announcement": latest_announcement})
 
 @login_required
@@ -8417,9 +8248,15 @@ def edit_home_announcement(request):
         return HttpResponseForbidden("Permission Denied")
         
     from base.models import Announcement
-    latest_announcement = Announcement.objects.filter(is_active=True).order_by('id').last()
-    if not latest_announcement:
-        latest_announcement = Announcement.objects.order_by('id').last()
+    company = current_company(request)
+    if company:
+        latest_announcement = Announcement.objects.filter(company_id=company, is_active=True).order_by('id').last()
+        if not latest_announcement:
+            latest_announcement = Announcement.objects.filter(company_id=company).order_by('id').last()
+    else:
+        latest_announcement = Announcement.objects.filter(is_active=True).order_by('id').last()
+        if not latest_announcement:
+            latest_announcement = Announcement.objects.order_by('id').last()
         
     if request.method == "POST":
         title = request.POST.get("title", "Company Announcement").strip()
@@ -8430,10 +8267,13 @@ def edit_home_announcement(request):
             latest_announcement.save()
         else:
             latest_announcement = Announcement.objects.create(title=title, description=description)
-            from base.models import Company
-            company = Company.objects.filter(hq=True).first()
             if company:
                 latest_announcement.company_id.add(company)
+            else:
+                from base.models import Company
+                hq_company = Company.objects.filter(hq=True).first()
+                if hq_company:
+                    latest_announcement.company_id.add(hq_company)
         return render(request, "home_announcement.html", {"latest_announcement": latest_announcement, "edit_mode": False})
         
     return render(request, "home_announcement.html", {"latest_announcement": latest_announcement, "edit_mode": True})
@@ -8442,7 +8282,7 @@ def get_home_logo_card(request):
     from base.models import Company
     company = current_company(request) or Company.objects.filter(hq=True).first() or Company.objects.first()
     
-    # Load social links from JSON file (keyed by company ID)
+    # Load social links from JSON file
     social_links_file = os.path.join(settings.BASE_DIR, "base", "company_social_links.json")
     social_links = {"linkedin": "", "facebook": "", "instagram": ""}
     company_id_str = str(company.id) if company else "hq"
@@ -8519,7 +8359,7 @@ def edit_home_logo_card(request):
             "instagram": instagram,
         }
         
-        # Save social links to JSON (keyed by company ID)
+        # Save social links to JSON
         try:
             all_links = {}
             if os.path.exists(social_links_file):
@@ -8606,7 +8446,7 @@ def edit_home_logo_card_image(request):
         except Exception:
             pass
             
-    # Load social links from JSON file (keyed by company ID)
+    # Load social links from JSON file
     social_links_file = os.path.join(settings.BASE_DIR, "base", "company_social_links.json")
     social_links = {"linkedin": "", "facebook": "", "instagram": ""}
     company_id_str = str(company.id) if company else "hq"
@@ -8625,10 +8465,7 @@ def edit_home_logo_card_image(request):
     })
 
 
-
-
-
-
+@login_required
 def holiday_calendar_view(request):
     """
     Renders a unified Holiday Calendar containing public holidays and approved leaves.

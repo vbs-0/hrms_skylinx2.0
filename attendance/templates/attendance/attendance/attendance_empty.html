@@ -78,12 +78,7 @@
                     </ul>
                 </div>
             </div>
-            {% if perms.attendance.add_attendance or request.user|is_reportingmanager%}
-            <button class="oh-btn oh-btn--secondary ml-2" data-toggle="oh-modal-toggle" data-target="#addAttendance"
-                hx-get="{% url 'attendance-create' %}" hx-target="#addAttendanceModalBody">
-                <ion-icon name="add-sharp" class="mr-1"></ion-icon>{% trans "Create" %}
-            </button>
-            {% endif %}
+
         </div>
     </div>
 </section>

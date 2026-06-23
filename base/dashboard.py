@@ -207,6 +207,27 @@ def dashboard_kpi_data(request):
     except Exception:
         pass
 
+    active_projects = 0
+    try:
+        from project.models import Project
+        active_projects = Project.objects.count()
+    except Exception:
+        pass
+
+    active_tickets = 0
+    try:
+        from helpdesk.models import Ticket
+        active_tickets = Ticket.objects.exclude(status="resolved").count()
+    except Exception:
+        pass
+
+    total_assets = 0
+    try:
+        from asset.models import Asset
+        total_assets = Asset.objects.count()
+    except Exception:
+        pass
+
     return JsonResponse(
         {
             "total_employees": total_employees,
@@ -217,6 +238,9 @@ def dashboard_kpi_data(request):
             "pending_leaves": pending_leaves,
             "new_joiners": new_joiners,
             "open_recruitments": open_recruitments,
+            "active_projects": active_projects,
+            "active_tickets": active_tickets,
+            "total_assets": total_assets,
             "date": today.isoformat(),
         }
     )
@@ -969,3 +993,51 @@ def dashboard_turnover(request):
             "turnover_rate_6m": turnover_rate,
         }
     )
+
+
+@analytics_permission_required("employee.view_employee")
+def dashboard_project_status(request):
+    """Return Project status data as JSON."""
+    data = []
+    try:
+        from project.models import Project
+        statuses = dict(Project._meta.get_field("status").choices)
+        for val, label in statuses.items():
+            count = Project.objects.filter(status=val).count()
+            if count > 0:
+                data.append({"status": str(label), "count": count})
+    except Exception:
+        pass
+    return JsonResponse({"statuses": data})
+
+
+@analytics_permission_required("employee.view_employee")
+def dashboard_ticket_status(request):
+    """Return Ticket status data as JSON."""
+    data = []
+    try:
+        from helpdesk.models import Ticket
+        statuses = dict(Ticket._meta.get_field("status").choices)
+        for val, label in statuses.items():
+            count = Ticket.objects.filter(status=val).count()
+            if count > 0:
+                data.append({"status": str(label), "count": count})
+    except Exception:
+        pass
+    return JsonResponse({"statuses": data})
+
+
+@analytics_permission_required("employee.view_employee")
+def dashboard_asset_status(request):
+    """Return Asset status data as JSON."""
+    data = []
+    try:
+        from asset.models import Asset
+        statuses = dict(Asset._meta.get_field("asset_status").choices)
+        for val, label in statuses.items():
+            count = Asset.objects.filter(asset_status=val).count()
+            if count > 0:
+                data.append({"status": str(label), "count": count})
+    except Exception:
+        pass
+    return JsonResponse({"statuses": data})

@@ -206,6 +206,7 @@ class MyLeaveRequestNavView(SkylinxNavView):
             data-target="#genericModal"
             data-toggle="oh-modal-toggle"
         """
+        self.create_label = _("Apply")
 
     nav_title = _("My Leave requests")
     filter_body_template = "cbv/my_leave_request/filter.html"

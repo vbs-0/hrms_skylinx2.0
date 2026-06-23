@@ -16,10 +16,6 @@ LOCKED = True
 
 SUBMENUS = [
     {
-        "menu": _("Dashboard"),
-        "redirect": reverse_lazy("dashboard-view"),
-    },
-    {
         "menu": _("Objectives"),
         "redirect": reverse_lazy("objective-list-view"),
     },
@@ -41,7 +37,10 @@ SUBMENUS = [
         "redirect": reverse_lazy("view-key-result"),
         "accessibility": "pms.sidebar.key_result_accessibility",
     },
-    # ponytail: Bonus Points hidden from UI; backend intact
+    {
+        "menu": _("Employee Bonus Point"),
+        "redirect": reverse_lazy("employee-bonus-point"),
+    },
     {
         "menu": _("Period"),
         "redirect": reverse_lazy("period-view"),
@@ -89,8 +88,7 @@ def bonus_point_accessibility(request, submenu, user_perms, *args, **kwargs):
 class PerformanceSettings:
     title = _("Performance")
     order = 8
-    # ponytail: only contained Bonus Point Setting, hidden from UI; backend intact
-    condition = lambda self, request: False
+    condition = lambda self, request: apps.is_installed("pms")
     items = [
         {
             "label": _("Bonus Point Setting"),

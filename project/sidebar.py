@@ -23,11 +23,6 @@ ACCESSIBILITY = "project.sidebar.menu_accessibilty"
 
 SUBMENUS = [
     {
-        "menu": _("Dashboard"),
-        "redirect": reverse("project-dashboard-view"),
-        "accessibility": "project.sidebar.dashboard_accessibility",
-    },
-    {
         "menu": _("Projects"),
         "redirect": reverse("project-view"),
         "accessibility": "project.sidebar.project_accessibility",
@@ -37,7 +32,11 @@ SUBMENUS = [
         "redirect": reverse("task-all"),
         "accessibility": "project.sidebar.task_accessibility",
     },
-    # ponytail: Timesheet hidden from Projects menu; backend/urls intact
+    {
+        "menu": _("Timesheet"),
+        "redirect": reverse("view-time-sheet"),
+        "accessibility": "project.sidebar.timesheet_accessibility",
+    },
 ]
 
 

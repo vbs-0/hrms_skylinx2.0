@@ -142,13 +142,17 @@
           <i class="fa-solid fa-bars text-lg"></i>
       </button>
       <div class="flex items-center gap-3 overflow-hidden">
-        <img src="{% static 'skylinx_theme/assets/img/skylinx-logo.png' %}" alt="Skylinx HRMS" class="w-10 h-10 flex-shrink-0" />
-        <div class="flex flex-col overflow-hidden sidebar-text">
-          <span class="font-bold text-slate-800 dark:text-white text-base truncate leading-tight">Skylinx HRMS</span>
-          {% if request.session.selected_company_instance %}
-          <span class="text-xs text-slate-400 dark:text-slate-500 truncate leading-tight">{{request.session.selected_company_instance.company}}</span>
-          {% endif %}
-        </div>
+        {% if request.session.selected_company_instance %}
+          <img
+            src="{{request.session.selected_company_instance.icon}}"
+            class="w-10 h-10 rounded-full flex-shrink-0"
+            title="{{request.session.selected_company_instance.company}}"
+          />
+          <span class="sidebar-text font-bold text-slate-800 dark:text-white text-base truncate">{{request.session.selected_company_instance.company}}</span>
+        {% else %}
+          <img src="/static/skylinx_theme/assets/img/skylinx-logo.png" alt="Logo" class="w-10 h-10 flex-shrink-0" />
+          <span class="sidebar-text font-bold text-slate-800 dark:text-white text-base truncate">Skylinx HRMS</span>
+        {% endif %}
       </div>
   </div>
 

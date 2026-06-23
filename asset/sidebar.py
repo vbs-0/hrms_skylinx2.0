@@ -11,11 +11,6 @@ LOCKED = False
 
 SUBMENUS = [
     {
-        "menu": _("Dashboard"),
-        "redirect": reverse("asset-dashboard"),
-        "accessibility": "asset.sidebar.dashboard_accessibility",
-    },
-    {
         "menu": _("Asset View"),
         "redirect": reverse("asset-category-view"),
         "accessibility": "asset.sidebar.dashboard_accessibility",

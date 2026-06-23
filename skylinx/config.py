@@ -116,6 +116,23 @@ def generate_sidebar(request):
         order_index = {app: i for i, app in enumerate(SIDEBAR_ORDER)}
         MENUS.sort(key=lambda m: order_index.get(m.get("app"), len(SIDEBAR_ORDER)))
 
+        # Append Holiday Calendar main module (evaluate reverse dynamically to be safe for cache)
+        from django.urls import reverse
+        from django.utils.translation import gettext_lazy as _
+        holiday_menu = {
+            "menu": _("Holiday Calendar"),
+            "app": "holiday_calendar",
+            "img_src": "images/ui/dashboard.svg",
+            "locked": False,
+            "submenu": [
+                {
+                    "menu": _("View Calendar"),
+                    "redirect": reverse("holiday-calendar-view"),
+                }
+            ]
+        }
+        MENUS.append(holiday_menu)
+
     return MENUS
 
 

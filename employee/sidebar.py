@@ -19,11 +19,6 @@ IMG_SRC = "images/ui/employees.svg"
 
 SUBMENUS = [
     {
-        "menu": _("My Dashboard"),
-        "redirect": reverse_lazy("ess-dashboard"),
-    },
-    # ponytail: My Profile removed from menu; reachable via top-right profile
-    {
         "menu": _("Employees"),
         "redirect": reverse_lazy("employee-view"),
         "accessibility": "employee.sidebar.employee_accessibility",
@@ -51,7 +46,11 @@ SUBMENUS = [
         "redirect": reverse_lazy("rotating-work-type-assign"),
         "accessibility": "employee.sidebar.rotating_work_type_accessibility",
     },
-    # ponytail: Shift Roster removed from menu; backend/urls intact
+    {
+        "menu": _("Shift Roster"),
+        "redirect": reverse_lazy("roster-home"),
+        "accessibility": "employee.sidebar.shift_roster_accessibility",
+    },
     {
         "menu": _("Disciplinary Actions"),
         "redirect": reverse_lazy("disciplinary-actions"),
@@ -66,21 +65,6 @@ SUBMENUS = [
     },
 ]
 
-
-def profile_accessibility(request, submenu, user_perms, *args, **kwargs):
-    accessible = False
-    try:
-        accessible = request.session["selected_company"] == "all" or str(
-            request.user.employee_get.employee_work_info.company_id.id
-        ) == str(request.session["selected_company"])
-    finally:
-        return accessible
-        # try:
-        #     if accessible:
-        #         submenu["redirect"] = reverse_lazy("employee-profile", kwargs={"obj_id": request.user.employee_get.id})
-        # except Exception:
-        #     # If an exception occurs, do nothing
-        #     pass
 
 
 def document_accessibility(request, submenu, user_perms, *args, **kwargs):
@@ -102,7 +86,6 @@ def rotating_work_type_accessibility(request, submenu, user_perms, *args, **kwar
 
 
 def shift_roster_accessibility(request, submenu, user_perms, *args, **kwargs):
-    # Hidden from UI — backend logic intact
     return False
 
 

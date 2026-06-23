@@ -131,6 +131,7 @@ class AssignedLeaveNavView(SkylinxNavView):
                     hx-target="#objectCreateModalTarget"
                     hx-get="{reverse_lazy('assign')}"
                 """
+            self.create_label = _("Assign")
 
     nav_title = _("All Assigned Leaves")
     filter_instance = AssignedLeaveFilter()

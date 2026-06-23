@@ -2229,6 +2229,7 @@ class SkylinxNavView(TemplateView):
     empty_inputs: list = []
     view_types: list = []
     create_attrs: str = """"""
+    create_label: str = ""  # empty = default to 'Create' in template
     apply_first_filter = True
 
     def __init__(self, **kwargs: Any) -> None:
@@ -2298,6 +2299,7 @@ class SkylinxNavView(TemplateView):
         context["actions"] = self.actions
         context["filter_body_template"] = self.filter_body_template
         context["create_attrs"] = self.create_attrs
+        context["create_label"] = self.create_label
         context["search_in"] = self.search_in
         context["apply_first_filter"] = self.apply_first_filter
         context["filter_instance_context_name"] = self.filter_instance

@@ -18,11 +18,6 @@ ACCESSIBILITY = "offboarding.sidebar.offboarding_accessibility"
 
 SUBMENUS = [
     {
-        "menu": _("Dashboard"),
-        "redirect": reverse("offboarding-dashboard"),
-        "accessibility": "offboarding.sidebar.dashboard_accessibility",
-    },
-    {
         "menu": _("Exit Process"),
         "redirect": reverse("offboarding-pipeline"),
     },
