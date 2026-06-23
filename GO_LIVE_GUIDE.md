@@ -2,7 +2,7 @@
 
 Everything you need to run the platform, onboard your own company, onboard
 clients, and walk an HR admin through daily work. Written for the live server
-at **https://skylinxhrms.qzz.io**.
+at **http://129.159.226.101**.
 
 ---
 
@@ -10,7 +10,7 @@ at **https://skylinxhrms.qzz.io**.
 
 | Role | Who | URL | Login |
 |------|-----|-----|-------|
-| **Platform Owner** (you) | Skylinx operator — sees ALL companies | https://skylinxhrms.qzz.io/login/ | `skylinx` / *(password sent separately — change on first login)* |
+| **Platform Owner** (you) | Skylinx operator — sees ALL companies | http://129.159.226.101/login/ | `skylinx` / *(password sent separately — change on first login)* |
 | **Client Admin** | One per client company — locked to their own company | same login page | created per company (you set it during onboarding) |
 | **HR / Manager / Employee** | Created by the Client Admin inside each company | same login page | created in-app |
 
@@ -41,7 +41,7 @@ design — that's not a bug, it's the operator view.
 ## 2. First-time platform setup (do once, in order)
 
 ### 2.1 Log in as owner
-Go to https://skylinxhrms.qzz.io/login/ → `skylinx` / `Skyl1nx@Owner#2026`.
+Go to http://129.159.226.101/login/ → username `skylinx` (password sent separately).
 
 ### 2.2 Configure a mail server (REQUIRED for welcome emails to actually send)
 No SMTP is configured yet, so onboarding emails are created but **not delivered**
