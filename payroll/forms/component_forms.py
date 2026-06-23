@@ -887,16 +887,23 @@ class ReimbursementForm(ModelForm):
 
         self.setup_leave_fields()
 
-        self.fields["type"].widget.attrs["onchange"] = "toggleReimbursmentType($(this))"
+        # Expenses page is reimbursement-only: pin the type and hide the selector
+        # plus all encashment-only fields. Category is required for an expense.
+        self.fields["type"].initial = "reimbursement"
+        self.fields["type"].widget = forms.HiddenInput()
+        exclude_fields += ["leave_type_id", "cfd_to_encash", "ad_to_encash", "bonus_to_encash"]
+        if "category" in self.fields:
+            self.fields["category"].required = True
         self.fields["employee_id"].widget.attrs[
             "onchange"
         ] = "getAssignedLeave($(this))"
 
+        self.fields["allowance_on"].label = _("Date of expense")
         self.fields["allowance_on"].widget = forms.DateInput(
             attrs={"type": "date", "class": "oh-input w-100"}
         )
 
-        self.fields["attachment"] = MultipleFileField(label="Attachments")
+        self.fields["attachment"] = MultipleFileField(label=_("Receipt / Bill"))
         self.fields["attachment"].widget.attrs["accept"] = ".jpg, .jpeg, .png, .pdf"
 
         self.exclude_fields_by_type(exclude_fields)

@@ -2366,6 +2366,24 @@ class Reimbursement(SkylinxModel):
     type = models.CharField(
         choices=reimbursement_types, max_length=16, default="reimbursement"
     )
+    # Expense claim categories (only apply to type="reimbursement"); leave/bonus
+    # encashment rows leave this null.
+    expense_categories = [
+        ("travel", _("Travel & Conveyance")),
+        ("fuel", _("Fuel / Mileage")),
+        ("mobile", _("Mobile & Internet")),
+        ("medical", _("Medical")),
+        ("food", _("Food & Meals")),
+        ("books", _("Books & Professional Development")),
+        ("entertainment", _("Client Entertainment")),
+    ]
+    category = models.CharField(
+        choices=expense_categories,
+        max_length=20,
+        null=True,
+        blank=True,
+        verbose_name=_("Category"),
+    )
     employee_id = models.ForeignKey(
         Employee, on_delete=models.PROTECT, verbose_name="Employee"
     )

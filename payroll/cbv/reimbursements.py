@@ -39,18 +39,12 @@ class ReimbursementsAndEncashmentsTabView(SkylinxTabView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.view_id = "reimbursmentContainer"
+        # Single unified Expenses claims section. Leave/Bonus encashment tabs
+        # removed here (their payroll logic still lives in the model).
         self.tabs = [
             {
-                "title": _("Reimbursements"),
+                "title": _("Expenses"),
                 "url": f"{reverse('list-reimbursement')}",
-            },
-            {
-                "title": _("Leave Encashments"),
-                "url": f"{reverse('list-leave-encash')}",
-            },
-            {
-                "title": _("Bonus Encashments"),
-                "url": f"{reverse('list-bonus-encash')}",
             },
         ]
 
@@ -143,6 +137,16 @@ class ReimbursementsListView(ReimbursementsAndEncashmentsListView):
                 data-target="#genericModal"
                 data-toggle="oh-modal-toggle"
                 """
+
+    columns = [
+        (_("Employee"), "employee_id", "employee_id__get_avatar"),
+        (_("Category"), "get_category_display"),
+        (_("Date"), "created_at"),
+        (_("Amount"), "amount"),
+        (_("Status"), "get_status_display"),
+        (_("Description"), "description"),
+        (_("Comment"), "comment_col"),
+    ]
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -269,6 +273,7 @@ class ReimbursementsDetailView(SkylinxDetailedView):
     """
 
     body = [
+        (_("Category"), "get_category_display"),
         (_("Date"), "created_at"),
         (_("Amount"), "amount"),
         (_("Status"), "get_status_display"),
