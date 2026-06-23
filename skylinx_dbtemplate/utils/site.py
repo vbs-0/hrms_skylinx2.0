@@ -48,12 +48,21 @@ def get_site_for_request(request):
     - If that host matches a Site domain, return that Site.
     - Otherwise return None (do not use get_current()).
     """
-    site = None
-    if request:
-        host = get_request_host(request)
-        # Try exact match first (e.g. "46sqfhkb-80.inc1.devtunnels.ms" or "localhost:8000")
-        site = Site.objects.filter(domain__iexact=host).first()
-        if site is None and host and ":" in host:
-            # Try without port (e.g. "localhost" for "localhost:8000")
-            site = Site.objects.filter(domain__iexact=host.split(":")[0]).first()
+    if not request:
+        return None
+    # ponytail: memoize per request — host can't change mid-request, so the
+    # loader's per-include calls shouldn't each hit the DB (was ~19 queries/page).
+    cached = getattr(request, "_dbtemplate_site", False)
+    if cached is not False:
+        return cached
+    host = get_request_host(request)
+    # Try exact match first (e.g. "46sqfhkb-80.inc1.devtunnels.ms" or "localhost:8000")
+    site = Site.objects.filter(domain__iexact=host).first()
+    if site is None and host and ":" in host:
+        # Try without port (e.g. "localhost" for "localhost:8000")
+        site = Site.objects.filter(domain__iexact=host.split(":")[0]).first()
+    try:
+        request._dbtemplate_site = site
+    except Exception:
+        pass
     return site

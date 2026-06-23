@@ -27,13 +27,23 @@ def current_company(request):
     user = getattr(request, "user", None)
     if not user or not user.is_authenticated:
         return None
+    # ponytail: memoize per request — called many times per page (rbac, gating,
+    # branding); the company can't change mid-request.
+    cached = getattr(request, "_current_company", False)
+    if cached is not False:
+        return cached
     emp = getattr(user, "employee_get", None)
-    if not emp:
-        return None
+    company = None
+    if emp:
+        try:
+            company = emp.get_company()
+        except Exception:
+            company = None
     try:
-        return emp.get_company()
+        request._current_company = company
     except Exception:
-        return None
+        pass
+    return company
 
 
 def groups_for_request(request):

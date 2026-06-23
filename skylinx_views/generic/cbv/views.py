@@ -243,7 +243,37 @@ class SkylinxListView(ListView):
                     self.queryset = self.queryset.filter(
                         id__in=self.request.session["hlv_selected_ids"]
                     )
+            # ponytail: auto select_related from columns -> kills N+1 on every
+            # list view (FK / one-to-one chains only; methods & reverse-FK skipped).
+            self._auto_select_related()
         return self.queryset
+
+    def _auto_select_related(self):
+        try:
+            specs = list(self.columns or []) + list(getattr(self, "sortby_mapping", []) or [])
+            model = self.queryset.model
+            paths = set()
+            for spec in specs:
+                field = spec[1] if isinstance(spec, (list, tuple)) and len(spec) > 1 else spec
+                if not isinstance(field, str) or "__" not in field:
+                    continue
+                m, prefix = model, []
+                for part in field.split("__"):
+                    try:
+                        f = m._meta.get_field(part)
+                    except Exception:
+                        break
+                    if f.is_relation and (f.many_to_one or f.one_to_one):
+                        prefix.append(part)
+                        m = f.related_model
+                    else:
+                        break
+                if prefix:
+                    paths.add("__".join(prefix))
+            if paths:
+                self.queryset = self.queryset.select_related(*paths)
+        except Exception:
+            pass  # never let an optimization break a page
 
     def get_context_data(self, **kwargs: Any):
         context = super().get_context_data(**kwargs)
