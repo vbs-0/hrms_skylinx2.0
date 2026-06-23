@@ -280,9 +280,7 @@ class Recruitment(SkylinxModel):
             else self.title
         )
 
-        if not self.is_event_based and self.job_position_id is not None:
-            self.open_positions.add(self.job_position_id)
-
+        # ponytail: open_positions sync moved to save(); __str__ must not write to DB
         return str(title)
 
     def clean(self):
@@ -311,6 +309,8 @@ class Recruitment(SkylinxModel):
         super().save(*args, **kwargs)  # Save the Recruitment instance first
         if self.is_event_based and self.open_positions is None:
             raise ValidationError({"open_positions": _("This field is required")})
+        if not self.is_event_based and self.job_position_id is not None:
+            self.open_positions.add(self.job_position_id)
 
     def ordered_stages(self):
         """

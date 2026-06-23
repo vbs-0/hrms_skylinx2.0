@@ -225,6 +225,10 @@ if DATABASES.get("default", {}).get("ENGINE") == "django.db.backends.sqlite3":
         "PRAGMA journal_size_limit=67108864;"
         "PRAGMA cache_size=-10000;"  # 10MB cache per connection
     )
+else:
+    # ponytail: persistent connections only for real DBs (Postgres/MySQL) — saves
+    # a connect handshake per request. SQLite keeps fresh conns to avoid lock holds.
+    DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=60)
 
 # ========================================
 # STATIC & MEDIA FILES

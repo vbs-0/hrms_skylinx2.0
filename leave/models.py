@@ -588,7 +588,7 @@ class LeaveType(SkylinxModel):
         )
 
     def clean(self, *args, **kwargs):
-        super().clean(self)
+        super().clean()
         if self.is_compensatory_leave:
             if (
                 LeaveType.objects.filter(is_compensatory_leave=True)

@@ -2526,7 +2526,7 @@ class Reimbursement(SkylinxModel):
             elif self.status == "rejected" and self.allowance_id is not None:
                 cfd_days = self.cfd_to_encash
                 available_days = self.ad_to_encash
-                if self.type == "leave encashment":
+                if self.type == "leave_encashment":  # ponytail: was "leave encashment" (space) -> never matched, balance never restored on reject
                     if assigned_leave:
                         assigned_leave.available_days = (
                             assigned_leave.available_days + available_days
