@@ -1695,4 +1695,18 @@
 
 })();
 </script>
+<script>
+// Dashboard cards are injected after htmx has processed the page; a soft
+// (htmx history) navigation from them can drop the app chrome (sidebar/navbar)
+// until a refresh. Force a real browser navigation instead — same approach the
+// sidebar "Home" link already uses (window.location.href). Capture phase so we
+// win before any delegated handler. Scoped to dashboard card classes only.
+document.addEventListener('click', function (e) {
+    var card = e.target.closest('.md-pending-card, .md-kpi-card');
+    if (card && card.tagName === 'A' && card.href) {
+        e.preventDefault();
+        window.location.assign(card.href);
+    }
+}, true);
+</script>
 {% endblock %}
