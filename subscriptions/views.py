@@ -715,6 +715,13 @@ def company_admins(request):
             target.groups.add(admin_group)
             messages.success(request, f"{emp} is now a company admin.")
         elif action == "revoke":
+            # an admin can't strip their own access — another admin must do it
+            if target.id == request.user.id:
+                messages.error(
+                    request,
+                    "You can't revoke your own admin access — ask another admin.",
+                )
+                return redirect("subscription-admins")
             # don't allow removing the last admin (re-bricking the tenant)
             admin_ids = {
                 e.employee_user_id_id
