@@ -37,10 +37,7 @@ SUBMENUS = [
         "menu": _("Leave Allocation Request"),
         "redirect": reverse_lazy("leave-allocation-request-view"),
     },
-    {
-        "menu": _("Holiday Calendar"),
-        "redirect": reverse_lazy("holiday-calendar-view"),
-    },
+    # Holiday Calendar lives in its own bottom-sidebar module; not duplicated here.
     {
         "menu": _("Company Leaves"),
         "redirect": reverse_lazy("company-leave-view"),
