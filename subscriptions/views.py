@@ -120,14 +120,15 @@ def seed_company_groups(company):
         name = scoped_name(company.id, label)
         group, created = Group.objects.get_or_create(name=name)
         CompanyGroup.objects.get_or_create(group=group, defaults={"company": company})
+        if spec.get("apps"):
+            perms = Permission.objects.filter(content_type__app_label__in=spec["apps"])
+        else:
+            perms = Permission.objects.filter(codename__in=spec["codenames"])
+        # Additive & self-healing: ensure the role always has its baseline perms
+        # (e.g. newly added apps like skylinx_documents) WITHOUT removing any
+        # extra perms an admin may have granted. Runs on every call/backfill.
+        group.permissions.add(*perms)
         if created:
-            if spec.get("apps"):
-                perms = Permission.objects.filter(
-                    content_type__app_label__in=spec["apps"]
-                )
-            else:
-                perms = Permission.objects.filter(codename__in=spec["codenames"])
-            group.permissions.set(perms)
             created_n += 1
     return created_n
 
