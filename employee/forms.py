@@ -541,6 +541,20 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
     Form for EmployeeWorkInformation model
     """
 
+    # CTC breakdown as editable percentage inputs (stored in salary_components JSON)
+    basic_pct = forms.IntegerField(
+        label=_("Basic (%)"), required=False, min_value=0, max_value=100,
+        widget=forms.NumberInput(attrs={"class": "oh-input w-100", "onchange": "updateSalaryComponents()"}),
+    )
+    hra_pct = forms.IntegerField(
+        label=_("HRA (%)"), required=False, min_value=0, max_value=100,
+        widget=forms.NumberInput(attrs={"class": "oh-input w-100", "onchange": "updateSalaryComponents()"}),
+    )
+    other_pct = forms.IntegerField(
+        label=_("Other (%)"), required=False, min_value=0, max_value=100,
+        widget=forms.NumberInput(attrs={"class": "oh-input w-100", "onchange": "updateSalaryComponents()"}),
+    )
+
     class Meta:
         """
         Meta class to add the additional info
@@ -548,30 +562,14 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
 
         model = EmployeeWorkInformation
         fields = "__all__"
-        # fields = [
-        #     "department_id",
-        #     "job_position_id",
-        #     "job_role_id",
-        #     "work_type_id",
-        #     "employee_type_id",
-        #     "reporting_manager_id",
-        #     "company_id",
-        #     "tags",
-        #     "location",
-        #     "email",
-        #     "mobile",
-        #     "shift_id",
-        #     "date_joining",
-        #     "contract_end_date",
-        #     "basic_salary",
-        #     "salary_hour",
-        # ]
-        exclude = ("employee_id", "experience", "additional_info", "tags")
+        exclude = (
+            "employee_id", "experience", "additional_info", "tags",
+            "salary_hour", "salary_components",
+        )
 
         widgets = {
             "date_joining": DateInput(attrs={"type": "date"}),
             "contract_end_date": DateInput(attrs={"type": "date"}),
-            "probation_end": DateInput(attrs={"type": "date"}),
         }
         labels = {
             "job_position_id": _("Designation"),
@@ -582,7 +580,8 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
             "reporting_manager_id": _("Reporting Manager"),
             "department_id": _("Department"),
             "company_id": _("Company"),
-            "basic_salary": _("CTC"),
+            "ctc": _("CTC"),
+            "probation_days": _("Probation Period (Days)"),
         }
 
     def __init__(self, *args, **kwargs):
@@ -605,6 +604,38 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
                 "hx-get": "/employee/get-job-roles-hx",
             }
         )
+        # Seed the percentage inputs from the stored JSON (default 50/20/30).
+        components = (self.instance.salary_components or {}) if self.instance else {}
+        self.fields["basic_pct"].initial = components.get("basic", 50)
+        self.fields["hra_pct"].initial = components.get("hra", 20)
+        self.fields["other_pct"].initial = components.get("other", 30)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        basic = cleaned_data.get("basic_pct")
+        hra = cleaned_data.get("hra_pct")
+        other = cleaned_data.get("other_pct")
+        if any(v is not None for v in (basic, hra, other)):
+            total = (basic or 0) + (hra or 0) + (other or 0)
+            if total != 100:
+                self.add_error(
+                    "basic_pct",
+                    _("Salary components must add up to 100%% (currently %(total)s%%).")
+                    % {"total": total},
+                )
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.salary_components = {
+            "basic": self.cleaned_data.get("basic_pct") or 0,
+            "hra": self.cleaned_data.get("hra_pct") or 0,
+            "other": self.cleaned_data.get("other_pct") or 0,
+        }
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
 
     def as_p(self, *args, **kwargs):
         context = {"form": self}
