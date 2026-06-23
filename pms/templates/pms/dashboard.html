@@ -646,7 +646,7 @@
                     <div class="pm-performer-item__avatar">${avatarInner}</div>
                     <div class="pm-performer-item__info">
                         <div class="pm-performer-item__name">${p.name}</div>
-                        <div class="pm-performer-item__detail">${p.completed}/${p.objectives} {% trans "completed" %}${p.bonus_points > 0 ? ' · ' + p.bonus_points + ' pts' : ''}</div>
+                        <div class="pm-performer-item__detail">${p.completed}/${p.objectives} {% trans "completed" %}</div>{# ponytail: bonus points stat hidden #}
                     </div>
                     <div class="pm-performer-item__score">${p.avg_progress}%</div>
                 </a>`;
