@@ -1921,7 +1921,7 @@ def assign_leave_type_excel(_request):
     """
     try:
         columns = [
-            "Badge ID",
+            "Employee ID",
             "Leave Type",
             "Available Days",
             "Carry Forward Days",
@@ -1947,9 +1947,9 @@ def assign_leave_type_import(request):
     or generates an error report in the form of an Excel file.
     """
     error_data = {
-        "Employee Badge ID": [],
+        "Employee ID": [],
         "Leave Type": [],
-        "Badge ID Error": [],
+        "Employee ID Error": [],
         "Leave Type Error": [],
         "Available Days": [],
         "Carry Forward Days": [],
@@ -1975,13 +1975,13 @@ def assign_leave_type_import(request):
         assign_leave_list, error_list = [], []
 
         for row in assign_leave_dicts:
-            badge_id = str(row.get("Employee Badge ID", "")).strip().lower()
+            badge_id = str(row.get("Employee ID", "")).strip().lower()
             leave_type_name = str(row.get("Leave Type", "")).strip().lower()
             employee = employees.get(badge_id)
             leave_type = leave_types.get(leave_type_name)
 
             if not employee:
-                row["Badge ID Error"] = _("This badge id does not exist.")
+                row["Employee ID Error"] = _("This badge id does not exist.")
                 error_list.append(row)
                 continue
             if not leave_type:

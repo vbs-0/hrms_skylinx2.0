@@ -73,7 +73,7 @@ def upload_form16(request):
 def bulk_upload_form16(request):
     """
     Bulk upload Form 16 PDFs via ZIP file.
-    Matches filename (without .pdf) to Employee Badge ID.
+    Matches filename (without .pdf) to Employee Employee ID.
     """
     if request.method == "POST":
         form = Form16BulkUploadForm(request.POST, request.FILES)
@@ -103,7 +103,7 @@ def bulk_upload_form16(request):
                                 doc.document.save(file_name_to_save, ContentFile(pdf_data), save=True)
                                 success_count += 1
                             else:
-                                error_msgs.append(f"No employee found with Badge ID: {badge_id}")
+                                error_msgs.append(f"No employee found with Employee ID: {badge_id}")
                                 
                 if success_count > 0:
                     messages.success(request, f"Successfully uploaded {success_count} Form 16 documents.")

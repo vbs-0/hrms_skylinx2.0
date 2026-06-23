@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='employee',
             name='badge_id',
-            field=models.CharField(blank=True, max_length=50, null=True, verbose_name='Employee ID / Badge ID'),
+            field=models.CharField(blank=True, max_length=50, null=True, verbose_name='Employee ID'),
         ),
         migrations.AlterField(
             model_name='employee',

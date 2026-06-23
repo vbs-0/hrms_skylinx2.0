@@ -80,7 +80,7 @@
                 </button>
             </li>
 
-            {% if not user.is_superuser %}
+            {% if request.user.is_superuser or perms.subscriptions.change_subscription or perms.base.change_company %}
             <li>
                 <button
                     class="py-1.5 hover:text-primary-600 transition duration-300 text-sm gap-4 items-center flex w-full"
@@ -88,6 +88,7 @@
                     <a class="text-[13px]" href="{% url 'subscription-plans' %}">{% trans "Subscription & Plans" %}</a>
                 </button>
             </li>
+            {% endif %}
             {% if perms.auth.view_group %}
             <li>
                 <button

@@ -245,7 +245,7 @@ def attendance_excel(_request):
     """
     try:
         columns = [
-            "Badge ID",
+            "Employee ID",
             "Shift",
             "Work type",
             "Attendance date",
@@ -1003,15 +1003,15 @@ def process_activity_dicts(activity_dicts):
     error_dicts = []  # List to store dictionaries with errors
 
     for activity in sorted_activity_dicts:
-        badge_id = activity.get("Badge ID")
+        badge_id = activity.get("Employee ID")
         if not badge_id:
-            activity["Error 1"] = "Please add the Badge ID column in the Excel sheet."
+            activity["Error 1"] = "Please add the Employee ID column in the Excel sheet."
             error_dicts.append(activity)
             continue
 
         employee = Employee.objects.filter(badge_id=badge_id).first()
         if not employee:
-            activity["Error 2"] = "Invalid Badge ID"
+            activity["Error 2"] = "Invalid Employee ID"
             error_dicts.append(activity)
             continue
 
@@ -1122,7 +1122,7 @@ def attendance_activity_import_excel(request):
     if request.method == "GET":
         data_frame = pd.DataFrame(
             columns=[
-                "Badge ID",
+                "Employee ID",
                 "Employee",
                 "Attendance Date",
                 "In Date",

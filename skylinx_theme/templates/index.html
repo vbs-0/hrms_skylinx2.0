@@ -239,6 +239,7 @@
                 </div>
 
                 <div id="ohMainContent" class="p-6 pt-24">
+                    {% if request.user.is_superuser or perms.subscriptions.change_subscription or perms.base.change_company %}
                     {% if trial_days_left is not None and trial_days_left <= 7 %}
                     <div class="mb-4 rounded-md px-4 py-3 text-sm flex items-center justify-between
                                 {% if trial_days_left <= 2 %}bg-red-50 text-red-700 border border-red-200
@@ -250,12 +251,12 @@
                           Your free trial ends in <strong>{{ trial_days_left }}</strong> day{{ trial_days_left|pluralize }}.
                         {% endif %}
                       </span>
-                      {% if not user.is_superuser %}
                       <a href="{% url 'subscription-plans' %}" class="ml-4 px-3 py-1.5 rounded bg-primary-600 text-white whitespace-nowrap">Choose a plan</a>
-                      {% endif %}
                     </div>
                     {% endif %}
-                    {% if not user.is_superuser and seat_limit is not None and seat_left <= 3 %}
+                    {% endif %}
+                    {% if request.user.is_superuser or perms.subscriptions.change_subscription or perms.base.change_company %}
+                    {% if seat_limit is not None and seat_left <= 3 %}
                     <div class="mb-4 rounded-md px-4 py-3 text-sm flex items-center justify-between
                                 {% if seat_left <= 0 %}bg-red-50 text-red-700 border border-red-200
                                 {% else %}bg-amber-50 text-amber-800 border border-amber-200{% endif %}">
@@ -268,6 +269,7 @@
                       </span>
                       <a href="{% url 'subscription-plans' %}" class="ml-4 px-3 py-1.5 rounded bg-primary-600 text-white whitespace-nowrap">Upgrade plan</a>
                     </div>
+                    {% endif %}
                     {% endif %}
                     {% block content %}
                         {% include "skylinx_theme/components/dashboard.html" %}

@@ -358,8 +358,8 @@ def project_import(request):
     data_frame = pd.DataFrame(
         columns=[
             "Title",
-            "Manager Badge id",
-            "Member Badge id",
+            "Manager Employee ID",
+            "Member Employee ID",
             "Status",
             "Start Date",
             "End Date",
@@ -380,8 +380,8 @@ def project_import(request):
             try:
                 # getting datas from imported file
                 title = project["Title"]
-                manager_badge_id = convert_nan("Manager Badge id", project)
-                member_badge_id = convert_nan("Member Badge id", project)
+                manager_badge_id = convert_nan("Manager Employee ID", project)
+                member_badge_id = convert_nan("Member Employee ID", project)
                 status = project["Status"]
                 start_date = project["Start Date"]
                 end_date = project["End Date"]

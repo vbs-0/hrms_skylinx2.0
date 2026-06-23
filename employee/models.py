@@ -76,7 +76,7 @@ class Employee(models.Model):
         ("married", _("Married")),
         ("divorced", _("Divorced")),
     )
-    badge_id = models.CharField(max_length=50, null=True, blank=True, verbose_name=_("Employee ID / Badge ID"))
+    badge_id = models.CharField(max_length=50, null=True, blank=True, verbose_name=_("Employee ID"))
     employee_user_id = models.OneToOneField(
         SkylinxUser,
         on_delete=models.CASCADE,

@@ -101,7 +101,7 @@ class Form16BulkUploadForm(forms.Form):
     )
     zip_file = forms.FileField(
         validators=[FileExtensionValidator(allowed_extensions=['zip'])],
-        help_text="Upload a ZIP file containing Form 16 PDFs. The PDFs must be named with the employee's Badge ID (e.g., EMP001.pdf).",
+        help_text="Upload a ZIP file containing Form 16 PDFs. The PDFs must be named with the employee's Employee ID (e.g., EMP001.pdf).",
         widget=forms.ClearableFileInput(attrs={"class": "form-control"})
     )
 

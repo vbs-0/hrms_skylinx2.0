@@ -3667,7 +3667,7 @@ def rotating_shift_assign_import(request):
             start_date = parser.parse(str(start_date), dayfirst=True).date()
 
         for total_rows, row in enumerate(work_info_dicts, start=1):
-            employee_ids.append(row["Badge Id"])
+            employee_ids.append(row["Employee ID"])
             current_list = list(row.values())[3:]
             current_list = normalize_list(current_list)
             if start_date < datetime.today().date():
@@ -3741,7 +3741,7 @@ def rotating_shift_assign_import(request):
                 else:
                     error_message = f"Rotating Shift with ID {rshift.name} is already assigned to employee {employee}"
                     for row in work_info_dicts:
-                        if row["Badge Id"] == employee.badge_id:
+                        if row["Employee ID"] == employee.badge_id:
                             row["Employee Error"] = error_message
                             error_list.append(row)
                             break
@@ -3758,7 +3758,7 @@ def rotating_shift_assign_import(request):
         unique_error_list = []
 
         for row in error_list:
-            badge_id = row["Badge Id"]
+            badge_id = row["Employee ID"]
             if badge_id not in flg:
                 unique_error_list.append(row)
                 flg.add(badge_id)

@@ -360,10 +360,10 @@ class EmployeeForm(ModelForm):
                 pk=self.instance.pk if self.instance else None
             )
             if queryset.exists():
-                raise forms.ValidationError(_("Badge ID must be unique."))
+                raise forms.ValidationError(_("Employee ID must be unique."))
             if not re.search(r"\d", badge_id):
                 raise forms.ValidationError(
-                    _("Badge ID must contain at least one digit.")
+                    _("Employee ID must contain at least one digit.")
                 )
         return badge_id
 
@@ -715,7 +715,7 @@ class EmployeeBankDetailsUpdateForm(ModelForm):
 
 
 excel_columns = [
-    ("badge_id", _("Employee ID / Badge ID")),
+    ("badge_id", _("Employee ID")),
     ("employee_first_name", _("First Name")),
     ("employee_last_name", _("Last Name")),
     ("email", _("Email")),

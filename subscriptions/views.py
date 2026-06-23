@@ -572,6 +572,12 @@ def signup(request):
 def client_plans(request):
     """Client view: current subscription + available plans to switch/upgrade."""
     from django.conf import settings
+    from django.contrib import messages
+    from django.shortcuts import redirect
+
+    if not (request.user.is_superuser or request.user.has_perm('subscriptions.change_subscription') or request.user.has_perm('base.change_company')):
+        messages.error(request, "You do not have permission to view or change subscriptions.")
+        return redirect("/")
 
     company = company_for_user(request.user)
     sub = subscription_for_company(company)
@@ -595,6 +601,13 @@ def client_plans(request):
 @login_required
 def choose_plan(request):
     """Client picks a plan. Free → apply now; paid → Razorpay checkout (or note)."""
+    from django.contrib import messages
+    from django.shortcuts import redirect
+
+    if not (request.user.is_superuser or request.user.has_perm('subscriptions.change_subscription') or request.user.has_perm('base.change_company')):
+        messages.error(request, "You do not have permission to view or change subscriptions.")
+        return redirect("/")
+
     company = company_for_user(request.user)
     sub = subscription_for_company(company)
     plan = _plan_or_none(request.POST.get("plan"))

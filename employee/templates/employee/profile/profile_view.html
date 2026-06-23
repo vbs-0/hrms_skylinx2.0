@@ -432,6 +432,7 @@ aria-hidden="true">
 								>
 							</li>
 
+							{% if request.user.employee_get != employee %}
 							<li data-cell-index="19" data-cell-title="{% trans 'Work type & Shift' %}" class="oh-general__tab">
 								<a
 								hx-get="{% url 'shift-tab' employee.id %}?profile=true"
@@ -443,6 +444,7 @@ aria-hidden="true">
 								>{% trans "Work Type & Shift" %}</a
 								>
 							</li>
+							{% endif %}
 
 							{% if "attendance"|app_installed %}
 								<li data-cell-index="18" data-cell-title="{% trans 'Attendance' %}" class="oh-general__tab">

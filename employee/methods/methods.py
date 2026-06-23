@@ -33,7 +33,7 @@ is_postgres = connection.vendor == "postgresql"
 error_data_template = {
     field: []
     for field in [
-        "Employee ID / Badge ID",
+        "Employee ID",
         "First Name",
         "Last Name",
         "Phone",
@@ -59,7 +59,7 @@ error_data_template = {
         "Gender Error",
         "Joining Date Error",
         "Contract Date Error",
-        "Badge ID Error",
+        "Employee ID Error",
         "Basic Salary Error",
         "Salary Hour Error",
         "User ID Error",
@@ -225,7 +225,7 @@ def valid_import_file_headers(data_frame):
         return False, message
 
     required_keys = [
-        "Employee ID / Badge ID",
+        "Employee ID",
         "First Name",
         "Last Name",
         "Phone",
@@ -292,7 +292,7 @@ def process_employee_records(data_frame):
         email = str(emp.get("Email", "")).strip().lower()
         raw_phone = emp.get("Phone", "")
         phone = normalize_phone(raw_phone)
-        badge_id = clean_badge_id(emp.get("Employee ID / Badge ID"))
+        badge_id = clean_badge_id(emp.get("Employee ID"))
         first_name = emp.get("First Name")
         last_name = emp.get("Last Name")
         address = emp.get("Address")
@@ -337,19 +337,19 @@ def process_employee_records(data_frame):
             errors["Phone Error"] = "Invalid phone number format."
             save = False
 
-        # Badge ID validation
+        # Employee ID validation
         if not badge_id:
-            errors["Badge ID Error"] = "Badge ID cannot be empty."
+            errors["Employee ID Error"] = "Employee ID cannot be empty."
             save = False
 
         elif badge_id in seen_badge_ids:
-            errors["Badge ID Error"] = "An employee with this badge ID already exists."
+            errors["Employee ID Error"] = "An employee with this badge ID already exists."
             save = False
 
         else:
             # Ensure consistent type (convert to string if needed)
             badge_id = str(badge_id).strip()
-            emp["Employee ID / Badge ID"] = badge_id
+            emp["Employee ID"] = badge_id
             seen_badge_ids.add(badge_id)
 
         # Username/email uniqueness
@@ -484,7 +484,7 @@ def bulk_create_employee_import(success_lists):
     employees_to_create = [
         Employee(
             employee_user_id=existing_users[row.get("Email")],
-            badge_id=row.get("Employee ID / Badge ID"),
+            badge_id=row.get("Employee ID"),
             employee_first_name=row.get("First Name"),
             employee_last_name=row.get("Last Name"),
             address=row.get("Address"),
@@ -761,7 +761,7 @@ def bulk_create_work_info_import(success_lists):
     new_work_info_list = []
     update_work_info_list = []
 
-    badge_ids = [row["Employee ID / Badge ID"] for row in success_lists]
+    badge_ids = [row["Employee ID"] for row in success_lists]
     departments = set(row.get("Department") for row in success_lists)
     job_positions = set(row.get("Designation") for row in success_lists)
     job_roles = set(row.get("Job Role") for row in success_lists)
@@ -839,7 +839,7 @@ def bulk_create_work_info_import(success_lists):
     reporting_manager_dict = optimize_reporting_manager_lookup()
 
     for work_info in success_lists:
-        badge_id = work_info["Employee ID / Badge ID"]
+        badge_id = work_info["Employee ID"]
         employee_obj = existing_employees.get(badge_id)
         if not employee_obj:
             continue

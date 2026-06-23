@@ -2844,7 +2844,7 @@ def work_info_import_file(request):
     """
     data_frame = pd.DataFrame(
         columns=[
-            "Badge ID",
+            "Employee ID",
             "First Name",
             "Last Name",
             "Email",

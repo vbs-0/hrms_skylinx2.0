@@ -186,8 +186,8 @@ class EmployeesList(SkylinxListView):
 
     import_help = {
         "Id | Reference": ["Dont Alter this column"],
-        "Badge ID": ["Ensure no Duplicate Codes"],
-        "Reporting Manager": ["Ensure Badge ID with employee exists"],
+        "Employee ID": ["Ensure no Duplicate Codes"],
+        "Reporting Manager": ["Ensure Employee ID with employee exists"],
         "Gender": ["male", "female", "other"],
         "Marital Status": ["single", "married", "divorced"],
         "Date Formats": ["yyyy-mm-dd"],
@@ -284,7 +284,7 @@ class EmployeesList(SkylinxListView):
         (_("Employee"), "employee_name_with_badge_id", "get_avatar"),
         (_("Email"), "email"),
         (_("Phone"), "phone"),
-        (_("Badge Id"), "badge_id"),
+        (_("Employee ID"), "badge_id"),
         (_("Job Position"), "employee_work_info__job_position_id"),
         (_("Department"), "employee_work_info__department_id"),
         (_("Shift"), "employee_work_info__shift_id"),
@@ -316,7 +316,7 @@ class EmployeesList(SkylinxListView):
                 """
     sortby_mapping = [
         (_("Employee"), "get_full_name", "get_avatar"),
-        (_("Badge Id"), "badge_id"),
+        (_("Employee ID"), "badge_id"),
         (
             _("Reporting Manager"),
             "employee_work_info__reporting_manager_id__get_full_name",
@@ -381,7 +381,7 @@ class TabEmployeeWorkList(SkylinxListView):
     show_filter_tags = False
 
     columns = [
-        (_("Badge Id"), "badge_id"),
+        (_("Employee ID"), "badge_id"),
         (_("Work Email"), "employee_work_info__email"),
         (
             _("Reporting Manager"),
@@ -426,7 +426,7 @@ class EmployeeWorkDetails(SkylinxDetailedView):
     model = Employee
 
     body = [
-        (_("Badge Id"), "badge_id"),
+        (_("Employee ID"), "badge_id"),
         (_("Work Email"), "employee_work_info__email"),
         (
             _("Reporting Manager"),

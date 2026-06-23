@@ -166,7 +166,7 @@ class PersonalForm(ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["emergency_contact_name"].label = _("Contact name")
         self.fields["emergency_contact_relation"].label = _("Contact Relation")
-        self.fields["badge_id"].label = "Badge ID"
+        self.fields["badge_id"].label = "Employee ID"
 
         self.fields["dob"].widget = forms.DateInput(
             attrs={"type": "date", "class": "oh-input w-100"}
