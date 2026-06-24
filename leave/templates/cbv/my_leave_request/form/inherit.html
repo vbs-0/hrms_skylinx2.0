@@ -24,24 +24,37 @@
 </script>
 
 <script>
-    var test = $("#createTitle").closest("form")
-    test.find("button[type=submit]").hide();
-    var button = `
-    <div class="oh-modal__dialog-footer p-0 mt-3">
-      <button id="buttonID" class="oh-btn oh-btn--secondary oh-btn--shadow">
-        Save
-      </button>
-    </div>
-    `;
-    test.find(".d-flex").after(button);
-
 {% if "recruitment"|app_installed %}
-    $(document).ready(function () {
-        $("#buttonID").on("click", function () {
+    (function () {
+        var $form = $("#{{ view_id }}Form").filter(":visible").first();
+        if (!$form.length) {
+            $form = $("#{{ view_id }}Form").first();
+        }
+        $form.find("button[type=submit]").hide();
+        var button = `
+        <div class="oh-modal__dialog-footer p-0 mt-3">
+          <button type="button" class="oh-btn oh-btn--secondary oh-btn--shadow custom-save-btn">
+            Save
+          </button>
+        </div>
+        `;
+        $form.find(".d-flex").after(button);
+
+        var submitForm = function () {
+            if ($form[0].requestSubmit) {
+                $form[0].requestSubmit();
+            } else {
+                $form.find("[type=submit]").show();
+                $form.find(".custom-save-btn").hide();
+                $form.find("[type=submit]").click();
+            }
+        };
+
+        $form.find(".custom-save-btn").on("click", function (event) {
             event.preventDefault();
             event.stopPropagation();
-            var startDate = test.find("[name = start_date]").val();
-            var endDate = test.find("[name = end_date]").val();
+            var startDate = $form.find("[name = start_date]").val();
+            var endDate = $form.find("[name = end_date]").val();
             var employee = "{{request.user.employee_get.id}}";
 
             $.ajax({
@@ -66,28 +79,26 @@
                             <p style="font-weight:700">Are you sure you want to proceed with the request?</p>
                         </div>`;
 
-                        if (interviews.length != 0) {
-                            Swal.fire({
-                                title: title,
-                                icon: "info",
-                                html: content,
-                                showCancelButton: true,
-                                confirmButtonColor: "#008000",
-                                cancelButtonColor: "#d33",
-                                confirmButtonText: "Confirm",
-                            }).then(function (result) {
-                                if (result.isConfirmed) {
-                                    test.find("[type=submit]").show();
-                                    $("#buttonID").hide();
-                                test.find("[type=submit]").click();
+                    if (interviews.length != 0) {
+                        Swal.fire({
+                            title: title,
+                            icon: "info",
+                            html: content,
+                            showCancelButton: true,
+                            confirmButtonColor: "#008000",
+                            cancelButtonColor: "#d33",
+                            confirmButtonText: "Confirm",
+                        }).then(function (result) {
+                            if (result.isConfirmed) {
+                                submitForm();
                             }
                         });
                     } else {
-                        test.find("[type=submit]").click();
+                        submitForm();
                     }
                 },
             });
         });
-    });
-    {% endif %}
+    })();
+{% endif %}
 </script>

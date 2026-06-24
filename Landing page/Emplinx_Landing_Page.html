@@ -1,0 +1,2346 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emplinx - Next-Gen HRMS & Workforce Platform</title>
+
+    <!-- Fonts and Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --dark-navy: #0F172A;
+            --royal-blue: #2563EB;
+            --sky-blue: #38BDF8;
+            --white: #FFFFFF;
+            --light-gray: #F3F4F6;
+            --dark-gray: #374151;
+            --navy-light: #1E293B;
+            --glass-bg: rgba(15, 23, 42, 0.4);
+            --glass-border: rgba(255, 255, 255, 0.05);
+            --font-outfit: 'Outfit', sans-serif;
+            --font-inter: 'Inter', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            font-family: var(--font-inter);
+        }
+
+        body {
+            background-color: var(--dark-navy);
+            color: var(--white);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* --- Layout Containers --- */
+        .container {
+            width: 100%;
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* --- Header / Navbar --- */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--glass-border);
+            transition: all 0.3s ease;
+        }
+
+        .header.scrolled {
+            background: rgba(15, 23, 42, 0.9);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .nav-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 80px;
+        }
+
+        .logo-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+        }
+
+        .logo-img {
+            height: 40px;
+            width: auto;
+            filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.3));
+        }
+
+        .brand-name {
+            font-family: var(--font-outfit);
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: var(--white);
+            letter-spacing: -0.05em;
+            text-shadow:
+                0 1px 0 rgba(255, 255, 255, 0.4),
+                0 2px 0 rgba(37, 99, 235, 0.5),
+                0 3px 0 rgba(37, 99, 235, 0.4),
+                0 4px 1px rgba(0, 0, 0, 0.3);
+        }
+
+        .nav-menu {
+            display: flex;
+            list-style: none;
+            gap: 2.5rem;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: color 0.25s ease;
+        }
+
+        .nav-link:hover {
+            color: var(--sky-blue);
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        /* --- Buttons --- */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 1.75rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            text-decoration: none;
+            border: none;
+            font-family: var(--font-outfit);
+        }
+
+        .btn-primary {
+            background-color: var(--royal-blue);
+            color: var(--white);
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--white);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--sky-blue);
+            border: 1.5px solid var(--sky-blue);
+        }
+
+        .btn-outline:hover {
+            background: rgba(56, 189, 248, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* --- Hero Section --- */
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding-top: 100px;
+            padding-bottom: 50px;
+            overflow: hidden;
+        }
+
+        #bg-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: auto;
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 4rem;
+            align-items: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .hero-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .hero-badge {
+            align-self: flex-start;
+            background: rgba(37, 99, 235, 0.1);
+            border: 1px solid rgba(37, 99, 235, 0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 99px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--sky-blue);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .hero-badge i {
+            font-size: 0.75rem;
+        }
+
+        .hero-title {
+            font-family: var(--font-outfit);
+            font-size: 4rem;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.03em;
+            color: var(--white);
+            text-shadow:
+                0 1px 0 #E2E8F0,
+                0 2px 0 #93C5FD,
+                0 3px 0 #60A5FA,
+                0 4px 0 #2563EB,
+                0 5px 0 #1D4ED8,
+                0 6px 0 rgba(15, 23, 42, 0.8),
+                0 8px 12px rgba(0, 0, 0, 0.6),
+                0 12px 24px rgba(37, 99, 235, 0.3);
+            transform: perspective(1000px) rotateX(8deg) rotateY(-4deg);
+            display: inline-block;
+            transition: transform 0.5s ease, text-shadow 0.5s ease;
+        }
+
+        .hero-title:hover {
+            transform: perspective(1000px) rotateX(12deg) rotateY(-8deg) translateZ(10px);
+            text-shadow:
+                0 1px 0 #FFFFFF,
+                0 2px 0 #38BDF8,
+                0 3px 0 #0EA5E9,
+                0 4px 0 #2563EB,
+                0 5px 0 #1D4ED8,
+                0 6px 0 rgba(15, 23, 42, 0.9),
+                0 8px 15px rgba(0, 0, 0, 0.7),
+                0 16px 30px rgba(56, 189, 248, 0.4);
+        }
+
+        .hero-title span {
+            color: var(--sky-blue);
+            text-shadow:
+                0 1px 0 #E0F2FE,
+                0 2px 0 #7DD3FC,
+                0 3px 0 #38BDF8,
+                0 4px 0 #0284C7,
+                0 5px 0 #0369A1,
+                0 6px 0 rgba(15, 23, 42, 0.8),
+                0 8px 12px rgba(0, 0, 0, 0.6),
+                0 12px 24px rgba(56, 189, 248, 0.3);
+        }
+
+        .hero-desc {
+            font-size: 1.15rem;
+            color: rgba(255, 255, 255, 0.7);
+            max-width: 600px;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        /* 3D Floating Hero Showcase */
+        .hero-showcase {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            perspective: 1000px;
+        }
+
+        .hero-3d-card {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 3rem;
+            width: 100%;
+            max-width: 420px;
+            height: 480px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transform-style: preserve-3d;
+            transition: transform 0.1s ease;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .hero-logo-box {
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.15) 0%, transparent 70%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transform: translateZ(50px);
+        }
+
+        .hero-3d-card img {
+            width: 140px;
+            height: auto;
+            filter: drop-shadow(0 0 15px rgba(56, 189, 248, 0.5));
+        }
+
+        .hero-card-title {
+            font-family: var(--font-outfit);
+            font-size: 2.25rem;
+            font-weight: 800;
+            color: var(--white);
+            transform: translateZ(30px);
+        }
+
+        .hero-card-subtitle {
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+            transform: translateZ(20px);
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0px) rotateY(0deg) rotateX(0deg);
+            }
+
+            50% {
+                transform: translateY(-15px) rotateY(3deg) rotateX(2deg);
+            }
+        }
+
+        /* --- Features Section --- */
+        .features {
+            padding: 100px 0;
+            background-color: #0B0F19;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section-header {
+            text-align: center;
+            max-width: 700px;
+            margin: 0 auto 5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .section-label {
+            font-family: var(--font-outfit);
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--sky-blue);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .section-title {
+            font-family: var(--font-outfit);
+            font-size: 2.75rem;
+            font-weight: 800;
+            color: var(--white);
+            text-shadow:
+                0 1px 0 #E2E8F0,
+                0 2px 0 #93C5FD,
+                0 3px 0 #2563EB,
+                0 4px 0 rgba(15, 23, 42, 0.5);
+        }
+
+        .section-desc {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+
+        /* 3D Tilt Card */
+        .feature-card-wrapper {
+            perspective: 1000px;
+        }
+
+        .feature-card {
+            background: rgba(30, 41, 59, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 2.5rem;
+            height: 100%;
+            min-height: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            transform-style: preserve-3d;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3);
+        }
+
+        .feature-card:hover {
+            border-color: rgba(37, 99, 235, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(37, 99, 235, 0.1);
+        }
+
+        .feature-icon-box {
+            width: 60px;
+            height: 60px;
+            background: rgba(56, 189, 248, 0.05);
+            border: 1px solid rgba(56, 189, 248, 0.15);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--sky-blue);
+            font-size: 1.5rem;
+            transform: translateZ(30px);
+        }
+
+        .feature-card-title {
+            font-family: var(--font-outfit);
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--white);
+            transform: translateZ(20px);
+        }
+
+        .feature-card-desc {
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.6);
+            transform: translateZ(10px);
+        }
+
+        /* --- Metrics / Stats Section --- */
+        .stats {
+            padding: 80px 0;
+            background: linear-gradient(180deg, #0B0F19 0%, var(--dark-navy) 100%);
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            text-align: center;
+        }
+
+        .stat-item {
+            background: rgba(30, 41, 59, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 20px;
+            padding: 2.5rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-num {
+            font-family: var(--font-outfit);
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: var(--sky-blue);
+            line-height: 1.2;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 0.5rem;
+        }
+
+        /* --- Call-To-Action (CTA) Section --- */
+        .cta {
+            padding: 100px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-box {
+            background: radial-gradient(circle at 10% 20%, rgba(37, 99, 235, 0.15) 0%, transparent 60%),
+                rgba(30, 41, 59, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 32px;
+            padding: 5rem 2rem;
+            text-align: center;
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+            position: relative;
+        }
+
+        .cta-box::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .cta-title {
+            font-family: var(--font-outfit);
+            font-size: 3rem;
+            font-weight: 800;
+            max-width: 800px;
+        }
+
+        .cta-desc {
+            font-size: 1.15rem;
+            color: rgba(255, 255, 255, 0.7);
+            max-width: 600px;
+        }
+
+        /* --- Footer --- */
+        .footer {
+            background-color: #070A12;
+            padding: 80px 0 40px;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 1.5fr repeat(3, 1fr);
+            gap: 4rem;
+            margin-bottom: 4rem;
+        }
+
+        .footer-brand {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .footer-brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .footer-desc {
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.5);
+            max-width: 320px;
+        }
+
+        .footer-socials {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .social-link {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            transition: all 0.25s ease;
+        }
+
+        .social-link:hover {
+            background: var(--royal-blue);
+            color: var(--white);
+            transform: translateY(-2px);
+        }
+
+        .footer-title {
+            font-family: var(--font-outfit);
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 1.5rem;
+        }
+
+        .footer-links {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .footer-link {
+            text-decoration: none;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.9rem;
+            transition: color 0.2s ease;
+        }
+
+        .footer-link:hover {
+            color: var(--sky-blue);
+        }
+
+        .footer-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .footer-legal {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .legal-link {
+            text-decoration: none;
+            color: rgba(255, 255, 255, 0.4);
+            transition: color 0.2s ease;
+        }
+
+        .legal-link:hover {
+            color: var(--sky-blue);
+        }
+
+        /* --- Responsive Adaptations --- */
+        @media (max-width: 1024px) {
+            .hero-title {
+                font-size: 3.25rem;
+            }
+
+            .hero-grid {
+                grid-template-columns: 1fr;
+                gap: 3rem;
+                text-align: center;
+            }
+
+            .hero-content {
+                align-items: center;
+            }
+
+            .hero-badge {
+                align-self: center;
+            }
+
+            .hero-desc {
+                margin: 0 auto;
+            }
+
+            .hero-showcase {
+                margin-top: 2rem;
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 3rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 1.5rem;
+            }
+
+            .nav-menu {
+                display: none;
+                /* simple hidden state for mobile nav */
+            }
+
+            .hero-title {
+                font-size: 2.5rem;
+            }
+
+            .section-title {
+                font-size: 2.25rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr;
+                gap: 2.5rem;
+            }
+
+            .footer-bottom {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+        }
+
+
+        /* ==========================================================================
+   ADVANCED 3D SIMULATOR & UNIQUE INTERACTIVE COMPONENT STYLES
+   ========================================================================== */
+
+        /* Cursor Spotlight Glow Effect */
+        .cursor-spotlight {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.08) 0%, rgba(56, 189, 248, 0.03) 40%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+            mix-blend-mode: screen;
+            filter: blur(50px);
+            transition: opacity 0.5s ease;
+        }
+
+        /* Hero Section Spotlight Adjustments */
+        .hero {
+            position: relative;
+            z-index: 5;
+        }
+
+        /* Interactive Dashboard Simulator (Hero Showcase) */
+        .simulator-window {
+            width: 100%;
+            max-width: 580px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.7),
+                0 0 50px rgba(37, 99, 235, 0.1);
+            border-radius: 20px;
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            transform-style: preserve-3d;
+            transition: transform 0.1s ease;
+            display: flex;
+            flex-direction: column;
+            height: 380px;
+        }
+
+        .simulator-header {
+            background: rgba(30, 41, 59, 0.5);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 0.75rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .window-dots {
+            display: flex;
+            gap: 0.35rem;
+        }
+
+        .window-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .window-dot.red {
+            background-color: #EF4444;
+        }
+
+        .window-dot.yellow {
+            background-color: #F59E0B;
+        }
+
+        .window-dot.green {
+            background-color: #10B981;
+        }
+
+        .window-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.5);
+            font-family: var(--font-outfit);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .simulator-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .simulator-sidebar {
+            width: 130px;
+            background: rgba(15, 23, 42, 0.4);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 1rem 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .sim-nav-btn {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            font-family: var(--font-inter);
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.6rem 0.75rem;
+            border-radius: 8px;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.25s ease;
+        }
+
+        .sim-nav-btn:hover {
+            color: var(--white);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .sim-nav-btn.active {
+            color: var(--white);
+            background: rgba(37, 99, 235, 0.2);
+            border: 1px solid rgba(37, 99, 235, 0.4);
+            box-shadow: 0 0 12px rgba(37, 99, 235, 0.25);
+        }
+
+        .simulator-content {
+            flex: 1;
+            padding: 1.25rem;
+            position: relative;
+            overflow-y: auto;
+            background: rgba(15, 23, 42, 0.2);
+        }
+
+        .sim-view {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .sim-view.active {
+            display: block;
+            opacity: 1;
+        }
+
+        /* Mock Components inside Simulator */
+        .sim-title {
+            font-family: var(--font-outfit);
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            color: var(--white);
+        }
+
+        /* User Directory List Mock */
+        .mock-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .mock-item {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .mock-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .mock-avatar {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: #3B82F6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            font-weight: bold;
+            color: var(--white);
+        }
+
+        .mock-name {
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .mock-role {
+            font-size: 0.65rem;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .mock-badge {
+            padding: 0.2rem 0.5rem;
+            border-radius: 99px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .mock-badge.green {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10B981;
+        }
+
+        .mock-badge.blue {
+            background: rgba(59, 130, 246, 0.15);
+            color: #3B82F6;
+        }
+
+        .mock-badge.orange {
+            background: rgba(245, 158, 11, 0.15);
+            color: #F59E0B;
+        }
+
+        /* Attendance Timeline Mock */
+        .mock-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            position: relative;
+            padding-left: 1rem;
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .timeline-dot {
+            position: absolute;
+            left: -4.5px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--sky-blue);
+            box-shadow: 0 0 8px var(--sky-blue);
+        }
+
+        .timeline-dot.active {
+            background: #10B981;
+            box-shadow: 0 0 8px #10B981;
+        }
+
+        .timeline-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+
+        .timeline-time {
+            font-size: 0.65rem;
+            color: var(--sky-blue);
+            font-weight: 700;
+        }
+
+        .timeline-text {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Payroll Chart Mock */
+        .payroll-chart-box {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .payroll-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .payroll-month {
+            width: 40px;
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 600;
+        }
+
+        .payroll-bar-container {
+            flex: 1;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 99px;
+            overflow: hidden;
+        }
+
+        .payroll-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--royal-blue), var(--sky-blue));
+            border-radius: 99px;
+            width: 0;
+            transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .payroll-value {
+            width: 50px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-align: right;
+        }
+
+        /* Leave Calendar Mock */
+        .mock-cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.35rem;
+            margin-top: 0.5rem;
+        }
+
+        .mock-cal-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.02);
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .mock-cal-day.active {
+            background: rgba(239, 68, 68, 0.15);
+            color: #EF4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            font-weight: 700;
+        }
+
+        .mock-cal-day.holiday {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10B981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            font-weight: 700;
+        }
+
+
+        /* Lifecycle Workflow Node-Map */
+        .workflow-section {
+            padding: 100px 0;
+            position: relative;
+            background-color: var(--dark-navy);
+        }
+
+        .node-map-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            margin-top: 4rem;
+            padding: 0 1rem;
+        }
+
+        .node-line {
+            position: absolute;
+            top: 68%;
+            left: 4%;
+            right: 4%;
+            height: 2px;
+            background: linear-gradient(90deg, rgba(37, 99, 235, 0.2) 0%, rgba(56, 189, 248, 0.2) 100%);
+            z-index: 1;
+            transform: translateY(-50%);
+        }
+
+        .node-line-progress {
+            position: absolute;
+            top: 67%;
+            left: 5%;
+            width: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--royal-blue) 0%, var(--sky-blue) 100%);
+            z-index: 2;
+            transform: translateY(-50%);
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+            transition: width 2s ease;
+        }
+
+        .wf-node {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+        }
+
+        .node-circle {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: rgba(30, 41, 59, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 1.5rem;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .wf-node:hover .node-circle {
+            transform: scale(1.15);
+            color: var(--sky-blue);
+            border-color: var(--sky-blue);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.4), 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .wf-node.active .node-circle {
+            border-color: var(--royal-blue);
+            color: var(--royal-blue);
+            background: rgba(37, 99, 235, 0.1);
+            box-shadow: 0 0 25px rgba(37, 99, 235, 0.5);
+        }
+
+        .node-label {
+            font-family: var(--font-outfit);
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.6);
+            transition: color 0.3s ease;
+        }
+
+        .wf-node:hover .node-label,
+        .wf-node.active .node-label {
+            color: var(--white);
+        }
+
+        .node-tooltip {
+            position: absolute;
+            bottom: 85px;
+            width: 220px;
+            background: rgba(30, 41, 59, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(12px);
+            transform: translateY(10px);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            text-align: center;
+            z-index: 100;
+        }
+
+        .node-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: rgba(30, 41, 59, 0.85);
+        }
+
+        .wf-node:hover .node-tooltip {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .tooltip-title {
+            font-family: var(--font-outfit);
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--sky-blue);
+            margin-bottom: 0.25rem;
+        }
+
+        .tooltip-desc {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.3;
+        }
+
+        /* Adjustments for Responsive Node Map */
+        @media (max-width: 768px) {
+            .node-map-container {
+                flex-direction: column;
+                gap: 3rem;
+            }
+
+            .node-line {
+                left: 50%;
+                top: 0;
+                bottom: 0;
+                width: 2px;
+                height: 100%;
+                transform: translateX(-50%);
+            }
+
+            .node-line-progress {
+                left: 50%;
+                top: 0;
+                width: 2px;
+                height: 0;
+                transform: translateX(-50%);
+                transition: height 2s ease;
+            }
+
+            .node-tooltip {
+                left: 80px;
+                bottom: auto;
+                top: 50%;
+                transform: translate(-10px, -50%);
+            }
+
+            .node-tooltip::after {
+                top: 50%;
+                left: -12px;
+                transform: translateY(-50%);
+                border-color: transparent;
+                border-right-color: rgba(30, 41, 59, 0.85);
+            }
+
+            .wf-node:hover .node-tooltip {
+                transform: translate(0, -50%);
+            }
+        }
+
+
+        /* Login Modal Overlay */
+        .login-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .login-modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Close button inside modal */
+        .login-modal-close {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #FFFFFF;
+            font-size: 1.5rem;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.3s;
+            z-index: 10000;
+        }
+
+        .login-modal-close:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: rotate(90deg);
+        }
+
+        /* Modal Globe Canvas */
+        #modal-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* 3D Glass Card for modal */
+        .login-modal-card {
+            position: relative;
+            z-index: 5;
+            width: 100%;
+            max-width: 420px;
+            padding: 40px;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8),
+                0 0 50px rgba(37, 99, 235, 0.15);
+            transform-style: preserve-3d;
+            transform: perspective(1000px) rotateX(4deg) rotateY(-2deg) scale(0.9);
+            transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.5s ease;
+        }
+
+        .login-modal-overlay.active .login-modal-card {
+            transform: perspective(1000px) rotateX(4deg) rotateY(-2deg) scale(1);
+        }
+
+        .login-modal-card:hover {
+            transform: perspective(1000px) rotateX(6deg) rotateY(-3deg) translateZ(10px) scale(1.02);
+            box-shadow: 0 35px 70px -10px rgba(0, 0, 0, 0.9),
+                0 0 60px rgba(56, 189, 248, 0.25);
+        }
+
+        .modal-label {
+            font-size: 0.8rem;
+            color: #38BDF8;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .modal-input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 14px 16px;
+            color: #FFFFFF;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .modal-input:focus {
+            border-color: #38BDF8;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+        }
+
+        .modal-password-container {
+            position: relative;
+        }
+
+        .modal-password-toggle {
+            position: absolute;
+            right: 14px;
+            top: 14px;
+            color: #94A3B8;
+            cursor: pointer;
+            font-size: 1.25rem;
+            transition: color 0.3s;
+        }
+
+        .modal-password-toggle:hover {
+            color: #FFFFFF;
+        }
+
+        .modal-submit {
+            width: 100%;
+            background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 14px;
+            color: #FFFFFF;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+            margin-top: 1.5rem;
+        }
+
+        .modal-submit:hover {
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.4);
+        }
+
+        .login-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.25rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            color: #FFFFFF;
+            text-shadow:
+                0 1px 0 #E2E8F0,
+                0 2px 0 #93C5FD,
+                0 3px 0 #2563EB,
+                0 4px 10px rgba(37, 99, 235, 0.4);
+        }
+
+        .login-subtitle {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+
+        .link-forgot {
+            color: #EF4444;
+            font-size: 0.85rem;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .link-forgot:hover {
+            color: #F87171;
+            text-decoration: underline;
+        }
+    </style>
+
+    <!-- Favicon settings -->
+    <link rel="apple-touch-icon" sizes="180x180" href="favicons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicons/favicon-16x16.png">
+</head>
+
+<body>
+
+    <!-- Dynamic Cursor Spotlight Glow -->
+    <div class="cursor-spotlight" id="cursorSpotlight"></div>
+
+    <!-- --- Header --- -->
+    <header class="header" id="navbar">
+        <div class="container nav-wrapper">
+            <a href="#" class="logo-link">
+                <img src="images/Emplinx_logo.png" alt="Emplinx Logo" class="logo-img">
+                <span class="brand-name">Emplinx</span>
+            </a>
+
+            <ul class="nav-menu">
+                <li><a href="#features" class="nav-link">Features</a></li>
+                <li><a href="#lifecycle" class="nav-link">Workflows</a></li>
+                <li><a href="#metrics" class="nav-link">Analytics</a></li>
+                <li><a href="#footer" class="nav-link">Contact</a></li>
+            </ul>
+
+            <div class="nav-actions">
+                <a href="javascript:void(0)" onclick="openLoginModal()" class="btn btn-secondary">Sign In</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- --- Hero Section --- -->
+    <section class="hero">
+        <canvas id="bg-canvas"></canvas>
+        <div class="container hero-grid">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <i class="fa-solid fa-sparkles"></i>
+                    <span>Introducing Emplinx</span>
+                </div>
+                <h1 class="hero-title">
+                    The Smart HR &<br>
+                    <span>Workforce Platform</span>
+                </h1>
+                <p class="hero-desc">
+                    Simplify HR workflows, automate payroll processing, track real-time attendance, and manage candidate
+                    onboarding pipelines with Emplinx — the next-generation HRMS engineered for modern, scaling
+                    enterprises.
+                </p>
+                <div class="hero-buttons">
+                    <a href="javascript:void(0)" onclick="openLoginModal()" class="btn btn-primary">Launch
+                        Application</a>
+                    <a href="#features" class="btn btn-secondary">Explore Features</a>
+                </div>
+            </div>
+
+            <div class="hero-showcase">
+                <div class="simulator-window" id="heroCard">
+                    <div class="simulator-header">
+                        <div class="window-dots">
+                            <span class="window-dot red"></span>
+                            <span class="window-dot yellow"></span>
+                            <span class="window-dot green"></span>
+                        </div>
+                        <span class="window-title">Emplinx Dashboard</span>
+                        <div style="width: 42px;"></div>
+                    </div>
+                    <div class="simulator-body">
+                        <aside class="simulator-sidebar">
+                            <button class="sim-nav-btn active" onclick="switchSimTab('directory')">
+                                <i class="fa-solid fa-users"></i> Directory
+                            </button>
+                            <button class="sim-nav-btn" onclick="switchSimTab('attendance')">
+                                <i class="fa-solid fa-clock-rotate-left"></i> Tracker
+                            </button>
+                            <button class="sim-nav-btn" onclick="switchSimTab('payroll')">
+                                <i class="fa-solid fa-wallet"></i> Payroll
+                            </button>
+                            <button class="sim-nav-btn" onclick="switchSimTab('leave')">
+                                <i class="fa-solid fa-calendar-days"></i> Holidays
+                            </button>
+                        </aside>
+                        <main class="simulator-content">
+                            <!-- Directory Tab View -->
+                            <div class="sim-view active" id="sim-directory">
+                                <h4 class="sim-title">Employee Directory</h4>
+                                <div class="mock-list">
+                                    <div class="mock-item">
+                                        <div class="mock-profile">
+                                            <div class="mock-avatar" style="background-color: #3B82F6;">SU</div>
+                                            <div>
+                                                <div class="mock-name">Shareefuddin</div>
+                                                <div class="mock-role">CEO</div>
+                                            </div>
+                                        </div>
+                                        <span class="mock-badge green">Active</span>
+                                    </div>
+                                    <div class="mock-item">
+                                        <div class="mock-profile">
+                                            <div class="mock-avatar" style="background-color: #10B981;">GD</div>
+                                            <div>
+                                                <div class="mock-name">Gundeep</div>
+                                                <div class="mock-role">Software Developer</div>
+                                            </div>
+                                        </div>
+                                        <span class="mock-badge blue">Active</span>
+                                    </div>
+                                    <div class="mock-item">
+                                        <div class="mock-profile">
+                                            <div class="mock-avatar" style="background-color: #F59E0B;">AP</div>
+                                            <div>
+                                                <div class="mock-name">Aseempasha</div>
+                                                <div class="mock-role">Manager - HR & Operation</div>
+                                            </div>
+                                        </div>
+                                        <span class="mock-badge orange">On Leave</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Attendance Tab View -->
+                            <div class="sim-view" id="sim-attendance">
+                                <h4 class="sim-title">Live Attendance Logs</h4>
+                                <div class="mock-timeline">
+                                    <div class="timeline-item">
+                                        <span class="timeline-dot active"></span>
+                                        <span class="timeline-time">09:00 AM</span>
+                                        <span class="timeline-text">Gundeep clocked in (Grace window)</span>
+                                    </div>
+                                    <div class="timeline-item">
+                                        <span class="timeline-dot active"></span>
+                                        <span class="timeline-time">09:12 AM</span>
+                                        <span class="timeline-text">Shareefuddin clocked in (Late come flagged)</span>
+                                    </div>
+                                    <div class="timeline-item">
+                                        <span class="timeline-dot"></span>
+                                        <span class="timeline-time">05:00 PM</span>
+                                        <span class="timeline-text">Auto Checkout active (grace limit 8h)</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Payroll Tab View -->
+                            <div class="sim-view" id="sim-payroll">
+                                <h4 class="sim-title">Monthly Payroll (INR)</h4>
+                                <div class="payroll-chart-box">
+                                    <div class="payroll-row">
+                                        <span class="payroll-month">April</span>
+                                        <div class="payroll-bar-container">
+                                            <div class="payroll-bar" data-width="75%"></div>
+                                        </div>
+                                        <span class="payroll-value">₹3,42,500</span>
+                                    </div>
+                                    <div class="payroll-row">
+                                        <span class="payroll-month">May</span>
+                                        <div class="payroll-bar-container">
+                                            <div class="payroll-bar" data-width="85%"></div>
+                                        </div>
+                                        <span class="payroll-value">₹3,82,000</span>
+                                    </div>
+                                    <div class="payroll-row">
+                                        <span class="payroll-month">June</span>
+                                        <div class="payroll-bar-container">
+                                            <div class="payroll-bar" data-width="95%"></div>
+                                        </div>
+                                        <span class="payroll-value">₹4,25,000</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Leave Tab View -->
+                            <div class="sim-view" id="sim-leave">
+                                <h4 class="sim-title">Vacation & Holiday Calendar</h4>
+                                <div class="mock-cal-grid">
+                                    <!-- Days of week -->
+                                    <div class="mock-cal-day" style="font-weight: 700;">M</div>
+                                    <div class="mock-cal-day" style="font-weight: 700;">T</div>
+                                    <div class="mock-cal-day" style="font-weight: 700;">W</div>
+                                    <div class="mock-cal-day" style="font-weight: 700;">T</div>
+                                    <div class="mock-cal-day" style="font-weight: 700;">F</div>
+                                    <div class="mock-cal-day" style="font-weight: 700;">S</div>
+                                    <div class="mock-cal-day" style="font-weight: 700;">S</div>
+
+                                    <!-- Month days -->
+                                    <div class="mock-cal-day">1</div>
+                                    <div class="mock-cal-day">2</div>
+                                    <div class="mock-cal-day holiday" title="Public Holiday">3</div>
+                                    <div class="mock-cal-day">4</div>
+                                    <div class="mock-cal-day active" title="Aseempasha Leave">5</div>
+                                    <div class="mock-cal-day">6</div>
+                                    <div class="mock-cal-day">7</div>
+                                    <div class="mock-cal-day">8</div>
+                                    <div class="mock-cal-day">9</div>
+                                    <div class="mock-cal-day">10</div>
+                                    <div class="mock-cal-day">11</div>
+                                    <div class="mock-cal-day active" title="Shareefuddin Leave">12</div>
+                                    <div class="mock-cal-day">13</div>
+                                    <div class="mock-cal-day">14</div>
+                                </div>
+                            </div>
+                        </main>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- --- Features Section --- -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label">Enterprise Capabilities</span>
+                <h2 class="section-title">Engineered for Growth</h2>
+                <p class="section-desc">Emplinx brings together all HR management functionalities under a unified,
+                    beautiful, and fluid interface.</p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card-wrapper">
+                    <div class="feature-card">
+                        <div class="feature-icon-box">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </div>
+                        <h3 class="feature-card-title">Attendance & Shift Manager</h3>
+                        <p class="feature-card-desc">Seamless check-in and check-out with automatic late-coming,
+                            early-out insights, and rotating shifts.</p>
+                    </div>
+                </div>
+
+                <div class="feature-card-wrapper">
+                    <div class="feature-card">
+                        <div class="feature-icon-box">
+                            <i class="fa-solid fa-wallet"></i>
+                        </div>
+                        <h3 class="feature-card-title">Automated Payroll</h3>
+                        <p class="feature-card-desc">Calculate payroll variables, support tax regimes, and distribute
+                            payslips instantly with secure databases.</p>
+                    </div>
+                </div>
+
+                <div class="feature-card-wrapper">
+                    <div class="feature-card">
+                        <div class="feature-icon-box">
+                            <i class="fa-solid fa-user-plus"></i>
+                        </div>
+                        <h3 class="feature-card-title">Candidate Onboarding</h3>
+                        <p class="feature-card-desc">Guide candidates through complete welcome checklists, contract
+                            tasks, and automated bank information uploads.</p>
+                    </div>
+                </div>
+
+                <div class="feature-card-wrapper">
+                    <div class="feature-card">
+                        <div class="feature-icon-box">
+                            <i class="fa-solid fa-sliders"></i>
+                        </div>
+                        <h3 class="feature-card-title">Dynamic Customization</h3>
+                        <p class="feature-card-desc">Introduce custom fields, notification alert logs, and switch
+                            layouts from light to dark modes instantly.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- --- Interactive Node-Map Section --- -->
+    <section class="workflow-section" id="lifecycle">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label">HRMS Ecosystem</span>
+                <h2 class="section-title">Everything Your Workforce Needs</h2>
+                <p class="section-desc">
+                    Manage employees, attendance, leaves, assets, payroll and analytics from a single platform.
+                </p>
+            </div>
+
+            <div class="node-map-container">
+
+                <div class="node-line"></div>
+                <div class="node-line-progress" id="nodeProgress"></div>
+
+                <div class="wf-node active" data-step="1" onclick="updateActiveNode(1)">
+                    <div class="node-circle">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                    <span class="node-label">Employees</span>
+
+                    <div class="node-tooltip">
+                        <h5 class="tooltip-title">Employee Management</h5>
+                        <p class="tooltip-desc">
+                            Employee records, departments, designations and documents.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="wf-node" data-step="2" onclick="updateActiveNode(2)">
+                    <div class="node-circle">
+                        <i class="fa-solid fa-fingerprint"></i>
+                    </div>
+                    <span class="node-label">Attendance</span>
+
+                    <div class="node-tooltip">
+                        <h5 class="tooltip-title">Attendance Tracking</h5>
+                        <p class="tooltip-desc">
+                            Attendance, shifts, biometric logs and work hours.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="wf-node" data-step="3" onclick="updateActiveNode(3)">
+                    <div class="node-circle">
+                        <i class="fa-solid fa-calendar-check"></i>
+                    </div>
+                    <span class="node-label">Leave</span>
+
+                    <div class="node-tooltip">
+                        <h5 class="tooltip-title">Leave Approvals</h5>
+                        <p class="tooltip-desc">
+                            Multi-level leave approvals and leave balance tracking.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="wf-node" data-step="4" onclick="updateActiveNode(4)">
+                    <div class="node-circle">
+                        <i class="fa-solid fa-laptop"></i>
+                    </div>
+                    <span class="node-label">Assets</span>
+
+                    <div class="node-tooltip">
+                        <h5 class="tooltip-title">Asset Management</h5>
+                        <p class="tooltip-desc">
+                            Assign laptops, devices, IDs and company assets.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="wf-node" data-step="5" onclick="updateActiveNode(5)">
+                    <div class="node-circle">
+                        <i class="fa-solid fa-money-bill-wave"></i>
+                    </div>
+                    <span class="node-label">Payroll</span>
+
+                    <div class="node-tooltip">
+                        <h5 class="tooltip-title">Payroll Processing</h5>
+                        <p class="tooltip-desc">
+                            Salary generation, deductions, reimbursements and payslips.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="wf-node" data-step="6" onclick="updateActiveNode(6)">
+                    <div class="node-circle">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                    <span class="node-label">Insights</span>
+
+                    <div class="node-tooltip">
+                        <h5 class="tooltip-title">Reports & Insights</h5>
+                        <p class="tooltip-desc">
+                            Workforce analytics, attendance trends and payroll reports.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- --- Metrics / Stats Section --- -->
+    <section class="stats" id="metrics">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-num" data-val="150">0</div>
+                    <div class="stat-label">Active Enterprise Clients</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-num" data-val="12400">0</div>
+                    <div class="stat-label">Employees Managed</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-num" data-val="99.9">0</div>
+                    <div class="stat-label">Platform Uptime %</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- --- Call-To-Action (CTA) Section --- -->
+    <section class="cta">
+        <div class="container">
+            <div class="cta-box">
+                <h2 class="cta-title">Ready to Transform Your Workplace?</h2>
+                <p class="cta-desc">Experience the modern HR software that elevates employee experiences and streamlines
+                    administrative overhead.</p>
+                <div>
+                    <a href="javascript:void(0)" onclick="openLoginModal()" class="btn btn-primary"
+                        style="font-size: 1.1rem; padding: 1rem 2.5rem;">
+                        Get Started Now
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- --- Footer --- -->
+    <footer class="footer" id="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div class="footer-brand-logo">
+                        <img src="images/Emplinx_logo.png" alt="Emplinx Logo" style="height: 32px;">
+                        <span class="brand-name" style="font-size: 1.5rem;">Emplinx</span>
+                    </div>
+                    <p class="footer-desc">Elevating workforce management, employee onboarding, and automated payroll
+                        operations to the cloud.</p>
+                    <div class="footer-socials">
+                        <a href="#" class="social-link"><i class="fa-brands fa-x-twitter"></i></a>
+                        <a href="#" class="social-link"><i class="fa-brands fa-linkedin-in"></i></a>
+                        <a href="#" class="social-link"><i class="fa-brands fa-github"></i></a>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="footer-title">Product</h4>
+                    <ul class="footer-links">
+                        <li><a href="#features" class="footer-link">Features</a></li>
+                        <li><a href="#metrics" class="footer-link">Analytics</a></li>
+                        <li><a href="javascript:void(0)" onclick="openLoginModal()" class="footer-link">Dashboard</a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="footer-title">Resources</h4>
+                    <ul class="footer-links">
+                        <li><a href="#" class="footer-link">Documentation</a></li>
+                        <li><a href="#" class="footer-link">System Status</a></li>
+                        <li><a href="#" class="footer-link">Developer API</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="footer-title">Company</h4>
+                    <ul class="footer-links">
+                        <li><a href="#" class="footer-link">About Us</a></li>
+                        <li><a href="#" class="footer-link">Careers</a></li>
+                        <li><a href="#" class="footer-link">Privacy Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2026 SkyLinx Global Solutions. All rights reserved.</p>
+                <div class="footer-legal">
+                    <a href="#" class="legal-link">Terms of Service</a>
+                    <a href="#" class="legal-link">Security Statement</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script>
+        // Header transparency shift on scroll
+        const navbar = document.getElementById('navbar');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
+
+        // Spotlight Glow cursor tracking
+        const spotlight = document.getElementById('cursorSpotlight');
+        window.addEventListener('mousemove', e => {
+            spotlight.style.left = e.clientX + 'px';
+            spotlight.style.top = e.clientY + 'px';
+        });
+
+        // Interactive 3D Card Parallax Tilt Effect
+        document.querySelectorAll('.feature-card, .simulator-window').forEach(card => {
+            card.addEventListener('mousemove', e => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const xc = rect.width / 2;
+                const yc = rect.height / 2;
+                const angleX = (yc - y) / 18; // degrees
+                const angleY = (x - xc) / 18; // degrees
+                card.style.transform = `rotateX(${angleX}deg) rotateY(${angleY}deg) scale(1.02)`;
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'rotateX(0deg) rotateY(0deg) scale(1)';
+            });
+        });
+
+        // Dashboard Simulator Tab Switcher
+        function switchSimTab(tabId) {
+            document.querySelectorAll('.sim-nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.sim-view').forEach(view => view.classList.remove('active'));
+
+            const activeBtn = Array.from(document.querySelectorAll('.sim-nav-btn')).find(btn => btn.textContent.toLowerCase().includes(tabId));
+            if (activeBtn) activeBtn.classList.add('active');
+
+            const activeView = document.getElementById(`sim-${tabId}`);
+            if (activeView) {
+                activeView.classList.add('active');
+                if (tabId === 'payroll') {
+                    setTimeout(() => {
+                        activeView.querySelectorAll('.payroll-bar').forEach(bar => {
+                            bar.style.width = bar.getAttribute('data-width');
+                        });
+                    }, 50);
+                }
+            }
+        }
+
+        // Auto tab rotation every 4 seconds
+        let currentTabIdx = 0;
+        const tabs = ['directory', 'attendance', 'payroll', 'leave'];
+        let tabRotationInterval = setInterval(() => {
+            currentTabIdx = (currentTabIdx + 1) % tabs.length;
+            switchSimTab(tabs[currentTabIdx]);
+        }, 4000);
+
+        document.querySelectorAll('.sim-nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                clearInterval(tabRotationInterval);
+            });
+        });
+
+        // Workforce Node Map Interaction
+        function updateActiveNode(step) {
+            document.querySelectorAll('.wf-node').forEach(node => {
+                const s = parseInt(node.getAttribute('data-step'));
+                if (s <= step) {
+                    node.classList.add('active');
+                } else {
+                    node.classList.remove('active');
+                }
+            });
+
+            const progress = document.getElementById('nodeProgress');
+            const percentage = ((step - 1) / 5) * 90;
+
+            const isMobile = window.innerWidth <= 768;
+            if (isMobile) {
+                progress.style.width = '2px';
+                progress.style.height = `${percentage}%`;
+            } else {
+                progress.style.height = '2px';
+                progress.style.width = `${percentage}%`;
+            }
+        }
+
+        let currentNodeStep = 1;
+        let nodeInterval = setInterval(() => {
+            currentNodeStep = (currentNodeStep % 6) + 1;
+            updateActiveNode(currentNodeStep);
+        }, 3000);
+
+        document.querySelectorAll('.wf-node').forEach(node => {
+            node.addEventListener('click', () => {
+                clearInterval(nodeInterval);
+            });
+        });
+
+        // 3D Neural Connections Globe canvas animation
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        const numNodes = 70;
+        const nodes = [];
+        const globeRadius = 260;
+
+        for (let i = 0; i < numNodes; i++) {
+            const theta = Math.acos(Math.random() * 2 - 1);
+            const phi = Math.random() * Math.PI * 2;
+            nodes.push({
+                x3d: globeRadius * Math.sin(theta) * Math.cos(phi),
+                y3d: globeRadius * Math.sin(theta) * Math.sin(phi),
+                z3d: globeRadius * Math.cos(theta),
+                radius: 2
+            });
+        }
+
+        let angleX = 0.0015;
+        let angleY = 0.002;
+
+        function rotate3D(node, ax, ay) {
+            let y1 = node.y3d * Math.cos(ax) - node.z3d * Math.sin(ax);
+            let z1 = node.y3d * Math.sin(ax) + node.z3d * Math.cos(ax);
+            let x2 = node.x3d * Math.cos(ay) - z1 * Math.sin(ay);
+            let z2 = node.x3d * Math.sin(ay) + z1 * Math.cos(ay);
+            node.x3d = x2;
+            node.y3d = y1;
+            node.z3d = z2;
+        }
+
+        window.addEventListener('mousemove', e => {
+            angleX = (e.clientY - height / 2) * 0.000004;
+            angleY = (e.clientX - width / 2) * 0.000004;
+        });
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            nodes.sort((a, b) => b.z3d - a.z3d);
+
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const fov = 400;
+
+            nodes.forEach(node => {
+                rotate3D(node, angleX, angleY);
+                const scale = fov / (fov + node.z3d);
+                node.projX = centerX + node.x3d * scale;
+                node.projY = centerY + node.y3d * scale;
+                node.projScale = scale;
+            });
+
+            for (let i = 0; i < nodes.length; i++) {
+                const n1 = nodes[i];
+                if (n1.projScale < 0.3) continue;
+
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const n2 = nodes[j];
+                    const dx = n1.x3d - n2.x3d;
+                    const dy = n1.y3d - n2.y3d;
+                    const dz = n1.z3d - n2.z3d;
+                    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+                    if (dist < 120) {
+                        ctx.beginPath();
+                        ctx.moveTo(n1.projX, n1.projY);
+                        ctx.lineTo(n2.projX, n2.projY);
+                        const opacity = (1 - dist / 120) * 0.12 * n1.projScale;
+                        ctx.strokeStyle = `rgba(56, 189, 248, ${opacity})`;
+                        ctx.lineWidth = 0.8;
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            nodes.forEach(node => {
+                ctx.beginPath();
+                ctx.arc(node.projX, node.projY, node.radius * node.projScale * 1.5, 0, Math.PI * 2);
+                const alpha = 0.15 + 0.8 * node.projScale;
+                ctx.fillStyle = `rgba(56, 189, 248, ${alpha})`;
+                ctx.fill();
+            });
+
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // Stats counter up animation
+        const stats = document.querySelectorAll('.stat-num');
+        const speed = 100;
+
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const target = entry.target;
+                    const val = parseFloat(target.getAttribute('data-val'));
+                    const isDecimal = val % 1 !== 0;
+
+                    let curr = 0;
+                    const increment = val / speed;
+
+                    const updateCount = () => {
+                        curr += increment;
+                        if (curr < val) {
+                            target.innerText = isDecimal ? curr.toFixed(1) : Math.floor(curr);
+                            setTimeout(updateCount, 15);
+                        } else {
+                            target.innerText = val;
+                        }
+                    };
+                    updateCount();
+                    observer.unobserve(target);
+                }
+            });
+        }, { threshold: 0.5 });
+
+        stats.forEach(stat => observer.observe(stat));
+    </script>
+
+    <!-- Login Modal Overlay -->
+    <div class="login-modal-overlay" id="loginModal">
+        <button class="login-modal-close" onclick="closeLoginModal()"><i class="fa-solid fa-xmark"></i></button>
+        <canvas id="modal-canvas"></canvas>
+
+        <div class="login-modal-card">
+            <!-- Mock Logo -->
+            <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 1.5rem;">
+                <svg width="60" height="60" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg"
+                    style="filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.4));">
+                    <circle cx="250" cy="250" r="220" stroke="#38BDF8" stroke-width="25" stroke-dasharray="100 40" />
+                    <circle cx="250" cy="250" r="140" stroke="#2563EB" stroke-width="25" />
+                    <circle cx="250" cy="250" r="60" fill="#FFFFFF" />
+                </svg>
+            </div>
+
+            <h2 class="login-title">Welcome to Emplinx</h2>
+            <p class="login-subtitle">Please login to access the dashboard.</p>
+
+            <form onsubmit="handleMockLogin(event)">
+                <div style="margin-bottom: 1.25rem;">
+                    <label class="modal-label">Username</label>
+                    <input type="text" class="modal-input" placeholder="e.g. adam.luis@skylinx.com" required />
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label class="modal-label">Password</label>
+                    <div class="modal-password-container">
+                        <input type="password" id="modal-password-input" class="modal-input"
+                            placeholder="Enter Password" required />
+                        <span class="modal-password-toggle" onclick="toggleModalPassword()">
+                            <i class="fa-solid fa-eye" id="modal-password-eye"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+                    <a href="javascript:void(0)" onclick="alert('Demo reset mail sent!')" class="link-forgot">Forgot
+                        Password?</a>
+                </div>
+
+                <button type="submit" class="modal-submit">
+                    <i class="fa-solid fa-right-to-bracket"></i> Sign In
+                </button>
+            </form>
+        </div>
+    </div>
+    <script>
+        // Login Modal Logic
+        const loginModal = document.getElementById('loginModal');
+
+        function openLoginModal() {
+            loginModal.classList.add('active');
+            initModalGlobe();
+        }
+
+        function closeLoginModal() {
+            loginModal.classList.remove('active');
+        }
+
+        function toggleModalPassword() {
+            const pwdInput = document.getElementById('modal-password-input');
+            const eyeIcon = document.getElementById('modal-password-eye');
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                pwdInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
+        }
+
+        function handleMockLogin(e) {
+            e.preventDefault();
+            alert('Welcome back to Emplinx! (Mock sign-in successful)');
+            closeLoginModal();
+        }
+
+        // Modal Globe Canvas Logic
+        let modalCanvasInit = false;
+        function initModalGlobe() {
+            if (modalCanvasInit) return;
+            modalCanvasInit = true;
+
+            const canvas = document.getElementById('modal-canvas');
+            const ctx = canvas.getContext('2d');
+
+            let width = canvas.width = window.innerWidth;
+            let height = canvas.height = window.innerHeight;
+
+            window.addEventListener('resize', () => {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+            });
+
+            let points = [];
+            const numPoints = 60;
+            const radius = Math.min(width, height) * 0.22;
+
+            for (let i = 0; i < numPoints; i++) {
+                const theta = Math.acos(Math.random() * 2 - 1);
+                const phi = Math.random() * Math.PI * 2;
+                points.push({
+                    x: Math.sin(theta) * Math.cos(phi),
+                    y: Math.sin(theta) * Math.sin(phi),
+                    z: Math.cos(theta)
+                });
+            }
+
+            let angleY = 0.003;
+            let angleX = 0.0015;
+
+            function animateModal() {
+                if (!loginModal.classList.contains('active')) {
+                    requestAnimationFrame(animateModal);
+                    return;
+                }
+
+                ctx.clearRect(0, 0, width, height);
+
+                const cosY = Math.cos(angleY);
+                const sinY = Math.sin(angleY);
+                const cosX = Math.cos(angleX);
+                const sinX = Math.sin(angleX);
+
+                points.forEach(p => {
+                    let x1 = p.x * cosY - p.z * sinY;
+                    let z1 = p.z * cosY + p.x * sinY;
+
+                    let y2 = p.y * cosX - z1 * sinX;
+                    let z2 = z1 * cosX + p.y * sinX;
+
+                    p.x = x1;
+                    p.y = y2;
+                    p.z = z2;
+                });
+
+                const cx = width / 2;
+                const cy = height / 2;
+
+                ctx.beginPath();
+                for (let i = 0; i < points.length; i++) {
+                    const p1 = points[i];
+                    const sc1 = 400 / (400 - p1.z * radius);
+                    const x1 = cx + p1.x * radius * sc1;
+                    const y1 = cy + p1.y * radius * sc1;
+
+                    for (let j = i + 1; j < points.length; j++) {
+                        const p2 = points[j];
+                        const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z);
+                        if (dist < 0.45) {
+                            const sc2 = 400 / (400 - p2.z * radius);
+                            const x2 = cx + p2.x * radius * sc2;
+                            const y2 = cy + p2.y * radius * sc2;
+
+                            const opacity = (0.45 - dist) * 2;
+                            ctx.strokeStyle = `rgba(56, 189, 248, ${opacity * 0.25})`;
+                            ctx.lineWidth = 1;
+                            ctx.moveTo(x1, y1);
+                            ctx.lineTo(x2, y2);
+                        }
+                    }
+                }
+                ctx.stroke();
+
+                points.forEach(p => {
+                    const sc = 400 / (400 - p.z * radius);
+                    const x = cx + p.x * radius * sc;
+                    const y = cy + p.y * radius * sc;
+                    const r = (p.z + 1.2) * 2.2;
+
+                    ctx.beginPath();
+                    ctx.arc(x, y, r > 0.5 ? r : 0.5, 0, Math.PI * 2);
+                    const alpha = (p.z + 1.2) / 2.2;
+                    ctx.fillStyle = `rgba(56, 189, 248, ${alpha})`;
+                    ctx.fill();
+                });
+
+                requestAnimationFrame(animateModal);
+            }
+
+            animateModal();
+        }
+    </script>
+</body>
+
+</html>

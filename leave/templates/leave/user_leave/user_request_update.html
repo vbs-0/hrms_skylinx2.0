@@ -47,22 +47,36 @@
 
 {% if "recruitment"|app_installed %}
     <script>
-        $("#userLeaveForm [type=submit]").hide();
-        var button = `
-        <div class="oh-modal__dialog-footer p-0 mt-3">
-        <button id="buttonID" class="oh-btn oh-btn--secondary oh-btn--shadow">
-            Save
-        </button>
-        </div>
-        `;
-        $("#userLeaveForm .row").after(button);
+        (function () {
+            var $form = $("#userLeaveForm").filter(":visible").first();
+            if (!$form.length) {
+                $form = $("#userLeaveForm").first();
+            }
+            $form.find("[type=submit]").hide();
+            var button = `
+            <div class="oh-modal__dialog-footer p-0 mt-3">
+            <button type="button" class="oh-btn oh-btn--secondary oh-btn--shadow custom-save-btn">
+                Save
+            </button>
+            </div>
+            `;
+            $form.find(".row").after(button);
 
-        $(document).ready(function () {
-            $("#buttonID").on("click", function () {
+            var submitForm = function () {
+                if ($form[0].requestSubmit) {
+                    $form[0].requestSubmit();
+                } else {
+                    $form.find("[type=submit]").show();
+                    $form.find(".custom-save-btn").hide();
+                    $form.find("[type=submit]").click();
+                }
+            };
+
+            $form.find(".custom-save-btn").on("click", function (event) {
                 event.preventDefault();
                 event.stopPropagation();
-                var startDate = $("#userLeaveForm [name = start_date]").val();
-                var endDate = $("#userLeaveForm [name = end_date]").val();
+                var startDate = $form.find("[name = start_date]").val();
+                var endDate = $form.find("[name = end_date]").val();
                 var employee = "{{request.user.employee_get.id}}";
 
                 $.ajax({
@@ -98,15 +112,15 @@
                                 confirmButtonText: "Confirm",
                             }).then(function (result) {
                                 if (result.isConfirmed) {
-                                    $("#userLeaveForm [type=submit]").click();
+                                    submitForm();
                                 }
                             });
                         } else {
-                            $("#userLeaveForm [type=submit]").click();
+                            submitForm();
                         }
                     },
                 });
             });
-        });
+        })();
     </script>
 {% endif %}

@@ -20,23 +20,37 @@
 
 {% if "recruitment"|app_installed %}
 <script>
-    $("#leaveRequestCreateForm [type=submit]").hide();
-    var button = `
-                <div class="oh-modal__dialog-footer p-0 mt-3">
-                <button id="buttonID" class="oh-btn oh-btn--secondary oh-btn--shadow">
-                    Save
-                </button>
-                </div>
-                `;
-    $("#leaveRequestCreateForm .row").after(button);
+    (function () {
+        var $form = $("#leaveRequestCreateForm").filter(":visible").first();
+        if (!$form.length) {
+            $form = $("#leaveRequestCreateForm").first();
+        }
+        $form.find("[type=submit]").hide();
+        var button = `
+                    <div class="oh-modal__dialog-footer p-0 mt-3">
+                    <button type="button" class="oh-btn oh-btn--secondary oh-btn--shadow custom-save-btn">
+                        Save
+                    </button>
+                    </div>
+                    `;
+        $form.find(".row").after(button);
 
-    $(document).ready(function () {
-        $("#buttonID").on("click", function () {
+        var submitForm = function () {
+            if ($form[0].requestSubmit) {
+                $form[0].requestSubmit();
+            } else {
+                $form.find("[type=submit]").show();
+                $form.find(".custom-save-btn").hide();
+                $form.find("[type=submit]").click();
+            }
+        };
+
+        $form.find(".custom-save-btn").on("click", function (event) {
             event.preventDefault();
             event.stopPropagation();
-            var startDate = $("#leaveRequestCreateForm [name = start_date]").val();
-            var endDate = $("#leaveRequestCreateForm [name = end_date]").val();
-            var employee = $("#leaveRequestCreateForm [name = employee_id]").val();
+            var startDate = $form.find("[name = start_date]").val();
+            var endDate = $form.find("[name = end_date]").val();
+            var employee = $form.find("[name = employee_id]").val();
 
             $.ajax({
                 type: "GET",
@@ -71,15 +85,15 @@
                             confirmButtonText: "Confirm",
                         }).then(function (result) {
                             if (result.isConfirmed) {
-                                $("#leaveRequestCreateForm [type=submit]").click();
+                                submitForm();
                             }
                         });
                     } else {
-                        $("#leaveRequestCreateForm [type=submit]").click();
+                        submitForm();
                     }
                 },
             });
         });
-    });
+    })();
 </script>
 {% endif %}
