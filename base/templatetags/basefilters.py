@@ -36,10 +36,17 @@ def is_reportingmanager(user):
 
     This method will return true if the user employee profile is reporting manager to any employee
     """
-    employee = Employee.objects.filter(employee_user_id=user).first()
-    return EmployeeWorkInformation.objects.filter(
-        reporting_manager_id=employee
-    ).exists()
+    if not user or user.is_anonymous:
+        return False
+    if not hasattr(user, "_is_reporting_manager_cached"):
+        employee = getattr(user, "employee_get", None)
+        if not employee:
+            user._is_reporting_manager_cached = False
+        else:
+            user._is_reporting_manager_cached = EmployeeWorkInformation.objects.filter(
+                reporting_manager_id=employee
+            ).exists()
+    return user._is_reporting_manager_cached
 
 
 @register.filter(name="is_leave_approval_manager")
@@ -47,15 +54,19 @@ def is_leave_approval_manager(user):
     """
     This method will return true if the user is comes in MultipleApprovalCondition model as approving manager
     """
-    employee = Employee.objects.filter(employee_user_id=user).first()
-    manager = (
-        MultipleApprovalManagers.objects.entire()
-        .filter(employee_id=employee.id)
-        .exists()
-        if employee
-        else False
-    )
-    return manager
+    if not user or user.is_anonymous:
+        return False
+    if not hasattr(user, "_is_leave_approval_manager_cached"):
+        employee = getattr(user, "employee_get", None)
+        if not employee:
+            user._is_leave_approval_manager_cached = False
+        else:
+            user._is_leave_approval_manager_cached = (
+                MultipleApprovalManagers.objects.entire()
+                .filter(employee_id=employee.id)
+                .exists()
+            )
+    return user._is_leave_approval_manager_cached
 
 
 @register.filter(name="check_manager")
@@ -78,10 +89,15 @@ def filtersubordinates(user):
     args:
         user    : request.user
     """
-
-    employee = user.employee_get
-    employee_manages = employee.reporting_manager.all()
-    return employee_manages.exists()
+    if not user or user.is_anonymous:
+        return False
+    if not hasattr(user, "_filtersubordinates_cached"):
+        employee = getattr(user, "employee_get", None)
+        if not employee:
+            user._filtersubordinates_cached = False
+        else:
+            user._filtersubordinates_cached = employee.reporting_manager.exists()
+    return user._filtersubordinates_cached
 
 
 @register.filter(name="filter_field")

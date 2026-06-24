@@ -170,6 +170,16 @@ class SkylinxFilterSet(FilterSet):
         for key, value in self.verbose_name.items():
             self.form.fields[key].label = value
 
+        for field_name, field in self.form.fields.items():
+            if hasattr(field, "queryset") and field.queryset is not None:
+                model_name = getattr(field.queryset.model, "__name__", "")
+                if model_name == "JobPosition":
+                    field.queryset = field.queryset.select_related("department_id")
+                elif model_name == "Stage":
+                    field.queryset = field.queryset.select_related("recruitment_id")
+                elif model_name == "JobRole":
+                    field.queryset = field.queryset.select_related("job_position_id")
+
         request = getattr(_thread_locals, "request", None)
         if request:
             setattr(request, "is_filtering", True)

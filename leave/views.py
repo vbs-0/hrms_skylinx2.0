@@ -601,7 +601,12 @@ def leave_request_view(request):
         "employee_id__employee_work_info",
         "employee_id__employee_work_info__department_id",
         "employee_id__employee_work_info__job_position_id",
+        "employee_id__employee_work_info__job_position_id__department_id",
         "leave_type_id"
+    ).prefetch_related(
+        "leaverequestconditionapproval_set",
+        "leaverequestconditionapproval_set__manager_id",
+        "penaltyaccounts_set"
     )
     page_number = request.GET.get("page")
     page_obj = paginator_qry(queryset, page_number)
@@ -1622,7 +1627,10 @@ def leave_assign_view(request):
             "employee_id__employee_work_info",
             "employee_id__employee_work_info__department_id",
             "employee_id__employee_work_info__job_position_id",
+            "employee_id__employee_work_info__job_position_id__department_id",
             "leave_type_id"
+        ).prefetch_related(
+            "employee_id__leaverequest_set"
         ).all(), 
         "leave.view_availableleave"
     )

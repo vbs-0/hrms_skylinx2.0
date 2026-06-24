@@ -341,10 +341,22 @@ def attendance_view(request):
     minot = strtime_seconds("00:00")
     if condition is not None and condition.minimum_overtime_to_approve is not None:
         minot = strtime_seconds(condition.minimum_overtime_to_approve)
-    validate_attendances = Attendance.objects.filter(
+    validate_attendances = Attendance.objects.select_related(
+        "employee_id",
+        "employee_id__employee_work_info",
+        "employee_id__employee_work_info__department_id",
+        "employee_id__employee_work_info__job_position_id",
+        "employee_id__employee_work_info__job_position_id__department_id"
+    ).filter(
         attendance_validated=False, employee_id__is_active=True
     )
-    attendances = Attendance.objects.filter(
+    attendances = Attendance.objects.select_related(
+        "employee_id",
+        "employee_id__employee_work_info",
+        "employee_id__employee_work_info__department_id",
+        "employee_id__employee_work_info__job_position_id",
+        "employee_id__employee_work_info__job_position_id__department_id"
+    ).filter(
         attendance_validated=True, employee_id__is_active=True
     )
     # ot_attendances = Attendance.objects.filter(
@@ -354,7 +366,13 @@ def attendance_view(request):
     # )
     # for attendance in ot_attendances:
     #     attendance.min_ot_achieved = True
-    ot_attendances = Attendance.objects.filter(
+    ot_attendances = Attendance.objects.select_related(
+        "employee_id",
+        "employee_id__employee_work_info",
+        "employee_id__employee_work_info__department_id",
+        "employee_id__employee_work_info__job_position_id",
+        "employee_id__employee_work_info__job_position_id__department_id"
+    ).filter(
         overtime_second__gt=0,
         attendance_validated=True,
         employee_id__is_active=True,

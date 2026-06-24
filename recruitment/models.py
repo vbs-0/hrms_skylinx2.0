@@ -1083,14 +1083,16 @@ class Candidate(SkylinxModel):
         """
         url = reverse_lazy("send-mail", kwargs={"cand_id": self.pk})
         return url
-
     def is_offer_rejected(self):
         """
         Is offer rejected checking method
         """
-        first = RejectedCandidate.objects.filter(candidate_id=self).first()
+        try:
+            first = self.rejected_candidate
+        except ObjectDoesNotExist:
+            first = None
         if first:
-            return first.reject_reason_id.count() > 0
+            return len(first.reject_reason_id.all()) > 0
         return first
 
     def get_full_name(self):
@@ -1103,6 +1105,27 @@ class Candidate(SkylinxModel):
         if self.profile and default_storage.exists(self.profile.name):
             return self.profile.url
         return static("images/ui/default_avatar.jpg")
+
+    def get_send_mail(self):
+        """
+        Candidate detail
+        """
+        url = reverse_lazy("send-mail", kwargs={"cand_id": self.pk})
+        return url
+
+    def get_last_sent_mail(self):
+        """
+        This method is used to get last send mail
+        """
+        if hasattr(self, "_cached_last_sent_mail"):
+            return self._cached_last_sent_mail
+        from base.models import EmailLog
+
+        return (
+            EmailLog.objects.filter(to__icontains=self.email)
+            .order_by("-created_at")
+            .first()
+        )
 
     def get_company(self):
         """
@@ -1138,18 +1161,6 @@ class Candidate(SkylinxModel):
         This method is used to return the tracked history of the instance
         """
         return get_diff(self)
-
-    def get_last_sent_mail(self):
-        """
-        This method is used to get last send mail
-        """
-        from base.models import EmailLog
-
-        return (
-            EmailLog.objects.filter(to__icontains=self.email)
-            .order_by("-created_at")
-            .first()
-        )
 
     def get_schedule_interview(self):
         url = reverse_lazy("interview-schedule", kwargs={"cand_id": self.pk})

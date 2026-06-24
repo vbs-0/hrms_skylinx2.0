@@ -1501,7 +1501,13 @@ def candidate_view(request):
     view_type = request.GET.get("view")
     previous_data = request.GET.urlencode()
     candidates = Candidate.objects.select_related(
-        "recruitment_id", "job_position_id", "stage_id"
+        "recruitment_id",
+        "job_position_id",
+        "job_position_id__department_id",
+        "stage_id",
+        "rejected_candidate"
+    ).prefetch_related(
+        "rejected_candidate__reject_reason_id"
     ).filter(is_active=True)
     recruitments = Recruitment.objects.filter(closed=False, is_active=True)
 

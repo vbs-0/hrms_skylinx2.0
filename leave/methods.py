@@ -142,23 +142,34 @@ def filter_conditional_leave_request(request):
     if apps.is_installed("leave"):
         from leave.models import LeaveRequest, LeaveRequestConditionApproval
 
-        multiple_approval_requests = LeaveRequestConditionApproval.objects.filter(
+        multiple_approval_requests = list(LeaveRequestConditionApproval.objects.filter(
             manager_id=approval_manager
-        )
+        ))
+        
+        if multiple_approval_requests:
+            checks = []
+            for instance in multiple_approval_requests:
+                if instance.sequence > 1:
+                    checks.append((instance.leave_request_id_id, instance.sequence - 1))
+            
+            if checks:
+                q_objs = Q()
+                for lr_id, seq in checks:
+                    q_objs |= Q(leave_request_id_id=lr_id, sequence=seq)
+                pre_approvals = {
+                    (pa.leave_request_id_id, pa.sequence): pa.is_approved
+                    for pa in LeaveRequestConditionApproval.objects.filter(q_objs)
+                }
+            else:
+                pre_approvals = {}
 
-    else:
-        multiple_approval_requests = None
-    for instance in multiple_approval_requests:
-        if instance.sequence > 1:
-            pre_sequence = instance.sequence - 1
-            leave_request_id = instance.leave_request_id
-            instance = LeaveRequestConditionApproval.objects.filter(
-                leave_request_id=leave_request_id, sequence=pre_sequence
-            ).first()
-            if instance and instance.is_approved:
-                leave_request_ids.append(instance.leave_request_id.id)
-        else:
-            leave_request_ids.append(instance.leave_request_id.id)
+            for instance in multiple_approval_requests:
+                if instance.sequence > 1:
+                    is_approved = pre_approvals.get((instance.leave_request_id_id, instance.sequence - 1), False)
+                    if is_approved:
+                        leave_request_ids.append(instance.leave_request_id_id)
+                else:
+                    leave_request_ids.append(instance.leave_request_id_id)
     return LeaveRequest.objects.filter(pk__in=leave_request_ids)
 
 

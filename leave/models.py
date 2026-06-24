@@ -940,6 +940,22 @@ class AvailableLeave(SkylinxModel):
         return reset_date
 
     def leave_taken(self):
+        emp = self.employee_id
+        is_prefetched = False
+        if emp and hasattr(emp, '_prefetched_objects_cache'):
+            is_prefetched = 'leaverequest_set' in emp._prefetched_objects_cache
+            
+        if is_prefetched:
+            requests = emp.leaverequest_set.all()
+            total = sum(
+                r.requested_days
+                for r in requests
+                if r.leave_type_id_id == self.leave_type_id_id
+                and r.start_date >= self.assigned_date
+                and r.status == "approved"
+            )
+            return total
+
         leave_taken = LeaveRequest.objects.filter(
             leave_type_id=self.leave_type_id,
             employee_id=self.employee_id,
@@ -1452,6 +1468,9 @@ class LeaveRequest(SkylinxModel):
         """
         This method is used to return the total penalties in the late early instance
         """
+        is_prefetched = 'penaltyaccounts_set' in self._prefetched_objects_cache if hasattr(self, '_prefetched_objects_cache') else False
+        if is_prefetched:
+            return len(self.penaltyaccounts_set.all())
         return self.penaltyaccounts_set.count()
 
     def requested_dates(self):
@@ -1852,13 +1871,22 @@ class LeaveRequest(SkylinxModel):
         available_leave.save()
 
     def multiple_approvals(self, *args, **kwargs):
-        approvals = LeaveRequestConditionApproval.objects.filter(leave_request_id=self)
-        requested_query = approvals.filter(is_approved=False).order_by("sequence")
-        approved_query = approvals.filter(is_approved=True).order_by("sequence")
+        is_prefetched = 'leaverequestconditionapproval_set' in self._prefetched_objects_cache if hasattr(self, '_prefetched_objects_cache') else False
+        
+        if is_prefetched:
+            approvals = list(self.leaverequestconditionapproval_set.all())
+            requested_query = sorted([a for a in approvals if not a.is_approved], key=lambda x: x.sequence)
+            approved_query = sorted([a for a in approvals if a.is_approved], key=lambda x: x.sequence)
+        else:
+            approvals = LeaveRequestConditionApproval.objects.filter(leave_request_id=self)
+            requested_query = approvals.filter(is_approved=False).order_by("sequence")
+            approved_query = approvals.filter(is_approved=True).order_by("sequence")
+            
         managers = []
         for manager in approvals:
             managers.append(manager.manager_id)
-        if approvals.exists():
+            
+        if approvals:
             result = {
                 "managers": managers,
                 "approved": approved_query,
@@ -1872,14 +1900,19 @@ class LeaveRequest(SkylinxModel):
     def is_approved(self):
         request = getattr(skylinx_middlewares._thread_locals, "request", None)
         if request:
-            employee = Employee.objects.filter(employee_user_id=request.user).first()
-            condition_approval = LeaveRequestConditionApproval.objects.filter(
-                leave_request_id=self, manager_id=employee.id
-            ).first()
-            if condition_approval:
-                return not condition_approval.is_approved
-            else:
-                return True
+            employee = getattr(request.user, "employee_get", None)
+            if employee:
+                is_prefetched = 'leaverequestconditionapproval_set' in self._prefetched_objects_cache if hasattr(self, '_prefetched_objects_cache') else False
+                if is_prefetched:
+                    condition_approval = next((a for a in self.leaverequestconditionapproval_set.all() if a.manager_id_id == employee.id), None)
+                else:
+                    condition_approval = LeaveRequestConditionApproval.objects.filter(
+                        leave_request_id=self, manager_id=employee.id
+                    ).first()
+                if condition_approval:
+                    return not condition_approval.is_approved
+                else:
+                    return True
 
     def delete(self, *args, **kwargs):
         if self.status == "requested":

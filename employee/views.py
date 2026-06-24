@@ -1272,6 +1272,7 @@ def employee_view(request):
         "employee_work_info",
         "employee_work_info__department_id",
         "employee_work_info__job_position_id",
+        "employee_work_info__job_position_id__department_id",
         "employee_work_info__shift_id",
         "employee_work_info__work_type_id",
         "employee_work_info__job_role_id",

@@ -96,6 +96,7 @@ def pipeline_grouper(filters={}, offboardings=[]):
                 "employee_id__employee_work_info",
                 "employee_id__employee_work_info__department_id",
                 "employee_id__employee_work_info__job_position_id",
+                "employee_id__employee_work_info__job_position_id__department_id",
             ).prefetch_related(
                 "employeetask_set",
             ).order_by("stage_id__id")
@@ -109,12 +110,19 @@ def pipeline_grouper(filters={}, offboardings=[]):
                 )
 
             page_name = "page" + stage.title + str(offboarding.id)
-            employee_grouper = group_by(
-                stage_employees,
-                "stage_id",
-                filters.get(page_name),
-                page_name,
-            ).object_list
+            page_name_dynamic = f"dynamic_page_{page_name}{stage.id}"
+            from skylinx.group_by import record_queryset_paginator
+            employee_grouper = []
+            if stage_employees.exists():
+                employee_grouper = [{
+                    "grouper": stage,
+                    "list": record_queryset_paginator(
+                        request,
+                        stage_employees,
+                        page_name_dynamic,
+                    ),
+                    "dynamic_name": page_name_dynamic,
+                }]
             employees = employees + list(stage.offboardingemployee_set.values_list("id", flat=True))
             data["stages"] = data["stages"] + employee_grouper
 

@@ -610,7 +610,15 @@ def candidates_view(request):
     Returns:
     GET : return candidate view  template
     """
-    queryset = Candidate.objects.filter(
+    queryset = Candidate.objects.select_related(
+        "recruitment_id",
+        "job_position_id",
+        "job_position_id__department_id",
+        "stage_id",
+        "rejected_candidate"
+    ).prefetch_related(
+        "rejected_candidate__reject_reason_id"
+    ).filter(
         is_active=True,
         hired=True,
         recruitment_id__closed=False,
@@ -619,6 +627,19 @@ def candidates_view(request):
     previous_data = request.GET.urlencode()
     page_number = request.GET.get("page")
     page_obj = paginator_qry(candidate_filter_obj.qs, page_number)
+    
+    # Batch prefetch email logs to avoid N+1 queries in template
+    emails = [c.email for c in page_obj.object_list if c.email]
+    if emails:
+        from base.models import EmailLog
+        from django.db.models import Q
+        q_objs = Q()
+        for email in emails:
+            q_objs |= Q(to__icontains=email)
+        logs = list(EmailLog.objects.filter(q_objs).order_by("-created_at"))
+        for c in page_obj.object_list:
+            c._cached_last_sent_mail = next((log for log in logs if c.email and c.email in log.to), None)
+
     mail_templates = SkylinxMailTemplate.objects.all()
     data_dict = parse_qs(previous_data)
     get_key_instances(Candidate, data_dict)
@@ -989,12 +1010,19 @@ def onboarding_query_grouper(request, queryset):
             ).order_by("sequence")
 
             page_name = "page" + stage.stage_title + str(rec.id)
-            grouper = group_by_queryset(
-                stage_candidates,
-                "onboarding_stage_id",
-                request.GET.get(page_name),
-                page_name,
-            ).object_list
+            page_name_dynamic = f"dynamic_page_{page_name}{stage.id}"
+            from skylinx.group_by import record_queryset_paginator
+            grouper = []
+            if stage_candidates.exists():
+                grouper = [{
+                    "grouper": stage,
+                    "list": record_queryset_paginator(
+                        request,
+                        stage_candidates,
+                        page_name_dynamic,
+                    ),
+                    "dynamic_name": page_name_dynamic,
+                }]
             data["stages"] = data["stages"] + grouper
             employees = employees + list(stage.candidate.values_list("candidate_id_id", flat=True))
         ordered_data = []
@@ -1059,6 +1087,7 @@ def onboarding_view(request):
     page_obj.object_list = page_obj.object_list.prefetch_related(
         "onboarding_stage",
         "onboarding_stage__employee_id",
+        "onboarding_stage__recruitment_id__recruitment_managers",
     )
     groups = onboarding_query_grouper(request, page_obj)
     for item in groups:
