@@ -37,7 +37,14 @@ def get_mobile_user_data(user):
     }
 
     role = "employee"
-    if is_superuser or user.groups.filter(name__endswith="::Admin").exists():
+    # ponytail: our tenant admin groups are the global "Company Admin" and the
+    # per-tenant "c<id>::HR Manager" — NOT "::Admin" (which matches nothing here).
+    if (
+        is_superuser
+        or user.groups.filter(name="Company Admin").exists()
+        or user.groups.filter(name__endswith="::HR Manager").exists()
+        or has_manager_role
+    ):
         role = "admin"
 
     profile_data = None

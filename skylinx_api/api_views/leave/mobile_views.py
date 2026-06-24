@@ -410,7 +410,7 @@ class MobileHolidaysAPIView(APIView):
             end_date__gte=month_start
         )
 
-        is_admin = request.user.is_superuser or request.user.groups.filter(name__endswith="::Admin").exists() or request.user.has_perm("leave.view_leaverequest") or request.user.has_perm("employee.add_employee")
+        is_admin = request.user.is_superuser or (request.user.groups.filter(name="Company Admin").exists() or request.user.groups.filter(name__endswith="::HR Manager").exists()) or request.user.has_perm("leave.view_leaverequest") or request.user.has_perm("employee.add_employee")
         if not is_admin:
             leaves_qs = leaves_qs.none()
 
@@ -440,7 +440,7 @@ class MobileHolidaysAPIView(APIView):
         }, status=200)
 
     def post(self, request):
-        if not (request.user.is_superuser or request.user.groups.filter(name__endswith="::Admin").exists()):
+        if not (request.user.is_superuser or (request.user.groups.filter(name="Company Admin").exists() or request.user.groups.filter(name__endswith="::HR Manager").exists())):
             return Response({
                 "success": False,
                 "message": "Only admins can create holidays"
@@ -502,7 +502,7 @@ class MobileAdminLeaveListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        if not (request.user.is_superuser or request.user.groups.filter(name__endswith="::Admin").exists()):
+        if not (request.user.is_superuser or (request.user.groups.filter(name="Company Admin").exists() or request.user.groups.filter(name__endswith="::HR Manager").exists())):
             return Response({
                 "success": False,
                 "message": "Only admins can view leave list",
@@ -570,7 +570,7 @@ class MobileAdminLeaveReviewAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk):
-        if not (request.user.is_superuser or request.user.groups.filter(name__endswith="::Admin").exists()):
+        if not (request.user.is_superuser or (request.user.groups.filter(name="Company Admin").exists() or request.user.groups.filter(name__endswith="::HR Manager").exists())):
             return Response({
                 "success": False,
                 "message": "Only admins can review leave requests"
@@ -656,7 +656,7 @@ class MobileAdminHolidayDeleteAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk):
-        if not (request.user.is_superuser or request.user.groups.filter(name__endswith="::Admin").exists()):
+        if not (request.user.is_superuser or (request.user.groups.filter(name="Company Admin").exists() or request.user.groups.filter(name__endswith="::HR Manager").exists())):
             return Response({
                 "success": False,
                 "message": "Only admins can delete holidays"

@@ -33,6 +33,12 @@ class MobileTenantMiddleware:
 
     def __call__(self, request):
         if request.path.startswith("/api/"):
+            from skylinx.skylinx_middlewares import set_selected_company
+
+            # ponytail: reset per request so a reused gthread worker can't leak
+            # the previous request's tenant context to a request that fails to
+            # resolve one. The web middleware does the same (base/middleware.py).
+            set_selected_company(None)
             try:
                 from rest_framework_simplejwt.authentication import JWTAuthentication
                 auth = JWTAuthentication()
@@ -43,8 +49,8 @@ class MobileTenantMiddleware:
                     user = auth.get_user(validated_token)
                     company = user.employee_get.get_company()
                     if company:
-                        from skylinx.skylinx_middlewares import set_selected_company
-                        set_selected_company(company)
+                        # pass the id, not the object — matches the web convention
+                        set_selected_company(company.id)
             except Exception:
                 pass
 
