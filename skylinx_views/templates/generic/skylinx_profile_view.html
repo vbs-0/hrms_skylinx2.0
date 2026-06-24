@@ -345,9 +345,7 @@
             onclick="switchGeneralTab(event)"
             data-target="#profileTab{{forloop.counter}}"
             hx-get="{{tab.url|format:instance}}"
-            {# ponytail: 'load' not 'revealed' — revealed's IntersectionObserver
-               doesn't fire for already-visible elements swapped in via htmx, so
-               tabs stuck on their placeholder until a full refresh. #}
+            {# ponytail: 'load' not 'revealed' — revealed doesn't fire for htmx-swapped already-visible tabs #}
             hx-trigger="load"
             hx-target="#profileTab{{forloop.counter}}"
             >{{tab.title}}</a

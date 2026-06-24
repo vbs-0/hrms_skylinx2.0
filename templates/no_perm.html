@@ -25,9 +25,7 @@
         <!-- Navigation -->
         <div id="mainNav"></div>
         <!-- End of Navigation -->
-        {# ponytail: no x-data scope here, so the Alpine :class binding threw an
-           uncaught ReferenceError (sidebarOpen undefined) and broke htmx on the
-           whole page when this got injected into an htmx target. Plain <main>. #}
+        {# ponytail: plain <main> — an Alpine :class binding with no x-data scope threw uncaught and broke htmx when injected #}
         <main>
 
           <div class="oh-wrapper">

@@ -83,8 +83,6 @@
                hx-push-url="true">{% trans 'Company Leaves' %}</a>
           </li>
         {% endif %}
-        {# ponytail: "Restrict Leaves" relocated to the Leave module as
-           "Restricted Leaves" — removed the duplicate from Configuration. #}
         {% if "skylinx_meet"|app_installed and "skylinx_meet"|integration_installed %}
           <li>
             <a href="{% url 'gmeet-view' %}"

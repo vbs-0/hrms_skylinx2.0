@@ -262,8 +262,7 @@
             </div>
           </div>
 
-        {# ponytail: Actions (export/approve/reject/delete) are manager/HR only —
-           don't show an empty Actions button to employees. #}
+        {# ponytail: Actions menu is manager/HR only — hide the empty button from employees #}
         {% if perms.base.view_shiftrequest or perms.base.change_shiftrequest or request.user|is_reportingmanager %}
         <div class="oh-btn-group ml-2">
           <div class="oh-dropdown" x-data="{open: false}">

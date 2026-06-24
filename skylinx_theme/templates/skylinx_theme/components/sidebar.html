@@ -142,12 +142,17 @@
           <i class="fa-solid fa-bars text-lg"></i>
       </button>
       <div class="flex items-center gap-3 overflow-hidden">
-        {% if request.session.selected_company_instance %}
+        {% if request.session.selected_company_instance and request.session.selected_company_instance.icon %}
           <img
             src="{{request.session.selected_company_instance.icon}}"
             class="w-10 h-10 rounded-full flex-shrink-0"
+            onerror="this.onerror=null;this.src='/static/skylinx_theme/assets/img/skylinx-logo.png';this.classList.remove('rounded-full');"
             title="{{request.session.selected_company_instance.company}}"
           />
+          <span class="sidebar-text font-bold text-slate-800 dark:text-white text-base truncate">{{request.session.selected_company_instance.company}}</span>
+        {% elif request.session.selected_company_instance %}
+          {# company selected but no icon uploaded — fall back to the app logo #}
+          <img src="/static/skylinx_theme/assets/img/skylinx-logo.png" alt="Logo" class="w-10 h-10 flex-shrink-0" />
           <span class="sidebar-text font-bold text-slate-800 dark:text-white text-base truncate">{{request.session.selected_company_instance.company}}</span>
         {% else %}
           <img src="/static/skylinx_theme/assets/img/skylinx-logo.png" alt="Logo" class="w-10 h-10 flex-shrink-0" />
