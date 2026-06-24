@@ -75,11 +75,27 @@ def test_view_performance(view_func, url, name):
             
         end_time = time.time()
         
-        queries = len(connection.queries)
+        all_queries = connection.queries
+        queries_count = len(all_queries)
         duration = end_time - start_time
         print(f"SUCCESS: View rendered without crashing.")
-        print(f"Queries executed: {queries}")
+        print(f"Queries executed: {queries_count}")
         print(f"Time taken: {duration:.3f} seconds")
+        
+        if queries_count > 30:
+            query_stats = {}
+            for q in all_queries:
+                sql = q.get('sql', '')
+                query_stats[sql] = query_stats.get(sql, 0) + 1
+            
+            duplicates = {sql: count for sql, count in query_stats.items() if count > 1}
+            if duplicates:
+                unique_dup_count = sum(duplicates.values()) - len(duplicates)
+                print(f"  Duplicate queries: {unique_dup_count} duplicated calls total")
+                print("  Top Duplicated Queries:")
+                for sql, count in sorted(duplicates.items(), key=lambda x: x[1], reverse=True)[:5]:
+                    truncated_sql = sql[:250] + "..." if len(sql) > 250 else sql
+                    print(f"    - [{count} times]: {truncated_sql}")
         
     except Exception as e:
         import traceback
