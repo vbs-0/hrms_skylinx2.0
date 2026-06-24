@@ -186,19 +186,9 @@ class MyLeaveRequestNavView(SkylinxNavView):
         super().__init__(**kwargs)
         self.search_url = reverse("user-request-filter")
 
-        self.actions = [
-            {
-                "action": _("Delete"),
-                "attrs": """
-                    class="delete"
-                    onclick="
-                    myLeaveRequestBulkDelete();
-                    "
-                    data-action ="delete"
-                    style="cursor: pointer; color:red !important"
-                """,
-            }
-        ]
+        # ponytail: employees shouldn't bulk-delete their own leave requests —
+        # Delete was the only action, so drop the Actions button entirely.
+        self.actions = []
 
         self.create_attrs = f"""
             hx-get="{reverse_lazy("leave-request-create")}"

@@ -121,18 +121,7 @@
                                         data-target="#objectDetailsModal" hx-get="{% url 'get-batches' %}"
                                         hx-target="#objectDetailsModalTarget">{% trans "Batches" %}</a>
                                 </li>
-                                {% if perms.attendance.add_attendanceovertime or request.user|is_reportingmanager %}
-                                    <li class="oh-dropdown__item">
-                                        <a href="#" class="oh-dropdown__link" id="reqAttendanceBulkApprove"
-                                            data-toggle="oh-modal-toggle">{% trans "Bulk Approve" %}</a>
-                                    </li>
-                                {% endif %}
-                                {% if perms.attendance.delete_attendanceovertime %}
-                                    <li class="oh-dropdown__item">
-                                        <a href="#" id="reqAttendanceBulkReject"
-                                            class="oh-dropdown__link oh-dropdown__link--danger">{% trans "Bulk Reject" %}</a>
-                                    </li>
-                                {% endif %}
+                                {# ponytail: bulk approve/reject removed from attendance requests per spec #}
                             </ul>
                         </div>
                     </div>
