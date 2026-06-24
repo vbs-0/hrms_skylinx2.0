@@ -8,6 +8,7 @@ django.setup()
 
 from django.conf import settings
 settings.ALLOWED_HOSTS = ['*']
+settings.DEBUG = True
 
 from django.test.client import RequestFactory
 from attendance.views.views import attendance_view
