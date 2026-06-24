@@ -25,7 +25,10 @@
         <!-- Navigation -->
         <div id="mainNav"></div>
         <!-- End of Navigation -->
-        <main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
+        {# ponytail: no x-data scope here, so the Alpine :class binding threw an
+           uncaught ReferenceError (sidebarOpen undefined) and broke htmx on the
+           whole page when this got injected into an htmx target. Plain <main>. #}
+        <main>
 
           <div class="oh-wrapper">
             <div class="oh-404">
