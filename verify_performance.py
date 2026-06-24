@@ -6,6 +6,9 @@ from django.db import connection, reset_queries
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'skylinx.settings')
 django.setup()
 
+from django.conf import settings
+settings.ALLOWED_HOSTS = ['*']
+
 from django.test.client import RequestFactory
 from attendance.views.views import attendance_view
 from employee.views import employee_view
