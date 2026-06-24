@@ -17,8 +17,27 @@ def get_mobile_user_data(user):
     except Exception:
         employee = None
 
+    is_superuser = user.is_superuser
+    has_manager_role = False
+    if employee:
+        has_manager_role = EmployeeWorkInformation.objects.filter(reporting_manager_id=employee).exists()
+
+    permissions = {
+        "can_approve_leaves": is_superuser or user.has_perm("leave.change_leaverequest") or has_manager_role,
+        "can_view_all_leaves": is_superuser or user.has_perm("leave.view_leaverequest") or has_manager_role,
+        "can_add_holidays": is_superuser or user.has_perm("base.add_holidays"),
+        "can_view_reports": is_superuser or user.has_perm("attendance.view_attendance") or has_manager_role,
+        "can_view_live_map": is_superuser or user.has_perm("employee.view_employee") or has_manager_role,
+        "can_manage_selfies": is_superuser or user.has_perm("attendance.change_attendance") or has_manager_role,
+        "can_view_directory": is_superuser or user.has_perm("employee.view_employee"),
+        "can_view_leaves": is_superuser or user.has_perm("leave.view_leaverequest"),
+        "can_view_holidays": is_superuser or user.has_perm("base.view_holidays"),
+        "can_view_payslips": is_superuser or user.has_perm("payroll.view_payslip"),
+        "can_view_expenses": is_superuser, # fallback, you can update if horilla uses specific permission
+    }
+
     role = "employee"
-    if user.is_superuser or user.has_perm("employee.add_employee"):
+    if is_superuser or user.groups.filter(name__endswith="::Admin").exists():
         role = "admin"
 
     profile_data = None
@@ -165,7 +184,8 @@ def get_mobile_user_data(user):
         "role": role,
         "status": "active" if user.is_active else "inactive",
         "liveLocationEnabled": subscription_enabled,
-        "employeeProfile": profile_data
+        "employeeProfile": profile_data,
+        "permissions": permissions
     }
 
 
