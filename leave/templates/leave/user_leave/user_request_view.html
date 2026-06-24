@@ -76,7 +76,7 @@
 					aria-label="Search Input"
 					placeholder="{% trans 'Search' %}"
 					name="leave_type"
-					onkeyup="$('.filterButton')[0].click();"
+					onkeyup="$('.filterButton').first().click();"
 				/>
 			</div>
 			<div class="oh-main__titlebar-button-container">
@@ -399,7 +399,7 @@
 		});
 		$(document).ready(function () {
 			$("#id_field").on("change", function () {
-				$(".filterButton")[0].click();
+				$(".filterButton").first().click();
 			});
 		});
 

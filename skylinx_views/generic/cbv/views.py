@@ -2374,6 +2374,7 @@ class SkylinxProfileView(DetailView):
     GenericSkylinxProfileView
     """
 
+    _registry = []
     template_name = "generic/skylinx_profile_view.html"
     view_id: str = None
     filter_class: FilterSet = None
@@ -2399,18 +2400,34 @@ class SkylinxProfileView(DetailView):
         self.ordered_ids_key = f"ordered_ids_{self.model.__name__.lower()}"
         # update_initial_cache(request, CACHE, SkylinxProfileView)
 
-        from skylinx.urls import path, urlpatterns
+        self.register_tab_urls()
 
-        for tab in self.tabs:
-            if not tab.get("url"):
-                url = f"{self.url_prefix}-{tab['title']}"
+    @classmethod
+    def register_tab_urls(cls) -> None:
+        url_prefix = str(cls.__name__.lower())
+        try:
+            from skylinx.urls import path, urlpatterns
+        except ImportError:
+            if cls not in SkylinxProfileView._registry:
+                SkylinxProfileView._registry.append(cls)
+            return
+
+        new_tabs = []
+        for tab in cls.tabs:
+            tab_copy = tab.copy()
+            expected_prefix = f"/{url_prefix}-"
+            current_url = tab_copy.get("url", "")
+            if not current_url or not current_url.startswith(expected_prefix):
+                url = f"{url_prefix}-{tab_copy['title']}"
                 urlpatterns.append(
                     path(
                         url + "/<int:pk>/",
-                        tab["view"],
+                        tab_copy["view"],
                     )
                 )
-                tab["url"] = "/" + url + "/{pk}/"
+                tab_copy["url"] = "/" + url + "/{pk}/"
+            new_tabs.append(tab_copy)
+        cls.tabs = new_tabs
 
     @classmethod
     def add_tab(cls, tab: dict = None, index: int = None, tabs: list = None) -> None:
@@ -2437,6 +2454,8 @@ class SkylinxProfileView(DetailView):
 
     @classmethod
     def as_view(cls, **initkwargs):
+        cls.register_tab_urls()
+
         def view(request, *args, **kwargs):
             # Inject URL params into initkwargs
             initkwargs_with_url = {**initkwargs, **kwargs}

@@ -19,7 +19,7 @@ x-data="{searchShow: false}"
 </div>
 <form hx-get='{% url "stage-search" %}' hx-target='#stage-container'
   id="filterForm"
-  onkeyup="$('.filterButton')[0].click()"
+  onkeyup="$('.filterButton').first().click()"
 >
 
   <div class="oh-main__titlebar oh-main__titlebar--right">

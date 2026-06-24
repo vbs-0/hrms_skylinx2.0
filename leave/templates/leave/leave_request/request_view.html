@@ -78,7 +78,7 @@
                     {% comment %} <div id="searchFieldDiv" style="display:none;">
                         <select name="search_field" class='oh-input__icon'
                             style="border: none; display: flex; position: absolute; z-index: 40px; margin-left:8%;" size="3"
-                            onclick="$('.filterButton')[0].click();">
+                            onclick="$('.filterButton').first().click();">
                             <option style="margin-left: -10px;" value="leave_type">{% trans "Search in : Leave Type" %}
                             </option>
                             <option style="margin-left: -10px;" value="status">{% trans "Search in : Status" %}</option>
@@ -312,7 +312,7 @@
     });
     $(document).ready(function () {
         $('#id_field').on('change', function () {
-            $('.filterButton')[0].click();
+            $('.filterButton').first().click();
         })
     });
 

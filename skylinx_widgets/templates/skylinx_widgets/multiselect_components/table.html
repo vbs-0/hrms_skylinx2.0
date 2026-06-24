@@ -205,13 +205,13 @@
   });
   $("#{{section_id}} #choose-all-user").click(function (e) {
     setTimeout(() => {
-      $("#{{section_id}}  #choose-all-user").closest(".oh-sticky-table__th--custom")[0].click()
+      $("#{{section_id}}  #choose-all-user").closest(".oh-sticky-table__th--custom").first().click()
     }, 2);
   });
   $("#{{section_id}} .all-choose-user-row").click(function (e) {
     e.preventDefault();
     setTimeout(() => {
-      $(this).closest(".oh-sticky-table__tr--custom")[0].click()
+      $(this).closest(".oh-sticky-table__tr--custom").first().click()
     }, 1);
 
   });

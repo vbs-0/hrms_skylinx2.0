@@ -52,7 +52,7 @@ class EmployeeFilter(SkylinxFilterSet):
                 "size": 4,
                 "class": "oh-input__icon",
                 "style": "border: none; overflow: hidden; display: flex; position: absolute; z-index: 999; margin-left:8%;",
-                "onclick": "$('.filterButton')[0].click();",
+                "onclick": "$('.filterButton').first().click();",
             }
         ),
     )

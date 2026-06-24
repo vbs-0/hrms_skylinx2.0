@@ -52,3 +52,8 @@ urlpatterns = [
 
 # if settings.DEBUG:
 #     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Register dynamically generated tab URLs for SkylinxProfileView subclasses at startup
+from skylinx_views.generic.cbv.views import SkylinxProfileView
+for cls in list(SkylinxProfileView._registry):
+    cls.register_tab_urls()

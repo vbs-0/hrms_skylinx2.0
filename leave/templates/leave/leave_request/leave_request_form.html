@@ -41,7 +41,7 @@
             var $submit = $form.find("[type=submit]");
             if ($submit.length) {
                 $submit.prop("disabled", false);
-                $submit[0].click();
+                $submit.first().click();
             } else if ($form[0].requestSubmit) {
                 $form[0].requestSubmit();
             }

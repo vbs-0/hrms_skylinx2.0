@@ -2753,7 +2753,7 @@ def skill_zone_delete(request, sz_id):
         response["HX-Trigger"] = "skillZoneContainerReload"
         return response
     return HttpResponse(
-        "<script>$('.filterButton')[0].click();reloadMessage();</script>"
+        "<script>$('.filterButton').first().click();reloadMessage();</script>"
     )
 
 

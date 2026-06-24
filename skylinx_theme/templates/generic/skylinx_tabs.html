@@ -173,7 +173,7 @@
 				var $preferred = $scope.find(`{{active_target|safe}}`).first();
 				if ($preferred.length) {
 					setTimeout(function () {
-						$preferred[0].click();
+						$preferred.first().click();
 					}, 25);
 				}
 			{% endif %}
@@ -181,11 +181,11 @@
 			setTimeout(function () {
 				var $activeTab = $scope.find(".oh-tabs__tab--active").first();
 				if ($activeTab.length) {
-					$activeTab[0].click();
+					$activeTab.first().click();
 				} else {
 					var $firstTab = $scope.find(".oh-tabs__tab").first();
 					if ($firstTab.length) {
-						$firstTab[0].click();
+						$firstTab.first().click();
 					}
 				}
 			}, 100);

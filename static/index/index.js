@@ -956,7 +956,7 @@ $(document).on("keydown", function (event) {
                 : $(".oh-dropdown").find('[data-action="delete"]');
             if ($deleteButton.length) {
                 $deleteButton.click();
-                $deleteButton[0].click();
+                $deleteButton.first().click();
             }
         }
     } else if (event.keyCode === 107) {
@@ -973,7 +973,7 @@ $(document).on("keydown", function (event) {
                 ? $modal.find('[data-action="next"]')
                 : $('[data-action="next"]'); // Click on the next button in detail view modal
             if ($nextButton.length) {
-                $nextButton[0].click();
+                $nextButton.first().click();
             }
         }
     } else if (event.keyCode === 37) {
@@ -985,7 +985,7 @@ $(document).on("keydown", function (event) {
                 ? $modal.find('[data-action="previous"]')
                 : $('[data-action="previous"]');
             if ($previousButton.length) {
-                $previousButton[0].click();
+                $previousButton.first().click();
             }
         }
     }

@@ -560,7 +560,7 @@ class UpdateAttendanceRequestFormView(SkylinxFormView):
                 return HttpResponse(
                     f"""<script>
                                             var reqModal = $('#requestedattendanceTr{form.instance.pk}');
-                                            reqModal[0].click();
+                                            (reqModal[0] && reqModal[0].click());
                                             $('#genericModalEdit').removeClass('oh-modal--show');
                                             $('.reload-record').click();
                                             $('#reloadMessagesButton').click();
@@ -571,7 +571,7 @@ class UpdateAttendanceRequestFormView(SkylinxFormView):
                 return HttpResponse(
                     f"""<script>
                                             var attendaceModal = $('#allattendanceTr{form.instance.pk}');
-                                            attendaceModal[0].click();
+                                            (attendaceModal[0] && attendaceModal[0].click());
                                             $('#genericModalEdit').removeClass('oh-modal--show');
                                             $('.reload-record').click();
                                             $('#reloadMessagesButton').click();

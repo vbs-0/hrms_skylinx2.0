@@ -42,7 +42,7 @@
         onkeyup="
         $(this).closest('form').find('#applyFilter').click();
         {% if search_in %}
-        $('#applyFilter')[0].click();if(this.value) {
+        $('#applyFilter').first().click();if(this.value) {
           $('.search_text').html(this.value)
           $(this).parent().find('#dropdown').show()
         }else{

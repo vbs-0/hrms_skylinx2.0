@@ -950,19 +950,19 @@ def attendance_activity_bulk_delete(request):
             ids = json.loads(ids_json)
         except json.JSONDecodeError:
             messages.error(request, _("Invalid list of IDs provided."))
-            return HttpResponse("<script>$('.filterButton')[0].click()</script>")
+            return HttpResponse("<script>$('.filterButton').first().click()</script>")
 
         try:
             ids = [int(i) for i in ids]
         except (ValueError, TypeError):
             messages.error(request, _("Invalid list of IDs provided."))
-            return HttpResponse("<script>$('.filterButton')[0].click()</script>")
+            return HttpResponse("<script>$('.filterButton').first().click()</script>")
 
         if not ids:
             messages.warning(
                 request, _("No attendance activities selected for deletion.")
             )
-            return HttpResponse("<script>$('.filterButton')[0].click()</script>")
+            return HttpResponse("<script>$('.filterButton').first().click()</script>")
 
         # Perform the delete operation in a transaction
         with transaction.atomic():
@@ -990,7 +990,7 @@ def attendance_activity_bulk_delete(request):
             _("Failed to delete attendance activities: {error}").format(error=str(e)),
         )
 
-    return HttpResponse("<script>$('.filterButton')[0].click()</script>")
+    return HttpResponse("<script>$('.filterButton').first().click()</script>")
 
 
 def process_activity_dicts(activity_dicts):

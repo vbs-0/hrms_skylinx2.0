@@ -137,7 +137,7 @@
                 <div id="searchFieldDiv" style="display:none;">
                     <select name="search_field" class='oh-input__icon'
                         style="border: none; display: flex; position: absolute; z-index: 100; margin-left:8%;" size="3"
-                        onclick="$('.filterButton')[0].click();">
+                        onclick="$('.filterButton').first().click();">
                         <option style="margin-left: -10px;" value="day">{% trans "Search in : Day" %}</option>
                         <option style="margin-left: -10px;" value="shift">{% trans "Search in : Shift" %}</option>
                         <option style="margin-left: -10px;" value="work_type">{% trans "Search in : Work Type" %}
@@ -269,7 +269,7 @@
         });
         $(document).ready(function () {
             $('#id_field').on('change', function () {
-                $('.filterButton')[0].click();
+                $('.filterButton').first().click();
             })
         })
     </script>

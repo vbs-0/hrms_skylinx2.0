@@ -81,7 +81,7 @@
                     :class="searchShow ? 'oh-input__search-group--show' : ''">
                     <ion-icon name="search-outline" class="oh-input-group__icon oh-input-group__icon--left"></ion-icon>
                     <input type="text" placeholder="{% trans 'Search' %}" name="search" id="employee-search"
-                        class="oh-input oh-input__icon" aria-label="Search Input" onkeyup="$('.filterButton')[0].click();if(this.value) {
+                        class="oh-input oh-input__icon" aria-label="Search Input" onkeyup="$('.filterButton').first().click();if(this.value) {
                             $('.search_text').html(this.value)
                             $(this).parent().find('#dropdown').show()
                         }else{
@@ -100,48 +100,48 @@
                         <ul class="search_content">
                             <li>
                                 <a href="#"
-                                    onclick="$('[name=search_field]').val('reporting_manager'); $('.filterButton')[0].click()">
+                                    onclick="$('[name=search_field]').val('reporting_manager'); $('.filterButton').first().click()">
                                     {% trans "Search" %} <b>{% trans "Reporting Manager" %}</b> {% trans "for:" %}
                                     <b class="search_text"></b>
                                 </a>
                             </li>
                             <li>
                                 <a href="#"
-                                    onclick="$('[name=search_field]').val('department'); $('.filterButton')[0].click()">
+                                    onclick="$('[name=search_field]').val('department'); $('.filterButton').first().click()">
                                     {% trans "Search" %} <b>{% trans "Department" %}</b> {% trans "for:" %}
                                     <b class="search_text"></b>
                                 </a>
                             </li>
                             <li>
                                 <a href="#"
-                                    onclick="$('[name=search_field]').val('job_position'); $('.filterButton')[0].click()">
+                                    onclick="$('[name=search_field]').val('job_position'); $('.filterButton').first().click()">
                                     {% trans "Search" %} <b>{% trans "Job Position" %}</b> {% trans "for:" %}
                                     <b class="search_text"></b>
                                 </a>
                             </li>
                             <li>
                                 <a href="#"
-                                    onclick="$('[name=search_field]').val('job_role'); $('.filterButton')[0].click()">
+                                    onclick="$('[name=search_field]').val('job_role'); $('.filterButton').first().click()">
                                     {% trans "Search" %} <b>{% trans "Job Role" %}</b> {% trans "for:" %}
                                     <b class="search_text"></b>
                                 </a>
                             </li>
                             <li>
-                                <a href="#" onclick="$('[name=search_field]').val('shift'); $('.filterButton')[0].click()">
+                                <a href="#" onclick="$('[name=search_field]').val('shift'); $('.filterButton').first().click()">
                                     {% trans "Search" %} <b>{% trans "Shift" %}</b> {% trans "for:" %}
                                     <b class="search_text"></b>
                                 </a>
                             </li>
                             <li>
                                 <a href="#"
-                                    onclick="$('[name=search_field]').val('work_type'); $('.filterButton')[0].click()">
+                                    onclick="$('[name=search_field]').val('work_type'); $('.filterButton').first().click()">
                                     {% trans "Search" %} <b>{% trans "Work Type" %}</b> {% trans "for:" %}
                                     <b class="search_text"></b>
                                 </a>
                             </li>
                             <li>
                                 <a href="#"
-                                    onclick="$('[name=search_field]').val('company'); $('.filterButton')[0].click()">
+                                    onclick="$('[name=search_field]').val('company'); $('.filterButton').first().click()">
                                     {% trans "Search" %} <b>{% trans "Company" %}</b> {% trans "for:" %}
                                     <b class="search_text"></b>
                                 </a>
@@ -157,14 +157,14 @@
                     <input type="hidden" name="view" value="{{request.GET.view}}" id="employeeViewType" />
                     <ul class="oh-view-types ml-2" style="margin-bottom: 0">
                         <li class="oh-view-type employee-view-type" data-view="list">
-                            <a id="list" onclick="$('#employeeViewType').val('list');setTimeout(() => { $('.filterButton')[0].click(); }, 10);"
+                            <a id="list" onclick="$('#employeeViewType').val('list');setTimeout(() => { $('.filterButton').first().click(); }, 10);"
                                 class="oh-btn oh-btn--view {% if request.GET.view == 'list' %} oh-btn--view-active {% endif %}"
                                 title='{% trans "List" %}'>
                                 <ion-icon name="list-outline"></ion-icon>
                             </a>
                         </li>
                         <li class="oh-view-type employee-view-type" data-view="card">
-                            <a id="card" onclick="$('#employeeViewType').val('card');setTimeout(() => { $('.filterButton')[0].click(); }, 10);"
+                            <a id="card" onclick="$('#employeeViewType').val('card');setTimeout(() => { $('.filterButton').first().click(); }, 10);"
                                 class="oh-btn oh-btn--view {% if request.GET.view != 'list' %} oh-btn--view-active {% endif %}"
                                 title='{% trans "Card" %}'>
                                 <ion-icon name="grid-outline"></ion-icon>
@@ -357,7 +357,7 @@
             $(".filterButton").eq(0).click();
         });
         $("#id_field").on("change", function () {
-            $(".filterButton")[0].click();
+            $(".filterButton").first().click();
         });
         function filterFormSubmit(formId) {
             var formData = $("#" + formId).serialize();
