@@ -78,7 +78,7 @@ def get_companies(request):
             company_qs = Company.objects.none()
 
     companies = list(
-        [company.id, company.company, company.icon.url, False]
+        [company.id, company.company if (company.company and "skylinx" not in company.company.lower()) else "EMPLINX", company.icon.url, False]
         for company in company_qs
     )
 
@@ -184,7 +184,7 @@ def update_selected_company(request):
         text = "Other Company"
 
     company = {
-        "company": company.company,
+        "company": company.company if (company.company and "skylinx" not in company.company.lower()) else "EMPLINX",
         "icon": company.icon.url,
         "text": text,
         "id": company.id,
@@ -218,8 +218,12 @@ def white_labelling_company(request):
         except:
             company = hq
 
+        company_name = company.company if company else "EMPLINX"
+        if not company_name or "skylinx" in company_name.lower():
+            company_name = "EMPLINX"
+
         return {
-            "white_label_company_name": company.company if company else "EMPLINX",
+            "white_label_company_name": company_name,
             "white_label_company": company,
         }
     else:

@@ -102,11 +102,18 @@
                             </button>
                         </div>
                     </div>
-                    <p class="sx-muted text-center" style="font-size: 12px; margin-top: 10px;">
-                        {% trans "By signing in, you agree to our" %}
-                        <a href="{% url 'terms-and-conditions' %}" target="_blank" class="oh-link oh-link--secondary">{% trans "Terms" %}</a> {% trans "and" %}
-                        <a href="{% url 'privacy-policy' %}" target="_blank" class="oh-link oh-link--secondary">{% trans "Privacy Policy" %}</a>.
-                    </p>
+                    <div id="termsContainer" style="display:flex; align-items:flex-start; gap:8px; margin:14px 0 10px; transition: opacity 0.3s ease;">
+                        <input type="checkbox" id="acceptTerms" name="accept_terms" required
+                            style="width:16px; height:16px; margin-top:2px; cursor:pointer; flex-shrink:0;">
+                        <label for="acceptTerms" style="font-size:12px; margin:0; cursor:pointer; line-height:1.45; color:var(--sx-text-muted,#555);">
+                            {% trans "I accept the" %}
+                            <a href="{% url 'terms-and-conditions' %}" target="_blank"
+                                style="color:#e76955; font-weight:700; text-decoration:underline;">{% trans "Terms &amp; Conditions" %}</a>
+                            {% trans "and" %}
+                            <a href="{% url 'privacy-policy' %}" target="_blank"
+                                style="color:#e76955; font-weight:700; text-decoration:underline;">{% trans "Privacy Policy" %}</a>.
+                        </label>
+                    </div>
                     <button type="submit"
                         class="oh-btn oh-onboarding-card__button mt-4 oh-btn--secondary oh-btn--shadow w-100 mb-3"
                         role="button">
@@ -174,6 +181,69 @@
                     icon: 'warning',
                     confirmButtonText: 'OK',
                 });
+            }
+
+            // Dynamically check terms acceptance based on username
+            const usernameInput = document.getElementById('username');
+            const termsContainer = document.getElementById('termsContainer');
+            const acceptTermsCheckbox = document.getElementById('acceptTerms');
+            let termsCheckTimer;
+            let lastCheckedUsername = null;
+
+            function checkTermsAcceptance() {
+                if (!usernameInput || !termsContainer || !acceptTermsCheckbox) return;
+                const username = usernameInput.value.trim();
+                if (username === lastCheckedUsername) return;
+                lastCheckedUsername = username;
+
+                if (username) {
+                    fetch(`/check-terms/?username=${encodeURIComponent(username)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.accepted) {
+                                termsContainer.style.opacity = '0';
+                                setTimeout(() => { termsContainer.style.display = 'none'; }, 300);
+                                acceptTermsCheckbox.required = false;
+                                acceptTermsCheckbox.checked = true;
+                            } else {
+                                termsContainer.style.display = 'flex';
+                                setTimeout(() => { termsContainer.style.opacity = '1'; }, 10);
+                                acceptTermsCheckbox.required = true;
+                                acceptTermsCheckbox.checked = false;
+                            }
+                        })
+                        .catch(err => console.error('Error fetching terms status:', err));
+                } else {
+                    termsContainer.style.display = 'flex';
+                    setTimeout(() => { termsContainer.style.opacity = '1'; }, 10);
+                    acceptTermsCheckbox.required = true;
+                    acceptTermsCheckbox.checked = false;
+                }
+            }
+
+            if (usernameInput && termsContainer && acceptTermsCheckbox) {
+                usernameInput.addEventListener('input', function() {
+                    clearTimeout(termsCheckTimer);
+                    termsCheckTimer = setTimeout(checkTermsAcceptance, 300);
+                });
+                usernameInput.addEventListener('change', checkTermsAcceptance);
+                usernameInput.addEventListener('blur', checkTermsAcceptance);
+
+                // Run immediately on page load
+                checkTermsAcceptance();
+                window.addEventListener('load', () => {
+                    setTimeout(checkTermsAcceptance, 100);
+                });
+
+                // Periodic check for 3 seconds to catch browser password manager autofills
+                let checksCount = 0;
+                const autofillInterval = setInterval(() => {
+                    checkTermsAcceptance();
+                    checksCount++;
+                    if (checksCount > 15) {
+                        clearInterval(autofillInterval);
+                    }
+                }, 200);
             }
         });
     </script>

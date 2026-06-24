@@ -699,7 +699,7 @@ def login_user(request):
 
         login(request, user)
 
-        if request.POST.get("accept_terms") == "on":
+        if "accept_terms" in request.POST or request.POST.get("accept_terms") in ["on", "true", "1"]:
             user.accepted_terms = True
             user.save()
 
