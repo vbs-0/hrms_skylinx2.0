@@ -172,9 +172,10 @@ def project_view(request):
     view_type = "card"
     if request.GET.get("view") == "list":
         view_type = "list"
-    projects = Project.objects.all()
+    base_qs = Project.objects.prefetch_related("managers")
+    projects = base_qs.all()
     if request.GET.get("search") is not None:
-        projects = ProjectFilter(request.GET).qs
+        projects = ProjectFilter(request.GET, queryset=base_qs).qs
     previous_data = request.environ["QUERY_STRING"]
     page_number = request.GET.get("page")
     context = {
@@ -1144,7 +1145,8 @@ def task_all(request):
     """
     form = TaskAllFilter()
     view_type = "card"
-    tasks = TaskAllFilter(request.GET).qs
+    base_qs = Task.objects.select_related("project", "stage").prefetch_related("task_managers", "task_members")
+    tasks = TaskAllFilter(request.GET, queryset=base_qs).qs
     if request.GET.get("view") == "list":
         view_type = "list"
     context = {

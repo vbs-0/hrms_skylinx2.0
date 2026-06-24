@@ -1268,7 +1268,13 @@ def employee_view(request):
     page_number = request.GET.get("page")
     error_message = request.session.pop("error_message", None)
 
-    queryset = Employee.objects.filter()
+    base_qs = Employee.objects.select_related(
+        "employee_work_info",
+        "employee_work_info__department_id",
+        "employee_work_info__job_position_id",
+        "employee_user_id"
+    )
+    queryset = base_qs.filter()
     filter_obj = EmployeeFilter(request.GET, queryset=queryset).qs
     if request.GET.get("is_active") != "False":
         filter_obj = filter_obj.filter(is_active=True)
@@ -1276,7 +1282,7 @@ def employee_view(request):
     update_fields = BulkUpdateFieldForm()
     data_dict = parse_qs(previous_data)
     get_key_instances(Employee, data_dict)
-    emp = Employee.objects.filter()
+    emp = base_qs.filter()
 
     # Store the employees in the session
     request.session["filtered_employees"] = [employee.id for employee in queryset]
@@ -2532,7 +2538,13 @@ def employee_search(request):
     search = request.GET.get("search")
     view = request.GET.get("view")
     previous_data = request.GET.urlencode()
-    employees = EmployeeFilter(request.GET).qs
+    base_qs = Employee.objects.select_related(
+        "employee_work_info",
+        "employee_work_info__department_id",
+        "employee_work_info__job_position_id",
+        "employee_user_id"
+    )
+    employees = EmployeeFilter(request.GET, queryset=base_qs).qs
     if search == "":
         employees = employees.filter(is_active=True)
     page_number = request.GET.get("page")

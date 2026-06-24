@@ -596,7 +596,13 @@ def leave_request_view(request):
         # Convert the list of IDs back to a queryset
         normal_requests = LeaveRequest.objects.filter(id__in=normal_requests).distinct()
 
-    queryset = normal_requests | multiple_approvals
+    queryset = (normal_requests | multiple_approvals).select_related(
+        "employee_id",
+        "employee_id__employee_work_info",
+        "employee_id__employee_work_info__department_id",
+        "employee_id__employee_work_info__job_position_id",
+        "leave_type_id"
+    )
     page_number = request.GET.get("page")
     page_obj = paginator_qry(queryset, page_number)
     leave_request_filter = LeaveRequestFilter()
@@ -1591,7 +1597,15 @@ def leave_assign_view(request):
     GET : return leave assigned view template
     """
     queryset = filtersubordinates(
-        request, AvailableLeave.objects.all(), "leave.view_availableleave"
+        request, 
+        AvailableLeave.objects.select_related(
+            "employee_id",
+            "employee_id__employee_work_info",
+            "employee_id__employee_work_info__department_id",
+            "employee_id__employee_work_info__job_position_id",
+            "leave_type_id"
+        ).all(), 
+        "leave.view_availableleave"
     )
     previous_data = request.GET.urlencode() or "field=leave_type_id"
     field = request.GET.get("field", "leave_type_id")
@@ -1661,7 +1675,13 @@ def leave_assign_filter(request):
     Returns:
     GET : return leave type assigned view template
     """
-    queryset = AvailableLeave.objects.all()
+    queryset = AvailableLeave.objects.select_related(
+        "employee_id",
+        "employee_id__employee_work_info",
+        "employee_id__employee_work_info__department_id",
+        "employee_id__employee_work_info__job_position_id",
+        "leave_type_id"
+    ).all()
     assign_form = AssignLeaveForm()
     queryset = filtersubordinates(request, queryset, "leave.view_availableleave")
     assigned_leave_filter = AssignedLeaveFilter(request.GET, queryset).qs
