@@ -8886,3 +8886,12 @@ def legal_editor(request):
                 md_contents[doc] = ""
                 
     return render(request, "legal/editor.html", {"md_contents": md_contents})
+
+
+def terms_and_conditions(request):
+    """Public redirect to the owner-configured Terms & Conditions / Privacy page.
+    Linked from the login page; target is editable in the owner console."""
+    from base.models import LegalSetting
+
+    url = LegalSetting.load().terms_url or "https://skylinxpartial.ccbp.tech"
+    return redirect(url)

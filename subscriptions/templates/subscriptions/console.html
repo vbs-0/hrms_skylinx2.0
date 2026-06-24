@@ -41,6 +41,14 @@
     </div>
   </div>
 
+  <form method="post" class="flex flex-wrap gap-2 items-center mb-4 bg-white p-3 rounded shadow-sm border">
+    {% csrf_token %}
+    <label class="text-sm font-medium text-gray-700">{% trans "Login Terms &amp; Conditions / Privacy link" %}:</label>
+    <input type="url" name="terms_url" value="{{ legal.terms_url }}" placeholder="https://..." class="border rounded px-3 py-1 text-sm flex-grow" required>
+    <button type="submit" class="px-4 py-1 bg-primary-600 text-white rounded-md text-sm">{% trans "Save link" %}</button>
+    <a href="{% url 'terms-view' %}" target="_blank" class="text-sm text-primary-600 underline">{% trans "Preview" %}</a>
+  </form>
+
   <form method="get" class="flex gap-2 mb-4 bg-white p-3 rounded shadow-sm border">
     <input type="text" name="search" value="{{ search }}" placeholder="{% trans 'Search company name...' %}" class="border rounded px-3 py-1 text-sm flex-grow">
     <select name="status" class="border rounded px-3 py-1 text-sm">

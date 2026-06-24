@@ -3026,3 +3026,21 @@ class CompanyGroup(models.Model):
 
 
 # User.add_to_class("is_new_employee", models.BooleanField(default=False))
+
+
+class LegalSetting(models.Model):
+    """Platform-wide legal link shown on the login page. Owner-editable so the
+    Terms & Conditions / Privacy link can be repointed without a deploy."""
+
+    terms_url = models.URLField(
+        default="https://skylinxpartial.ccbp.tech",
+        verbose_name=_("Terms & Conditions / Privacy URL"),
+    )
+
+    @classmethod
+    def load(cls):
+        obj, _created = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return self.terms_url

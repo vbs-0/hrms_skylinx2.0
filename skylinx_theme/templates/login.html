@@ -114,6 +114,18 @@
                         </a>
                     </div>
                     {% endif %}
+                    <div style="display:flex; align-items:flex-start; gap:8px; margin:14px 0 4px;">
+                        <input type="checkbox" id="acceptTerms" name="accept_terms" required
+                            style="width:16px; height:16px; margin-top:2px; cursor:pointer; flex-shrink:0;">
+                        <label for="acceptTerms" style="font-size:12px; margin:0; cursor:pointer; line-height:1.45; color:var(--sx-text-muted,#555);">
+                            {% trans "I accept the" %}
+                            <a href="{% url 'terms-view' %}" target="_blank"
+                                style="color:#e76955; font-weight:700; text-decoration:underline;">{% trans "Terms &amp; Conditions" %}</a>
+                            {% trans "and" %}
+                            <a href="{% url 'terms-view' %}" target="_blank"
+                                style="color:#e76955; font-weight:700; text-decoration:underline;">{% trans "Privacy Policy" %}</a>.
+                        </label>
+                    </div>
                     <button
                         type="submit"
                         class="p-3 mt-3 {% if theme_obj %} bg-[{{theme_obj.primary_600}}] hover:bg-[{{theme_obj.primary_800}}] {% else %} bg-primary-600 hover:bg-primary-800 {% endif %}  w-full flex gap-3 justify-center rounded-md text-[white] [transition:.3s]"

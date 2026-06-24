@@ -285,6 +285,16 @@ def console_analytics(request):
 @login_required
 @superuser_required
 def console(request):
+    from base.models import LegalSetting
+
+    legal = LegalSetting.load()
+    # Owner can repoint the login Terms & Conditions / Privacy link here.
+    if request.method == "POST" and "terms_url" in request.POST:
+        legal.terms_url = request.POST.get("terms_url", "").strip() or legal.terms_url
+        legal.save()
+        messages.success(request, "Terms & Conditions link updated.")
+        return redirect("subscriptions-console")
+
     search = request.GET.get("search", "").strip()
     status_filter = request.GET.get("status", "").strip()
 
@@ -335,6 +345,7 @@ def console(request):
         "paid_features": PAID_FEATURES,
         "search": search,
         "current_status": status_filter,
+        "legal": legal,
     }
     return render(request, "subscriptions/console.html", context)
 
