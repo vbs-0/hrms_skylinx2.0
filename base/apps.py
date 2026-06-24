@@ -30,6 +30,16 @@ class BaseConfig(AppConfig):
             "display_name", property(lambda self: strip_name(self.name))
         )
 
+        # Owning company name (for the owner's all-tenants group list), or None
+        # for global groups. hasattr safely returns False when no CompanyGroup
+        # link exists (the reverse-O2O exception subclasses AttributeError).
+        def _company_name(self):
+            if hasattr(self, "company_link") and self.company_link.company_id:
+                return self.company_link.company.company
+            return None
+
+        Group.add_to_class("company_name", property(_company_name))
+
 
 def check_for_no_permissions_models():
 

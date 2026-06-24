@@ -1485,7 +1485,9 @@ def user_group(request):
             {"app": display_name, "app_label": app_name, "app_models": app_models}
         )
     from django.db.models import Prefetch, Count
-    groups = groups_for_request(request).prefetch_related(
+    groups = groups_for_request(request).select_related(
+        'company_link__company'
+    ).prefetch_related(
         Prefetch('permissions')
     ).annotate(
         user_count=Count('user', distinct=True)
