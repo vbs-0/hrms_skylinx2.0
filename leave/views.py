@@ -4146,16 +4146,23 @@ def employee_available_leave_count(request):
         if request.GET.getlist("employee_id")
         else None
     )
-    referer = request.headers.get("Referer")
-
-    if not employee_id and "user-request-view" in referer:
-        employee_id = request.user.employee_get
+    if not employee_id:
+        try:
+            employee_id = request.user.employee_get.id
+        except Exception:
+            employee_id = None
 
     requesting_employee = request.user.employee_get
 
     def _restrict_employee_id(emp_id):
+        if hasattr(emp_id, "id"):
+            emp_id = emp_id.id
         if emp_id and not request.user.has_perm("leave.view_availableleave"):
-            requested = Employee.objects.filter(id=emp_id).first()
+            try:
+                emp_id_int = int(emp_id)
+            except (ValueError, TypeError):
+                return requesting_employee.id
+            requested = Employee.objects.filter(id=emp_id_int).first()
             if not (
                 requested is not None
                 and (

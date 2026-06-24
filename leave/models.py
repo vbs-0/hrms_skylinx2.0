@@ -1635,9 +1635,17 @@ class LeaveRequest(SkylinxModel):
         restricted_leaves = RestrictLeave.objects.all()
         request = getattr(skylinx_middlewares._thread_locals, "request", None)
 
+        try:
+            employee = self.employee_id
+        except Exception:
+            return cleaned_data
+
+        if not employee:
+            return cleaned_data
+
         # Check if leave type is assigned to employee
         if not AvailableLeave.objects.filter(
-            employee_id=self.employee_id, leave_type_id=leave_type
+            employee_id=employee, leave_type_id=leave_type
         ).exists():
             raise ValidationError(
                 {
@@ -1650,7 +1658,7 @@ class LeaveRequest(SkylinxModel):
         # Probation block: leave types flagged exclude_during_probation can't be
         # applied while the employee is still within their probation period.
         if getattr(leave_type, "exclude_during_probation", False):
-            work_info = getattr(self.employee_id, "employee_work_info", None)
+            work_info = getattr(employee, "employee_work_info", None)
             probation_end = getattr(work_info, "probation_end", None)
             if probation_end and self.start_date and self.start_date <= probation_end:
                 raise ValidationError(
@@ -1700,7 +1708,7 @@ class LeaveRequest(SkylinxModel):
 
         # Avaialable leave days and requested leave days checking
         available_leave = AvailableLeave.objects.get(
-            employee_id=self.employee_id, leave_type_id=leave_type
+            employee_id=employee, leave_type_id=leave_type
         )
 
         requested_days = calculate_requested_days(
@@ -1743,7 +1751,7 @@ class LeaveRequest(SkylinxModel):
 
         # Get employee department and job if available
         work_info = EmployeeWorkInformation.objects.filter(
-            employee_id=self.employee_id
+            employee_id=employee
         ).first()
         emp_dep = work_info.department_id if work_info else None
         emp_job = work_info.job_position_id if work_info else None
