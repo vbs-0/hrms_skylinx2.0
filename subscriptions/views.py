@@ -84,9 +84,15 @@ def _company_admin_group():
 
 # Default per-company roles seeded on company creation. Keys are display labels;
 # names are stored tenant-scoped (c<id>::Label) so each company owns its own.
+# Perms that let a role manage its company's user groups + assign permissions
+# (the "Employee Permissions" settings page is gated by auth.view_permission).
+GROUP_ADMIN_CODENAMES = [
+    "add_group", "change_group", "delete_group", "view_group", "view_permission",
+]
+
 DEFAULT_COMPANY_ROLES = {
-    # broad HR access across the daily-use apps
-    "HR Manager": {"apps": COMPANY_ADMIN_APPS},
+    # broad HR access across the daily-use apps + manage own company's groups
+    "HR Manager": {"apps": COMPANY_ADMIN_APPS, "group_admin": True},
     # team lead: see employees + approve attendance/leave
     "Manager": {
         "codenames": [
@@ -128,6 +134,15 @@ def seed_company_groups(company):
         # (e.g. newly added apps like skylinx_documents) WITHOUT removing any
         # extra perms an admin may have granted. Runs on every call/backfill.
         group.permissions.add(*perms)
+        # roles flagged group_admin can manage their company's user groups +
+        # reach the Employee Permissions settings page (auth.view_permission).
+        if spec.get("group_admin"):
+            group.permissions.add(
+                *Permission.objects.filter(
+                    content_type__app_label="auth",
+                    codename__in=GROUP_ADMIN_CODENAMES,
+                )
+            )
         if created:
             created_n += 1
     return created_n
