@@ -102,6 +102,7 @@
                         </div>
                     </div>
                 </div>
+                    {% if perms.attendance.change_attendance or request.user|is_reportingmanager %}
                     <div class="oh-dropdown" x-data="{open: false}">
                         <button class="oh-btn oh-btn--dropdown ml-2" @click="open = !open" @click.outside="open = false"
                             onclick="event.preventDefault()">
@@ -125,6 +126,7 @@
                             </ul>
                         </div>
                     </div>
+                    {% endif %}
             </div>
 
 
