@@ -5438,10 +5438,15 @@ if apps.is_installed("recruitment"):
         end_date = request.GET.get("end_date")
         employee_id = request.GET.get("employee_id")
 
+        if not start_date or not end_date or not employee_id:
+            return JsonResponse({"interviews": []})
+
         try:
             start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
             end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
-            delta = start_date_obj - end_date_obj
+            delta = end_date_obj - start_date_obj
+            if delta.days < 0:
+                return JsonResponse({"interviews": []})
             date_list = [
                 start_date_obj + timedelta(days=i) for i in range(delta.days + 1)
             ]
@@ -5461,9 +5466,7 @@ if apps.is_installed("recruitment"):
             return JsonResponse(response)
         except Exception as e:
             logger.error(e)
-            return SkylinxRedirect(
-                request, message=_("No interview found matching the query.")
-            )
+            return JsonResponse({"interviews": []})
 
 
 @login_required

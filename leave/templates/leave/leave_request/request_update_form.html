@@ -62,7 +62,7 @@
                         employee_id: employee,
                     },
                     success: function (response) {
-                        var interviews = response.interviews;
+                        var interviews = (response && response.interviews) || [];
 
                         title = "Leave Request Alert.";
                         var content = `<div>
@@ -93,6 +93,9 @@
                             submitForm();
                         }
                     },
+                    error: function () {
+                        submitForm();
+                    }
                 });
             });
         })();

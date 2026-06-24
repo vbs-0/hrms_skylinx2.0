@@ -52,7 +52,7 @@
                     employee_id: employee,
                 },
                 success: function (response) {
-                    var interviews = response.interviews;
+                    var interviews = (response && response.interviews) || [];
                     title = "Leave Request Alert.";
                     var content = `<div>
                         <p>${employeeName} has interview in the requested date.</p>
@@ -82,6 +82,9 @@
                         submitForm();
                     }
                 },
+                error: function () {
+                    submitForm();
+                }
             });
         });
     })();
