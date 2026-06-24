@@ -481,6 +481,21 @@ class MobileAttendanceHistoryAPIView(APIView):
         for act in activities:
             detail = getattr(act, "mobile_detail", None)
             
+            # Map Check Out event first (reverse chronological order)
+            if act.out_datetime:
+                events.append({
+                    "id": f"{act.id}_out",
+                    "userId": str(request.user.id),
+                    "eventType": "check_out",
+                    "selfieUrl": request.build_absolute_uri(detail.check_out_selfie.url) if (detail and detail.check_out_selfie) else None,
+                    "latitude": detail.check_out_lat if detail else None,
+                    "longitude": detail.check_out_lng if detail else None,
+                    "withinGeofence": detail.check_out_within_geofence if detail else True,
+                    "gpsEnabled": True,
+                    "capturedAt": act.out_datetime.isoformat(),
+                    "createdAt": act.out_datetime.isoformat()
+                })
+
             # Map Check In event
             if act.in_datetime:
                 events.append({
@@ -494,21 +509,6 @@ class MobileAttendanceHistoryAPIView(APIView):
                     "gpsEnabled": True,
                     "capturedAt": act.in_datetime.isoformat(),
                     "createdAt": act.created_at.isoformat()
-                })
-            
-            # Map Check Out event
-            if act.out_datetime:
-                events.append({
-                    "id": f"{act.id}_out",
-                    "userId": str(request.user.id),
-                    "eventType": "check_out",
-                    "selfieUrl": request.build_absolute_uri(detail.check_out_selfie.url) if (detail and detail.check_out_selfie) else None,
-                    "latitude": detail.check_out_lat if detail else None,
-                    "longitude": detail.check_out_lng if detail else None,
-                    "withinGeofence": detail.check_out_within_geofence if detail else True,
-                    "gpsEnabled": True,
-                    "capturedAt": act.out_datetime.isoformat(),
-                    "createdAt": act.out_datetime.isoformat()
                 })
 
         return Response({
