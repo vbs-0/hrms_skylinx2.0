@@ -34,88 +34,9 @@
 >
     <div class="oh-modal__dialog-body">{{form.as_p}}</div>
 </form>
-
-{% if "recruitment"|app_installed %}
-    <script>
-        (function () {
-            var $form = $("#userLeaveForm").filter(":visible").first();
-            if (!$form.length) {
-                $form = $("#userLeaveForm").first();
-            }
-            $form.find("[type=submit]").hide();
-            var button = `
-            <div class="oh-modal__dialog-footer p-0 mt-3">
-            <button type="button" class="oh-btn oh-btn--secondary oh-btn--shadow custom-save-btn">
-                Save
-            </button>
-            </div>
-            `;
-            $form.find(".row").after(button);
-
-            var submitForm = function () {
-                // ponytail: click the real (hidden) submit button — htmx binds its
-                // submit handler to that, and requestSubmit() doesn't always fire it.
-                var $submit = $form.find("[type=submit]");
-                if ($submit.length) {
-                    $submit.prop("disabled", false);
-                    $submit[0].click();
-                } else if ($form[0].requestSubmit) {
-                    $form[0].requestSubmit();
-                }
-            };
-
-            $form.find(".custom-save-btn").on("click", function (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                var startDate = $form.find("[name = start_date]").val();
-                var endDate = $form.find("[name = end_date]").val();
-                var employee = "{{request.user.employee_get.id}}";
-
-                $.ajax({
-                    type: "GET",
-                    url: "{% url 'check-interview-conflicts' %}",
-                    data: {
-                        start_date: startDate,
-                        end_date: endDate,
-                        employee_id: employee,
-                    },
-                    success: function (response) {
-                        var interviews = (response && response.interviews) || [];
-
-                        title = "Leave Request Alert.";
-                        var content = `<div>
-                <p>{{request.user.employee_get}} has interview in the requested date.</p>
-                <ol style="margin-left:5%">`;
-                        interviews.forEach(function (interview, index) {
-                            content += `<li style="text-align:left; font-size:14px">${interview}</li>`;
-                        });
-                        content += `</ol>
-                <p style="font-weight:700">Are you sure you want to proceed with the request?</p>
-            </div>`;
-
-                        if (interviews.length != 0) {
-                            Swal.fire({
-                                title: title,
-                                icon: "info",
-                                html: content,
-                                showCancelButton: true,
-                                confirmButtonColor: "#008000",
-                                cancelButtonColor: "#d33",
-                                confirmButtonText: "Confirm",
-                            }).then(function (result) {
-                                if (result.isConfirmed) {
-                                    submitForm();
-                                }
-                            });
-                        } else {
-                            submitForm();
-                        }
-                    },
-                    error: function () {
-                        submitForm();
-                    }
-                });
-            });
-        })();
-    </script>
-{% endif %}
+{% comment %}
+ponytail: removed the recruitment interview-conflict hijack here too. It hid
+the native type=submit Save and replaced it with a custom button gated behind
+an AJAX check — the same fragile chain that left Save dead. The native Save in
+skylinx_form.html submits via htmx directly.
+{% endcomment %}
