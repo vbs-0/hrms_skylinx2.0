@@ -21,3 +21,31 @@ class RejectBasicAuthMiddleware:
                 status=401,
             )
         return self.get_response(request)
+
+
+class MobileTenantMiddleware:
+    """
+    Middleware that reads the authenticated user's company and sets CurrentCompany
+    in the thread-local context so SkylinxCompanyManager queries are scoped correctly.
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.path.startswith("/api/"):
+            try:
+                from rest_framework_simplejwt.authentication import JWTAuthentication
+                auth = JWTAuthentication()
+                header = auth.get_header(request)
+                if header:
+                    raw_token = auth.get_raw_token(header)
+                    validated_token = auth.get_validated_token(raw_token)
+                    user = auth.get_user(validated_token)
+                    company = user.employee_get.get_company()
+                    if company:
+                        from skylinx.skylinx_middlewares import set_selected_company
+                        set_selected_company(company)
+            except Exception:
+                pass
+
+        return self.get_response(request)

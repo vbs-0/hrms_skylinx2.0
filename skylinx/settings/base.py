@@ -190,6 +190,7 @@ MIDDLEWARE = [
     # licensing replaced by per-company subscriptions (SaaS multi-tenant)
     "subscriptions.middleware.SubscriptionMiddleware",
     "base.middleware.CompanyMiddleware",
+    "skylinx_api.middleware.MobileTenantMiddleware",
     "base.middleware.ForcePasswordChangeMiddleware",
     "base.middleware.TwoFactorAuthMiddleware",
     "accessibility.middlewares.AccessibilityMiddleware",
