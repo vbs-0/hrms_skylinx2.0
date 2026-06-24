@@ -42,7 +42,7 @@ SUBMENUS = [
         "accessibility": "leave.sidebar.company_leave_accessibility",
     },
     {
-        "menu": _("Restrict Leaves"),
+        "menu": _("Restricted Leaves"),
         "redirect": reverse_lazy("restrict-view"),
         "accessibility": "leave.sidebar.restrict_leave_accessibility",
     },
@@ -59,8 +59,11 @@ def dashboard_accessibility(request, submenu, user_perms, *args, **kwargs):
 
 
 def leave_request_accessibility(request, submenu, user_perms, *args, **kwargs):
+    # "Leave Approval" is for approvers only. Employees have view_leaverequest
+    # (for their own requests) but must not see the approval page — gate on
+    # change_leaverequest / approval-manager / reporting-manager instead.
     return (
-        request.user.has_perm("leave.view_leaverequest")
+        request.user.has_perm("leave.change_leaverequest")
         or is_leave_approval_manager(request.user)
         or is_reportingmanager(request.user)
     )

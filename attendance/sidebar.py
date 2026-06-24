@@ -36,9 +36,11 @@ SUBMENUS = [
 
 def attendances_accessibility(request, submenu, user_perms, *args, **kwargs):
     """
-    Check if the user has permission to view attendance or is a reporting manager.
+    The admin "Attendances" list is for managers/HR only. Employees (who only
+    have view_attendance for their own "My Attendances") must not see it, so gate
+    on change_attendance — a manager/HR-level perm employees don't have.
     """
-    return request.user.has_perm("attendance.view_attendance") or is_reportingmanager(
+    return request.user.has_perm("attendance.change_attendance") or is_reportingmanager(
         request.user
     )
 
