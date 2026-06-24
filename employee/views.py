@@ -1273,6 +1273,8 @@ def employee_view(request):
         "employee_work_info__department_id",
         "employee_work_info__job_position_id",
         "employee_user_id"
+    ).prefetch_related(
+        "default_accessibility"
     )
     queryset = base_qs.filter()
     filter_obj = EmployeeFilter(request.GET, queryset=queryset).qs
@@ -2543,6 +2545,8 @@ def employee_search(request):
         "employee_work_info__department_id",
         "employee_work_info__job_position_id",
         "employee_user_id"
+    ).prefetch_related(
+        "default_accessibility"
     )
     employees = EmployeeFilter(request.GET, queryset=base_qs).qs
     if search == "":
