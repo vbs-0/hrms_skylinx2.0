@@ -3,8 +3,11 @@ This page is handled the cbv of my leave request page
 """
 
 import contextlib
+import logging
 from datetime import datetime
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from django.contrib import messages
 from django.http import HttpResponse
@@ -317,6 +320,11 @@ class MyLeaveRequestForm(SkylinxFormView):
 
         emp = self.request.user.employee_get
         emp_id = emp.id
+        logger.warning(
+            "LEAVE_CREATE form_valid: user=%s emp=%s(%s) posted_employee_id=%s instance_pk=%s",
+            self.request.user, emp, emp_id,
+            form.cleaned_data.get("employee_id"), form.instance.pk,
+        )
 
         if form.instance.pk:
             leave_request = form.save(commit=False)
@@ -378,11 +386,17 @@ class MyLeaveRequestForm(SkylinxFormView):
                 )
                 return self.form_invalid(form)
         else:
-            if form.cleaned_data.get("employee_id") == emp:
+            # ponytail: this is the employee's OWN leave request — the employee is
+            # always request.user.employee_get. The old `== emp` gate silently
+            # bounced tenant users to "no permission" when the posted hidden FK
+            # didn't compare equal. Just force the employee and proceed.
+            if True:
                 leave_request = form.save(commit=False)
-                leave_request.created_by = self.request.user.employee_get
+                leave_request.employee_id = emp
+                leave_request.created_by = emp
                 leave_request.save()
                 save = True
+                logger.warning("LEAVE_CREATE saved id=%s for emp=%s", leave_request.id, emp)
                 if leave_request.leave_type_id.require_approval == "no":
                     employee_id = leave_request.employee_id
                     leave_type_id = leave_request.leave_type_id
@@ -451,6 +465,10 @@ class MyLeaveRequestForm(SkylinxFormView):
 
         return _done()
         return super().form_valid(form)
+
+    def form_invalid(self, form):
+        logger.warning("LEAVE_CREATE form_invalid: errors=%s", form.errors.as_json())
+        return super().form_invalid(form)
 
 
 @method_decorator(login_required, name="dispatch")
