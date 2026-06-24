@@ -741,7 +741,9 @@ def recruitment_pipeline_card(request):
     search = request.GET.get("search")
     search = search if search is not None else ""
     recruitment_obj = Recruitment.objects.all()
-    candidates = Candidate.objects.filter(name__icontains=search, is_active=True)
+    candidates = Candidate.objects.select_related(
+        "recruitment_id", "job_position_id", "stage_id"
+    ).filter(name__icontains=search, is_active=True)
     stages = Stage.objects.all()
     return render(
         request,
@@ -1498,7 +1500,9 @@ def candidate_view(request):
     """
     view_type = request.GET.get("view")
     previous_data = request.GET.urlencode()
-    candidates = Candidate.objects.filter(is_active=True)
+    candidates = Candidate.objects.select_related(
+        "recruitment_id", "job_position_id", "stage_id"
+    ).filter(is_active=True)
     recruitments = Recruitment.objects.filter(closed=False, is_active=True)
 
     mails = list(Candidate.objects.values_list("email", flat=True))
@@ -1658,7 +1662,9 @@ def candidate_view_list(request):
     This method renders all candidate on candidate_list.html template
     """
     previous_data = request.GET.urlencode()
-    candidates = Candidate.objects.all()
+    candidates = Candidate.objects.select_related(
+        "recruitment_id", "job_position_id", "stage_id"
+    ).all()
     if request.GET.get("is_active") is None:
         candidates = candidates.filter(is_active=True)
     candidates = CandidateFilter(request.GET, queryset=candidates).qs
@@ -1680,7 +1686,9 @@ def candidate_view_card(request):
     This method renders all candidate on candidate_card.html template
     """
     previous_data = request.GET.urlencode()
-    candidates = Candidate.objects.all()
+    candidates = Candidate.objects.select_related(
+        "recruitment_id", "job_position_id", "stage_id"
+    ).all()
     if request.GET.get("is_active") is None:
         candidates = candidates.filter(is_active=True)
     candidates = CandidateFilter(request.GET, queryset=candidates).qs

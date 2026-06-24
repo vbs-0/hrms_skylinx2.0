@@ -142,15 +142,13 @@ class EmployeeFilter(SkylinxFilterSet):
             "employee_user_id__user_permissions",
         ]
 
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
-    #     custom_field = django_filters.BooleanFilter(
-    #         label="Working", method=get_working_today
-    #     )
-    #     self.filters["working_today"] = custom_field
-    #     self.form.fields["working_today"] = custom_field.field
-    #     self.form.fields["working_today"].label = "Working"
-    #     self.Meta.fields.append("working_today")
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "employee_user_id__user_permissions" in self.form.fields:
+            self.form.fields["employee_user_id__user_permissions"].queryset = (
+                self.form.fields["employee_user_id__user_permissions"]
+                .queryset.select_related("content_type")
+            )
 
     def not_in_yet_func(self, queryset, _, value):
         """
