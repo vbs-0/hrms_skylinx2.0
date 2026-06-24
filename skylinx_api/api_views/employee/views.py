@@ -753,7 +753,7 @@ class DocumentRequestAPIView(APIView):
             serializer = DocumentRequestSerializer(page, many=True)
             return pagination.get_paginated_response(serializer.data)
 
-    @manager_permission_required("skylinx_documents.add_documentrequests")
+    @manager_permission_required("skylinx_documents.add_documentrequest")
     def post(self, request):
         serializer = DocumentRequestSerializer(data=request.data)
         if serializer.is_valid():
@@ -778,7 +778,7 @@ class DocumentRequestAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @manager_permission_required("skylinx_documents.change_documentrequests")
+    @manager_permission_required("skylinx_documents.change_documentrequest")
     def put(self, request, pk):
         document_request = self.get_object(pk)
         serializer = DocumentRequestSerializer(document_request, data=request.data)

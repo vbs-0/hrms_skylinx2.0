@@ -79,7 +79,7 @@ def htmx_refresh_document_request_container(request) -> Optional[HttpResponse]:
 
 @method_decorator(login_required, name="dispatch")
 @method_decorator(
-    manager_can_enter("skylinx_documents.add_documentrequests"), name="dispatch"
+    manager_can_enter("skylinx_documents.add_documentrequest"), name="dispatch"
 )
 class DocumentRequestCreateForm(SkylinxFormView):
     """
