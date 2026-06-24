@@ -3,11 +3,8 @@ This page is handled the cbv of my leave request page
 """
 
 import contextlib
-import logging
 from datetime import datetime
 from typing import Any
-
-logger = logging.getLogger(__name__)
 
 from django.contrib import messages
 from django.http import HttpResponse
@@ -320,11 +317,6 @@ class MyLeaveRequestForm(SkylinxFormView):
 
         emp = self.request.user.employee_get
         emp_id = emp.id
-        logger.warning(
-            "LEAVE_CREATE form_valid: user=%s emp=%s(%s) posted_employee_id=%s instance_pk=%s",
-            self.request.user, emp, emp_id,
-            form.cleaned_data.get("employee_id"), form.instance.pk,
-        )
 
         if form.instance.pk:
             leave_request = form.save(commit=False)
@@ -396,7 +388,6 @@ class MyLeaveRequestForm(SkylinxFormView):
                 leave_request.created_by = emp
                 leave_request.save()
                 save = True
-                logger.warning("LEAVE_CREATE saved id=%s for emp=%s", leave_request.id, emp)
                 if leave_request.leave_type_id.require_approval == "no":
                     employee_id = leave_request.employee_id
                     leave_type_id = leave_request.leave_type_id
@@ -465,10 +456,6 @@ class MyLeaveRequestForm(SkylinxFormView):
 
         return _done()
         return super().form_valid(form)
-
-    def form_invalid(self, form):
-        logger.warning("LEAVE_CREATE form_invalid: errors=%s", form.errors.as_json())
-        return super().form_invalid(form)
 
 
 @method_decorator(login_required, name="dispatch")
@@ -564,12 +551,6 @@ class MyLeaveRequestSingleForm(SkylinxFormView):
         overlapping_requests = LeaveRequest.objects.filter(
             employee_id=employee, start_date__lte=end_date, end_date__gte=start_date
         ).exclude(status__in=["cancelled", "rejected"])
-        logger.warning(
-            "LEAVE_SINGLE form_valid: emp=%s type=%s dates=%s..%s req_days=%s avail=%s overlap=%s valid=%s errors=%s",
-            employee, leave_type, start_date, end_date, requested_days,
-            available_total_leave, overlapping_requests.count(),
-            form.is_valid(), form.errors.as_json(),
-        )
         if overlapping_requests.exists():
             # ponytail: surface the error in the modal instead of silently
             # redirecting (the old code add_error'd then returned form_valid,
@@ -619,7 +600,6 @@ class MyLeaveRequestSingleForm(SkylinxFormView):
                 if save:
                     leave_request.created_by = employee
                     leave_request.save()
-                    logger.warning("LEAVE_SINGLE saved id=%s for emp=%s", leave_request.id, employee)
                     messages.success(
                         self.request, _("Leave request created successfully")
                     )
