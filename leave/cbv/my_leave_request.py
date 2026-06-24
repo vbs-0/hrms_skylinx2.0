@@ -266,22 +266,17 @@ class MyLeaveRequestForm(SkylinxFormView):
 
     new_display_title = _("Create Request")
 
-    # def get_initial(self) -> dict:
-    #     initial = super().get_initial()
-    #     emp = self.request.user.employee_get
-    #     initial["employee_id"] = emp
-    #     return initial
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["employee"] = self.request.user.employee_get
+        return kwargs
 
     def get_form(self, form_class=None):
-        # Narrow leave types to those assigned to the employee on every render
-        # path (GET and post-error re-render); get_context_data alone missed the
-        # invalid-submit re-render, leaking unassigned leave types into the list.
         form = super().get_form(form_class)
         emp = self.request.user.employee_get
         form.fields["leave_type_id"].queryset = LeaveType.objects.filter(
             id__in=emp.available_leave.values_list("leave_type_id", flat=True)
         )
-        form.fields["employee_id"].initial = emp
         return form
 
     def get_context_data(self, **kwargs):
@@ -322,148 +317,139 @@ class MyLeaveRequestForm(SkylinxFormView):
 
         emp = self.request.user.employee_get
         emp_id = emp.id
-        form = self.form_class(
-            self.request.POST, instance=self.form.instance, employee=emp
-        )
-        if form.is_valid():
-            self.form_class(
-                self.request.POST, self.request.FILES, instance=self.form.instance
-            )
-            if form.instance.pk:
-                leave_request = form.save(commit=False)
 
-                start_date = leave_request.start_date
-                end_date = leave_request.end_date
-                start_date_breakdown = leave_request.start_date_breakdown
-                end_date_breakdown = leave_request.end_date_breakdown
-                leave_type = leave_request.leave_type_id
-                employee = self.request.user.employee_get
-                available_leave = AvailableLeave.objects.get(
-                    employee_id=employee, leave_type_id=leave_type
+        if form.instance.pk:
+            leave_request = form.save(commit=False)
+
+            start_date = leave_request.start_date
+            end_date = leave_request.end_date
+            start_date_breakdown = leave_request.start_date_breakdown
+            end_date_breakdown = leave_request.end_date_breakdown
+            leave_type = leave_request.leave_type_id
+            employee = self.request.user.employee_get
+            available_leave = AvailableLeave.objects.get(
+                employee_id=employee, leave_type_id=leave_type
+            )
+            available_total_leave = (
+                available_leave.available_days + available_leave.carryforward_days
+            )
+            requested_days = calculate_requested_days(
+                start_date, end_date, start_date_breakdown, end_date_breakdown
+            )
+            requested_dates = leave_requested_dates(start_date, end_date)
+            holidays = Holiday.objects.all()
+            holiday_dates = holiday_dates_list(holidays)
+            company_leaves = CompanyLeave.objects.all()
+            company_leave_dates = company_leave_dates_list(
+                company_leaves, start_date
+            )
+            if (
+                leave_type.exclude_company_leave == "yes"
+                and leave_type.exclude_holiday == "yes"
+            ):
+                total_leaves = list(set(holiday_dates + company_leave_dates))
+                total_leave_count = sum(
+                    requested_date in total_leaves
+                    for requested_date in requested_dates
                 )
-                available_total_leave = (
-                    available_leave.available_days + available_leave.carryforward_days
-                )
-                requested_days = calculate_requested_days(
-                    start_date, end_date, start_date_breakdown, end_date_breakdown
-                )
-                requested_dates = leave_requested_dates(start_date, end_date)
-                holidays = Holiday.objects.all()
-                holiday_dates = holiday_dates_list(holidays)
-                company_leaves = CompanyLeave.objects.all()
-                company_leave_dates = company_leave_dates_list(
-                    company_leaves, start_date
-                )
-                if (
-                    leave_type.exclude_company_leave == "yes"
-                    and leave_type.exclude_holiday == "yes"
-                ):
-                    total_leaves = list(set(holiday_dates + company_leave_dates))
-                    total_leave_count = sum(
-                        requested_date in total_leaves
+                requested_days = requested_days - total_leave_count
+            else:
+                holiday_count = 0
+                if leave_type.exclude_holiday == "yes":
+                    for requested_date in requested_dates:
+                        if requested_date in holiday_dates:
+                            holiday_count += 1
+                    requested_days = requested_days - holiday_count
+                if leave_type.exclude_company_leave == "yes":
+                    company_leave_count = sum(
+                        requested_date in company_leave_dates
                         for requested_date in requested_dates
                     )
-                    requested_days = requested_days - total_leave_count
-                else:
-                    holiday_count = 0
-                    if leave_type.exclude_holiday == "yes":
-                        for requested_date in requested_dates:
-                            if requested_date in holiday_dates:
-                                holiday_count += 1
-                        requested_days = requested_days - holiday_count
-                    if leave_type.exclude_company_leave == "yes":
-                        company_leave_count = sum(
-                            requested_date in company_leave_dates
-                            for requested_date in requested_dates
+                    requested_days = requested_days - company_leave_count
+            if requested_days <= available_total_leave:
+                leave_request.save()
+                messages.success(
+                    self.request, _("Leave request updated successfully")
+                )
+            else:
+                form.add_error(
+                    None,
+                    _("You dont have enough leave days to make the request"),
+                )
+                return self.form_invalid(form)
+        else:
+            if form.cleaned_data.get("employee_id") == emp:
+                leave_request = form.save(commit=False)
+                leave_request.created_by = self.request.user.employee_get
+                leave_request.save()
+                save = True
+                if leave_request.leave_type_id.require_approval == "no":
+                    employee_id = leave_request.employee_id
+                    leave_type_id = leave_request.leave_type_id
+                    available_leave = AvailableLeave.objects.get(
+                        leave_type_id=leave_type_id, employee_id=employee_id
+                    )
+                    if (
+                        leave_request.requested_days
+                        > available_leave.available_days
+                    ):
+                        leave = (
+                            leave_request.requested_days
+                            - available_leave.available_days
                         )
-                        requested_days = requested_days - company_leave_count
-                if requested_days <= available_total_leave:
+                        leave_request.approved_available_days = (
+                            available_leave.available_days
+                        )
+                        available_leave.available_days = 0
+                        available_leave.carryforward_days = (
+                            available_leave.carryforward_days - leave
+                        )
+                        leave_request.approved_carryforward_days = leave
+                    else:
+                        available_leave.available_days = (
+                            available_leave.available_days
+                            - leave_request.requested_days
+                        )
+                        leave_request.approved_available_days = (
+                            leave_request.requested_days
+                        )
+                    leave_request.status = "approved"
+                    available_leave.save()
+                if save:
+                    leave_request.created_by = self.request.user.employee_get
                     leave_request.save()
                     messages.success(
-                        self.request, _("Leave request updated successfully")
+                        self.request,
+                        _("Leave request created successfully"),
                     )
-                else:
-                    form.add_error(
-                        None,
-                        _("You dont have enough leave days to make the request"),
+                    with contextlib.suppress(Exception):
+                        notify.send(
+                            self.request.user.employee_get,
+                            recipient=leave_request.employee_id.employee_work_info.reporting_manager_id.employee_user_id,
+                            verb=f"New leave request created for {leave_request.employee_id}.",
+                            verb_ar=f"تم إنشاء طلب إجازة جديد لـ {leave_request.employee_id}.",
+                            verb_de=f"Neuer Urlaubsantrag für {leave_request.employee_id} erstellt.",
+                            verb_es=f"Nueva solicitud de permiso creada para {leave_request.employee_id}.",
+                            verb_fr=f"Nouvelle demande de congé créée pour {leave_request.employee_id}.",
+                            icon="people-circle",
+                            redirect=reverse("request-view")
+                            + f"?id={leave_request.id}",
+                        )
+                    mail_thread = LeaveMailSendThread(
+                        self.request, leave_request, type="request"
                     )
-            else:
-                if int(form.data["employee_id"]) == int(emp_id):
-                    if form.is_valid():
-                        # if form.instance.pk:
-                        leave_request = form.save(commit=False)
-                        leave_request.created_by = self.request.user.employee_get
-                        leave_request.save()
-                        save = True
-                        if leave_request.leave_type_id.require_approval == "no":
-                            employee_id = leave_request.employee_id
-                            leave_type_id = leave_request.leave_type_id
-                            available_leave = AvailableLeave.objects.get(
-                                leave_type_id=leave_type_id, employee_id=employee_id
-                            )
-                            if (
-                                leave_request.requested_days
-                                > available_leave.available_days
-                            ):
-                                leave = (
-                                    leave_request.requested_days
-                                    - available_leave.available_days
-                                )
-                                leave_request.approved_available_days = (
-                                    available_leave.available_days
-                                )
-                                available_leave.available_days = 0
-                                available_leave.carryforward_days = (
-                                    available_leave.carryforward_days - leave
-                                )
-                                leave_request.approved_carryforward_days = leave
-                            else:
-                                available_leave.available_days = (
-                                    available_leave.available_days
-                                    - leave_request.requested_days
-                                )
-                                leave_request.approved_available_days = (
-                                    leave_request.requested_days
-                                )
-                            leave_request.status = "approved"
-                            available_leave.save()
-                        if save:
-                            leave_request.created_by = self.request.user.employee_get
-                            leave_request.save()
-                            messages.success(
-                                self.request,
-                                _("Leave request created successfully"),
-                            )
-                            with contextlib.suppress(Exception):
-                                notify.send(
-                                    self.request.user.employee_get,
-                                    recipient=leave_request.employee_id.employee_work_info.reporting_manager_id.employee_user_id,
-                                    verb=f"New leave request created for {leave_request.employee_id}.",
-                                    verb_ar=f"تم إنشاء طلب إجازة جديد لـ {leave_request.employee_id}.",
-                                    verb_de=f"Neuer Urlaubsantrag für {leave_request.employee_id} erstellt.",
-                                    verb_es=f"Nueva solicitud de permiso creada para {leave_request.employee_id}.",
-                                    verb_fr=f"Nouvelle demande de congé créée pour {leave_request.employee_id}.",
-                                    icon="people-circle",
-                                    redirect=reverse("request-view")
-                                    + f"?id={leave_request.id}",
-                                )
-                            mail_thread = LeaveMailSendThread(
-                                self.request, leave_request, type="request"
-                            )
-                            mail_thread.start()
-                            form = UserLeaveRequestCreationForm(employee=emp)
-                            if (
-                                len(LeaveRequest.objects.filter(employee_id=emp_id))
-                                == 1
-                            ):
-                                return _done()
-                            form.save(commit=False)
-
+                    mail_thread.start()
+                    
+                    if (
+                        len(LeaveRequest.objects.filter(employee_id=emp_id))
+                        == 1
+                    ):
                         return _done()
-                else:
-                    messages.error(self.request, _("You don't have permission"))
+            else:
+                messages.error(self.request, _("You don't have permission"))
+                return self.form_invalid(form)
 
-            return _done()
+        return _done()
         return super().form_valid(form)
 
 
