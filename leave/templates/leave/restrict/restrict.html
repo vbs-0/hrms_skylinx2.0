@@ -34,12 +34,14 @@
         <div class="oh-sticky-table__table oh-table--sortable">
             <div class="oh-sticky-table__thead">
                 <div class="oh-sticky-table__tr">
+                    {% if perms.leave.delete_restrictleave %}
                     <div class="oh-sticky-table__th" style="width: 10px">
                         <div class="centered-div">
                             <input id="allRestricDays" type="checkbox" title="{% trans 'Select All' %}"
                                 class="oh-input oh-input__checkbox all-restrict-days" />
                         </div>
                     </div>
+                    {% endif %}
                     <div class="oh-sticky-table__th {% if request.sort_option.order == '-title' %}arrow-up {% elif request.sort_option.order == 'title' %}arrow-down {% else %}arrow-up-down {% endif %}"
                         hx-get="{% url 'restrict-filter' %}?{{pd}}&sortby=title" hx-target="#restrictDays">
                         {% trans "Title" %}
@@ -72,12 +74,14 @@
             <div class="oh-sticky-table__tbody">
                 {% for day in restrictday %}
                     <div class="oh-sticky-table__tr">
+                        {% if perms.leave.delete_restrictleave %}
                         <div class="oh-sticky-table__sd">
                             <div class="centered-div">
                                 <input type="checkbox" id="{{day.id}}" onchange="highlightRow($(this))"
                                     class="oh-input oh-input__checkbox all-restrict-days-row" />
                             </div>
                         </div>
+                        {% endif %}
                         <div class="oh-sticky-table__td sticky">{{day.title}}</div>
                         <div class="oh-sticky-table__td dateformat_changer">
                             {{day.start_date}}
