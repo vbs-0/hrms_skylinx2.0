@@ -65,18 +65,34 @@ def test_view_performance(view_func, url, name):
     reset_queries()
     start_time = time.time()
     
+    recorded_queries = []
+    
+    def query_wrapper(execute, sql, params, many, context):
+        import traceback
+        tb = traceback.extract_stack()
+        clean_tb = []
+        for frame in tb:
+            filename = frame.filename
+            if 'site-packages' not in filename and 'importlib' not in filename and 'verify_performance.py' not in filename:
+                clean_tb.append(f"{os.path.basename(filename)}:L{frame.lineno}({frame.name})")
+        recorded_queries.append({
+            'sql': sql,
+            'traceback': " -> ".join(clean_tb[-4:])
+        })
+        return execute(sql, params, many, context)
+        
     try:
-        response = view_func(request)
-        # Force rendering if it's a TemplateResponse
-        if hasattr(response, 'render'):
-            response.render()
-        elif hasattr(response, 'content'):
-            _ = response.content # access content to force evaluation
+        with connection.execute_wrapper(query_wrapper):
+            response = view_func(request)
+            # Force rendering if it's a TemplateResponse
+            if hasattr(response, 'render'):
+                response.render()
+            elif hasattr(response, 'content'):
+                _ = response.content # access content to force evaluation
             
         end_time = time.time()
         
-        all_queries = connection.queries
-        queries_count = len(all_queries)
+        queries_count = len(recorded_queries)
         duration = end_time - start_time
         print(f"SUCCESS: View rendered without crashing.")
         print(f"Queries executed: {queries_count}")
@@ -84,18 +100,27 @@ def test_view_performance(view_func, url, name):
         
         if queries_count > 30:
             query_stats = {}
-            for q in all_queries:
-                sql = q.get('sql', '')
+            query_tracebacks = {}
+            for q in recorded_queries:
+                sql = q['sql']
+                tb = q['traceback']
                 query_stats[sql] = query_stats.get(sql, 0) + 1
+                if sql not in query_tracebacks:
+                    query_tracebacks[sql] = []
+                if tb not in query_tracebacks[sql]:
+                    query_tracebacks[sql].append(tb)
             
             duplicates = {sql: count for sql, count in query_stats.items() if count > 1}
             if duplicates:
                 unique_dup_count = sum(duplicates.values()) - len(duplicates)
                 print(f"  Duplicate queries: {unique_dup_count} duplicated calls total")
-                print("  Top Duplicated Queries:")
+                print("  Top Duplicated Queries with Tracebacks:")
                 for sql, count in sorted(duplicates.items(), key=lambda x: x[1], reverse=True)[:5]:
-                    truncated_sql = sql[:250] + "..." if len(sql) > 250 else sql
+                    truncated_sql = sql[:150] + "..." if len(sql) > 150 else sql
                     print(f"    - [{count} times]: {truncated_sql}")
+                    print("      Traceback(s):")
+                    for tb in query_tracebacks[sql][:2]:
+                        print(f"        * {tb}")
         
     except Exception as e:
         import traceback
