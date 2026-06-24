@@ -27,7 +27,7 @@ class ContractForm(ModelForm):
     ContactForm
     """
 
-    verbose_name = _("Contract")
+    verbose_name = _("Pay Register")
     contract_start_date = forms.DateField()
     contract_end_date = forms.DateField(required=False)
 
@@ -39,6 +39,7 @@ class ContractForm(ModelForm):
         fields = "__all__"
         exclude = [
             "is_active",
+            "contract_name",
         ]
         model = Contract
 
@@ -89,6 +90,14 @@ class ContractForm(ModelForm):
         context = {"form": self}
         table_html = render_to_string("contract_form.html", context)
         return table_html
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if not instance.contract_name:
+            instance.contract_name = f"{instance.employee_id}'s Pay Register"
+        if commit:
+            instance.save()
+        return instance
 
     def get_dynamic_hx_post_url(self, instance):
         """

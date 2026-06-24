@@ -180,7 +180,7 @@ class ContractsNav(SkylinxNavView):
             },
         ]
 
-    nav_title = _("Contracts")
+    nav_title = _("Pay Registers")
     filter_body_template = "cbv/contracts/filter.html"
     filter_instance = ContractFilter()
     filter_form_context_name = "form"

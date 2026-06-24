@@ -1864,7 +1864,7 @@ def create_reimbursement(request):
         form = forms.ReimbursementForm(request.POST, request.FILES, instance=instance)
         if form.is_valid():
             form.save()
-            messages.success(request, "Reimbursement saved successfully")
+            messages.success(request, "Expense saved successfully")
             return SkylinxRedirect(request)
     else:
         form = forms.ReimbursementForm(instance=instance)
@@ -1994,7 +1994,7 @@ def approve_reimbursements(request):
             notify.send(
                 request.user.employee_get,
                 recipient=emp.employee_user_id,
-                verb="Your reimbursement request has been rejected.",
+                verb="Your expense request has been rejected.",
                 verb_ar="تم رفض طلب استرداد النفقات الخاص بك.",
                 verb_de="Ihr Erstattungsantrag wurde abgelehnt.",
                 verb_es="Su solicitud de reembolso ha sido rechazada.",
@@ -2006,7 +2006,7 @@ def approve_reimbursements(request):
             notify.send(
                 request.user.employee_get,
                 recipient=emp.employee_user_id,
-                verb="Your reimbursement request has been approved.",
+                verb="Your expense request has been approved.",
                 verb_ar="تمت الموافقة على طلب استرداد نفقاتك.",
                 verb_de="Ihr Rückerstattungsantrag wurde genehmigt.",
                 verb_es="Se ha aprobado tu solicitud de reembolso.",
@@ -2041,12 +2041,12 @@ def delete_reimbursements(request):
             recipients.append(recipient)
             seen_user_ids.add(recipient.id)
     reimbursements.delete()
-    messages.success(request, "Reimbursements deleted")
+    messages.success(request, "Expenses deleted")
     if recipients:
         notify.send(
             request.user.employee_get,
             recipient=recipients,
-            verb="Your reimbursement request has been deleted.",
+            verb="Your expense request has been deleted.",
             verb_ar="تم حذف طلب استرداد نفقاتك.",
             verb_de="Ihr Rückerstattungsantrag wurde gelöscht.",
             verb_es="Tu solicitud de reembolso ha sido eliminada.",

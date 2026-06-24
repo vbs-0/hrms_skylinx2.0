@@ -832,7 +832,7 @@ class ReimbursementForm(ModelForm):
 
     cols = {"description": 12}
 
-    verbose_name = "Reimbursement / Encashment"
+    verbose_name = "Expense"
 
     class Meta:
         model = Reimbursement

@@ -259,7 +259,7 @@ class ReimbursementsNav(SkylinxNavView):
                             data-toggle="oh-modal-toggle"
                             """
 
-    nav_title = _("Reimbursements")
+    nav_title = _("Expenses")
     filter_instance = ReimbursementFilter()
     filter_form_context_name = "form"
     filter_body_template = "cbv/reimbursements/filter.html"
@@ -324,7 +324,7 @@ class ReimbursementsFormView(SkylinxFormView):
 
     model = Reimbursement
     form_class = ReimbursementForm
-    new_display_title = _("Create Reimbursement / Encashment")
+    new_display_title = _("Create Expense")
     template_name = "cbv/reimbursements/forms.html"
 
     def get_context_data(self, **kwargs):
@@ -333,7 +333,7 @@ class ReimbursementsFormView(SkylinxFormView):
         """
         context = super().get_context_data(**kwargs)
         if self.form.instance.pk:
-            self.form_class.verbose_name = _("Update Reimbursement / Encashment")
+            self.form_class.verbose_name = _("Update Expense")
         return context
 
     def form_valid(self, form: ReimbursementForm) -> HttpResponse:
@@ -343,9 +343,9 @@ class ReimbursementsFormView(SkylinxFormView):
         """
         if form.is_valid():
             if form.instance.pk:
-                message = _("Reimbursement updated successfully")
+                message = _("Expense updated successfully")
             else:
-                message = _("Reimbursement created successfully")
+                message = _("Expense created successfully")
             form.save()
             messages.success(self.request, message)
             return self.HttpResponse()

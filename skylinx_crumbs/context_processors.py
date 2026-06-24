@@ -41,6 +41,8 @@ BREADCRUMB_URL_NAMES = {
     "disciplinary-actions": "Show Cause / Warning",
     "resignation-requests-view": "Separation (F&F)",
     "leave": "Leave Application",
+    "view-contract": "Pay Register",
+    "view-reimbursement": "Expenses",
 }
 
 sidebar_urls = [

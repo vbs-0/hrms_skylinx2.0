@@ -2343,7 +2343,7 @@ class Reimbursement(SkylinxModel):
     """
 
     reimbursement_types = [
-        ("reimbursement", _("Reimbursement")),
+        ("reimbursement", _("Expense")),
         ("bonus_encashment", _("Bonus Point Encashment")),
     ]
 
