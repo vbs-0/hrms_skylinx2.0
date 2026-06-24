@@ -22,8 +22,10 @@
             $form.find("select").select2({ width: "100%" });
         })();
 </script>
-{# ponytail: removed the recruitment interview-conflict hijack. It hid the
-   native type=submit Save and replaced it with a custom button whose click
-   handler did an AJAX check before submitting — a fragile chain that left
-   Save dead if any earlier JS errored. The native Save submits via htmx
-   directly, same as every other form. #}
+{% comment %}
+ponytail: removed the recruitment interview-conflict hijack. It hid the
+native type=submit Save and replaced it with a custom button whose click
+handler did an AJAX check before submitting — a fragile chain that left
+Save dead if any earlier JS errored. The native Save submits via htmx
+directly, same as every other form.
+{% endcomment %}
