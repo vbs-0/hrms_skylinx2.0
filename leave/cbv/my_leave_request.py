@@ -558,10 +558,20 @@ class MyLeaveRequestSingleForm(SkylinxFormView):
         overlapping_requests = LeaveRequest.objects.filter(
             employee_id=employee, start_date__lte=end_date, end_date__gte=start_date
         ).exclude(status__in=["cancelled", "rejected"])
+        logger.warning(
+            "LEAVE_SINGLE form_valid: emp=%s type=%s dates=%s..%s req_days=%s avail=%s overlap=%s valid=%s errors=%s",
+            employee, leave_type, start_date, end_date, requested_days,
+            available_total_leave, overlapping_requests.count(),
+            form.is_valid(), form.errors.as_json(),
+        )
         if overlapping_requests.exists():
+            # ponytail: surface the error in the modal instead of silently
+            # redirecting (the old code add_error'd then returned form_valid,
+            # which discarded the error — looked like "nothing happened").
             form.add_error(
                 None, _("There is already a leave request for this date range")
             )
+            return self.form_invalid(form)
         elif requested_days <= available_total_leave or form.instance.status not in [
             "approved"
         ]:
@@ -603,9 +613,12 @@ class MyLeaveRequestSingleForm(SkylinxFormView):
                 if save:
                     leave_request.created_by = employee
                     leave_request.save()
+                    logger.warning("LEAVE_SINGLE saved id=%s for emp=%s", leave_request.id, employee)
                     messages.success(
                         self.request, _("Leave request created successfully")
                     )
+                    # ponytail: notify is best-effort — keep the return OUT of the
+                    # suppress block so a missing reporting manager can't skip it.
                     with contextlib.suppress(Exception):
                         notify.send(
                             self.request.user.employee_get,
@@ -619,20 +632,13 @@ class MyLeaveRequestSingleForm(SkylinxFormView):
                             redirect=reverse("request-view")
                             + f"?id={leave_request.id}",
                         )
-                        return SkylinxRedirect(self.request)
-                    if len(
-                        LeaveRequest.objects.filter(employee_id=employee)
-                    ) == 1 or self.request.META.get("HTTP_REFERER").endswith(
-                        "employee-profile/"
-                    ):
-                        return SkylinxRedirect(self.request)
+                    return SkylinxRedirect(self.request)
                 else:
                     form.add_error(
                         None,
                         _("You dont have enough leave days to make the request"),
                     )
-
-                return SkylinxRedirect(self.request)
+                    return self.form_invalid(form)
             else:
                 return self.form_invalid(form)
         return super().form_valid(form)
