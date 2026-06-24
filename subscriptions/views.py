@@ -285,15 +285,36 @@ def console_analytics(request):
 @login_required
 @superuser_required
 def console(request):
-    from base.models import LegalSetting
+    from base.models import LegalDocument, LegalSetting
 
     legal = LegalSetting.load()
-    # Owner can repoint the login Terms & Conditions / Privacy link here.
-    if request.method == "POST" and "terms_url" in request.POST:
-        legal.terms_url = request.POST.get("terms_url", "").strip() or legal.terms_url
-        legal.save()
-        messages.success(request, "Terms & Conditions link updated.")
-        return redirect("subscriptions-console")
+    MAX_LEGAL_DOCS = 14
+    if request.method == "POST":
+        # Owner can repoint the external fallback link...
+        if "terms_url" in request.POST:
+            legal.terms_url = request.POST.get("terms_url", "").strip() or legal.terms_url
+            legal.save()
+            messages.success(request, "Terms & Conditions link updated.")
+            return redirect("subscriptions-console")
+        # ...upload a legal PDF...
+        if request.POST.get("action") == "upload_legal":
+            f = request.FILES.get("file")
+            title = request.POST.get("title", "").strip()
+            if not f or not title:
+                messages.error(request, "Title and a PDF file are required.")
+            elif not f.name.lower().endswith(".pdf"):
+                messages.error(request, "Only PDF files are allowed.")
+            elif LegalDocument.objects.count() >= MAX_LEGAL_DOCS:
+                messages.error(request, f"Maximum {MAX_LEGAL_DOCS} legal documents reached.")
+            else:
+                LegalDocument.objects.create(title=title, file=f)
+                messages.success(request, "Legal document uploaded.")
+            return redirect("subscriptions-console")
+        # ...or delete one.
+        if request.POST.get("action") == "delete_legal":
+            LegalDocument.objects.filter(id=request.POST.get("doc_id")).delete()
+            messages.success(request, "Legal document removed.")
+            return redirect("subscriptions-console")
 
     search = request.GET.get("search", "").strip()
     status_filter = request.GET.get("status", "").strip()
@@ -346,6 +367,8 @@ def console(request):
         "search": search,
         "current_status": status_filter,
         "legal": legal,
+        "legal_docs": LegalDocument.objects.all(),
+        "max_legal_docs": MAX_LEGAL_DOCS,
     }
     return render(request, "subscriptions/console.html", context)
 

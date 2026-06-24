@@ -8350,6 +8350,7 @@ def protected_media(request, path):
         "base/icon/",
         "base/company/icon/",
         "recruitment/candidate/profile/",
+        "legal/",  # owner-uploaded legal PDFs, shown on the public /terms/ page
     )
 
     # Prevent path traversal
@@ -8889,9 +8890,13 @@ def legal_editor(request):
 
 
 def terms_and_conditions(request):
-    """Public redirect to the owner-configured Terms & Conditions / Privacy page.
-    Linked from the login page; target is editable in the owner console."""
-    from base.models import LegalSetting
+    """Public legal page: lists the owner-uploaded legal PDFs. If none are
+    uploaded yet, falls back to the configured external URL (demo placeholder)."""
+    from base.models import LegalDocument, LegalSetting
 
-    url = LegalSetting.load().terms_url or "https://skylinxpartial.ccbp.tech"
-    return redirect(url)
+    docs = LegalDocument.objects.all()
+    if not docs.exists():
+        url = LegalSetting.load().terms_url
+        if url:
+            return redirect(url)
+    return render(request, "legal/legal_documents.html", {"docs": docs})

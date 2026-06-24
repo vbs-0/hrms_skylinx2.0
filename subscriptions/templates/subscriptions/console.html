@@ -41,13 +41,49 @@
     </div>
   </div>
 
-  <form method="post" class="flex flex-wrap gap-2 items-center mb-4 bg-white p-3 rounded shadow-sm border">
-    {% csrf_token %}
-    <label class="text-sm font-medium text-gray-700">{% trans "Login Terms &amp; Conditions / Privacy link" %}:</label>
-    <input type="url" name="terms_url" value="{{ legal.terms_url }}" placeholder="https://..." class="border rounded px-3 py-1 text-sm flex-grow" required>
-    <button type="submit" class="px-4 py-1 bg-primary-600 text-white rounded-md text-sm">{% trans "Save link" %}</button>
-    <a href="{% url 'terms-view' %}" target="_blank" class="text-sm text-primary-600 underline">{% trans "Preview" %}</a>
-  </form>
+  <div class="mb-4 bg-white p-3 rounded shadow-sm border">
+    <div class="flex items-center justify-between mb-2">
+      <label class="text-sm font-semibold text-gray-700">{% trans "Legal documents (Terms, Privacy, etc.)" %}
+        <span class="text-gray-400 font-normal">— {{ legal_docs|length }}/{{ max_legal_docs }} {% trans "uploaded" %}</span>
+      </label>
+      <a href="{% url 'terms-view' %}" target="_blank" class="text-sm text-primary-600 underline">{% trans "Preview legal page" %} ↗</a>
+    </div>
+
+    {% if legal_docs %}
+    <ul class="mb-3 divide-y border rounded">
+      {% for d in legal_docs %}
+      <li class="flex items-center justify-between px-3 py-2 text-sm">
+        <a href="{{ d.file.url }}" target="_blank" class="text-primary-600 hover:underline">📄 {{ d.title }}</a>
+        <form method="post" onsubmit="return confirm('Remove this document?')">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_legal">
+          <input type="hidden" name="doc_id" value="{{ d.id }}">
+          <button type="submit" class="text-red-600 text-xs hover:underline">{% trans "Remove" %}</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if legal_docs|length < max_legal_docs %}
+    <form method="post" enctype="multipart/form-data" class="flex flex-wrap gap-2 items-center">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="upload_legal">
+      <input type="text" name="title" placeholder="{% trans 'Document title (e.g. Terms of Service)' %}" class="border rounded px-3 py-1 text-sm flex-grow" required>
+      <input type="file" name="file" accept="application/pdf" class="text-sm" required>
+      <button type="submit" class="px-4 py-1 bg-primary-600 text-white rounded-md text-sm">{% trans "Upload PDF" %}</button>
+    </form>
+    {% else %}
+    <p class="text-xs text-gray-500">{% trans "Maximum documents reached. Remove one to upload another." %}</p>
+    {% endif %}
+
+    <form method="post" class="flex flex-wrap gap-2 items-center mt-3 pt-3 border-t">
+      {% csrf_token %}
+      <label class="text-xs text-gray-500">{% trans "Fallback link (used only if no PDFs uploaded)" %}:</label>
+      <input type="url" name="terms_url" value="{{ legal.terms_url }}" placeholder="https://..." class="border rounded px-2 py-1 text-xs flex-grow">
+      <button type="submit" class="px-3 py-1 bg-gray-100 border rounded-md text-xs">{% trans "Save" %}</button>
+    </form>
+  </div>
 
   <form method="get" class="flex gap-2 mb-4 bg-white p-3 rounded shadow-sm border">
     <input type="text" name="search" value="{{ search }}" placeholder="{% trans 'Search company name...' %}" class="border rounded px-3 py-1 text-sm flex-grow">

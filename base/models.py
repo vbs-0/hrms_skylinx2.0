@@ -3044,3 +3044,19 @@ class LegalSetting(models.Model):
 
     def __str__(self):
         return self.terms_url
+
+
+class LegalDocument(models.Model):
+    """A legal PDF (terms, privacy, etc.) uploaded by the owner and shown on the
+    public /terms/ page. Up to ~14 docs; enforced in the upload view."""
+
+    title = models.CharField(max_length=200, verbose_name=_("Title"))
+    file = models.FileField(upload_to="legal/", verbose_name=_("PDF file"))
+    order = models.PositiveIntegerField(default=0)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return self.title
