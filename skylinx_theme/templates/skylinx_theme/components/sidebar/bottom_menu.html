@@ -83,7 +83,7 @@
                hx-push-url="true">{% trans 'Company Leaves' %}</a>
           </li>
         {% endif %}
-        {% if "skylinx_meet"|app_installed and "skylinx_meet"|integration_installed %}
+        {% if "skylinx_meet"|app_installed and "skylinx_meet"|integration_installed and perms.skylinx_meet.view_googlemeeting %}
           <li>
             <a href="{% url 'gmeet-view' %}"
                class="oh-sidebar__submenu-link"

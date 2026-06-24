@@ -213,7 +213,7 @@
                                     <a href="{% url 'company-leave-view' %}" class="oh-sidebar__submenu-link">{% trans "Company Leaves" %}</a>
                                 </li>
                             {% endif %}
-                            {% if "leave"|app_installed %}
+                            {% if "leave"|app_installed and perms.leave.view_restrictleave %}
                                 <li class="oh-sidebar__submenu-item">
                                     <a href="{% url 'restrict-view' %}" class="oh-sidebar__submenu-link">{% trans "Leave Restrictions" %}</a>
                                 </li>
