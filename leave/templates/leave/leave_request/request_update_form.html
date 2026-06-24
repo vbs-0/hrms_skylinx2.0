@@ -37,12 +37,14 @@
             $form.find(".row").after(button);
 
             var submitForm = function () {
-                if ($form[0].requestSubmit) {
+                // ponytail: click the real (hidden) submit button — htmx binds its
+                // submit handler to that, and requestSubmit() doesn't always fire it.
+                var $submit = $form.find("[type=submit]");
+                if ($submit.length) {
+                    $submit.prop("disabled", false);
+                    $submit[0].click();
+                } else if ($form[0].requestSubmit) {
                     $form[0].requestSubmit();
-                } else {
-                    $form.find("[type=submit]").show();
-                    $form.find(".custom-save-btn").hide();
-                    $form.find("[type=submit]").click();
                 }
             };
 

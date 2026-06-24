@@ -33,10 +33,8 @@ SUBMENUS = [
         "redirect": reverse_lazy("assign-view"),
         "accessibility": "leave.sidebar.assign_accessibility",
     },
-    {
-        "menu": _("Leave Allocation Request"),
-        "redirect": reverse_lazy("leave-allocation-request-view"),
-    },
+    # "Leave Allocation Request" removed — duplicate of "My Leave Allocation Requests"
+    # ponytail: dropped the redundant sidebar entry; the per-employee view covers it.
     # Holiday Calendar lives in its own bottom-sidebar module; not duplicated here.
     {
         "menu": _("Company Leaves"),
