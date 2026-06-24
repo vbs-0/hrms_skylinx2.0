@@ -103,9 +103,9 @@ def profile_queries():
                         dept = getattr(work_info, 'department_id', None)
                         mgr = getattr(work_info, 'reporting_manager_id', None)
                         pos = getattr(work_info, 'job_position_id', None)
-                        if dept: _ = dept.title
+                        if dept: _ = str(dept)
                         if mgr: _ = mgr.employee_first_name
-                        if pos: _ = pos.job_position
+                        if pos: _ = str(pos)
                         
             for att in validate_attendances:
                 emp = att.employee_id
@@ -116,9 +116,9 @@ def profile_queries():
                         dept = getattr(work_info, 'department_id', None)
                         mgr = getattr(work_info, 'reporting_manager_id', None)
                         pos = getattr(work_info, 'job_position_id', None)
-                        if dept: _ = dept.title
+                        if dept: _ = str(dept)
                         if mgr: _ = mgr.employee_first_name
-                        if pos: _ = pos.job_position
+                        if pos: _ = str(pos)
         except Exception as e:
             print(f"Error during query execution: {e}")
             return
