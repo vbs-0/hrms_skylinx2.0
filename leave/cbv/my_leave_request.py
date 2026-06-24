@@ -514,6 +514,12 @@ class MyLeaveRequestSingleForm(SkylinxFormView):
         leave_id = resolved.kwargs.get("leave")
         leave_type = LeaveType.objects.get(id=leave_id)
         form = self.form_class(self.request.POST, self.request.FILES, employee=employee)
+        # ponytail: the form's __init__ scopes leave_type_id to the employee's
+        # available leave via the company-scoped LeaveType manager, which can
+        # filter out the very leave type being applied for under a tenant —
+        # making the posted choice "invalid". This single form is always for
+        # one known leave type (from the URL), so pin the queryset to it.
+        form.fields["leave_type_id"].queryset = LeaveType.objects.filter(id=leave_id)
         start_date = datetime.strptime(self.request.POST.get("start_date"), "%Y-%m-%d")
         end_date = datetime.strptime(self.request.POST.get("end_date"), "%Y-%m-%d")
         start_date_breakdown = self.request.POST.get("start_date_breakdown")
