@@ -103,6 +103,7 @@ if __name__ == "__main__":
     test_view_performance(candidates_view, '/onboarding/candidates-view/', "Onboarding Candidates View")
     test_view_performance(offboarding_pipeline, '/offboarding/pipeline/', "Offboarding Pipeline View")
     test_view_performance(offboarding_request_view, '/offboarding/request-view/', "Offboarding Request View")
-    
     print("\n====================================")
     print("Verification complete.")
+    settings.DEBUG = False
+    print(f"DEBUG mode restored: {settings.DEBUG}")
