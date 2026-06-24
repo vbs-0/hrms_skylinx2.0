@@ -2121,8 +2121,11 @@ class SkylinxFormView(FormView):
                             "model": form._meta.model,
                         },
                     )
-                    view_path = self.dynamic_create_path.get(field)["path"]
-                    view = import_method(view_path)
+                    if hasattr(self, "dynamic_create_path") and self.dynamic_create_path and field in self.dynamic_create_path:
+                        view_path = self.dynamic_create_path.get(field)["path"]
+                        view = import_method(view_path)
+                    else:
+                        view_path = f"{view.__module__}.{view.__name__}"
                     CACHE.set(
                         f"dynamic-view-{field}-{self.request.session.session_key}",
                         view_path,
