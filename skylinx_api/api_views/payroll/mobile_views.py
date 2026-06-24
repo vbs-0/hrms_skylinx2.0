@@ -298,6 +298,8 @@ class MobilePayslipPDFAPIView(APIView):
         data["request"] = request
         template_path = "payroll/payslip/payslip_pdf.html"
 
-        pdf_response = generate_payslip_pdf(template_path, context=data, html=False)
+        html_flag = request.query_params.get("html", "false").lower() == "true"
+
+        pdf_response = generate_payslip_pdf(template_path, context=data, html=html_flag)
         return pdf_response
 
