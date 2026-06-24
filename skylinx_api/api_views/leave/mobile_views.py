@@ -227,50 +227,50 @@ class MobileLeaveSummaryAPIView(APIView):
             return Response({
                 "success": False,
                 "message": "User is not registered as an employee",
-                "data": {}
+                "data": []
             }, status=400)
 
         year = datetime.now().year
 
-        # Aggregate all leave requests for this employee in the current year
-        taken_total = LeaveRequest.objects.filter(
-            employee_id=employee,
-            start_date__year=year,
-            status="approved"
-        ).aggregate(total=Sum("requested_days"))["total"] or 0.0
+        available_leaves = AvailableLeave.objects.filter(employee_id=employee)
+        leave_types = []
 
-        pending_total = LeaveRequest.objects.filter(
-            employee_id=employee,
-            start_date__year=year,
-            status__in=["requested", "pending"]
-        ).aggregate(total=Sum("requested_days"))["total"] or 0.0
+        for al in available_leaves:
+            leave_type = al.leave_type_id
+            if not leave_type:
+                continue
 
-        # Sick leave taken
-        sick_taken = LeaveRequest.objects.filter(
-            employee_id=employee,
-            start_date__year=year,
-            status="approved",
-            leave_type_id__name__icontains="sick"
-        ).aggregate(total=Sum("requested_days"))["total"] or 0.0
+            allocated = al.total_leave_days or 0.0
+            available = al.available_days or 0.0
+            cf = al.carryforward_days or 0.0
 
-        # LOP taken
-        lop_taken = LeaveRequest.objects.filter(
-            employee_id=employee,
-            start_date__year=year,
-            status="approved",
-            leave_type_id__name__icontains="lop"
-        ).aggregate(total=Sum("requested_days"))["total"] or 0.0
+            taken = LeaveRequest.objects.filter(
+                employee_id=employee,
+                leave_type_id=leave_type,
+                start_date__year=year,
+                status="approved"
+            ).aggregate(total=Sum("requested_days"))["total"] or 0.0
+
+            pending = LeaveRequest.objects.filter(
+                employee_id=employee,
+                leave_type_id=leave_type,
+                start_date__year=year,
+                status__in=["requested", "pending"]
+            ).aggregate(total=Sum("requested_days"))["total"] or 0.0
+
+            leave_types.append({
+                "id": str(leave_type.id),
+                "name": leave_type.name,
+                "allocated": allocated,
+                "available": available + cf,
+                "taken": taken,
+                "pending": pending
+            })
 
         return Response({
             "success": True,
             "message": "Leave summary loaded",
-            "data": {
-                "year": year,
-                "sick": sick_taken,
-                "lop": lop_taken,
-                "total": taken_total,
-                "pending": pending_total,
-            }
+            "data": leave_types
         }, status=200)
 
 
@@ -343,14 +343,24 @@ class MobileHolidaysAPIView(APIView):
         month_start = date(year, month, 1)
         month_end = date(year, month, num_days)
 
+        try:
+            employee = request.user.employee_get
+            company = employee.get_company()
+        except Exception:
+            company = None
+
         # 1. Fetch holidays from leave.Holiday overlapping this month
         qs1 = Holiday.objects.filter(
+            company_id=company,
+        ).filter(
             (Q(start_date__lte=month_end) & Q(end_date__gte=month_start)) |
             (Q(end_date__isnull=True) & Q(start_date__lte=month_end) & Q(start_date__gte=month_start))
         ).order_by("start_date")
 
         # 2. Fetch holidays from base.Holidays overlapping this month
         qs2 = Holidays.objects.filter(
+            company_id=company,
+        ).filter(
             (Q(start_date__lte=month_end) & Q(end_date__gte=month_start)) |
             (Q(end_date__isnull=True) & Q(start_date__lte=month_end) & Q(start_date__gte=month_start))
         ).order_by("start_date")
@@ -376,6 +386,23 @@ class MobileHolidaysAPIView(APIView):
                 "isOptional": getattr(h, "is_optional", False)
             })
 
+        # 3. Fetch CompanyLeaves and generate dynamic dates
+        from base.models import CompanyLeaves
+        from leave.methods import company_leave_dates_list
+        company_leaves = CompanyLeaves.objects.filter(company_id=company)
+        company_leave_dates = company_leave_dates_list(company_leaves, month_start)
+        for c_date in company_leave_dates:
+            # Filter dates to only include those strictly in this month, since company_leave_dates_list might return some overlap
+            if c_date.month == month and c_date.year == year:
+                holidays_list.append({
+                    "id": f"company_leave_{c_date.isoformat()}",
+                    "name": "Company Leave",
+                    "startDate": c_date.isoformat(),
+                    "endDate": c_date.isoformat(),
+                    "description": "Company default day off",
+                    "isOptional": False
+                })
+
         # Fetch approved leaves overlapping this month
         leaves_qs = LeaveRequest.objects.filter(
             status="approved",
@@ -383,7 +410,7 @@ class MobileHolidaysAPIView(APIView):
             end_date__gte=month_start
         )
 
-        is_admin = request.user.is_superuser or request.user.groups.filter(name="Admin").exists() or request.user.has_perm("leave.view_leaverequest") or request.user.has_perm("employee.add_employee")
+        is_admin = request.user.is_superuser or request.user.groups.filter(name__endswith="::Admin").exists() or request.user.has_perm("leave.view_leaverequest") or request.user.has_perm("employee.add_employee")
         if not is_admin:
             leaves_qs = leaves_qs.none()
 
@@ -413,7 +440,7 @@ class MobileHolidaysAPIView(APIView):
         }, status=200)
 
     def post(self, request):
-        if not (request.user.is_superuser or request.user.groups.filter(name="Admin").exists()):
+        if not (request.user.is_superuser or request.user.groups.filter(name__endswith="::Admin").exists()):
             return Response({
                 "success": False,
                 "message": "Only admins can create holidays"
@@ -475,7 +502,7 @@ class MobileAdminLeaveListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        if not (request.user.is_superuser or request.user.groups.filter(name="Admin").exists()):
+        if not (request.user.is_superuser or request.user.groups.filter(name__endswith="::Admin").exists()):
             return Response({
                 "success": False,
                 "message": "Only admins can view leave list",
@@ -543,7 +570,7 @@ class MobileAdminLeaveReviewAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk):
-        if not (request.user.is_superuser or request.user.groups.filter(name="Admin").exists()):
+        if not (request.user.is_superuser or request.user.groups.filter(name__endswith="::Admin").exists()):
             return Response({
                 "success": False,
                 "message": "Only admins can review leave requests"
@@ -629,7 +656,7 @@ class MobileAdminHolidayDeleteAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk):
-        if not (request.user.is_superuser or request.user.groups.filter(name="Admin").exists()):
+        if not (request.user.is_superuser or request.user.groups.filter(name__endswith="::Admin").exists()):
             return Response({
                 "success": False,
                 "message": "Only admins can delete holidays"
