@@ -1505,12 +1505,6 @@ def candidate_view(request):
     ).filter(is_active=True)
     recruitments = Recruitment.objects.filter(closed=False, is_active=True)
 
-    mails = list(Candidate.objects.values_list("email", flat=True))
-    # Query the SkylinxUser model to check if any email is present
-    existing_emails = list(
-        SkylinxUser.objects.filter(username__in=mails).values_list("email", flat=True)
-    )
-
     filter_obj = CandidateFilter(request.GET, queryset=candidates)
     if Candidate.objects.exists():
         template = "candidate/candidate_view.html"
@@ -1520,13 +1514,19 @@ def candidate_view(request):
     get_key_instances(Candidate, data_dict)
 
     # Store the candidates in the session
-    request.session["filtered_candidates"] = [candidate.id for candidate in candidates]
+    request.session["filtered_candidates"] = list(filter_obj.qs.values_list("id", flat=True))
+
+    page_obj = paginator_qry(filter_obj.qs, request.GET.get("page"))
+    page_emails = [c.email for c in page_obj.object_list if c.email]
+    existing_emails = list(
+        SkylinxUser.objects.filter(username__in=page_emails).values_list("email", flat=True)
+    )
 
     return render(
         request,
         template,
         {
-            "data": paginator_qry(filter_obj.qs, request.GET.get("page")),
+            "data": page_obj,
             "pd": previous_data,
             "f": filter_obj,
             "view_type": view_type,
@@ -1668,12 +1668,18 @@ def candidate_view_list(request):
     if request.GET.get("is_active") is None:
         candidates = candidates.filter(is_active=True)
     candidates = CandidateFilter(request.GET, queryset=candidates).qs
+    page_obj = paginator_qry(candidates, request.GET.get("page"))
+    page_emails = [c.email for c in page_obj.object_list if c.email]
+    existing_emails = list(
+        SkylinxUser.objects.filter(username__in=page_emails).values_list("email", flat=True)
+    )
     return render(
         request,
         "candidate/candidate_list.html",
         {
-            "data": paginator_qry(candidates, request.GET.get("page")),
+            "data": page_obj,
             "pd": previous_data,
+            "emp_list": existing_emails,
         },
     )
 
@@ -1692,12 +1698,18 @@ def candidate_view_card(request):
     if request.GET.get("is_active") is None:
         candidates = candidates.filter(is_active=True)
     candidates = CandidateFilter(request.GET, queryset=candidates).qs
+    page_obj = paginator_qry(candidates, request.GET.get("page"))
+    page_emails = [c.email for c in page_obj.object_list if c.email]
+    existing_emails = list(
+        SkylinxUser.objects.filter(username__in=page_emails).values_list("email", flat=True)
+    )
     return render(
         request,
         "candidate/candidate_card.html",
         {
-            "data": paginator_qry(candidates, request.GET.get("page")),
+            "data": page_obj,
             "pd": previous_data,
+            "emp_list": existing_emails,
         },
     )
 

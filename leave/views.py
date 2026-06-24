@@ -612,23 +612,42 @@ def leave_request_view(request):
 
     leave_requests_with_interview = []
     if apps.is_installed("recruitment"):
-        for leave_request in leave_requests:
-
-            # Fetch interviews for the employee within the requested leave period
+        page_requests = list(page_obj.object_list)
+        if page_requests:
             InterviewSchedule = get_skylinx_model_class(
                 app_label="recruitment", model="interviewschedule"
             )
-
-            interviews = InterviewSchedule.objects.filter(
-                employee_id=leave_request.employee_id,
-                interview_date__range=[
-                    leave_request.start_date,
-                    leave_request.end_date,
-                ],
-            )
-            if interviews:
-                # If interview exists then adding the leave request to the list
-                leave_requests_with_interview.append(leave_request)
+            start_dates = [r.start_date for r in page_requests if r.start_date]
+            end_dates = [r.end_date for r in page_requests if r.end_date]
+            if start_dates and end_dates:
+                min_start = min(start_dates)
+                max_end = max(end_dates)
+                employee_ids = [r.employee_id_id for r in page_requests if r.employee_id_id]
+                
+                # Fetch all interviews in the relevant range for these employees in one query
+                interviews_queryset = InterviewSchedule.objects.filter(
+                    employee_id__in=employee_ids,
+                    interview_date__range=[min_start, max_end]
+                ).values('employee_id', 'interview_date')
+                
+                # Group by employee for O(1) checks in Python
+                from collections import defaultdict
+                interviews_by_emp = defaultdict(list)
+                for iv in interviews_queryset:
+                    interviews_by_emp[iv['employee_id']].append(iv['interview_date'])
+                
+                # Check overlap for each leave request in the current page
+                for leave_request in page_requests:
+                    emp_interviews = interviews_by_emp.get(leave_request.employee_id_id, [])
+                    has_overlap = False
+                    for i_date in emp_interviews:
+                        if isinstance(i_date, datetime):
+                            i_date = i_date.date()
+                        if leave_request.start_date <= i_date <= leave_request.end_date:
+                            has_overlap = True
+                            break
+                    if has_overlap:
+                        leave_requests_with_interview.append(leave_request)
 
     requests = queryset.filter(status="requested").count()
     requests_ids = json.dumps(list(page_obj.object_list.values_list("id", flat=True)))

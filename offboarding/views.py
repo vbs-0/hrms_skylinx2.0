@@ -91,7 +91,14 @@ def pipeline_grouper(filters={}, offboardings=[]):
             stage_employees = PipelineEmployeeFilter(
                 filters,
                 OffboardingEmployee.objects.filter(stage_id=stage),
-            ).qs.order_by("stage_id__id")
+            ).qs.select_related(
+                "employee_id",
+                "employee_id__employee_work_info",
+                "employee_id__employee_work_info__department_id",
+                "employee_id__employee_work_info__job_position_id",
+            ).prefetch_related(
+                "employeetask_set",
+            ).order_by("stage_id__id")
 
             if request and not (
                 request.user.has_perm("offboarding.view_offboarding")
@@ -108,9 +115,7 @@ def pipeline_grouper(filters={}, offboardings=[]):
                 filters.get(page_name),
                 page_name,
             ).object_list
-            employees = employees + [
-                employee.id for employee in stage.offboardingemployee_set.all()
-            ]
+            employees = employees + list(stage.offboardingemployee_set.values_list("id", flat=True))
             data["stages"] = data["stages"] + employee_grouper
 
         ordered_data = []
@@ -154,7 +159,7 @@ def pipeline(request):
     Offboarding pipeline view
     """
     # Apply filters and pagination
-    offboardings = PipelineFilter().qs
+    offboardings = PipelineFilter().qs.order_by("-id")
     paginated_offboardings = paginator_qry_offboarding_limited(
         offboardings, request.GET.get("page")
     )
@@ -832,7 +837,7 @@ def request_view(request):
     """
     default_filter = {"status": "requested"}
     filter_instance = LetterFilter(default_filter)
-    letters = ResignationLetter.objects.all()
+    letters = ResignationLetter.objects.select_related("employee_id").order_by("-id")
     offboardings = Offboarding.objects.all()
 
     return render(
@@ -879,10 +884,11 @@ def search_resignation_request(request):
     """
     This method is used to search/filter the letter
     """
+    base_qs = ResignationLetter.objects.select_related("employee_id").order_by("-id")
     if request.user.has_perm("offboarding.view_resignationletter"):
-        letters = LetterFilter(request.GET).qs
+        letters = LetterFilter(request.GET, queryset=base_qs).qs
     else:
-        letters = ResignationLetter.objects.filter(
+        letters = base_qs.filter(
             employee_id__employee_user_id=request.user
         )
     field = request.GET.get("field")

@@ -162,9 +162,9 @@ class CandidateStage(SkylinxModel):
         """
         function that used for getting the numbers between task completed v/s tasks assigned
         """
-        cans_tasks = self.candidate_id.candidate_task
-        completed_tasks = cans_tasks.filter(status="done")
-        return f"{completed_tasks.count()}/{cans_tasks.count()}"
+        tasks = list(self.candidate_id.candidate_task.all())
+        completed_count = sum(1 for t in tasks if t.status == "done")
+        return f"{completed_count}/{len(tasks)}"
 
     def __getattribute__(self, name):
         if name.startswith("get_") and name.endswith("_task"):

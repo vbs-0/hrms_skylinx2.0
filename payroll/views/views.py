@@ -323,7 +323,7 @@ def contract_view(request):
     Contract view method
     """
 
-    contracts = Contract.objects.all()
+    contracts = Contract.objects.select_related("employee_id", "filing_status").order_by("-id")
     if contracts.exists():
         template = "payroll/contract/contract_view.html"
     else:
@@ -399,7 +399,7 @@ def contract_filter(request):
 
     """
     query_string = request.GET.urlencode()
-    contracts_filter = ContractFilter(request.GET)
+    contracts_filter = ContractFilter(request.GET, queryset=Contract.objects.select_related("employee_id", "filing_status").order_by("-id"))
     template = "payroll/contract/contract_list.html"
     contracts = contracts_filter.qs
     field = request.GET.get("field")

@@ -904,15 +904,22 @@ class Candidate(SkylinxModel):
         """
 
         request = getattr(_thread_locals, "request", None)
-        mails = getattr(request, "mails", None)
+        emp_list = None
+        if request:
+            emp_list = getattr(request, "_cached_emp_list", None)
 
-        if not mails:
-            mails = list(Candidate.objects.values_list("email", flat=True))
-            setattr(request, "mails", mails)
+        if emp_list is None:
+            mails = getattr(request, "mails", None)
+            if not mails:
+                mails = list(Candidate.objects.values_list("email", flat=True))
+                if request:
+                    setattr(request, "mails", mails)
 
-        emp_list = SkylinxUser.objects.filter(username__in=mails).values_list(
-            "email", flat=True
-        )
+            emp_list = list(SkylinxUser.objects.filter(username__in=mails).values_list(
+                "email", flat=True
+            ))
+            if request:
+                setattr(request, "_cached_emp_list", emp_list)
 
         return render_template(
             path="cbv/candidates/option.html",

@@ -980,7 +980,13 @@ def onboarding_query_grouper(request, queryset):
                 stage.candidate.filter(
                     candidate_id__is_active=True,
                 ),
-            ).qs.order_by("sequence")
+            ).qs.select_related(
+                "candidate_id",
+                "candidate_id__job_position_id",
+            ).prefetch_related(
+                "candidate_id__onboarding_portal",
+                "candidate_id__candidate_task",
+            ).order_by("sequence")
 
             page_name = "page" + stage.stage_title + str(rec.id)
             grouper = group_by_queryset(
@@ -990,9 +996,7 @@ def onboarding_query_grouper(request, queryset):
                 page_name,
             ).object_list
             data["stages"] = data["stages"] + grouper
-            employees = employees + [
-                employee.candidate_id.id for employee in stage.candidate.all()
-            ]
+            employees = employees + list(stage.candidate.values_list("candidate_id_id", flat=True))
         ordered_data = []
         # combining un used groups in to the grouper
         groupers = data["stages"]
@@ -1052,6 +1056,10 @@ def onboarding_view(request):
     paginator = Paginator(recruitments.order_by("id"), 4)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
+    page_obj.object_list = page_obj.object_list.prefetch_related(
+        "onboarding_stage",
+        "onboarding_stage__employee_id",
+    )
     groups = onboarding_query_grouper(request, page_obj)
     for item in groups:
         setattr(item["recruitment"], "stages", item["stages"])

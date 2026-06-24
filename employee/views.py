@@ -1272,6 +1272,11 @@ def employee_view(request):
         "employee_work_info",
         "employee_work_info__department_id",
         "employee_work_info__job_position_id",
+        "employee_work_info__shift_id",
+        "employee_work_info__work_type_id",
+        "employee_work_info__job_role_id",
+        "employee_work_info__reporting_manager_id",
+        "employee_work_info__company_id",
         "employee_user_id"
     ).prefetch_related(
         "default_accessibility"
@@ -1287,7 +1292,7 @@ def employee_view(request):
     emp = base_qs.filter()
 
     # Store the employees in the session
-    request.session["filtered_employees"] = [employee.id for employee in queryset]
+    request.session["filtered_employees"] = list(queryset.values_list("id", flat=True))
 
     return render(
         request,
@@ -2544,6 +2549,11 @@ def employee_search(request):
         "employee_work_info",
         "employee_work_info__department_id",
         "employee_work_info__job_position_id",
+        "employee_work_info__shift_id",
+        "employee_work_info__work_type_id",
+        "employee_work_info__job_role_id",
+        "employee_work_info__reporting_manager_id",
+        "employee_work_info__company_id",
         "employee_user_id"
     ).prefetch_related(
         "default_accessibility"
