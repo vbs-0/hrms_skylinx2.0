@@ -169,7 +169,7 @@ def load_ldap_settings():
 
         # Ensure DB is ready before querying
         if not connection.introspection.table_names():
-            print("⚠️ Database is empty. Using default LDAP settings.")
+            print("Database is empty. Using default LDAP settings.")
             return settings.DEFAULT_LDAP_CONFIG
 
         ldap_config = LDAPSettings.objects.first()
@@ -181,7 +181,7 @@ def load_ldap_settings():
                 "BASE_DN": ldap_config.base_dn,
             }
     except Exception as e:
-        print(f"⚠️ Warning: Could not load LDAP settings ({e})")
+        print(f"Warning: Could not load LDAP settings ({e})")
         return settings.DEFAULT_LDAP_CONFIG  # Return default on error
 
     return settings.DEFAULT_LDAP_CONFIG  # Fallback in case of an issue
