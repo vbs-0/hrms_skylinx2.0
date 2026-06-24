@@ -59,7 +59,6 @@ class ContractsList(SkylinxListView):
     filter_class = ContractFilter
 
     columns = [
-        (_("Contract"), "contract_name"),
         (_("Employee"), "employee_id"),
         (_("Start Date"), "contract_start_date"),
         (_("End Date"), "contract_end_date"),
@@ -70,13 +69,12 @@ class ContractsList(SkylinxListView):
     ]
 
     header_attrs = {
-        "contract_name": """
+        "employee_id": """
                           style="width:250px !important;"
                           """
     }
 
     sortby_mapping = [
-        (_("Contract"), "contract_name"),
         (_("Employee"), "employee_id__get_full_name"),
         (_("Start Date"), "contract_start_date"),
         (_("End Date"), "contract_end_date"),

@@ -38,7 +38,6 @@
                                 title="{% trans 'Select All' %}" />
                         </div>
                     </div>
-                    <div class="oh-sticky-table__th">{% trans "Pay Register" %}</div>
                     <div data-cell-index="1" data-cell-title="{% trans 'Employee' %}"
                         class="oh-sticky-table__th {% if request.sort_option.order == '-employee_id__employee_first_name' %}arrow-up {% elif request.sort_option.order == 'employee_id__employee_first_name' %}arrow-down {% else %} arrow-up-down {% endif %}"
                         hx-target="#payroll-contract-container"
@@ -79,7 +78,6 @@
                                     class="oh-input payslip-checkbox oh-input__checkbox all-contract-row" />
                             </div>
                         </div>
-                        <div class="oh-sticky-table__td">{{ contract.contract_name }}</div>
                         <div data-cell-index="1" class="oh-sticky-table__td">{{ contract.employee_id }}</div>
                         <div data-cell-index="2" class="oh-sticky-table__td dateformat_changer">{{ contract.contract_start_date}}</div>
                         <div data-cell-index="3" class="oh-sticky-table__td dateformat_changer">
