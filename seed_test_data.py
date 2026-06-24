@@ -122,7 +122,7 @@ def clear_and_seed():
             # 2. Seed Base Metadata
             print("Creating base metadata...")
             Company = apps.get_model('base', 'Company')
-            company, _ = Company.objects.get_or_create(id=1, defaults={"company": "Skylinx"})
+            company, _ = Company.objects.get_or_create(id=1, defaults={"company": "EMPLINX"})
             
             Department = apps.get_model('base', 'Department')
             departments = {}
@@ -200,7 +200,7 @@ def clear_and_seed():
                     "username": "priya.sharma",
                     "first_name": "Priya",
                     "last_name": "Sharma",
-                    "email": "priya.sharma@skylinx.com",
+                    "email": "priya.sharma@emplinx.com",
                     "phone": "+919876543210",
                     "gender": "female",
                     "dob": date(1988, 5, 12),
@@ -223,7 +223,7 @@ def clear_and_seed():
                     "username": "rajesh.patel",
                     "first_name": "Rajesh",
                     "last_name": "Patel",
-                    "email": "rajesh.patel@skylinx.com",
+                    "email": "rajesh.patel@emplinx.com",
                     "phone": "+919876543211",
                     "gender": "male",
                     "dob": date(1993, 10, 24),
@@ -246,7 +246,7 @@ def clear_and_seed():
                     "username": "vikram.singh",
                     "first_name": "Vikram",
                     "last_name": "Singh",
-                    "email": "vikram.singh@skylinx.com",
+                    "email": "vikram.singh@emplinx.com",
                     "phone": "+919876543212",
                     "gender": "male",
                     "dob": date(1985, 3, 15),
@@ -269,7 +269,7 @@ def clear_and_seed():
                     "username": "amit.verma",
                     "first_name": "Amit",
                     "last_name": "Verma",
-                    "email": "amit.verma@skylinx.com",
+                    "email": "amit.verma@emplinx.com",
                     "phone": "+919876543213",
                     "gender": "male",
                     "dob": date(1995, 7, 19),
@@ -292,7 +292,7 @@ def clear_and_seed():
                     "username": "sneha.reddy",
                     "first_name": "Sneha",
                     "last_name": "Reddy",
-                    "email": "sneha.reddy@skylinx.com",
+                    "email": "sneha.reddy@emplinx.com",
                     "phone": "+919876543214",
                     "gender": "female",
                     "dob": date(1997, 12, 5),
@@ -315,7 +315,7 @@ def clear_and_seed():
                     "username": "anjali.gupta",
                     "first_name": "Anjali",
                     "last_name": "Gupta",
-                    "email": "anjali.gupta@skylinx.com",
+                    "email": "anjali.gupta@emplinx.com",
                     "phone": "+919876543215",
                     "gender": "female",
                     "dob": date(1994, 2, 28),
@@ -338,7 +338,7 @@ def clear_and_seed():
                     "username": "rohan.mehta",
                     "first_name": "Rohan",
                     "last_name": "Mehta",
-                    "email": "rohan.mehta@skylinx.com",
+                    "email": "rohan.mehta@emplinx.com",
                     "phone": "+919876543216",
                     "gender": "male",
                     "dob": date(1991, 9, 8),
@@ -361,7 +361,7 @@ def clear_and_seed():
                     "username": "kavita.joshi",
                     "first_name": "Kavita",
                     "last_name": "Joshi",
-                    "email": "kavita.joshi@skylinx.com",
+                    "email": "kavita.joshi@emplinx.com",
                     "phone": "+919876543217",
                     "gender": "female",
                     "dob": date(1990, 4, 30),
@@ -398,7 +398,7 @@ def clear_and_seed():
                     }
                 )
                 if created:
-                    user.set_password("Skylinx@123")
+                    user.set_password("EMPLINX@123")
                     user.save()
                     print(f"Created SkylinxUser: {spec['username']}")
 

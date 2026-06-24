@@ -1,5 +1,5 @@
 """
-base.py — Main Django settings for Skylinx
+base.py — Main Django settings for EMPLINX
 """
 
 import os
@@ -100,7 +100,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "drf_yasg",
-    # Core Skylinx apps
+    # Core EMPLINX apps
     "skylinx_auth",
     THEME_APP,
     "base",
@@ -186,7 +186,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    # Skylinx-specific middlewares
+    # EMPLINX-specific middlewares
     # licensing replaced by per-company subscriptions (SaaS multi-tenant)
     "subscriptions.middleware.SubscriptionMiddleware",
     "base.middleware.CompanyMiddleware",
@@ -285,7 +285,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                # Skylinx dynamic context processors
+                # EMPLINX dynamic context processors
                 "skylinx.config.get_MENUS",
                 "base.context_processors.get_companies",
                 "base.context_processors.white_labelling_company",

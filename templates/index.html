@@ -40,7 +40,7 @@
     <link rel="stylesheet" href="{% static 'build/css/pivottable.min.css' %}" />
     <link rel="stylesheet" type="text/css" href="{% static 'css/skylinx-redesign.css' %}">
     <script>
-        // Apply saved Skylinx theme before paint to avoid flash
+        // Apply saved EMPLINX theme before paint to avoid flash
         (function () {
             try {
                 if (localStorage.getItem('skylinx-theme') === 'dark') {
@@ -164,13 +164,13 @@
                             <!-- End of check in/out button in nav bar -->
                         {% endif %}
 
-                        <!-- Start of Skylinx theme toggle -->
+                        <!-- Start of EMPLINX theme toggle -->
                         <div class="oh-navbar__action-icons" title="{% trans 'Toggle theme' %}">
                             <button type="button" id="skylinxThemeToggle" class="sx-theme-toggle" aria-label="{% trans 'Toggle dark mode' %}">
                                 <ion-icon name="moon-outline" id="skylinxThemeIcon"></ion-icon>
                             </button>
                         </div>
-                        <!-- End of Skylinx theme toggle -->
+                        <!-- End of EMPLINX theme toggle -->
 
                         {% if show_section %}
                             <!-- Start of settings button in nav bar -->
@@ -355,7 +355,7 @@
         </script>
     {% endif %}
     <script>
-        // Skylinx light/dark theme toggle
+        // EMPLINX light/dark theme toggle
         (function () {
             var body = document.body;
             document.documentElement.classList.remove('skylinx-dark-pre');

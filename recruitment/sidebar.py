@@ -1,7 +1,7 @@
 """
 recruitment/sidebar.py
 
-To set Skylinx sidebar for onboarding
+To set EMPLINX sidebar for onboarding
 """
 
 from django.apps import apps

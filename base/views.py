@@ -699,6 +699,10 @@ def login_user(request):
 
         login(request, user)
 
+        if request.POST.get("accept_terms") == "on":
+            user.accepted_terms = True
+            user.save()
+
         messages.success(request, _("Login successful."))
 
         # Ensure `next_url` is a safe local URL
@@ -714,6 +718,18 @@ def login_user(request):
     return render(
         request, "login.html", {"initialize_database": initialize_database_condition()}
     )
+
+
+def check_terms_acceptance(request):
+    from django.http import JsonResponse
+    username = request.GET.get("username", "").strip()
+    if not username:
+        return JsonResponse({"accepted": False})
+    
+    user = _resolve_login_user(username)
+    if user and getattr(user, 'accepted_terms', False):
+        return JsonResponse({"accepted": True})
+    return JsonResponse({"accepted": False})
 
 
 def include_employee_instance(request, form):
@@ -791,7 +807,7 @@ def password_reset_otp(request):
             backend = ConfiguredEmailBackend()
             try:
                 EmailMessage(
-                    subject="Your Skylinx HRMS password reset code",
+                    subject="Your EMPLINX password reset code",
                     body=(
                         f"Your password reset code is {otp}\n\n"
                         "It expires in 10 minutes. If you didn't request this, ignore this email."
@@ -841,7 +857,7 @@ def reset_send_success(request):
 
 class SkylinxPasswordResetView(PasswordResetView):
     """
-    Skylinx View for Reset Password
+    EMPLINX View for Reset Password
     """
 
     template_name = "forgot_password.html"
@@ -889,7 +905,7 @@ class SkylinxPasswordResetView(PasswordResetView):
 
 class EmployeePasswordResetView(PasswordResetView):
     """
-    Skylinx View for Employee Reset Password
+    EMPLINX View for Employee Reset Password
     """
 
     template_name = "forgot_password.html"
@@ -2063,7 +2079,7 @@ def mail_server_test_email(request):
     instance_id = request.GET.get("instance_id")
     white_labelling = getattr(settings, "WHITE_LABELLING", False)
     image_path = path.join(settings.STATIC_ROOT, "images/ui/skylinx-logo.png")
-    company_name = "Skylinx"
+    company_name = "EMPLINX"
 
     if white_labelling:
         hq = Company.objects.filter(hq=True).last()
@@ -2085,7 +2101,7 @@ def mail_server_test_email(request):
         form = DynamicMailTestForm(request.POST)
         if form.is_valid():
             email_to = form.cleaned_data["to_email"]
-            subject = _("Test mail from Skylinx")
+            subject = _("Test mail from EMPLINX")
 
             # HTML content
             html_content = f"""

@@ -423,7 +423,7 @@ THEMES_DATA = [
 
 class SkylinxColorTheme(SkylinxModel):
     """
-    Model to store predefined color themes for Skylinx
+    Model to store predefined color themes for EMPLINX
     """
 
     name = models.CharField(max_length=100, unique=True, verbose_name=_("Name"))

@@ -221,7 +221,7 @@ class COSECUserForm(Form):
 
 class DahuaUserForm(Form):
     """
-    This form is used to map a Skylinx employee to a user entry on a Dahua biometric device.
+    This form is used to map a EMPLINX employee to a user entry on a Dahua biometric device.
     """
 
     CARD_STATUS_CHOICES = [
@@ -336,10 +336,10 @@ class DahuaUserForm(Form):
 
 class MapBioUsers(ModelForm):
     """
-    Form for mapping biometric users to Skylinx employees.
+    Form for mapping biometric users to EMPLINX employees.
 
     This form is used to associate a biometric user (from a biometric device) with
-    an employee in the Skylinx system.
+    an employee in the EMPLINX system.
     """
 
     class Meta:

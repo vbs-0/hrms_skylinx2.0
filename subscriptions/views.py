@@ -480,7 +480,7 @@ def subscription_update(request, company_id):
             try:
                 backend = ConfiguredEmailBackend()
                 send_mail(
-                    subject="Welcome to Skylinx!",
+                    subject="Welcome to EMPLINX!",
                     message=f"Your account for {company.company} has been set up.\nUsername: {admin.username}\nLogin at our portal.",
                     from_email=None,
                     recipient_list=[admin.email],

@@ -1,4 +1,4 @@
-# Gunicorn configuration for Skylinx-HR
+# Gunicorn configuration for EMPLINX-HR
 # This file provides advanced configuration options for the WSGI server
 
 import multiprocessing

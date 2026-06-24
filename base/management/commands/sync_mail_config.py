@@ -37,7 +37,7 @@ class Command(BaseCommand):
         cfg.use_ssl = getattr(settings, "EMAIL_USE_SSL", False)
         cfg.fail_silently = False
         if not cfg.display_name:
-            cfg.display_name = "Skylinx HRMS"
+            cfg.display_name = "EMPLINX"
         cfg.save()
 
         self.stdout.write(self.style.SUCCESS(f"Primary mail config synced: {user}@{host}:{cfg.port}"))

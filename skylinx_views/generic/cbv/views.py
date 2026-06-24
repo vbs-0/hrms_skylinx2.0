@@ -1488,7 +1488,7 @@ class SkylinxListView(ListView):
 
 class SkylinxSectionView(TemplateView):
     """
-    Skylinx Template View
+    EMPLINX Template View
     """
 
     def __init__(self, **kwargs: Any) -> None:
@@ -1540,8 +1540,8 @@ class SkylinxDetailedView(DetailView):
     title = _("Detailed View")
     template_name = "generic/skylinx_detailed_view.html"
     header: dict = {
-        "title": "Skylinx",
-        "subtitle": "Skylinx Detailed View",
+        "title": "EMPLINX",
+        "subtitle": "EMPLINX Detailed View",
         "avatar": "",
     }
     body: list = []

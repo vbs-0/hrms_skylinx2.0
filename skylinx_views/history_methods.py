@@ -17,13 +17,13 @@ class Bot:
         self.__str__()
 
     def __str__(self) -> str:
-        return "Skylinx Bot"
+        return "EMPLINX Bot"
 
     def get_avatar(self):
         """
         Get avatar
         """
-        return "https://ui-avatars.com/api/?name=Skylinx+Bot&background=random"
+        return "https://ui-avatars.com/api/?name=EMPLINX+Bot&background=random"
 
 
 def _check_and_delete(entry1, entry2, dry_run=False):

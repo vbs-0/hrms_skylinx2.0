@@ -2,7 +2,7 @@
 models.py
 =========
 
-This module defines the abstract base model `SkylinxModel` for the Skylinx HRMS project.
+This module defines the abstract base model `SkylinxModel` for the EMPLINX project.
 The `SkylinxModel` provides common fields and functionalities for other models within
 the application, such as tracking creation and modification timestamps and user
 information, audit logging, and active/inactive status management.
@@ -96,7 +96,7 @@ def upload_path(instance, filename):
 class SkylinxModel(models.Model, metaclass=SkylinxModelBase):
     """
     An abstract base model that includes common fields and functionalities
-    for models within the Skylinx application.
+    for models within the EMPLINX application.
     """
 
     created_at = models.DateTimeField(

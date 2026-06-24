@@ -9,11 +9,11 @@ from skylinx_api.schema import OrderedTagSchemaGenerator
 # Create schema view for Swagger and ReDoc
 schema_view = get_schema_view(
     openapi.Info(
-        title="Skylinx API",
+        title="EMPLINX API",
         default_version="v1",
-        description="API documentation for Skylinx HRMS. Click the 'Authorize' button at the top to authenticate.",
-        terms_of_service="https://www.skylinx.com/terms/",
-        contact=openapi.Contact(email="support@skylinx.com"),
+        description="API documentation for EMPLINX. Click the 'Authorize' button at the top to authenticate.",
+        terms_of_service="https://www.emplinx.com/terms/",
+        contact=openapi.Contact(email="support@emplinx.com"),
         license=openapi.License(name="BSD License"),
     ),
     public=True,

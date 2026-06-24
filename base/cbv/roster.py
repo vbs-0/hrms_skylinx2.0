@@ -649,7 +649,7 @@ class RosterTemplateDownloadView(View):
                     c.fill = off_fill
                     c.font = off_font
                     if off_reason != "Company Leave":
-                        c.comment = Comment(f"Holiday: {off_reason}", "Skylinx")
+                        c.comment = Comment(f"Holiday: {off_reason}", "EMPLINX")
                 elif d.weekday() >= 5:
                     c.fill = weekend_fill
 

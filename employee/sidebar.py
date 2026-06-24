@@ -1,7 +1,7 @@
 """
 employee/sidebar.py
 
-To set Skylinx sidebar for employee
+To set EMPLINX sidebar for employee
 """
 
 from django.urls import reverse_lazy

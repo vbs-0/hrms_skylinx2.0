@@ -1,5 +1,5 @@
 """
-Skylinx management command to create a new user and associated employee.
+EMPLINX management command to create a new user and associated employee.
 """
 
 import uuid
@@ -12,7 +12,7 @@ from skylinx_auth.models import SkylinxUser
 
 class Command(BaseCommand):
     """
-    Skylinx management command to create a new user and associated employee.
+    EMPLINX management command to create a new user and associated employee.
     """
 
     help = "Creates a new user"

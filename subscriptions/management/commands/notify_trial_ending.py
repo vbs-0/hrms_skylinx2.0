@@ -43,7 +43,7 @@ class Command(BaseCommand):
                         f"Hi {sub.company},\n\n"
                         f"Your free trial ends in {days_left} day(s). "
                         f"Pick a plan to keep your account active.\n\n"
-                        f"— Skylinx HRMS"
+                        f"— EMPLINX"
                     ),
                     from_email=None,  # backend default
                     recipient_list=[email],

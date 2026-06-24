@@ -2475,10 +2475,10 @@ def cosec_biometric_attendance_scheduler(device_id):
 
 def dahua_biometric_attendance_logs(device):
     """
-    Retrieves logs from a Dahua biometric device and marks attendance in Skylinx.
+    Retrieves logs from a Dahua biometric device and marks attendance in EMPLINX.
 
     This function fetches biometric logs from the specified device, processes the attendance records,
-    and updates the attendance system in Skylinx. If an employee has an active clock-in record,
+    and updates the attendance system in EMPLINX. If an employee has an active clock-in record,
     it marks their clock-out; otherwise, it registers a new clock-in entry.
 
     Args:

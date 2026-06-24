@@ -119,7 +119,7 @@ class MobileCheckInAPIView(APIView):
                 print(f"Geopy calculation error: {e}")
                 pass
 
-        # 4. Perform check-in (Sync with Skylinx Core Shift/Attendance logic)
+        # 4. Perform check-in (Sync with EMPLINX Core Shift/Attendance logic)
         if request.user.employee_get.check_online():
             return Response({
                 "success": False,

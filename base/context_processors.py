@@ -219,12 +219,12 @@ def white_labelling_company(request):
             company = hq
 
         return {
-            "white_label_company_name": company.company if company else "Skylinx HRMS",
+            "white_label_company_name": company.company if company else "EMPLINX",
             "white_label_company": company,
         }
     else:
         return {
-            "white_label_company_name": "Skylinx HRMS",
+            "white_label_company_name": "EMPLINX",
             "white_label_company": None,
         }
 

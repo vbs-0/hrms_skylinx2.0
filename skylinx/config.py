@@ -1,7 +1,7 @@
 """
 skylinx/config.py
 
-Skylinx app configurations
+EMPLINX app configurations
 """
 
 import importlib
@@ -107,7 +107,7 @@ def generate_sidebar(request):
                             ):
                                 MENU["submenu"].append(submenu)
 
-        # Skylinx: explicit module ordering for the main navigation
+        # EMPLINX: explicit module ordering for the main navigation
         SIDEBAR_ORDER = [
             "employee", "recruitment", "onboarding", "attendance", "leave",
             "payroll", "project", "asset", "helpdesk", "offboarding",

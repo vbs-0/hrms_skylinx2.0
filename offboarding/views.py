@@ -949,7 +949,7 @@ def resignation_tab(request, pk):
 def resignation_list_swap_response(original_request):
     """
     Render the resignation list CBV fragment for hx-target=\"#listContainer\" swaps.
-    Subrequest keeps session (Skylinx CACHE filters) without relying on client-side JS reload.
+    Subrequest keeps session (EMPLINX CACHE filters) without relying on client-side JS reload.
     """
     from django.test import RequestFactory
 

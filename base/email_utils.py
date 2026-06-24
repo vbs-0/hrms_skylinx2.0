@@ -55,13 +55,13 @@ def send_async(subject, body, to):
 
 def send_company_welcome(company, admin_user, username):
     send_async(
-        f"Welcome to Skylinx HRMS — {company.company}",
+        f"Welcome to EMPLINX — {company.company}",
         (
-            f"Hi,\n\nYour company '{company.company}' is now set up on Skylinx HRMS.\n\n"
+            f"Hi,\n\nYour company '{company.company}' is now set up on EMPLINX.\n\n"
             f"Sign in: {_login_url()}\n"
             f"Username: {username}\n\n"
             "Use the password you set to log in, then add your departments and team.\n\n"
-            "— Skylinx HRMS"
+            "— EMPLINX"
         ),
         [admin_user.email],
     )
@@ -84,7 +84,7 @@ def send_employee_welcome(employee):
             f"Sign in: {_login_url()}\n"
             f"Username: {user.username}\n"
             "Password: your phone number — please change it after your first login.\n\n"
-            "— Skylinx HRMS"
+            "— EMPLINX"
         ),
         [employee.email, getattr(getattr(employee, "employee_work_info", None), "email", None)],
     )

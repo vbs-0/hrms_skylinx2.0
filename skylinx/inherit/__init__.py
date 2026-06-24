@@ -1,7 +1,7 @@
 """
 skylinx/inherit/
 
-Extension infrastructure for Skylinx — model field injection and CBV replacement.
+Extension infrastructure for EMPLINX — model field injection and CBV replacement.
 
 Key public symbols re-exported here for convenience:
 

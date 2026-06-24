@@ -21,7 +21,7 @@ installed_apps = [
 EMAIL_BACKEND = 'outlook_auth.backends.OutlookBackend'
 
 """
-# NOTE: Skylinx should be run in https
+# NOTE: EMPLINX should be run in https
 
 # Please add redircet url in Azure app authentication URi and AzureApi model redirect URi
 

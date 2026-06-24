@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 
 class SkylinxUser(AbstractUser):
     is_new_employee = models.BooleanField(default=False)
+    accepted_terms = models.BooleanField(default=False)
 
     class Meta:
         swappable = "AUTH_USER_MODEL"

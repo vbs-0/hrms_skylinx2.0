@@ -1,5 +1,5 @@
 """
-This module provides Skylinx ModelForms for creating and managing leave-related data,
+This module provides EMPLINX ModelForms for creating and managing leave-related data,
 including leave type, leave request, leave allocation request, holidays and company leaves.
 """
 
