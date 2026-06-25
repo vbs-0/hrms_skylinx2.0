@@ -472,9 +472,8 @@ def choosesubordinates(request, form, perm):
         return form
     manager = Employee.objects.filter(employee_user_id=user).first()
     if not manager:
-        form.fields["employee_id"].queryset = _scope_employee_choices(
-            request, queryset
-        ).distinct()
+        # If not a manager, only show their own employee record
+        form.fields["employee_id"].queryset = Employee.objects.filter(employee_user_id=user)
         return form
 
     # Start with direct subordinates
