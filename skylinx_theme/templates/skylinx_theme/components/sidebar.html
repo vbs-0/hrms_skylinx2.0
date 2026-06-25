@@ -1294,6 +1294,14 @@ function removeId(element, storeKey = "selectedInstances") {
     } else {
       closeAll({ force: true });
     }
+
+    // Re-render toolbar and update active menu after HTMX swaps
+    if (window.htmx) {
+      document.body.addEventListener("htmx:afterSwap", function () {
+        updateActiveMenuFromUrl();
+        renderSubmodulesToolbar();
+      });
+    }
   });
 
 function isChartEmpty(chart) {

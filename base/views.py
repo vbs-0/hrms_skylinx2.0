@@ -757,27 +757,28 @@ def include_employee_instance(request, form):
     """
     if "employee_id" not in form.fields:
         return form
-        
-    # Get existing queryset instead of overwriting
+
+    # Get existing queryset
     queryset = form.fields["employee_id"].queryset
-    
-    # Exclude superusers
+
+    # Apply basic filters without replacing the entire queryset
     queryset = queryset.exclude(employee_user_id__is_superuser=True)
-    
     selected_company = request.session.get("selected_company")
     if selected_company and selected_company != "all":
         queryset = queryset.filter(employee_work_info__company_id=selected_company)
-    
+
     # Ensure the current user's own employee is included
     employee = Employee.objects.filter(employee_user_id=request.user).exclude(
         employee_user_id__is_superuser=True
-    )
-    if selected_company and selected_company != "all":
-        employee = employee.filter(employee_work_info__company_id=selected_company)
-    if employee.first() is not None:
-        if queryset.filter(id=employee.first().id).first() is None:
-            queryset = queryset.distinct() | employee.distinct()
-    
+    ).first()
+    if employee:
+        # Check if employee is already in queryset
+        if not queryset.filter(id=employee.id).exists():
+            # Combine querysets
+            queryset = queryset | Employee.objects.filter(id=employee.id)
+        # Deduplicate
+        queryset = queryset.distinct()
+
     form.fields["employee_id"].queryset = queryset
     return form
 
