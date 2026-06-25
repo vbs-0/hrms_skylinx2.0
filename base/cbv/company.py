@@ -25,6 +25,14 @@ from skylinx_views.generic.cbv.views import (
 )
 
 
+def _company_is_user_company(request, instance, *_args, **_kwargs):
+    if not request or not instance or getattr(request.user, "is_superuser", False):
+        return False
+    employee = getattr(request.user, "employee_get", None)
+    company = getattr(getattr(employee, "employee_work_info", None), "company_id", None)
+    return bool(company and getattr(instance, "id", None) == company.id)
+
+
 @method_decorator(login_required, name="dispatch")
 @method_decorator(permission_required(perm="base.view_company"), name="dispatch")
 class CompanyListView(SkylinxListView):
@@ -47,6 +55,21 @@ class CompanyListView(SkylinxListView):
 								hx-target="#genericModalBody"
 								data-toggle="oh-modal-toggle"
 								data-target="#genericModal"
+                      """,
+                }
+            )
+        else:
+            self.actions.append(
+                {
+                    "action": _("Edit"),
+                    "icon": "create-outline",
+                    "accessibility": "base.cbv.company._company_is_user_company",
+                    "attrs": """
+                        class="oh-btn oh-btn--light-bkg w-100"
+                        hx-get='{get_update_url}?instance_ids={ordered_ids}'
+                        hx-target="#genericModalBody"
+                        data-toggle="oh-modal-toggle"
+                        data-target="#genericModal"
                       """,
                 }
             )
