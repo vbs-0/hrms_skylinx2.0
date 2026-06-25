@@ -1725,7 +1725,7 @@ def group_assign(request):
             "group": group_id,
             "employee": Employee.objects.filter(
                 employee_user_id__groups__id=group_id
-            ).values_list("id", flat=True),
+            ).exclude(employee_user_id__is_superuser=True).values_list("id", flat=True),
         }
     )
     if request.POST:
@@ -1787,7 +1787,7 @@ def user_group_view(request):
     search = ""
     if request.GET.get("search") is not None:
         search = request.GET["search"]
-    user_group = Group.objects.filter()
+    user_group = groups_for_request(request).filter(name__icontains=search)
     return render(request, "base/auth/group_assign.html", {"data": user_group})
 
 

@@ -6,6 +6,7 @@
 - [ ] Dynamic create dropdowns: show `Create New ...` only when the current user can actually add that related object.
 - [ ] Reporting manager dropdown: must never show the owner/superuser for client users.
 - [ ] Subordinate pickers: must stay company-scoped and never include owner/superuser records.
+- [ ] User group assign modal: must not list the owner or cross-company users for client tenants.
 - [ ] Dynamic create job role branch: verify the Job Title / Job Role create flow refreshes the dropdown after modal submit.
 - [ ] Duplicate selected-company logic: middleware and context processors still both manage company session state.
 - [ ] Stale selected-company session: keep replacing hard `Company.objects.get(id=selected_company)` with safe fallbacks.

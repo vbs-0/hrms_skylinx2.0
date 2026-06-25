@@ -33,6 +33,7 @@ from django.utils.http import urlsafe_base64_encode
 from django.utils.translation import gettext_lazy as _
 
 from base.methods import reload_queryset
+from base.rbac import current_company, groups_for_request
 from base.models import (
     Announcement,
     AnnouncementComment,
@@ -464,7 +465,7 @@ class AssignUserGroup(Form):
     """
 
     employee = SkylinxMultiSelectField(
-        queryset=Employee.objects.all(),
+        queryset=Employee.objects.none(),
         widget=SkylinxMultiSelectWidget(
             filter_route_name="employee-widget-filter",
             filter_class=EmployeeFilter,
@@ -477,7 +478,7 @@ class AssignUserGroup(Form):
     )
 
     group = forms.ModelChoiceField(
-        queryset=Group.objects.all(),
+        queryset=Group.objects.none(),
         error_messages={
             "invalid_choice": _("Invalid group ID."),
         },
@@ -486,6 +487,13 @@ class AssignUserGroup(Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         reload_queryset(self.fields)
+        request = getattr(__import__("skylinx.skylinx_middlewares", fromlist=["_thread_locals"])._thread_locals, "request", None)
+        company = current_company(request) if request else None
+        if company:
+            self.fields["employee"].queryset = Employee.objects.filter(
+                employee_work_info__company_id=company
+            ).exclude(employee_user_id__is_superuser=True)
+            self.fields["group"].queryset = groups_for_request(request)
 
     def save(self):
         """
@@ -521,12 +529,19 @@ class AddToUserGroupForm(Form):
     Form to add employee in to  groups
     """
 
-    group = forms.ModelMultipleChoiceField(queryset=Group.objects.all(), required=False)
-    employee = forms.ModelChoiceField(queryset=Employee.objects.all())
+    group = forms.ModelMultipleChoiceField(queryset=Group.objects.none(), required=False)
+    employee = forms.ModelChoiceField(queryset=Employee.objects.none())
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         reload_queryset(self.fields)
+        request = getattr(__import__("skylinx.skylinx_middlewares", fromlist=["_thread_locals"])._thread_locals, "request", None)
+        company = current_company(request) if request else None
+        if company:
+            self.fields["employee"].queryset = Employee.objects.filter(
+                employee_work_info__company_id=company
+            ).exclude(employee_user_id__is_superuser=True)
+            self.fields["group"].queryset = groups_for_request(request)
 
     def save(self):
         """
