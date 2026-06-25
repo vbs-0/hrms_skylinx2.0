@@ -31,11 +31,12 @@ SUBMENUS = [
     {
         "menu": _("Payslips"),
         "redirect": reverse("view-payslip"),
+        "accessibility": "payroll.sidebar.payslip_accessibility",
     },
-
     {
         "menu": _("Expenses"),
         "redirect": reverse("view-reimbursement"),
+        "accessibility": "payroll.sidebar.expense_accessibility",
     },
     {
         "menu": _("Income Tax (TDS)"),
@@ -68,6 +69,20 @@ def loan_accessibility(request, submenu, user_perms, *args, **kwargs):
 
 def federal_tax_accessibility(request, submenu, user_perms, *args, **kwargs):
     return request.user.has_perm("payroll.view_filingstatus")
+
+
+def payslip_accessibility(request, submenu, user_perms, *args, **kwargs):
+    """
+    Payslips is a self-service page. Everyone with view_payslip can access.
+    """
+    return request.user.has_perm("payroll.view_payslip")
+
+
+def expense_accessibility(request, submenu, user_perms, *args, **kwargs):
+    """
+    Expenses is a self-service page for submitting reimbursement requests.
+    """
+    return request.user.has_perm("payroll.view_reimbursement")
 
 
 def form16_accessibility(request, submenu, user_perms, *args, **kwargs):

@@ -379,17 +379,17 @@ def attendance_view(request):
     )
     filter_obj = AttendanceFilters(request.GET, queryset=attendances)
     attendances = filtersubordinates(
-        request, filter_obj.qs, "attendance.view_attendance"
+        request, filter_obj.qs, "employee.change_employee"
     )
     validate_attendances = AttendanceFilters(
         request.GET, queryset=validate_attendances
     ).qs
     validate_attendances = filtersubordinates(
-        request, validate_attendances, "attendance.view_attendance"
+        request, validate_attendances, "employee.change_employee"
     )
     ot_attendances = AttendanceFilters(request.GET, queryset=ot_attendances).qs
     ot_attendances = filtersubordinates(
-        request, ot_attendances, "attendance.view_attendance"
+        request, ot_attendances, "employee.change_employee"
     )
     check_attendance = Attendance.objects.all()
     if check_attendance.exists():
@@ -1190,7 +1190,7 @@ def on_time_view(request):
     """
     total_attendances = AttendanceFilters(request.GET).qs
     total_attendances = filtersubordinates(
-        request, total_attendances, "attendance.view_attendance"
+        request, total_attendances, "employee.change_employee"
     )
     ids_to_exclude = AttendanceLateComeEarlyOut.objects.filter(
         attendance_id__in=total_attendances.values_list("id", flat=True),

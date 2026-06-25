@@ -70,12 +70,14 @@ def leave_request_accessibility(request, submenu, user_perms, *args, **kwargs):
 
 
 def type_accessibility(request, submenu, user_perms, *args, **kwargs):
-    return request.user.has_perm("leave.view_leavetype")
+    return request.user.has_perm("leave.change_leaverequest") or is_reportingmanager(
+        request.user
+    )
 
 
 def assign_accessibility(request, submenu, user_perm, *args, **kwargs):
     submenu["redirect"] = submenu["redirect"] + "?field=leave_type_id"
-    return request.user.has_perm("leave.view_availableleave") or is_reportingmanager(
+    return request.user.has_perm("leave.change_leaverequest") or is_reportingmanager(
         request.user
     )
 

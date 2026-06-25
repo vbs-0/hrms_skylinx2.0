@@ -85,7 +85,7 @@ def request_attendance_view(request):
     )
     requests = filtersubordinates(
         request=request,
-        perm="attendance.view_attendance",
+        perm="employee.change_employee",
         queryset=requests,
     )
     requests = requests | Attendance.objects.filter(
@@ -102,7 +102,7 @@ def request_attendance_view(request):
         data_dict.pop(key)
     attendances = filtersubordinates(
         request=request,
-        perm="attendance.view_attendance",
+        perm="employee.change_employee",
         queryset=Attendance.objects.all(),
     )
     attendances = attendances | Attendance.objects.filter(

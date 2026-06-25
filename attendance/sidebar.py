@@ -25,6 +25,7 @@ SUBMENUS = [
     {
         "menu": _("Attendance Requests"),
         "redirect": reverse_lazy("request-attendance-view"),
+        "accessibility": "attendance.sidebar.attendance_requests_accessibility",
     },
 
     {
@@ -67,6 +68,16 @@ def dashboard_accessibility(request, submenu, user_perms, *args, **kwargs):
     Check if the user has permission to view attendance or is a reporting manager.
     """
     return request.user.has_perm("attendance.view_attendance") or is_reportingmanager(
+        request.user
+    )
+
+
+def attendance_requests_accessibility(request, submenu, user_perms, *args, **kwargs):
+    """
+    Attendance Requests list is for managers/HR only. Regular employees
+    should use "My Attendances" for their own records.
+    """
+    return request.user.has_perm("attendance.change_attendance") or is_reportingmanager(
         request.user
     )
 

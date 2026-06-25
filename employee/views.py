@@ -50,6 +50,7 @@ from base.methods import (
     check_manager,
     choosesubordinates,
     filtersubordinates,
+    filtersubordinates,
     filtersubordinatesemployeemodel,
     get_key_instances,
     get_pagination,
@@ -1283,6 +1284,7 @@ def employee_view(request):
         "default_accessibility"
     )
     queryset = base_qs.filter()
+    queryset = filtersubordinates(request, queryset, "employee.change_employee")
     filter_obj = EmployeeFilter(request.GET, queryset=queryset).qs
     if request.GET.get("is_active") != "False":
         filter_obj = filter_obj.filter(is_active=True)

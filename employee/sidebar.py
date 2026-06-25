@@ -82,12 +82,13 @@ def shift_roster_accessibility(request, submenu, user_perms, *args, **kwargs):
 
 def employee_accessibility(request, submenu, user_perms, *args, **kwargs):
     """
-    Employee accessibility method restricted to superusers, managers, or view_employee permission.
+    Employee accessibility method restricted to superusers, managers, or change_employee permission.
+    Regular employees (who only have view_employee) should not see the full employee list.
     """
     return (
         request.user.is_superuser
         or is_reportingmanager(request.user)
-        or request.user.has_perm("employee.view_employee")
+        or request.user.has_perm("employee.change_employee")
     )
 
 
