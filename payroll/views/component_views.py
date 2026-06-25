@@ -366,12 +366,21 @@ def allowances_deductions_tab(request, emp_id):
                     ):
                         applicable = False
                         break
-            if applicable:
+            if applicable and deduction not in employee_deductions:
                 employee_deductions.append(deduction)
 
+        employee_deductions = [
+            deduction
+            for deduction in employee_deductions
+            if operator_mapping.get(deduction.if_condition)(
+                basic_pay if deduction.if_choice == "basic_pay" else 0,
+                deduction.if_amount,
+            )
+        ]
+
     allowance_ids = (
-        json.dumps([instance.id for instance in employee_deductions])
-        if employee_deductions
+        json.dumps([instance.id for instance in employee_allowances])
+        if employee_allowances
         else None
     )
     deduction_ids = (
@@ -901,7 +910,7 @@ def generate_payslip(request):
             start_date = form.cleaned_data["start_date"]
             end_date = form.cleaned_data["end_date"]
 
-            group_name = form.cleaned_data["group_name"]
+            # group_name = form.cleaned_data["group_name"]
             emp_count = employees.count()
             for employee in employees:
                 contract = Contract.objects.filter(
@@ -924,7 +933,7 @@ def generate_payslip(request):
                 payslip["payslip"] = payslip
                 data = {}
                 data["employee"] = employee
-                data["group_name"] = group_name
+                # data["group_name"] = group_name
                 data["start_date"] = payslip["start_date"]
                 data["end_date"] = payslip["end_date"]
                 data["status"] = "draft"
@@ -952,9 +961,7 @@ def generate_payslip(request):
                     icon="close",
                 )
             messages.success(request, f"{emp_count} payslip saved as draft")
-            return redirect(
-                f"/payroll/view-payslip/?group_by=group_name&active_group={group_name}"
-            )
+            return redirect("/payroll/view-payslip/")
 
     return render(request, "payroll/common/form.html", {"form": form})
 
@@ -1200,7 +1207,7 @@ def view_payslip(request):
     bulk_form = forms.GeneratePayslipForm()
     field = request.GET.get("group_by")
     if field in Payslip.__dict__.keys():
-        payslips = payslips.filter(group_name__isnull=False).order_by(field)
+        payslips = payslips.order_by(field)
     payslips = paginator_qry(payslips, request.GET.get("page"))
     previous_data = request.GET.urlencode()
     data_dict = parse_qs(previous_data)
@@ -1239,7 +1246,7 @@ def filter_payslip(request):
     view = request.GET.get("view")
     if view == "card":
         template = "payroll/payslip/group_payslips.html"
-        payslips = payslips.filter(group_name__isnull=False).order_by("-group_name")
+        # payslips = payslips.filter(group_name__isnull=False).order_by("-group_name")
     payslips = sortby(request, payslips, "sortby")
     data_dict = []
     if not request.GET.get("dashboard"):
@@ -1267,13 +1274,19 @@ def filter_payslip(request):
 
 
 @login_required
-@permission_required("payroll.change_payslip")
 def payslip_export(request):
     """
     This view exports payslip data based on selected fields and filters,
     and generates an Excel file for download.
     """
-    if request.META.get("HTTP_HX_REQUEST"):
+    if not (
+        request.user.has_perm("payroll.change_payslip")
+        or request.user.has_perm("payroll.view_payslip")
+        or request.user.has_perm("payroll.add_payslip")
+    ):
+        return HttpResponse(_("Permission denied"), status=403)
+
+    if request.META.get("HTTP_HX_REQUEST") and not request.GET.getlist("selected_fields"):
         return render(
             request,
             "payroll/payslip/payslip_export_filter.html",
@@ -1840,12 +1853,18 @@ def create_reimbursement(request):
 
     if instance_id:
         instance = Reimbursement.objects.filter(id=instance_id).first()
+        if instance and not (
+            request.user.is_superuser
+            or request.user.has_perm("payroll.change_reimbursement")
+            or instance.employee_id == request.user.employee_get
+        ):
+            return render(request, "no_perm.html")
 
     if request.method == "POST":
         form = forms.ReimbursementForm(request.POST, request.FILES, instance=instance)
         if form.is_valid():
             form.save()
-            messages.success(request, "Reimbursement saved successfully")
+            messages.success(request, "Expense saved successfully")
             return SkylinxRedirect(request)
     else:
         form = forms.ReimbursementForm(instance=instance)
@@ -1975,7 +1994,7 @@ def approve_reimbursements(request):
             notify.send(
                 request.user.employee_get,
                 recipient=emp.employee_user_id,
-                verb="Your reimbursement request has been rejected.",
+                verb="Your expense request has been rejected.",
                 verb_ar="تم رفض طلب استرداد النفقات الخاص بك.",
                 verb_de="Ihr Erstattungsantrag wurde abgelehnt.",
                 verb_es="Su solicitud de reembolso ha sido rechazada.",
@@ -1987,7 +2006,7 @@ def approve_reimbursements(request):
             notify.send(
                 request.user.employee_get,
                 recipient=emp.employee_user_id,
-                verb="Your reimbursement request has been approved.",
+                verb="Your expense request has been approved.",
                 verb_ar="تمت الموافقة على طلب استرداد نفقاتك.",
                 verb_de="Ihr Rückerstattungsantrag wurde genehmigt.",
                 verb_es="Se ha aprobado tu solicitud de reembolso.",
@@ -2022,12 +2041,12 @@ def delete_reimbursements(request):
             recipients.append(recipient)
             seen_user_ids.add(recipient.id)
     reimbursements.delete()
-    messages.success(request, "Reimbursements deleted")
+    messages.success(request, "Expenses deleted")
     if recipients:
         notify.send(
             request.user.employee_get,
             recipient=recipients,
-            verb="Your reimbursement request has been deleted.",
+            verb="Your expense request has been deleted.",
             verb_ar="تم حذف طلب استرداد نفقاتك.",
             verb_de="Ihr Rückerstattungsantrag wurde gelöscht.",
             verb_es="Tu solicitud de reembolso ha sido eliminada.",
@@ -2201,6 +2220,14 @@ def payslip_detailed_export_data(request):
     payslips = PayslipFilter(request.GET).qs
     selected_fields = request.GET.getlist("selected_fields")
     form = forms.PayslipExportColumnForm()
+
+    ids = request.GET.get("ids", "[]")
+    try:
+        id_list = json.loads(ids)
+        if id_list:
+            payslips = Payslip.objects.filter(id__in=id_list)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        pass
 
     allowances = Allowance.objects.all()
     deductions = Deduction.objects.all()
@@ -2401,7 +2428,6 @@ def payslip_detailed_export_data(request):
 
 
 @login_required
-@permission_required("payroll.change_payslip")
 def payslip_detailed_export(request):
     """
     Generate an Excel file for download containing detailed payslip data based on
@@ -2413,6 +2439,12 @@ def payslip_detailed_export(request):
     Returns:
         HttpResponse: A response object with the Excel file as an attachment.
     """
+    if not (
+        request.user.has_perm("payroll.change_payslip")
+        or request.user.has_perm("payroll.view_payslip")
+        or request.user.has_perm("payroll.add_payslip")
+    ):
+        return HttpResponse(_("Permission denied"), status=403)
 
     if request.META.get("HTTP_HX_REQUEST"):
         return render(

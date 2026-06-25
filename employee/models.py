@@ -76,7 +76,7 @@ class Employee(models.Model):
         ("married", _("Married")),
         ("divorced", _("Divorced")),
     )
-    badge_id = models.CharField(max_length=50, null=True, blank=True)
+    badge_id = models.CharField(max_length=50, null=True, blank=True, verbose_name=_("Employee ID"))
     employee_user_id = models.OneToOneField(
         SkylinxUser,
         on_delete=models.CASCADE,
@@ -97,13 +97,23 @@ class Employee(models.Model):
     email = models.EmailField(max_length=254, unique=True)
     phone = models.CharField(max_length=25, validators=[phone_validator])
     address = models.TextField(max_length=200, blank=True, null=True)
-    country = models.CharField(max_length=100, blank=True, null=True)
+    country = models.CharField(max_length=100, blank=True, null=True, default="India")
     state = models.CharField(max_length=100, null=True, blank=True)
     city = models.CharField(max_length=30, null=True, blank=True)
-    zip = models.CharField(max_length=20, null=True, blank=True, verbose_name=_("Zip"))
+    zip = models.CharField(max_length=20, null=True, blank=True, verbose_name=_("PIN Code"))
     dob = models.DateField(null=True, blank=True, verbose_name=_("Date of Birth"))
     gender = models.CharField(
         max_length=10, null=True, choices=choice_gender, default="male"
+    )
+    blood_group = models.CharField(
+        max_length=3,
+        blank=True,
+        null=True,
+        choices=[
+            (g, g)
+            for g in ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"]
+        ],
+        verbose_name=_("Blood Group"),
     )
     qualification = models.CharField(max_length=50, blank=True, null=True)
     experience = models.IntegerField(null=True, blank=True)
@@ -136,6 +146,40 @@ class Employee(models.Model):
     is_directly_converted = models.BooleanField(
         default=False, null=True, blank=True, editable=False
     )
+    # ── India Localization: identity & bank fields ──────────────────────────
+    ACCOUNT_TYPE_CHOICES = [
+        ("savings", _("Savings")),
+        ("current", _("Current")),
+    ]
+    pan_number = models.CharField(
+        max_length=10,
+        null=True,
+        blank=True,
+        unique=True,
+        verbose_name=_("PAN Number"),
+        help_text=_("Permanent Account Number — 10 chars, e.g. ABCDE1234F"),
+    )
+    aadhaar_number = models.CharField(
+        max_length=12,
+        null=True,
+        blank=True,
+        verbose_name=_("Aadhaar Number"),
+        help_text=_("12-digit UIDAI Aadhaar number"),
+    )
+    account_type = models.CharField(
+        max_length=10,
+        null=True,
+        blank=True,
+        choices=ACCOUNT_TYPE_CHOICES,
+        default="savings",
+        verbose_name=_("Bank Account Type"),
+    )
+
+    @property
+    def masked_aadhaar(self):
+        if self.aadhaar_number and len(self.aadhaar_number) >= 4:
+            return f"XXXX XXXX {self.aadhaar_number[-4:]}"
+        return self.aadhaar_number
     objects = SkylinxCompanyManager(
         related_company_field="employee_work_info__company_id"
     )
@@ -710,8 +754,12 @@ class Employee(models.Model):
                 )
 
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
         self.full_clean()
         super().save(*args, **kwargs)
+        if is_new and not self.badge_id:
+            self.badge_id = str(self.pk)
+            super().save(update_fields=["badge_id"])
 
         request = getattr(skylinx_middlewares._thread_locals, "request", None)
         if request and not self.is_active and self.get_archive_condition() is not False:
@@ -811,7 +859,7 @@ class EmployeeWorkInformation(models.Model):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        verbose_name=_("Job Position"),
+        verbose_name=_("Designation"),
     )
     job_role_id = models.ForeignKey(
         JobRole,
@@ -840,7 +888,7 @@ class EmployeeWorkInformation(models.Model):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        verbose_name=_("Work Type"),
+        verbose_name=_("Work Mode"),
     )
 
     employee_type_id = models.ForeignKey(
@@ -848,7 +896,7 @@ class EmployeeWorkInformation(models.Model):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        verbose_name=_("Employee Type"),
+        verbose_name=_("Employment Type"),
     )
     tags = models.ManyToManyField(
         EmployeeTag, blank=True, verbose_name=_("Employee tag")
@@ -880,11 +928,16 @@ class EmployeeWorkInformation(models.Model):
     contract_end_date = models.DateField(
         blank=True, null=True, verbose_name=_("Contract End Date")
     )
-    basic_salary = models.IntegerField(
-        null=True, blank=True, default=0, verbose_name=_("Basic Salary")
+    probation_days = models.IntegerField(
+        blank=True, null=True, verbose_name=_("Probation Period (Days)")
     )
-    salary_hour = models.IntegerField(
-        null=True, blank=True, default=0, verbose_name=_("Salary Per Hour")
+    ctc = models.IntegerField(
+        null=True, blank=True, default=0, verbose_name=_("CTC")
+    )
+    salary_components = models.JSONField(
+        null=True, blank=True, default=dict,
+        verbose_name=_("Salary Components"),
+        help_text=_("Breakdown of CTC: e.g. {\"basic\": 50, \"hra\": 20, \"other\": 30}")
     )
     additional_info = models.JSONField(null=True, blank=True)
     experience = models.FloatField(null=True, blank=True, default=0)
@@ -899,7 +952,40 @@ class EmployeeWorkInformation(models.Model):
     def __str__(self) -> str:
         return f"{self.employee_id} - {self.job_position_id}"
 
+    @property
+    def probation_end(self):
+        """Calculate probation end date from joining date + probation days."""
+        if self.date_joining and self.probation_days:
+            return self.date_joining + timedelta(days=self.probation_days)
+        return None
+
+    @property
+    def basic_salary(self):
+        """Monthly basic pay = (CTC / 12) * basic%.
+
+        This is the per-month basic that feeds the contract wage and the pay
+        register. basic% comes from salary_components (single editable field).
+        """
+        if not self.ctc or not self.salary_components:
+            return 0
+        basic_pct = self.salary_components.get("basic", 0)
+        if basic_pct <= 0:
+            return 0
+        return int(self.ctc / 12 * basic_pct / 100)
+
     def save(self, *args, **kwargs):
+        # Multi-tenant: default an employee's company to the company the creating
+        # admin is acting in. Without this the work info saves company=None, which
+        # makes get_company() None -> no subscription features -> Payroll/Payslip
+        # hidden and the profile shows "Company: None".
+        if self.company_id_id is None:
+            from base.rbac import current_company
+
+            request = getattr(_thread_locals, "request", None)
+            if request is not None:
+                company = current_company(request)
+                if company is not None:
+                    self.company_id = company
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -922,8 +1008,8 @@ class EmployeeWorkInformation(models.Model):
             "shift_id",
             "date_joining",
             "contract_end_date",
-            "basic_salary",
-            "salary_hour",
+            "ctc",
+            "probation_days",
         ]
 
         completed_field_count = sum(
@@ -1001,7 +1087,7 @@ class EmployeeBankDetails(SkylinxModel):
     )
     branch = models.CharField(max_length=50, null=True)
     address = models.TextField(max_length=255, null=True)
-    country = models.CharField(max_length=50, null=True, blank=True)
+    country = models.CharField(max_length=50, null=True, blank=True, default="India")
     state = models.CharField(max_length=50, null=True, blank=True)
     city = models.CharField(max_length=50, null=True, blank=True)
     any_other_code1 = models.CharField(
@@ -1085,6 +1171,9 @@ class Policy(SkylinxModel):
     specific_employees = models.ManyToManyField(Employee, blank=True, editable=False)
     attachments = models.ManyToManyField(PolicyMultipleFile, blank=True)
     company_id = models.ManyToManyField(Company, blank=True, verbose_name=_("Company"))
+    accepted_employees = models.ManyToManyField(
+        Employee, blank=True, related_name="accepted_policies", verbose_name=_("Accepted Employees")
+    )
 
     objects = SkylinxCompanyManager("company_id")
 

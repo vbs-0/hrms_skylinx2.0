@@ -52,7 +52,7 @@
             id="payslip-search"
             name="search"
             placeholder="{% trans 'Search' %}"
-            onkeyup="$('.filterButton')[0].click();"
+            onkeyup="$('.filterButton').first().click();"
           />
         </div>
         <input
@@ -110,7 +110,7 @@
                       id="id_field"
                       name="field"
                       class="select2-selection select2-selection--single"
-                      onchange="$('.filterButton')[0].click();"
+                      onchange="$('.filterButton').first().click();"
                     >
                       {% for field in gp_fields %}
                         <option value="{{ field.0 }}">{% trans field.1 %}</option>
@@ -233,7 +233,7 @@
               role="img"
               aria-label="add outline"
             ></ion-icon
-            >{% trans "Create" %}</a
+            >{% trans "Generate" %}</a
           >
         </div>
       </div>
@@ -367,7 +367,7 @@
         var params = new URLSearchParams(window.location.search);
         $("#payslipViewType").val(viewType);
         setTimeout(function () {
-          $(".filterButton")[0].click();
+          $(".filterButton").first().click();
         }, 10);
 
         $(".oh-btn--view-active").removeClass("oh-btn--view-active");

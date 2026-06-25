@@ -6,6 +6,8 @@ class SkylinxAuditConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "skylinx_audit"
 
+    verbose_name = "Audit"
+
     def ready(self):
         from django.db.models.signals import post_delete, post_save
 

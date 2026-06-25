@@ -44,7 +44,7 @@
     </form>
 </div>
 <script>
-    $(document).on('htmx:load', function () {
+    $(document).off('htmx:load.form_stage_update').on('htmx:load.form_stage_update', function () {
         {% include 'select2.js' %}
         $('#stageUpdateFormHx .col-12 .oh-select').select2()
     });

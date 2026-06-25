@@ -106,7 +106,7 @@ class Company(SkylinxModel):
         null=True,
     )
     objects = models.Manager()
-    date_format = models.CharField(max_length=30, blank=True, null=True)
+    date_format = models.CharField(max_length=30, blank=True, null=True, default="DD-MM-YYYY")
     time_format = models.CharField(max_length=20, blank=True, null=True)
 
     class Meta:
@@ -347,7 +347,19 @@ class WorkType(SkylinxModel):
         super().clean(*args, **kwargs)
         request = getattr(_thread_locals, "request", None)
         if request and request.POST:
-            company = request.POST.getlist("company_id", None)
+            company = request.POST.getlist("company_id")
+            if not company:
+                selected_company = request.session.get("selected_company")
+                if selected_company and selected_company != "all":
+                    company = [selected_company]
+                elif hasattr(request.user, "employee_get") and request.user.employee_get:
+                    work_info = getattr(request.user.employee_get, "employee_work_info", None)
+                    if work_info and work_info.company_id:
+                        company = [str(work_info.company_id.id)]
+                if not company:
+                    first_company = Company.objects.first()
+                    if first_company:
+                        company = [str(first_company.id)]
             work_type = request.POST.get("work_type", None)
             if (
                 WorkType.objects.filter(company_id__id__in=company, work_type=work_type)
@@ -1523,15 +1535,16 @@ class WorkTypeRequest(SkylinxModel):
                 messages.warning(request, "The request entry cannot be deleted.")
 
     def is_any_work_type_request_exists(self):
-        approved_work_type_requests_range = WorkTypeRequest.objects.filter(
-            employee_id=self.employee_id,
-            approved=True,
-            canceled=False,
-            requested_date__range=[self.requested_date, self.requested_till],
-            requested_till__range=[self.requested_date, self.requested_till],
-        ).exclude(id=self.id)
-        if approved_work_type_requests_range:
-            return True
+        if self.requested_till:
+            approved_work_type_requests_range = WorkTypeRequest.objects.filter(
+                employee_id=self.employee_id,
+                approved=True,
+                canceled=False,
+                requested_date__range=[self.requested_date, self.requested_till],
+                requested_till__range=[self.requested_date, self.requested_till],
+            ).exclude(id=self.id)
+            if approved_work_type_requests_range:
+                return True
         approved_work_type_requests = WorkTypeRequest.objects.filter(
             employee_id=self.employee_id,
             approved=True,
@@ -1823,15 +1836,16 @@ class ShiftRequest(SkylinxModel):
                 raise ValidationError(_("Requested till field is required."))
 
     def is_any_request_exists(self):
-        approved_shift_requests_range = ShiftRequest.objects.filter(
-            employee_id=self.employee_id,
-            approved=True,
-            canceled=False,
-            requested_date__range=[self.requested_date, self.requested_till],
-            requested_till__range=[self.requested_date, self.requested_till],
-        ).exclude(id=self.id)
-        if approved_shift_requests_range:
-            return True
+        if self.requested_till:
+            approved_shift_requests_range = ShiftRequest.objects.filter(
+                employee_id=self.employee_id,
+                approved=True,
+                canceled=False,
+                requested_date__range=[self.requested_date, self.requested_till],
+                requested_till__range=[self.requested_date, self.requested_till],
+            ).exclude(id=self.id)
+            if approved_shift_requests_range:
+                return True
         approved_shift_requests = ShiftRequest.objects.filter(
             employee_id=self.employee_id,
             approved=True,
@@ -2699,6 +2713,16 @@ class Holidays(SkylinxModel):
     start_date = models.DateField(verbose_name=_("Start Date"))
     end_date = models.DateField(null=True, blank=True, verbose_name=_("End Date"))
     recurring = models.BooleanField(default=False, verbose_name=_("Recurring"))
+    # ponytail: optional holiday -> employee may apply leave (grey in calendar);
+    # mandatory (default) -> no leave allowed (blue in calendar).
+    is_optional = models.BooleanField(
+        default=False,
+        verbose_name=_("Optional Holiday"),
+        help_text=_(
+            "If on, employees may apply leave on this day. If off, it's a "
+            "mandatory holiday and no leave can be applied."
+        ),
+    )
     company_id = models.ForeignKey(
         Company,
         null=True,
@@ -2981,4 +3005,58 @@ class IntegrationApps(SkylinxModel, NoPermissionModel):
     is_enabled = models.BooleanField(default=False)
 
 
+class CompanyGroup(models.Model):
+    """
+    Tenant ownership for Django auth Groups. Each client (Company) owns its own
+    user groups/roles; queries are scoped via this link so one tenant never sees
+    or assigns another's groups. See base.rbac for the helpers.
+    """
+
+    from django.contrib.auth.models import Group
+
+    group = models.OneToOneField(
+        Group, on_delete=models.CASCADE, related_name="company_link"
+    )
+    company = models.ForeignKey(
+        Company, on_delete=models.CASCADE, related_name="user_groups"
+    )
+
+    def __str__(self):
+        return f"{self.company} · {self.group}"
+
+
 # User.add_to_class("is_new_employee", models.BooleanField(default=False))
+
+
+class LegalSetting(models.Model):
+    """Platform-wide legal link shown on the login page. Owner-editable so the
+    Terms & Conditions / Privacy link can be repointed without a deploy."""
+
+    terms_url = models.URLField(
+        default="https://skylinxpartial.ccbp.tech",
+        verbose_name=_("Terms & Conditions / Privacy URL"),
+    )
+
+    @classmethod
+    def load(cls):
+        obj, _created = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return self.terms_url
+
+
+class LegalDocument(models.Model):
+    """A legal PDF (terms, privacy, etc.) uploaded by the owner and shown on the
+    public /terms/ page. Up to ~14 docs; enforced in the upload view."""
+
+    title = models.CharField(max_length=200, verbose_name=_("Title"))
+    file = models.FileField(upload_to="legal/", verbose_name=_("PDF file"))
+    order = models.PositiveIntegerField(default=0)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return self.title

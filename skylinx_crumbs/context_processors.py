@@ -34,6 +34,15 @@ BREADCRUMB_URL_NAMES = {
     "ess": "Employee",
     "offboarding": "Offboarding",
     "helpdesk": "Helpdesk",
+    "job-position-view": "Designation",
+    "work-type-view": "Work Mode",
+    "employee-type-view": "Employment Type",
+    "view-payslip": "Payslip",
+    "disciplinary-actions": "Show Cause / Warning",
+    "resignation-requests-view": "Separation (F&F)",
+    "leave": "Leave Application",
+    "view-contract": "Pay Register",
+    "view-reimbursement": "Expenses",
 }
 
 sidebar_urls = [
@@ -228,19 +237,9 @@ def breadcrumbs(request):
         parts = _split_path(request)
         path = base_url
 
-        if apps.is_installed("recruitment"):
-            from recruitment.models import Candidate
-
-            candidates = Candidate.objects.filter(is_active=True)
-
-        else:
-            candidates = None
-
-        employees = Employee.objects.all()
-
         if len(parts) > 1:
 
-            if "recruitment" in parts:
+            if "recruitment" in parts and apps.is_installed("recruitment"):
                 if "search-candidate" in parts:
                     pass
                 elif "candidate-view" in parts:
@@ -248,10 +247,14 @@ def breadcrumbs(request):
                 elif "get-mail-log-rec" in parts:
                     pass
                 else:
-                    # Store the candidates in the session
-                    request.session["filtered_candidates"] = [
-                        candidate.id for candidate in candidates
-                    ]
+                    from recruitment.models import Candidate
+
+                    # Store the candidate ids in the session (ids only — no full objects)
+                    request.session["filtered_candidates"] = list(
+                        Candidate.objects.filter(is_active=True).values_list(
+                            "id", flat=True
+                        )
+                    )
 
             if "employee-filter-view" in parts:
                 pass
@@ -262,10 +265,10 @@ def breadcrumbs(request):
             elif parts[0] == "employee" and parts[-1].isdigit():
                 pass
             else:
-                # Store the employees in the session
-                request.session["filtered_employees"] = [
-                    employee.id for employee in employees
-                ]
+                # Store the employee ids in the session (ids only — no full objects)
+                request.session["filtered_employees"] = list(
+                    Employee.objects.values_list("id", flat=True)
+                )
 
         if len(parts) == 0:
             request.session["breadcrumbs"].clear()
@@ -313,7 +316,7 @@ def breadcrumbs(request):
                     try:
                         obj = model_value.objects.get(id=item)  # completed
                         new_dict["name"] = str(obj)
-                    except:
+                    except Exception:
                         pass
 
             key = "HTTP_HX_REQUEST"
@@ -340,7 +343,7 @@ def breadcrumbs(request):
                 prev_url["url"] = f'{prev_url["url"]}?{filtered_query_string}'
             else:
                 prev_url["url"] = f'{prev_url["url"]}'
-        except:
+        except Exception:
             pass
 
         request.session["breadcrumbs"] = breadcrumbs

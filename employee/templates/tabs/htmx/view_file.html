@@ -13,7 +13,7 @@
 			<ion-icon name="attach-outline"></ion-icon>
 		</a>
 		{% if document.document %}
-		{% if perms.skylinx_document.change_documentrequest %}
+		{% if perms.skylinx_documents.change_documentrequest %}
 			{% if document.status == "approved" %}
 				<a class="oh-btn oh-btn--success w-100 oh-btn--disabled" title="{% trans 'Approved' %}">
 					<ion-icon class="me-1" name="checkmark-outline"></ion-icon>

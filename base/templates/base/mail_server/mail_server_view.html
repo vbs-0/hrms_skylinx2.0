@@ -28,7 +28,8 @@
         var blink =
             document.getElementById('blink');
 
-        setInterval(function () {
+        if (window._mailBlinkTimer) clearInterval(window._mailBlinkTimer);
+        window._mailBlinkTimer = setInterval(function () {
             blink.style.opacity =
                 (blink.style.opacity == 0 ? 1 : 0);
         }, 800);

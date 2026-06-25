@@ -20,7 +20,8 @@
 					action="{%url 'payslip-info-export' %}"
 				{% endif %}
 				method="get"
-				onsubmit="event.stopPropagation();$(this).parents().find('.oh-modal--show').last().toggleClass('oh-modal--show');"
+				target="_blank"
+				onsubmit="event.stopPropagation();$(this).parents().find('.oh-modal--show').last().toggleClass('oh-modal--show'); preparePayslipExportForm(this);"
 				id="payslipReportForm"
 			>
 				{% csrf_token %}
@@ -51,14 +52,12 @@
 									</div>
 								</div>
 								<div class="row">
-									{% for field in export_column.selected_fields %}
+									{% for checkbox in export_column.selected_fields %}
 									<div
 										class="col-sm-12 col-md-12 col-lg-4"
 									>
 										<div class="oh-input-group">
-											<label class="oh-label">
-												{{ field }}
-											</label>
+											<label class="oh-label">{{ checkbox }}</label>
 										</div>
 									</div>
 									{% endfor %}
@@ -114,16 +113,6 @@
 												>{% trans "Status" %}</label
 											>
 											{{ export_filter.form.status }}
-										</div>
-									</div>
-									<div class="col-sm-6">
-										<div class="oh-input-group">
-											<label
-												class="oh-label"
-												for="{{export_filter.form.group_name.id_for_label}}"
-												>{% trans "Batch" %}</label
-											>
-											{{ export_filter.form.group_name }}
 										</div>
 									</div>
 								</div>

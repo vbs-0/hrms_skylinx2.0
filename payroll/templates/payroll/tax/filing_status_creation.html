@@ -58,13 +58,13 @@
             eventType: 'triggerRun'
         }, "*");
     };
-    window.onmessage = function (e) {
+    window.oneListener(window, "message", function (e) {
         if (e.data && e.data.language) {
             code = e.data.files[0].content
             $("[name=python_code]").html(code);
             // handle the e.data which contains the code object
         }
-    };
+    }, "filingStatusCreateCodeChange");
 </script>
 <script>
     $("[name=python_code]").parent().hide();

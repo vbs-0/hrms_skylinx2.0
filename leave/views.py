@@ -29,6 +29,7 @@ from xhtml2pdf import pisa
 from base.filters import PenaltyFilter
 from base.forms import PenaltyAccountForm
 from base.methods import (
+    check_manager,
     choosesubordinates,
     closest_numbers,
     eval_validate,
@@ -595,7 +596,18 @@ def leave_request_view(request):
         # Convert the list of IDs back to a queryset
         normal_requests = LeaveRequest.objects.filter(id__in=normal_requests).distinct()
 
-    queryset = normal_requests | multiple_approvals
+    queryset = (normal_requests | multiple_approvals).select_related(
+        "employee_id",
+        "employee_id__employee_work_info",
+        "employee_id__employee_work_info__department_id",
+        "employee_id__employee_work_info__job_position_id",
+        "employee_id__employee_work_info__job_position_id__department_id",
+        "leave_type_id"
+    ).prefetch_related(
+        "leaverequestconditionapproval_set",
+        "leaverequestconditionapproval_set__manager_id",
+        "penaltyaccounts_set"
+    )
     page_number = request.GET.get("page")
     page_obj = paginator_qry(queryset, page_number)
     leave_request_filter = LeaveRequestFilter()
@@ -605,23 +617,42 @@ def leave_request_view(request):
 
     leave_requests_with_interview = []
     if apps.is_installed("recruitment"):
-        for leave_request in leave_requests:
-
-            # Fetch interviews for the employee within the requested leave period
+        page_requests = list(page_obj.object_list)
+        if page_requests:
             InterviewSchedule = get_skylinx_model_class(
                 app_label="recruitment", model="interviewschedule"
             )
-
-            interviews = InterviewSchedule.objects.filter(
-                employee_id=leave_request.employee_id,
-                interview_date__range=[
-                    leave_request.start_date,
-                    leave_request.end_date,
-                ],
-            )
-            if interviews:
-                # If interview exists then adding the leave request to the list
-                leave_requests_with_interview.append(leave_request)
+            start_dates = [r.start_date for r in page_requests if r.start_date]
+            end_dates = [r.end_date for r in page_requests if r.end_date]
+            if start_dates and end_dates:
+                min_start = min(start_dates)
+                max_end = max(end_dates)
+                employee_ids = [r.employee_id_id for r in page_requests if r.employee_id_id]
+                
+                # Fetch all interviews in the relevant range for these employees in one query
+                interviews_queryset = InterviewSchedule.objects.filter(
+                    employee_id__in=employee_ids,
+                    interview_date__range=[min_start, max_end]
+                ).values('employee_id', 'interview_date')
+                
+                # Group by employee for O(1) checks in Python
+                from collections import defaultdict
+                interviews_by_emp = defaultdict(list)
+                for iv in interviews_queryset:
+                    interviews_by_emp[iv['employee_id']].append(iv['interview_date'])
+                
+                # Check overlap for each leave request in the current page
+                for leave_request in page_requests:
+                    emp_interviews = interviews_by_emp.get(leave_request.employee_id_id, [])
+                    has_overlap = False
+                    for i_date in emp_interviews:
+                        if isinstance(i_date, datetime):
+                            i_date = i_date.date()
+                        if leave_request.start_date <= i_date <= leave_request.end_date:
+                            has_overlap = True
+                            break
+                    if has_overlap:
+                        leave_requests_with_interview.append(leave_request)
 
     requests = queryset.filter(status="requested").count()
     requests_ids = json.dumps(list(page_obj.object_list.values_list("id", flat=True)))
@@ -743,6 +774,13 @@ def create_leave_report(request):
         leave_request_map[lreq.employee_id.id].append(lreq)
 
     employees = Employee.objects.all()
+    company_obj = (
+        Company.objects.filter(id=company_id).first()
+        if company_id and company_id != "all"
+        else None
+    )
+    if company_obj:
+        employees = employees.filter(employee_work_info__company_id=company_obj)
 
     for employee in employees:
         employee_id = employee.id
@@ -814,7 +852,7 @@ def create_leave_report(request):
 
 @login_required
 @hx_request_required
-# @manager_can_enter("leave.view_leaverequest")
+@manager_can_enter("leave.view_leaverequest")
 def leave_request_filter(request):
     """
     function used to filter leave request.
@@ -1590,7 +1628,18 @@ def leave_assign_view(request):
     GET : return leave assigned view template
     """
     queryset = filtersubordinates(
-        request, AvailableLeave.objects.all(), "leave.view_availableleave"
+        request, 
+        AvailableLeave.objects.select_related(
+            "employee_id",
+            "employee_id__employee_work_info",
+            "employee_id__employee_work_info__department_id",
+            "employee_id__employee_work_info__job_position_id",
+            "employee_id__employee_work_info__job_position_id__department_id",
+            "leave_type_id"
+        ).prefetch_related(
+            "employee_id__leaverequest_set"
+        ).all(), 
+        "leave.view_availableleave"
     )
     previous_data = request.GET.urlencode() or "field=leave_type_id"
     field = request.GET.get("field", "leave_type_id")
@@ -1660,7 +1709,13 @@ def leave_assign_filter(request):
     Returns:
     GET : return leave type assigned view template
     """
-    queryset = AvailableLeave.objects.all()
+    queryset = AvailableLeave.objects.select_related(
+        "employee_id",
+        "employee_id__employee_work_info",
+        "employee_id__employee_work_info__department_id",
+        "employee_id__employee_work_info__job_position_id",
+        "leave_type_id"
+    ).all()
     assign_form = AssignLeaveForm()
     queryset = filtersubordinates(request, queryset, "leave.view_availableleave")
     assigned_leave_filter = AssignedLeaveFilter(request.GET, queryset).qs
@@ -1920,7 +1975,7 @@ def assign_leave_type_excel(_request):
     """
     try:
         columns = [
-            "Badge ID",
+            "Employee ID",
             "Leave Type",
             "Available Days",
             "Carry Forward Days",
@@ -1946,9 +2001,9 @@ def assign_leave_type_import(request):
     or generates an error report in the form of an Excel file.
     """
     error_data = {
-        "Employee Badge ID": [],
+        "Employee ID": [],
         "Leave Type": [],
-        "Badge ID Error": [],
+        "Employee ID Error": [],
         "Leave Type Error": [],
         "Available Days": [],
         "Carry Forward Days": [],
@@ -1974,13 +2029,13 @@ def assign_leave_type_import(request):
         assign_leave_list, error_list = [], []
 
         for row in assign_leave_dicts:
-            badge_id = str(row.get("Employee Badge ID", "")).strip().lower()
+            badge_id = str(row.get("Employee ID", "")).strip().lower()
             leave_type_name = str(row.get("Leave Type", "")).strip().lower()
             employee = employees.get(badge_id)
             leave_type = leave_types.get(leave_type_name)
 
             if not employee:
-                row["Badge ID Error"] = _("This badge id does not exist.")
+                row["Employee ID Error"] = _("This badge id does not exist.")
                 error_list.append(row)
                 continue
             if not leave_type:
@@ -2368,7 +2423,7 @@ def user_leave_request(request, id):
         )
         requested_dates = leave_requested_dates(start_date, end_date)
         requested_dates = [date.date() for date in requested_dates]
-        holidays = Holidays.objects.all()
+        holidays = Holidays.objects.filter(is_optional=False)  # ponytail: optional holidays are working days
         holiday_dates = holiday_dates_list(holidays)
         company_leaves = CompanyLeaves.objects.all()
         company_leave_dates = company_leave_dates_list(company_leaves, start_date)
@@ -2545,7 +2600,7 @@ def user_request_update(request, id):
                         start_date, end_date, start_date_breakdown, end_date_breakdown
                     )
                     requested_dates = leave_requested_dates(start_date, end_date)
-                    holidays = Holidays.objects.all()
+                    holidays = Holidays.objects.filter(is_optional=False)  # ponytail: optional holidays are working days
                     holiday_dates = holiday_dates_list(holidays)
                     company_leaves = CompanyLeaves.objects.all()
                     company_leave_dates = company_leave_dates_list(
@@ -2854,6 +2909,13 @@ def user_request_one(request, id):
     GET : return one user leave request view template
     """
     leave_request = LeaveRequest.objects.get(id=id)
+    employee = request.user.employee_get
+    if not (
+        request.user.has_perm("leave.view_leaverequest")
+        or leave_request.employee_id == employee
+        or check_manager(employee, leave_request.employee_id)
+    ):
+        return render(request, "no_perm.html")
     try:
         requests_ids_json = request.GET.get("instances_ids")
         if requests_ids_json:
@@ -3168,9 +3230,14 @@ def department_leave_chart(request):
         for leave_date in leave.requested_dates():
             leave_dates.append(leave_date.strftime("%Y-%m-%d"))
 
-        for dep in departments:
-            if dep == leave.employee_id.employee_work_info.department_id:
-                department_counts[dep.department] += leave.requested_days
+        # ponytail: employee_work_info is a nullable reverse OneToOne — missing
+        # record raised DoesNotExist and 500'd the whole admin dashboard.
+        work_info = getattr(leave.employee_id, "employee_work_info", None)
+        dep_id = getattr(work_info, "department_id", None)
+        if dep_id is not None:
+            for dep in departments:
+                if dep == dep_id:
+                    department_counts[dep.department] += leave.requested_days
 
     for department, count in department_counts.items():
         if count != 0:
@@ -3303,7 +3370,10 @@ def leave_request_create(request):
     POST : return leave request view
     """
     previous_data = unquote(request.GET.urlencode())[len("pd=") :]
-    emp = request.user.employee_get
+    emp = getattr(request.user, "employee_get", None)
+    if emp is None:
+        messages.error(request, _("You must have an employee profile to request leave."))
+        return SkylinxRedirect(request)
     emp_id = emp.id
 
     form = UserLeaveRequestCreationForm(employee=emp)
@@ -3510,6 +3580,18 @@ def leave_allocation_request_single_view(request, req_id):
         requests_ids = json.loads(requests_ids_json)
         previous_id, next_id = closest_numbers(requests_ids, req_id)
     leave_allocation_request = LeaveAllocationRequest.find(req_id)
+    employee = request.user.employee_get
+    if not (
+        request.user.has_perm("leave.view_leaveallocationrequest")
+        or (
+            leave_allocation_request is not None
+            and (
+                leave_allocation_request.employee_id == employee
+                or check_manager(employee, leave_allocation_request.employee_id)
+            )
+        )
+    ):
+        return render(request, "no_perm.html")
     context = {
         "leave_allocation_request": leave_allocation_request,
         "my_request": my_request,
@@ -4118,20 +4200,34 @@ def employee_available_leave_count(request):
         if request.GET.getlist("employee_id")
         else None
     )
-    referer = request.headers.get("Referer")
+    if not employee_id:
+        try:
+            employee_id = request.user.employee_get.id
+        except Exception:
+            employee_id = None
 
-    if not employee_id and "user-request-view" in referer:
-        employee_id = request.user.employee_get
+    requesting_employee = request.user.employee_get
 
-    available_leave = (
-        AvailableLeave.objects.filter(
-            leave_type_id=leave_type_id, employee_id=employee_id
-        ).first()
-        if leave_type_id and employee_id
-        else None
-    )
-    total_leave_days = available_leave.total_leave_days if available_leave else 0
-    forcasted_days = 0
+    def _restrict_employee_id(emp_id):
+        if hasattr(emp_id, "id"):
+            emp_id = emp_id.id
+        if emp_id and not request.user.has_perm("leave.view_availableleave"):
+            try:
+                emp_id_int = int(emp_id)
+            except (ValueError, TypeError):
+                return requesting_employee.id
+            requested = Employee.objects.filter(id=emp_id_int).first()
+            if not (
+                requested is not None
+                and (
+                    requested == requesting_employee
+                    or check_manager(requesting_employee, requested)
+                )
+            ):
+                return requesting_employee.id
+        return emp_id
+
+    employee_id = _restrict_employee_id(employee_id)
 
     if not leave_type_id or not start_date:
         return render(
@@ -4139,9 +4235,6 @@ def employee_available_leave_count(request):
             "leave/leave_request/employee_available_leave_count.html",
             {"hx_target": hx_target},
         )
-
-    employee_id = request.GET.getlist("employee_id")
-    employee_id = employee_id[0] if employee_id else None
 
     available_leave = (
         AvailableLeave.objects.select_related("leave_type_id", "employee_id")
@@ -4239,6 +4332,17 @@ def create_leaverequest_comment(request, leave_id):
     """
     leave = LeaveRequest.objects.filter(id=leave_id).first()
     emp = request.user.employee_get
+    if not (
+        request.user.has_perm("leave.view_leaverequest")
+        or (
+            leave is not None
+            and (
+                leave.employee_id == emp
+                or check_manager(emp, leave.employee_id)
+            )
+        )
+    ):
+        return render(request, "no_perm.html")
     form = LeaverequestcommentForm(
         initial={"employee_id": emp.id, "request_id": leave_id}
     )
@@ -4407,6 +4511,17 @@ def create_allocationrequest_comment(request, leave_id):
     previous_data = request.GET.urlencode()
     leave = LeaveAllocationRequest.objects.filter(id=leave_id).first()
     emp = request.user.employee_get
+    if not (
+        request.user.has_perm("leave.view_leaveallocationrequest")
+        or (
+            leave is not None
+            and (
+                leave.employee_id == emp
+                or check_manager(emp, leave.employee_id)
+            )
+        )
+    ):
+        return render(request, "no_perm.html")
     form = LeaveallocationrequestcommentForm(
         initial={"employee_id": emp.id, "request_id": leave_id}
     )
@@ -4620,6 +4735,13 @@ def view_clashes(request, leave_request_id):
     This method is used to filter or view the leave clashes
     """
     record = get_object_or_404(LeaveRequest, id=leave_request_id)
+    employee = request.user.employee_get
+    if not (
+        request.user.has_perm("leave.view_leaverequest")
+        or record.employee_id == employee
+        or check_manager(employee, record.employee_id)
+    ):
+        return render(request, "no_perm.html")
 
     if record.status == "rejected" or record.status == "cancelled":
         overlapping_requests = LeaveRequest.objects.none()
@@ -5370,10 +5492,15 @@ if apps.is_installed("recruitment"):
         end_date = request.GET.get("end_date")
         employee_id = request.GET.get("employee_id")
 
+        if not start_date or not end_date or not employee_id:
+            return JsonResponse({"interviews": []})
+
         try:
             start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
             end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
-            delta = start_date_obj - end_date_obj
+            delta = end_date_obj - start_date_obj
+            if delta.days < 0:
+                return JsonResponse({"interviews": []})
             date_list = [
                 start_date_obj + timedelta(days=i) for i in range(delta.days + 1)
             ]
@@ -5393,9 +5520,7 @@ if apps.is_installed("recruitment"):
             return JsonResponse(response)
         except Exception as e:
             logger.error(e)
-            return SkylinxRedirect(
-                request, message=_("No interview found matching the query.")
-            )
+            return JsonResponse({"interviews": []})
 
 
 @login_required

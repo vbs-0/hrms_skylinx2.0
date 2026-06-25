@@ -37,7 +37,7 @@ x-data="{searchShow: false}"
         aria-label="Search Input"
         placeholder="{% trans 'Search' %}"
         name="search"
-        onkeyup="$('.filterButton')[0].click()"
+        onkeyup="$('.filterButton').first().click()"
       />
     </div>
     {% endif %}
@@ -258,21 +258,7 @@ x-data="{searchShow: false}"
       </div>
       {% endif %}
     {% endif %}
-    <div class="oh-btn-group ml-2">
-      <div class="oh-dropdown" x-data="{open: false}">
-        <button
-          id="workTypeRequestCreate"
-          class='oh-btn oh-btn--secondary'
-          data-toggle='oh-modal-toggle'
-          data-target='#objectCreateModal'
-          hx-get="{% url 'work-type-request' %}"
-          hx-target='#objectCreateModalTarget'
-          hx-include="#filterForm"
-        >
-          <ion-icon name='add-sharp'></ion-icon> {% trans "Create" %}
-        </button>
-      </div>
-    </div>
+
   </div>
 </div>
 </form>
@@ -280,7 +266,7 @@ x-data="{searchShow: false}"
 <script>
   $(document).ready(function(){
     $('#id_field').on('change',function(){
-      $('.filterButton')[0].click();
+      $('.filterButton').first().click();
     })
   });
 </script>

@@ -1,11 +1,11 @@
-"""Skylinx ``AppLauncher`` for the database-backed template app."""
+"""EMPLINX ``AppLauncher`` for the database-backed template app."""
 
 from django.apps import AppConfig
 from django.utils.translation import gettext_lazy as _
 
 
 class SkylinxDBTemplateConfig(AppConfig):
-    """Skylinx app config: registers ``skylinx_dbtemplate`` and auto-imports signal handlers."""
+    """EMPLINX app config: registers ``skylinx_dbtemplate`` and auto-imports signal handlers."""
 
     default = True
 

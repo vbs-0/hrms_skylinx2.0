@@ -291,12 +291,7 @@ class AttendanceRequestNav(SkylinxNavView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.search_url = reverse("attendance-request-tab")
-        self.create_attrs = f"""
-                        data-toggle="oh-modal-toggle"
-                        data-target="#genericModal"
-                        hx-get="{reverse('request-new-attendance')}"
-                        hx-target="#genericModalBody"
-                        """
+        self.create_attrs = ""
         if self.request.user.has_perm(
             "attendance.add_attendanceovertime"
         ) or is_reportingmanager(self.request):
@@ -565,7 +560,7 @@ class UpdateAttendanceRequestFormView(SkylinxFormView):
                 return HttpResponse(
                     f"""<script>
                                             var reqModal = $('#requestedattendanceTr{form.instance.pk}');
-                                            reqModal[0].click();
+                                            (reqModal[0] && reqModal[0].click());
                                             $('#genericModalEdit').removeClass('oh-modal--show');
                                             $('.reload-record').click();
                                             $('#reloadMessagesButton').click();
@@ -576,7 +571,7 @@ class UpdateAttendanceRequestFormView(SkylinxFormView):
                 return HttpResponse(
                     f"""<script>
                                             var attendaceModal = $('#allattendanceTr{form.instance.pk}');
-                                            attendaceModal[0].click();
+                                            (attendaceModal[0] && attendaceModal[0].click());
                                             $('#genericModalEdit').removeClass('oh-modal--show');
                                             $('.reload-record').click();
                                             $('#reloadMessagesButton').click();

@@ -183,6 +183,27 @@ def recruitment_manager_can_enter(function, perm):
     return _function
 
 
+def candidate_can_access(request, candidate_pk, perm="recruitment.view_candidate"):
+    """
+    Authorization check for candidate-portal views.
+
+    Returns True only when the request belongs to that same candidate (their
+    portal session) or the logged-in user holds the recruitment permission.
+    Prevents one candidate from reading/mutating another candidate's records.
+    """
+    if (
+        getattr(request, "user", None)
+        and request.user.is_authenticated
+        and request.user.has_perm(perm)
+    ):
+        return True
+    session_candidate = request.session.get("candidate_id")
+    return (
+        session_candidate is not None
+        and str(session_candidate) == str(candidate_pk)
+    )
+
+
 def candidate_login_required(view_func):
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):

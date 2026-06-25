@@ -1,7 +1,7 @@
 {% load i18n %}
 <section class="oh-wrapper oh-main__topbar">
   <div class="oh-main__titlebar oh-main__titlebar--left oh-d-flex-column--resp oh-mb-3--small">
-    <h1 class="oh-main__titlebar-title fw-bold">{% trans 'Reimbursements' %}</h1>
+    <h1 class="oh-main__titlebar-title fw-bold">{% trans 'Expenses' %}</h1>
   </div>
 
   <form hx-get="{% url 'search-reimbursement' %}" hx-target="#reimbursementContainer" onsubmit="event.stopPropagation(); event.preventDefault();">
@@ -16,7 +16,7 @@
             <a
               id="list"
               onclick="$('#reimbursementViewType').val('list');setTimeout(() => {
-              $('.filterButton')[0].click();
+              $('.filterButton').first().click();
               }, 10);$('.oh-btn--view-active').removeClass('oh-btn--view-active'); $(this).addClass('oh-btn--view-active'); "
               class="oh-btn oh-btn--view {% if request.GET.view == 'list' %} oh-btn--view-active {% endif %}"
               title='{% trans "List" %}'
@@ -27,7 +27,7 @@
             <a
               id="card"
               onclick="$('#reimbursementViewType').val('card');setTimeout(() => {
-              $('.filterButton')[0].click();
+              $('.filterButton').first().click();
               }, 10);$('.oh-btn--view-active').removeClass('oh-btn--view-active'); $(this).addClass('oh-btn--view-active');"
               class="oh-btn oh-btn--view {% if request.GET.view != 'list' %} oh-btn--view-active {% endif %}"
               title='{% trans "Card" %}'

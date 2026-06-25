@@ -1,5 +1,5 @@
 """
-base.py — Main Django settings for Skylinx
+base.py — Main Django settings for EMPLINX
 """
 
 import os
@@ -19,10 +19,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 import os
 
 env = environ.Env(
-    DEBUG=(bool, True),
-    SECRET_KEY=(str, "django-insecure-default-key"),
-    ALLOWED_HOSTS=(list, ["*"]),
+    # Secure-by-default: production must explicitly opt into DEBUG and provide
+    # its own SECRET_KEY / ALLOWED_HOSTS via the environment.
+    DEBUG=(bool, False),
+    ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1"]),
     CSRF_TRUSTED_ORIGINS=(list, ["http://localhost:8000"]),
+    # Licensing: "client" (deployed HRMS, enforces entitlements) or "server"
+    # (vendor's private instance — all features on, manages Plans/Licenses).
+    LICENSE_ROLE=(str, "client"),
+    LICENSE_SERVER_URL=(str, ""),
 )
 
 env.read_env(os.path.join(BASE_DIR, ".env"), overwrite=True)
@@ -30,10 +35,47 @@ env.read_env(os.path.join(BASE_DIR, ".env"), overwrite=True)
 # ========================================
 # CORE DJANGO SETTINGS
 # ========================================
+# No insecure fallback: if SECRET_KEY is unset the app fails to start rather
+# than silently signing sessions/CSRF tokens with a predictable key.
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
+import sys
+
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
+if "test" in sys.argv:
+    ALLOWED_HOSTS.append("testserver")
+    MIGRATION_MODULES = {"notifications": None}
 CSRF_TRUSTED_ORIGINS = env("CSRF_TRUSTED_ORIGINS")
+
+# Licensing role + vendor server endpoint (see env() defaults above).
+LICENSE_ROLE = env("LICENSE_ROLE")
+LICENSE_SERVER_URL = env("LICENSE_SERVER_URL")
+
+# ----------------------------------------
+# Cookie / transport hardening
+# ----------------------------------------
+# Always keep session/CSRF cookies out of reach of JS.
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False  # CSRF cookie must be readable by the JS that sends the header
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
+# In production (DEBUG off) require HTTPS for cookies and enable HSTS. Left
+# relaxed under DEBUG so local http://localhost development keeps working.
+if not DEBUG:
+    # ponytail: env-gated so an http-only IP box runs without TLS; True once behind HTTPS
+    SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=True)
+    CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=True)
+    SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=31536000)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# ponytail: pin default Site so admin/django.contrib.sites works regardless of
+# request host (IP, localhost, domain) instead of host-matching the Site table.
+SITE_ID = 1
 
 THEME_APP = "skylinx_theme"
 
@@ -58,7 +100,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "drf_yasg",
-    # Core Skylinx apps
+    # Core EMPLINX apps
     "skylinx_auth",
     THEME_APP,
     "base",
@@ -88,6 +130,7 @@ INSTALLED_APPS = [
     "whatsapp",
     "skylinx_ldap",
     "skylinx_dbtemplate",
+    "subscriptions",
 ]
 
 # ========================================
@@ -142,7 +185,9 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    # Skylinx-specific middlewares
+    # EMPLINX-specific middlewares
+    # licensing replaced by per-company subscriptions (SaaS multi-tenant)
+    "subscriptions.middleware.SubscriptionMiddleware",
     "base.middleware.CompanyMiddleware",
     "base.middleware.ForcePasswordChangeMiddleware",
     "base.middleware.TwoFactorAuthMiddleware",
@@ -172,13 +217,39 @@ else:
         }
     }
 
+if DATABASES.get("default", {}).get("ENGINE") == "django.db.backends.sqlite3":
+    # Critical SQLite optimizations for concurrency to prevent "database is locked"
+    options = DATABASES["default"].setdefault("OPTIONS", {})
+    options["timeout"] = 20
+    options["transaction_mode"] = "IMMEDIATE"  # Django 5.1+ concurrency fix
+    options["init_command"] = (
+        "PRAGMA journal_mode=WAL;"
+        "PRAGMA synchronous=NORMAL;"
+        "PRAGMA mmap_size=134217728;"  # 128MB mmap
+        "PRAGMA journal_size_limit=67108864;"
+        "PRAGMA cache_size=-10000;"  # 10MB cache per connection
+    )
+else:
+    # ponytail: persistent connections only for real DBs (Postgres/MySQL) — saves
+    # a connect handshake per request. SQLite keeps fresh conns to avoid lock holds.
+    DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=60)
+
 # ========================================
 # STATIC & MEDIA FILES
 # ========================================
-STATIC_URL = "static/"
+# ponytail: leading slash is required — without it, {% static %} URLs render
+# relative and 404 on any page not served from "/" (e.g. /login/).
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
+# Django 6 ignores STATICFILES_STORAGE — must use STORAGES. The old setting
+# being a no-op is why prod had no compression and max-age=60 (default storage).
+# Manifest storage = hashed names -> WhiteNoise serves 1yr immutable cache +
+# precompressed .gz/.br. manifest_strict=False so a stray ref can't 500 a page.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "skylinx.storage.StaticStorage"},
+}
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media/")
@@ -197,7 +268,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 AUTH_USER_MODEL = "skylinx_auth.SkylinxUser"
 
-X_FRAME_OPTIONS = "SAMEORIGIN"
+X_FRAME_OPTIONS = env("X_FRAME_OPTIONS", default="DENY")
 
 # ========================================
 # TEMPLATES
@@ -213,7 +284,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                # Skylinx dynamic context processors
+                # EMPLINX dynamic context processors
                 "skylinx.config.get_MENUS",
                 "base.context_processors.get_companies",
                 "base.context_processors.white_labelling_company",
@@ -227,6 +298,7 @@ TEMPLATES = [
                 "base.context_processors.enable_late_come_early_out_tracking",
                 "base.context_processors.enable_profile_edit",
                 "skylinx_crumbs.context_processors.breadcrumbs",
+                "subscriptions.context_processors.subscription_context",
             ],
             "loaders": [
                 "skylinx_dbtemplate.loaders.Loader",
@@ -290,6 +362,21 @@ DJANGO_NOTIFICATIONS_CONFIG = {
     "TEMPLATE": "notifications.html",
 }
 
+# Cache configuration
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "skylinx-cache",
+        "OPTIONS": {
+            "MAX_ENTRIES": 1000,
+            "CULL_FREQUENCY": 3,
+        },
+    }
+}
+
+# Default cache timeout in seconds (1 hour)
+CACHE_TIMEOUT = 3600
+
 # ========================================
 # SKYLINX-SPECIFIC SETTINGS
 # ========================================
@@ -298,8 +385,8 @@ NESTED_SUBORDINATE_VISIBILITY = False
 TWO_FACTORS_AUTHENTICATION = False
 
 SIDEBARS = [
-    "recruitment",
-    "onboarding",
+    # "recruitment",  # Hidden per product decision
+    # "onboarding",  # Replaced by direct Add Employee flow
     "employee",
     "attendance",
     "leave",
@@ -323,15 +410,25 @@ AUDITLOG_EXCLUDE_TRACKING_MODELS = (
 
 EMAIL_BACKEND = "base.backends.ConfiguredEmailBackend"
 
+# Platform-default SMTP (gap #3). Used when a tenant has no DynamicEmailConfiguration
+# of its own — the backend falls back to these. Read from .env (SMTP_* names).
+EMAIL_HOST = env("SMTP_HOST", default="")
+EMAIL_PORT = env.int("SMTP_PORT", default=587)
+EMAIL_HOST_USER = env("SMTP_USER", default="")
+EMAIL_HOST_PASSWORD = env("SMTP_PASS", default="")
+# SMTP_SECURE=true => implicit SSL (port 465); false => STARTTLS (port 587, Gmail)
+EMAIL_USE_SSL = env.bool("SMTP_SECURE", default=False)
+EMAIL_USE_TLS = not EMAIL_USE_SSL
+DEFAULT_FROM_EMAIL = env("SUPPORT_EMAIL", default=EMAIL_HOST_USER)
+SUPPORT_EMAIL = env("SUPPORT_EMAIL", default=EMAIL_HOST_USER)
+
 """
 DB_INIT_PASSWORD: str
 
 The password used for database setup and initialization. This password is a
 48-character alphanumeric string generated using a UUID to ensure high entropy and security.
 """
-DB_INIT_PASSWORD = env(
-    "DB_INIT_PASSWORD", default="d3f6a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d"
-)
+DB_INIT_PASSWORD = env("DB_INIT_PASSWORD", default="")
 
 # ========================================
 # PERMISSIONS / CUSTOM LOGIC
@@ -450,6 +547,7 @@ DEFAULT_LDAP_CONFIG = {
 }
 
 AUTHENTICATION_BACKENDS = [
+    "base.auth_backends.IdentifierBackend",
     "django.contrib.auth.backends.ModelBackend",
     # "django_auth_ldap.backend.LDAPBackend",
 ]

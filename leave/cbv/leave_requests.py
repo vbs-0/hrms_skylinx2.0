@@ -20,6 +20,7 @@ from base.decorators import manager_can_enter
 from base.filters import PenaltyFilter
 from base.methods import choosesubordinates, filtersubordinates, is_reportingmanager
 from base.models import PenaltyAccounts
+from employee.models import Employee
 from skylinx_views.cbv_methods import hx_request_required, login_required
 from skylinx_views.generic.cbv.views import (
     SkylinxDetailedView,
@@ -237,15 +238,7 @@ class LeaveRequestsNavView(SkylinxNavView):
             },
         ]
 
-        if self.request.user.has_perm("leave.add_leaverequest") or is_reportingmanager(
-            self.request
-        ):
-            self.create_attrs = f"""
-                hx-get="{reverse_lazy("request-creation")}"
-                hx-target="#genericModalBody"
-                data-target="#genericModal"
-                data-toggle="oh-modal-toggle"
-            """
+        self.create_attrs = ""
 
     nav_title = _("Leave Requests")
     filter_instance = LeaveRequestFilter()
@@ -370,39 +363,38 @@ class LeaveRequestFormView(SkylinxFormView):
         if leave_type_id and employee_id:
             initial["leave_type_id"] = leave_type_id
             initial["employee_id"] = employee_id
-            return initial
+        return initial
+
+    def get_form(self, form_class=None):
+        # Narrow leave types to the employee the request is FOR (instance on
+        # edit, or the emp_id/initial on create) so the dropdown is populated on
+        # initial render. The per-employee hx loader only fires on change, and
+        # narrowing by request.user (the admin) wrongly emptied the list.
+        form = super().get_form(form_class)
+        employee = None
+        if form.instance and form.instance.pk:
+            employee = form.instance.employee_id
+        else:
+            emp_id = self.kwargs.get("emp_id") or form.initial.get("employee_id")
+            if emp_id:
+                employee = Employee.objects.filter(id=emp_id).first()
+        if employee:
+            assigned_leave_types = LeaveType.objects.filter(
+                id__in=employee.available_leave.values_list("leave_type_id", flat=True)
+            )
+            current = getattr(form.instance, "leave_type_id", None)
+            if current and current.id not in assigned_leave_types.values_list(
+                "id", flat=True
+            ):
+                assigned_leave_types = assigned_leave_types | LeaveType.objects.filter(
+                    id=current.id
+                )
+            form.fields["leave_type_id"].queryset = assigned_leave_types
+        return form
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        if self.request:
-            employee = self.request.user.employee_get
-            if employee:
-                available_leaves = employee.available_leave.all()
-                assigned_leave_types = LeaveType.objects.filter(
-                    id__in=available_leaves.values_list("leave_type_id", flat=True)
-                )
-                self.form.fields["leave_type_id"].queryset = assigned_leave_types
-
-        if self.form.instance.pk:
-            leave_request = LeaveRequest.objects.get(id=self.form.instance.pk)
-            leave_type_id = leave_request.leave_type_id
-            employee = leave_request.employee_id
-            self.form_class(instance=leave_request)
-            if employee:
-                available_leaves = employee.available_leave.all()
-                assigned_leave_types = LeaveType.objects.filter(
-                    id__in=available_leaves.values_list("leave_type_id", flat=True)
-                )
-                if leave_type_id not in assigned_leave_types.values_list(
-                    "id", flat=True
-                ):
-                    assigned_leave_types = (
-                        assigned_leave_types
-                        | LeaveType.objects.filter(id=leave_type_id.id)
-                    )
-                self.form.fields["leave_type_id"].queryset = assigned_leave_types
-                # form = self.form_class(instance = self.form.instance)
         self.form = choosesubordinates(
             self.request, self.form, "leave.add_leaverequest"
         )

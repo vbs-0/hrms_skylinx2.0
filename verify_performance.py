@@ -1,0 +1,150 @@
+import os
+import django
+import time
+from django.db import connection, reset_queries
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'skylinx.settings')
+django.setup()
+
+from django.conf import settings
+settings.ALLOWED_HOSTS = ['*']
+settings.DEBUG = True
+
+from django.test.client import RequestFactory
+from attendance.views.views import attendance_view
+from employee.views import employee_view
+from project.views import project_view
+from recruitment.views.views import candidate_view
+from leave.views import leave_request_view, leave_type_view, leave_assign_view
+from payroll.views.views import contract_view, payslip_details
+from onboarding.views import onboarding_view, candidates_view
+from offboarding.views import pipeline as offboarding_pipeline, request_view as offboarding_request_view
+
+# Setup a fake request
+factory = RequestFactory()
+
+def test_view_performance(view_func, url, name):
+    print(f"\n--- Testing {name} ({url}) ---")
+    request = factory.get(url)
+    
+    # We need to simulate a logged-in user with permissions if needed.
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    user = None
+    for u in User.objects.all():
+        if getattr(u, 'employee_get', None) is not None:
+            user = u
+            if u.is_superuser:
+                break
+    if not user:
+        print("No user with an employee profile found in the database.")
+        return
+        
+    request.user = user
+    from django.contrib.sessions.backends.db import SessionStore
+    session = SessionStore()
+    session.create()
+    request.session = session
+    
+    # Mock messages on the request
+    from django.contrib.messages.storage.fallback import FallbackStorage
+    request._messages = FallbackStorage(request)
+    
+    # In Django, standard request middleware defines request.environ.
+    # Some views might access request.environ["QUERY_STRING"] or similar.
+    request.environ['QUERY_STRING'] = ''
+    
+    from skylinx.skylinx_middlewares import _thread_locals
+    _thread_locals.request = request
+    
+    # Run accessibility middleware simulation to populate cache
+    from accessibility.middlewares import update_accessibility_cache
+    cache_key = session.session_key + "accessibility_filter"
+    update_accessibility_cache(cache_key, request)
+    
+    reset_queries()
+    start_time = time.time()
+    
+    recorded_queries = []
+    
+    def query_wrapper(execute, sql, params, many, context):
+        import traceback
+        tb = traceback.extract_stack()
+        clean_tb = []
+        for frame in tb:
+            filename = frame.filename
+            if 'site-packages' not in filename and 'importlib' not in filename and 'verify_performance.py' not in filename:
+                clean_tb.append(f"{os.path.basename(filename)}:L{frame.lineno}({frame.name})")
+        recorded_queries.append({
+            'sql': sql,
+            'traceback': " -> ".join(clean_tb[-4:])
+        })
+        return execute(sql, params, many, context)
+        
+    try:
+        with connection.execute_wrapper(query_wrapper):
+            response = view_func(request)
+            # Force rendering if it's a TemplateResponse
+            if hasattr(response, 'render'):
+                response.render()
+            elif hasattr(response, 'content'):
+                _ = response.content # access content to force evaluation
+            
+        end_time = time.time()
+        
+        queries_count = len(recorded_queries)
+        duration = end_time - start_time
+        print(f"SUCCESS: View rendered without crashing.")
+        print(f"Queries executed: {queries_count}")
+        print(f"Time taken: {duration:.3f} seconds")
+        
+        if queries_count > 30:
+            query_stats = {}
+            query_tracebacks = {}
+            for q in recorded_queries:
+                sql = q['sql']
+                tb = q['traceback']
+                query_stats[sql] = query_stats.get(sql, 0) + 1
+                if sql not in query_tracebacks:
+                    query_tracebacks[sql] = []
+                if tb not in query_tracebacks[sql]:
+                    query_tracebacks[sql].append(tb)
+            
+            duplicates = {sql: count for sql, count in query_stats.items() if count > 1}
+            if duplicates:
+                unique_dup_count = sum(duplicates.values()) - len(duplicates)
+                print(f"  Duplicate queries: {unique_dup_count} duplicated calls total")
+                print("  Top Duplicated Queries with Tracebacks:")
+                for sql, count in sorted(duplicates.items(), key=lambda x: x[1], reverse=True)[:5]:
+                    truncated_sql = sql[:150] + "..." if len(sql) > 150 else sql
+                    print(f"    - [{count} times]: {truncated_sql}")
+                    print("      Traceback(s):")
+                    for tb in query_tracebacks[sql][:2]:
+                        print(f"        * {tb}")
+        
+    except Exception as e:
+        import traceback
+        print(f"ERROR: The view crashed with error: {e}")
+        traceback.print_exc()
+
+if __name__ == "__main__":
+    print("Starting Performance Verification...")
+    print("====================================")
+    
+    test_view_performance(employee_view, '/employee/employee-view/', "Employee List View")
+    test_view_performance(attendance_view, '/attendance/attendance-view/', "Attendance List View")
+    test_view_performance(project_view, '/project/project-view/', "Project List View")
+    test_view_performance(candidate_view, '/recruitment/candidate-view/', "Recruitment Candidate View")
+    test_view_performance(leave_request_view, '/leave/leave-request-view/', "Leave Request View")
+    test_view_performance(leave_type_view, '/leave/leave-type-view/', "Leave Type View")
+    test_view_performance(leave_assign_view, '/leave/leave-assign-view/', "Leave Assign View")
+    test_view_performance(contract_view, '/payroll/contract-view/', "Payroll Contract View")
+    test_view_performance(payslip_details, '/payroll/payslip-details/', "Payroll Payslip View")
+    test_view_performance(onboarding_view, '/onboarding/onboarding-view/', "Onboarding View")
+    test_view_performance(candidates_view, '/onboarding/candidates-view/', "Onboarding Candidates View")
+    test_view_performance(offboarding_pipeline, '/offboarding/pipeline/', "Offboarding Pipeline View")
+    test_view_performance(offboarding_request_view, '/offboarding/request-view/', "Offboarding Request View")
+    print("\n====================================")
+    print("Verification complete.")
+    settings.DEBUG = False
+    print(f"DEBUG mode restored: {settings.DEBUG}")

@@ -1,0 +1,518 @@
+import os
+from datetime import date, datetime, timedelta
+from django.core.files.storage import default_storage
+from django.utils import timezone
+from geopy.distance import geodesic
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+
+from attendance.models import Attendance, AttendanceActivity, EmployeeShiftDay, MobileAttendanceDetail, MobileLocationLog
+from attendance.views.clock_in_out import clock_in_attendance_and_activity, clock_out
+from attendance.methods.utils import (
+    employee_exists,
+    shift_schedule_today,
+    strtime_seconds,
+    Request as AttendanceRequest
+)
+from facedetection.models import FaceDetection, EmployeeFaceDetection
+from facedetection.face_matching import compare_faces
+from geofencing.models import GeoFencing
+
+
+class MobileCheckInAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        try:
+            employee = request.user.employee_get
+        except Exception:
+            return Response({
+                "success": False,
+                "message": "User is not registered as an employee",
+                "errorCode": "NOT_AN_EMPLOYEE"
+            }, status=400)
+
+        # 1. Parse GPS and Selfie Parameters
+        selfie_file = request.FILES.get("selfie")
+        latitude_str = request.data.get("latitude")
+        longitude_str = request.data.get("longitude")
+        accuracy_str = request.data.get("accuracy", "0")
+        gps_enabled_str = request.data.get("gpsEnabled", "true")
+
+        if not selfie_file:
+            return Response({
+                "success": False,
+                "message": "Selfie image is required for check-in",
+                "errorCode": "MISSING_SELFIE"
+            }, status=400)
+
+        if not latitude_str or not longitude_str:
+            return Response({
+                "success": False,
+                "message": "GPS coordinates are required",
+                "errorCode": "MISSING_COORDINATES"
+            }, status=400)
+
+        try:
+            latitude = float(latitude_str)
+            longitude = float(longitude_str)
+            accuracy = float(accuracy_str)
+            gps_enabled = gps_enabled_str.lower() == "true"
+        except ValueError:
+            return Response({
+                "success": False,
+                "message": "Invalid GPS coordinates formatting",
+                "errorCode": "INVALID_GPS"
+            }, status=400)
+
+        # 2. Check Face Verification (Baseline Image comparison)
+        company = employee.get_company()
+        face_config = FaceDetection.objects.filter(company_id=company).first()
+        
+        if face_config and face_config.start:
+            baseline = EmployeeFaceDetection.objects.filter(employee_id=employee).first()
+            if not baseline or not baseline.image:
+                return Response({
+                    "success": False,
+                    "message": "Face verification is required, but you do not have a baseline photo enrolled. Please contact your administrator.",
+                    "errorCode": "FACE_NOT_ENROLLED"
+                }, status=400)
+            
+            # Temporary save selfie to run verification
+            temp_path = default_storage.save("temp/verification_selfie.jpg", selfie_file)
+            temp_full_path = default_storage.path(temp_path)
+            
+            # Get path of baseline image
+            baseline_path = baseline.image.path
+            
+            matched, similarity = compare_faces(baseline_path, temp_full_path)
+            
+            # Clean up temp file
+            if os.path.exists(temp_full_path):
+                os.remove(temp_full_path)
+                
+            if not matched:
+                return Response({
+                    "success": False,
+                    "message": "Face verification failed. Please take a clear photo of your face.",
+                    "errorCode": "FACE_VERIFICATION_FAILED"
+                }, status=400)
+
+        # 3. Check Geofencing boundary
+        within_geofence = True
+        distance_meters = 0.0
+        geofence = GeoFencing.objects.filter(company_id=company).first()
+        
+        if geofence and geofence.start:
+            geofence_center = (geofence.latitude, geofence.longitude)
+            employee_loc = (latitude, longitude)
+            try:
+                distance_meters = geodesic(geofence_center, employee_loc).meters
+                if distance_meters > geofence.radius_in_meters:
+                    within_geofence = False
+            except Exception as e:
+                # Log error and default to inside geofence if geodesic fails
+                print(f"Geopy calculation error: {e}")
+                pass
+
+        # 4. Perform check-in (Sync with EMPLINX Core Shift/Attendance logic)
+        if request.user.employee_get.check_online():
+            return Response({
+                "success": False,
+                "message": "Already checked-in",
+                "errorCode": "ALREADY_CHECKED_IN"
+            }, status=400)
+
+        work_info = employee.employee_work_info if hasattr(employee, "employee_work_info") else None
+        if not work_info or not work_info.shift_id:
+            return Response({
+                "success": False,
+                "message": "You don't have shift information filled",
+                "errorCode": "NO_SHIFT_INFO"
+            }, status=400)
+
+        shift = work_info.shift_id
+        date_today = date.today()
+        attendance_date = date_today
+        day_name = date_today.strftime("%A").lower()
+        day = EmployeeShiftDay.objects.filter(day=day_name).first()
+        
+        if not day:
+            # Fallback to general Mon-Sun days
+            day = EmployeeShiftDay.objects.first()
+
+        now_str = datetime.now().strftime("%H:%M")
+        now_sec = strtime_seconds(now_str)
+        mid_day_sec = strtime_seconds("12:00")
+        
+        minimum_hour, start_time_sec, end_time_sec = shift_schedule_today(
+            day=day, shift=shift
+        )
+        
+        # Handle night shift logic
+        if start_time_sec > end_time_sec:
+            if mid_day_sec > now_sec:
+                date_yesterday = date_today - timedelta(days=1)
+                day_yesterday_name = date_yesterday.strftime("%A").lower()
+                day_yesterday = EmployeeShiftDay.objects.filter(day=day_yesterday_name).first()
+                if day_yesterday:
+                    minimum_hour, start_time_sec, end_time_sec = shift_schedule_today(
+                        day=day_yesterday, shift=shift
+                    )
+                    attendance_date = date_yesterday
+                    day = day_yesterday
+
+        # Create Core Attendance Activity
+        datetime_now = datetime.now()
+        clock_in_attendance_and_activity(
+            employee=employee,
+            date_today=date_today,
+            attendance_date=attendance_date,
+            day=day,
+            now=now_str,
+            shift=shift,
+            minimum_hour=minimum_hour,
+            start_time=start_time_sec,
+            end_time=end_time_sec,
+            in_datetime=datetime_now,
+        )
+
+        # 5. Save Mobile Extra Details
+        activity = AttendanceActivity.objects.filter(employee_id=employee).order_by("-id").first()
+        if activity:
+            MobileAttendanceDetail.objects.create(
+                attendance_activity=activity,
+                check_in_selfie=selfie_file,
+                check_in_lat=latitude,
+                check_in_lng=longitude,
+                within_geofence=within_geofence
+            )
+
+        if not within_geofence:
+            from django.contrib.auth import get_user_model
+            from django.contrib.contenttypes.models import ContentType
+            from notifications.models import Notification
+            
+            User = get_user_model()
+            admins = User.objects.filter(is_superuser=True) | User.objects.filter(is_staff=True)
+            user_ct = ContentType.objects.get_for_model(request.user)
+            
+            for admin in admins:
+                Notification.objects.get_or_create(
+                    recipient=admin,
+                    actor_content_type=user_ct,
+                    actor_object_id=str(request.user.id),
+                    verb="Outside Geofence",
+                    description=f"{employee.employee_first_name} {employee.employee_last_name} checked in outside the geofence zone.",
+                    level="danger"
+                )
+
+        return Response({
+            "success": True,
+            "message": "Check-in successful",
+            "data": {
+                "attendanceId": str(activity.id) if activity else "1",
+                "withinGeofence": within_geofence,
+                "distanceFromCenterMeters": distance_meters,
+                "status": "present" if within_geofence else "outside_geofence",
+                "liveTrackingEnabled": True
+            }
+        }, status=201)
+
+
+class MobileCheckOutAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        try:
+            employee = request.user.employee_get
+        except Exception:
+            return Response({
+                "success": False,
+                "message": "User is not registered as an employee",
+                "errorCode": "NOT_AN_EMPLOYEE"
+            }, status=400)
+
+        if not request.user.employee_get.check_online():
+            return Response({
+                "success": False,
+                "message": "Already checked-out",
+                "errorCode": "ALREADY_CHECKED_OUT"
+            }, status=400)
+
+        selfie_file = request.FILES.get("selfie")
+        latitude_str = request.data.get("latitude")
+        longitude_str = request.data.get("longitude")
+
+        if not selfie_file:
+            return Response({
+                "success": False,
+                "message": "Selfie image is required for check-out",
+                "errorCode": "MISSING_SELFIE"
+            }, status=400)
+
+        if not latitude_str or not longitude_str:
+            return Response({
+                "success": False,
+                "message": "GPS coordinates are required",
+                "errorCode": "MISSING_COORDINATES"
+            }, status=400)
+
+        try:
+            latitude = float(latitude_str)
+            longitude = float(longitude_str)
+        except ValueError:
+            return Response({
+                "success": False,
+                "message": "Invalid GPS coordinates formatting",
+                "errorCode": "INVALID_GPS"
+            }, status=400)
+
+        # Check Face Verification (Baseline Image comparison)
+        company = employee.get_company()
+        face_config = FaceDetection.objects.filter(company_id=company).first()
+        
+        if face_config and face_config.start:
+            baseline = EmployeeFaceDetection.objects.filter(employee_id=employee).first()
+            if not baseline or not baseline.image:
+                return Response({
+                    "success": False,
+                    "message": "Face verification is required, but you do not have a baseline photo enrolled. Please contact your administrator.",
+                    "errorCode": "FACE_NOT_ENROLLED"
+                }, status=400)
+            
+            # Temporary save selfie to run verification
+            temp_path = default_storage.save("temp/verification_checkout_selfie.jpg", selfie_file)
+            temp_full_path = default_storage.path(temp_path)
+            
+            # Get path of baseline image
+            baseline_path = baseline.image.path
+            
+            matched, similarity = compare_faces(baseline_path, temp_full_path)
+            
+            # Clean up temp file
+            if os.path.exists(temp_full_path):
+                os.remove(temp_full_path)
+                
+            if not matched:
+                return Response({
+                    "success": False,
+                    "message": "Face verification failed. Please take a clear photo of your face.",
+                    "errorCode": "FACE_VERIFICATION_FAILED"
+                }, status=400)
+
+        # Check Geofencing boundary
+        within_geofence = True
+        distance_meters = 0.0
+        geofence = GeoFencing.objects.filter(company_id=company).first()
+        
+        if geofence and geofence.start:
+            geofence_center = (geofence.latitude, geofence.longitude)
+            employee_loc = (latitude, longitude)
+            try:
+                distance_meters = geodesic(geofence_center, employee_loc).meters
+                if distance_meters > geofence.radius_in_meters:
+                    within_geofence = False
+            except Exception:
+                pass
+
+        # Perform checkout
+        current_date = date.today()
+        current_time = datetime.now().time()
+        current_datetime = datetime.now()
+
+        # Call Django Core check-out
+        clock_out(
+            AttendanceRequest(
+                user=request.user,
+                date=current_date,
+                time=current_time,
+                datetime=current_datetime,
+            )
+        )
+
+        # Update Mobile Extra Details
+        activity = AttendanceActivity.objects.filter(employee_id=employee, clock_out__isnull=False).order_by("-id").first()
+        if activity:
+            detail, created = MobileAttendanceDetail.objects.get_or_create(attendance_activity=activity)
+            detail.check_out_selfie = selfie_file
+            detail.check_out_lat = latitude
+            detail.check_out_lng = longitude
+            detail.check_out_within_geofence = within_geofence
+            detail.save()
+
+        if not within_geofence:
+            from django.contrib.auth import get_user_model
+            from django.contrib.contenttypes.models import ContentType
+            from notifications.models import Notification
+            
+            User = get_user_model()
+            admins = User.objects.filter(is_superuser=True) | User.objects.filter(is_staff=True)
+            user_ct = ContentType.objects.get_for_model(request.user)
+            
+            for admin in admins:
+                Notification.objects.get_or_create(
+                    recipient=admin,
+                    actor_content_type=user_ct,
+                    actor_object_id=str(request.user.id),
+                    verb="Outside Geofence",
+                    description=f"{employee.employee_first_name} {employee.employee_last_name} checked out outside the geofence zone.",
+                    level="danger"
+                )
+
+        return Response({
+            "success": True,
+            "message": "Check-out successful",
+            "data": {
+                "attendanceId": str(activity.id) if activity else "1",
+                "withinGeofence": within_geofence,
+                "distanceFromCenterMeters": distance_meters
+            }
+        }, status=201)
+
+
+class MobileLocationLogAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser]
+
+    def post(self, request):
+        try:
+            employee = request.user.employee_get
+        except Exception:
+            return Response({
+                "success": False,
+                "message": "User is not registered as an employee",
+                "errorCode": "NOT_AN_EMPLOYEE"
+            }, status=400)
+
+        # Gate on subscription plan
+        company = employee.get_company()
+        if not (company and hasattr(company, 'subscription') and company.subscription.has_feature("live_location")):
+            return Response({
+                "success": False,
+                "message": "Live location tracking is not enabled for your plan.",
+                "errorCode": "FEATURE_LOCKED"
+            }, status=403)
+
+        latitude = float(request.data.get("latitude", 0))
+        longitude = float(request.data.get("longitude", 0))
+        accuracy = float(request.data.get("accuracy", 0))
+        gps_enabled_val = request.data.get("gpsEnabled", True)
+        # Handle string type or boolean type gpsEnabled
+        if isinstance(gps_enabled_val, str):
+            gps_enabled = gps_enabled_val.lower() == "true"
+        else:
+            gps_enabled = bool(gps_enabled_val)
+
+        log = MobileLocationLog.objects.create(
+            employee=employee,
+            latitude=latitude,
+            longitude=longitude,
+            accuracy=accuracy,
+            gps_enabled=gps_enabled,
+            captured_at=timezone.now()
+        )
+
+        if not gps_enabled:
+            from django.contrib.auth import get_user_model
+            from django.contrib.contenttypes.models import ContentType
+            from notifications.models import Notification
+            
+            User = get_user_model()
+            admins = User.objects.filter(is_superuser=True) | User.objects.filter(is_staff=True)
+            user_ct = ContentType.objects.get_for_model(request.user)
+            
+            for admin in admins:
+                Notification.objects.get_or_create(
+                    recipient=admin,
+                    actor_content_type=user_ct,
+                    actor_object_id=str(request.user.id),
+                    verb="GPS Off",
+                    description=f"{employee.employee_first_name} {employee.employee_last_name} turned off GPS location services at {timezone.now().strftime('%I:%M %p')}.",
+                    level="warning"
+                )
+
+        return Response({
+            "success": True,
+            "message": "Location logged",
+            "data": {
+                "id": str(log.id)
+            }
+        }, status=201)
+
+
+class MobileAttendanceHistoryAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            employee = request.user.employee_get
+        except Exception:
+            return Response({
+                "success": False,
+                "message": "User is not registered as an employee",
+                "data": []
+            }, status=400)
+
+        date_str = request.query_params.get("date")
+        
+        # Load Attendance activities
+        activities = AttendanceActivity.objects.filter(employee_id=employee)
+        if date_str:
+            try:
+                target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+                activities = activities.filter(attendance_date=target_date)
+            except ValueError:
+                pass
+        else:
+            # Default to last 30 days
+            start_date = date.today() - timedelta(days=30)
+            activities = activities.filter(attendance_date__gte=start_date)
+
+        activities = activities.order_by("-attendance_date", "-clock_in")
+
+        # Map to Flutter AttendanceEvent objects format
+        events = []
+        for act in activities:
+            detail = getattr(act, "mobile_detail", None)
+            
+            # Map Check In event
+            if act.in_datetime:
+                events.append({
+                    "id": f"{act.id}_in",
+                    "userId": str(request.user.id),
+                    "eventType": "check_in",
+                    "selfieUrl": request.build_absolute_uri(detail.check_in_selfie.url) if (detail and detail.check_in_selfie) else None,
+                    "latitude": detail.check_in_lat if detail else None,
+                    "longitude": detail.check_in_lng if detail else None,
+                    "withinGeofence": detail.within_geofence if detail else True,
+                    "gpsEnabled": True,
+                    "capturedAt": act.in_datetime.isoformat(),
+                    "createdAt": act.created_at.isoformat()
+                })
+            
+            # Map Check Out event
+            if act.out_datetime:
+                events.append({
+                    "id": f"{act.id}_out",
+                    "userId": str(request.user.id),
+                    "eventType": "check_out",
+                    "selfieUrl": request.build_absolute_uri(detail.check_out_selfie.url) if (detail and detail.check_out_selfie) else None,
+                    "latitude": detail.check_out_lat if detail else None,
+                    "longitude": detail.check_out_lng if detail else None,
+                    "withinGeofence": detail.check_out_within_geofence if detail else True,
+                    "gpsEnabled": True,
+                    "capturedAt": act.out_datetime.isoformat(),
+                    "createdAt": act.out_datetime.isoformat()
+                })
+
+        return Response({
+            "success": True,
+            "message": "Logs retrieved",
+            "data": events
+        }, status=200)

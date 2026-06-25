@@ -172,9 +172,10 @@ def project_view(request):
     view_type = "card"
     if request.GET.get("view") == "list":
         view_type = "list"
-    projects = Project.objects.all()
+    base_qs = Project.objects.prefetch_related("managers")
+    projects = base_qs.all()
     if request.GET.get("search") is not None:
-        projects = ProjectFilter(request.GET).qs
+        projects = ProjectFilter(request.GET, queryset=base_qs).qs
     previous_data = request.environ["QUERY_STRING"]
     page_number = request.GET.get("page")
     context = {
@@ -358,8 +359,8 @@ def project_import(request):
     data_frame = pd.DataFrame(
         columns=[
             "Title",
-            "Manager Badge id",
-            "Member Badge id",
+            "Manager Employee ID",
+            "Member Employee ID",
             "Status",
             "Start Date",
             "End Date",
@@ -380,8 +381,8 @@ def project_import(request):
             try:
                 # getting datas from imported file
                 title = project["Title"]
-                manager_badge_id = convert_nan("Manager Badge id", project)
-                member_badge_id = convert_nan("Member Badge id", project)
+                manager_badge_id = convert_nan("Manager Employee ID", project)
+                member_badge_id = convert_nan("Member Employee ID", project)
                 status = project["Status"]
                 start_date = project["Start Date"]
                 end_date = project["End Date"]
@@ -797,7 +798,8 @@ def create_task(request, stage_id):
     """
     project_stage = ProjectStage.objects.get(id=stage_id)
     project = project_stage.project
-    if request.user.employee_get in project.managers.all() or request.user.has_perm(
+    employee = getattr(request.user, "employee_get", None)
+    if employee and employee in project.managers.all() or request.user.has_perm(
         "project.delete_project"
     ):
         form = TaskForm(initial={"project": project})
@@ -837,7 +839,8 @@ def create_task_in_project(request, project_id):
     # Serialize the queryset to JSON
 
     serialized_data = serializers.serialize("json", stages)
-    if request.user.employee_get in project.managers.all() or request.user.has_perm(
+    employee = getattr(request.user, "employee_get", None)
+    if employee and employee in project.managers.all() or request.user.has_perm(
         "project.delete_project"
     ):
         form = TaskFormCreate(initial={"project": project})
@@ -933,6 +936,16 @@ def task_details(request, task_id):
     task = Task.objects.filter(id=task_id).first()
     if not task:
         return SkylinxRedirect(request, message=_("Task not found"))
+    project = task.project
+    if not (
+        request.user.has_perm("project.view_task")
+        or request.user.has_perm("project.change_project")
+        or request.user.employee_get in task.task_managers.all()
+        or request.user.employee_get in task.task_members.all()
+        or request.user.employee_get in project.managers.all()
+        or request.user.employee_get in project.members.all()
+    ):
+        return render(request, "no_perm.html")
     return render(request, "task/new/task_details.html", context={"task": task})
 
 
@@ -986,6 +999,21 @@ def task_stage_change(request):
     if not stage:
         messages.error(request, _("Stage not found"))
         return JsonResponse({"error": "Stage not found"}, status=404)
+    task = Task.objects.filter(id=task_id).first()
+    if not task:
+        messages.error(request, _("Task not found"))
+        return JsonResponse({"error": "Task not found"}, status=404)
+    project = task.project
+    if not (
+        request.user.has_perm("project.change_task")
+        or request.user.has_perm("project.change_project")
+        or request.user.employee_get in task.task_managers.all()
+        or request.user.employee_get in task.task_members.all()
+        or request.user.employee_get in project.managers.all()
+        or request.user.employee_get in project.members.all()
+    ):
+        messages.info(request, _("You dont have permission."))
+        return JsonResponse({"error": "Permission denied"}, status=403)
     Task.objects.filter(id=task_id).update(stage=stage)
     return JsonResponse(
         {
@@ -1119,7 +1147,8 @@ def task_all(request):
     """
     form = TaskAllFilter()
     view_type = "card"
-    tasks = TaskAllFilter(request.GET).qs
+    base_qs = Task.objects.select_related("project", "stage").prefetch_related("task_managers", "task_members")
+    tasks = TaskAllFilter(request.GET, queryset=base_qs).qs
     if request.GET.get("view") == "list":
         view_type = "list"
     context = {
@@ -1165,6 +1194,17 @@ def update_project_task_status(request, task_id):
     task = Task.find(task_id)
     if not task:
         return SkylinxRedirect(request, message=_("Task not found"))
+
+    project = task.project
+    if not (
+        request.user.has_perm("project.change_task")
+        or request.user.has_perm("project.change_project")
+        or request.user.employee_get in task.task_managers.all()
+        or request.user.employee_get in task.task_members.all()
+        or request.user.employee_get in project.managers.all()
+        or request.user.employee_get in project.members.all()
+    ):
+        return render(request, "no_perm.html")
 
     if task.end_date and task.end_date < date.today():
         messages.warning(request, _("Cannot update status. Task has already expired."))
@@ -1281,7 +1321,7 @@ def task_all_bulk_delete(request):
 
 
 @login_required
-# @permission_required("project.change_task")
+@permission_required("project.change_task")
 def task_all_archive(request, task_id):
     """
     This method is used to archive project instance
@@ -1545,18 +1585,30 @@ def get_members(request):
             project = Project.objects.filter(id=project_id).first()
             task = Task.objects.filter(id=task_id).first()
             employee = Employee.objects.filter(id=request.user.employee_get.id)
-            if employee.first() in project.managers.all():
-                members = (
-                    employee
-                    | project.members.all()
-                    | task.task_managers.all()
-                    | task.task_members.all()
-                ).distinct()
-            elif employee.first() in task.task_managers.all():
-                members = (employee | task.task_members.all()).distinct()
-            else:
-                members = employee
-            form.fields["employee_id"].queryset = members
+            emp = employee.first()
+            if project and task and emp:
+                if (
+                    request.user.is_superuser
+                    or request.user.has_perm("project.add_timesheet")
+                ):
+                    members = (
+                        project.managers.all()
+                        | project.members.all()
+                        | task.task_managers.all()
+                        | task.task_members.all()
+                    ).distinct()
+                elif emp in project.managers.all():
+                    members = (
+                        employee
+                        | project.members.all()
+                        | task.task_managers.all()
+                        | task.task_members.all()
+                    ).distinct()
+                elif emp in task.task_managers.all():
+                    members = (employee | task.task_members.all()).distinct()
+                else:
+                    members = employee
+                form.fields["employee_id"].queryset = members
     else:
         form.fields["employee_id"].queryset = Employee.objects.none()
 
@@ -1985,6 +2037,17 @@ def time_sheet_single_view(request, time_sheet_id):
     if not timesheet:
         messages.error(request, _("Timesheet doesn't exist."))
         return SkylinxRedirect(request)
+    employee = request.user.employee_get
+    project = timesheet.project_id
+    task = timesheet.task_id
+    if not (
+        request.user.has_perm("project.view_timesheet")
+        or request.user.has_perm("project.view_project")
+        or timesheet.employee_id == employee
+        or (project and employee in project.managers.all())
+        or (task and employee in task.task_managers.all())
+    ):
+        return render(request, "no_perm.html")
     context = {"time_sheet": timesheet}
     return render(request, "time_sheet/time_sheet_single_view.html", context)
 

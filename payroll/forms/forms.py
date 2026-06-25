@@ -10,9 +10,11 @@ from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
 
 from base.forms import Form, ModelForm
+from base.rbac import current_company
 from employee.forms import MultipleFileField
 from employee.models import Employee
 from payroll.context_processors import get_active_employees
+from skylinx.skylinx_middlewares import _thread_locals
 from payroll.models.models import (
     Contract,
     EncashmentGeneralSettings,
@@ -27,7 +29,7 @@ class ContractForm(ModelForm):
     ContactForm
     """
 
-    verbose_name = _("Contract")
+    verbose_name = _("Pay Register")
     contract_start_date = forms.DateField()
     contract_end_date = forms.DateField(required=False)
 
@@ -39,6 +41,7 @@ class ContractForm(ModelForm):
         fields = "__all__"
         exclude = [
             "is_active",
+            "contract_name",
         ]
         model = Contract
 
@@ -89,6 +92,14 @@ class ContractForm(ModelForm):
         context = {"form": self}
         table_html = render_to_string("contract_form.html", context)
         return table_html
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if not instance.contract_name:
+            instance.contract_name = f"{instance.employee_id}'s Pay Register"
+        if commit:
+            instance.save()
+        return instance
 
     def get_dynamic_hx_post_url(self, instance):
         """
@@ -182,7 +193,7 @@ class DashboardExport(Form):
     )
     employees = forms.ChoiceField(
         required=False,
-        choices=[(emp.id, emp.get_full_name()) for emp in Employee.objects.all()],
+        choices=[],
         widget=forms.SelectMultiple,
     )
     status = forms.ChoiceField(required=False, choices=status_choices)
@@ -197,6 +208,23 @@ class DashboardExport(Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        request = getattr(_thread_locals, "request", None)
+        company = current_company(request) if request else None
+        employees = Employee.objects.exclude(employee_user_id__is_superuser=True)
+        if company:
+            employees = employees.filter(employee_work_info__company_id=company)
+        self.fields["employees"].choices = [
+            (emp.id, emp.get_full_name()) for emp in employees
+        ]
+        self.fields["contributions"].choices = [
+            (emp.id, emp.get_full_name())
+            for emp in get_active_employees(None)["get_active_employees"]
+            if not company
+            or (
+                getattr(emp, "employee_work_info", None)
+                and emp.employee_work_info.company_id == company
+            )
+        ]
         self.fields["employees"].widget.attrs.update({"class": "oh-select oh-select-2"})
         self.fields["status"].widget.attrs.update({"class": "oh-select oh-select-2"})
         self.fields["contributions"].widget.attrs.update(

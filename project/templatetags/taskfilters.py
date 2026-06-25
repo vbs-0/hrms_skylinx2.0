@@ -44,7 +44,9 @@ def is_project_manager_or_member(user, project):
     """
     This method will return true, if the user is manger or member of the project
     """
-    employee = user.employee_get
+    employee = getattr(user, "employee_get", None)
+    if not employee:
+        return False
 
     return (
         Project.objects.filter(id=project.id, managers=employee).exists()
@@ -59,7 +61,9 @@ def is_project_manager(user, project):
     """
     if user.is_superuser:
         return True
-    employee = user.employee_get
+    employee = getattr(user, "employee_get", None)
+    if not employee:
+        return False
     return Project.objects.filter(id=project.id, managers=employee).exists()
 
 

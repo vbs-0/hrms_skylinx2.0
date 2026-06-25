@@ -271,11 +271,11 @@
 <script>
 	$(document).ready(function () {
 		$("#gp_request").on("change", function () {
-			$(".filterButton")[0].click();
+			$(".filterButton").first().click();
 		});
 
 		$("#gp_allocation").on("change", function () {
-			$(".filterButton")[0].click();
+			$(".filterButton").first().click();
 		});
 
 		$("#dynamicCreateModalTarget").on("htmx:afterSwap", function () {

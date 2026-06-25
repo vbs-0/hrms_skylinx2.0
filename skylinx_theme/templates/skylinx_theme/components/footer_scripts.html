@@ -5,9 +5,41 @@
 
 <script src="{% static 'htmx/htmx.min.js' %}"></script>
 <script>
-  document.body.addEventListener('htmx:configRequest', (event) => {
-    event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}'
-  })
+  // Only run this script once
+  if (typeof window.skylinxLoaderInitialized === 'undefined') {
+    window.skylinxLoaderInitialized = true;
+
+    document.body.addEventListener('htmx:configRequest', (event) => {
+      event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}'
+    });
+
+    // Global loading indicator - Add only if doesn't exist
+    let globalLoader = document.getElementById('global-loader');
+    if (!globalLoader) {
+      globalLoader = document.createElement('div');
+      globalLoader.id = 'global-loader';
+      globalLoader.innerHTML = `
+        <div class="flex flex-col items-center gap-3">
+          <span class="oh-spinner"></span>
+          <span class="text-sm text-gray-600">Loading...</span>
+        </div>
+      `;
+      document.body.prepend(globalLoader);
+    }
+    
+    document.addEventListener('htmx:beforeSend', () => {
+      if (globalLoader) globalLoader.classList.add('active');
+    });
+
+    const hideLoader = () => {
+      if (globalLoader) globalLoader.classList.remove('active');
+    };
+
+    document.addEventListener('htmx:afterRequest', hideLoader);
+    document.addEventListener('htmx:sendError', hideLoader);
+    document.addEventListener('htmx:responseError', hideLoader);
+    document.addEventListener('htmx:abort', hideLoader);
+  }
 </script>
 <script src="{% static '/index/index.js' %}"></script>
 <script src="{% static '/index/saveFilters.js' %}"></script>
@@ -40,6 +72,7 @@
     window.history.replaceState({}, document.title, urlWithoutQuery)
   }
 </script>
+<script src="{% static 'cbv/work_type_request/work_request_bulk_action.js' %}"></script>
 <script src="{% static 'skylinx_theme/assets/js/footerScripts.js' %}"></script>
 
 

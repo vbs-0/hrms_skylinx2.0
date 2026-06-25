@@ -11,6 +11,7 @@ from django.shortcuts import render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
+from django.contrib.auth.decorators import user_passes_test
 
 from base.filters import CompanyFilter
 from base.forms import CompanyForm
@@ -24,6 +25,14 @@ from skylinx_views.generic.cbv.views import (
 )
 
 
+def _company_is_user_company(request, instance, *_args, **_kwargs):
+    if not request or not instance or getattr(request.user, "is_superuser", False):
+        return False
+    employee = getattr(request.user, "employee_get", None)
+    company = getattr(getattr(employee, "employee_work_info", None), "company_id", None)
+    return bool(company and getattr(instance, "id", None) == company.id)
+
+
 @method_decorator(login_required, name="dispatch")
 @method_decorator(permission_required(perm="base.view_company"), name="dispatch")
 class CompanyListView(SkylinxListView):
@@ -35,7 +44,7 @@ class CompanyListView(SkylinxListView):
         super().__init__(**kwargs)
         self.search_url = reverse("company-list")
         self.actions = []
-        if self.request.user.has_perm("base.change_company"):
+        if self.request.user.is_superuser:
             self.actions.append(
                 {
                     "action": _("Edit"),
@@ -49,7 +58,22 @@ class CompanyListView(SkylinxListView):
                       """,
                 }
             )
-        if self.request.user.has_perm("base.delete_company"):
+        else:
+            self.actions.append(
+                {
+                    "action": _("Edit"),
+                    "icon": "create-outline",
+                    "accessibility": "base.cbv.company._company_is_user_company",
+                    "attrs": """
+                        class="oh-btn oh-btn--light-bkg w-100"
+                        hx-get='{get_update_url}?instance_ids={ordered_ids}'
+                        hx-target="#genericModalBody"
+                        data-toggle="oh-modal-toggle"
+                        data-target="#genericModal"
+                      """,
+                }
+            )
+        if self.request.user.is_superuser:
             self.actions.append(
                 {
                     "action": _("Delete"),
@@ -68,6 +92,16 @@ class CompanyListView(SkylinxListView):
     filter_class = CompanyFilter
     selected_instances_key_id = "selectedInstance"
     bulk_update_fields = ["country", "state", "city", "zip"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.request.user.is_superuser:
+            return queryset
+        employee = getattr(self.request.user, "employee_get", None)
+        company = getattr(getattr(employee, "employee_work_info", None), "company_id", None)
+        if not company:
+            return queryset.none()
+        return queryset.filter(id=company.id)
 
     def get_bulk_form(self):
         """
@@ -107,7 +141,7 @@ class CompanyListView(SkylinxListView):
         (_("Country"), "country"),
         (_("State"), "state"),
         (_("City"), "city"),
-        (_("Zip"), "zip"),
+        (_("PIN Code"), "zip"),
     ]
 
     sortby_mapping = [
@@ -115,7 +149,7 @@ class CompanyListView(SkylinxListView):
         (_("Country"), "country"),
         (_("State"), "state"),
         (_("City"), "city"),
-        (_("Zip"), "zip"),
+        (_("PIN Code"), "zip"),
     ]
 
     row_attrs = """
@@ -137,7 +171,7 @@ class CompanyNavView(SkylinxNavView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.search_url = reverse("company-list")
-        if self.request.user.has_perm("base.add_company"):
+        if self.request.user.is_superuser:
             self.create_attrs = f"""
                                 onclick = "event.stopPropagation();"
                                 data-toggle="oh-modal-toggle"
@@ -152,7 +186,7 @@ class CompanyNavView(SkylinxNavView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(permission_required(perm="base.add_company"), name="dispatch")
+@method_decorator(user_passes_test(lambda u: u.is_superuser), name="dispatch")
 class CompanyCreateForm(SkylinxFormView):
     """
     form view for creating and editing company in settings

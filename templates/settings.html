@@ -133,6 +133,16 @@
 											<div class="oh-input-group">
 												{% if perms.auth.view_group %}
 													<a
+														id="rolesPage"
+														href="{% url 'roles-page' %}"
+														class="oh-inner-sidebar__link oh-dropdown__link"
+														>{% trans "Roles & Permissions" %}</a
+													>
+												{% endif %}
+											</div>
+											<div class="oh-input-group">
+												{% if perms.auth.view_group %}
+													<a
 														id="userGroup"
 														href="{% url 'user-group-view' %}"
 														class="oh-inner-sidebar__link oh-dropdown__link"
@@ -167,6 +177,16 @@
 														href="{% url 'audit-model-settings' %}"
 														class="oh-inner-sidebar__link oh-dropdown__link"
 														>{% trans "Audit Tracking" %}</a
+													>
+												{% endif %}
+											</div>
+											<div class="oh-input-group">
+												{% if perms.skylinx_audit.view_auditmodelconfig %}
+													<a
+														id="activityLog"
+														href="{% url 'audit-activity-log' %}"
+														class="oh-inner-sidebar__link oh-dropdown__link"
+														>{% trans "Activity Log" %}</a
 													>
 												{% endif %}
 											</div>
@@ -615,7 +635,7 @@
 								<hr>
 							{% endif %}
 						{% endif %}
-						{% if "pms"|app_installed %}
+						{% if False %} {# ponytail: Bonus Point Setting hidden from UI; backend intact #}
 							<li class="oh-inner-sidebar__item">
 								<div class="oh-accordion ms-2">
 									{% if perms.pms.add_bonuspointsetting %}

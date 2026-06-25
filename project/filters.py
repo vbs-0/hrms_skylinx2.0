@@ -5,6 +5,8 @@ from django import forms
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
+from base.rbac import current_company
+from skylinx.skylinx_middlewares import _thread_locals
 from skylinx.filters import FilterSet, SkylinxFilterSet, filter_by_name
 
 from .models import Employee, Project, Task, TimeSheet
@@ -57,7 +59,7 @@ class ProjectFilter(SkylinxFilterSet):
 class TaskFilter(FilterSet):
     search = django_filters.CharFilter(method="filter_by_task")
     task_managers = django_filters.ModelChoiceFilter(
-        field_name="task_managers", queryset=Employee.objects.all()
+        field_name="task_managers", queryset=Employee.objects.none()
     )
     end_till = django_filters.DateFilter(
         field_name="end_date",
@@ -79,6 +81,15 @@ class TaskFilter(FilterSet):
     def filter_by_task(self, queryset, _, value):
         queryset = queryset.filter(title__icontains=value)
         return queryset
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = getattr(_thread_locals, "request", None)
+        company = current_company(request) if request else None
+        if company:
+            self.filters["task_managers"].queryset = Employee.objects.filter(
+                employee_work_info__company_id=company
+            )
 
 
 class TaskAllFilter(SkylinxFilterSet):

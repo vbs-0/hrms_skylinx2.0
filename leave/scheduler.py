@@ -56,12 +56,15 @@ def leave_reset():
 
 if not any(
     cmd in sys.argv
-    for cmd in ["makemigrations", "migrate", "compilemessages", "flush", "shell"]
+    for cmd in ["makemigrations", "migrate", "compilemessages", "flush", "shell", "test"]
 ):
     """
     Initializes and starts background tasks using APScheduler when the server is running.
     """
     scheduler = BackgroundScheduler()
-    scheduler.add_job(leave_reset, "interval", seconds=20)
+    # ponytail: was seconds=20 (debug leftover) — leave_reset only acts on
+    # date-based resets, so daily is correct and stops the every-20s DB hammering
+    # that slowed every request.
+    scheduler.add_job(leave_reset, "interval", hours=24)
 
     scheduler.start()

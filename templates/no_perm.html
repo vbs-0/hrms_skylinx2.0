@@ -25,7 +25,8 @@
         <!-- Navigation -->
         <div id="mainNav"></div>
         <!-- End of Navigation -->
-        <main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
+        {# ponytail: plain <main> — an Alpine :class binding with no x-data scope threw uncaught and broke htmx when injected #}
+        <main>
 
           <div class="oh-wrapper">
             <div class="oh-404">

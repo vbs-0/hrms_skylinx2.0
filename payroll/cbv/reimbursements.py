@@ -39,18 +39,12 @@ class ReimbursementsAndEncashmentsTabView(SkylinxTabView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.view_id = "reimbursmentContainer"
+        # Single unified Expenses claims section. Leave/Bonus encashment tabs
+        # removed here (their payroll logic still lives in the model).
         self.tabs = [
             {
-                "title": _("Reimbursements"),
+                "title": _("Expenses"),
                 "url": f"{reverse('list-reimbursement')}",
-            },
-            {
-                "title": _("Leave Encashments"),
-                "url": f"{reverse('list-leave-encash')}",
-            },
-            {
-                "title": _("Bonus Encashments"),
-                "url": f"{reverse('list-bonus-encash')}",
             },
         ]
 
@@ -143,6 +137,16 @@ class ReimbursementsListView(ReimbursementsAndEncashmentsListView):
                 data-target="#genericModal"
                 data-toggle="oh-modal-toggle"
                 """
+
+    columns = [
+        (_("Employee"), "employee_id", "employee_id__get_avatar"),
+        (_("Category"), "get_category_display"),
+        (_("Date"), "created_at"),
+        (_("Amount"), "amount"),
+        (_("Status"), "get_status_display"),
+        (_("Description"), "description"),
+        (_("Comment"), "comment_col"),
+    ]
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -255,7 +259,7 @@ class ReimbursementsNav(SkylinxNavView):
                             data-toggle="oh-modal-toggle"
                             """
 
-    nav_title = _("Reimbursements")
+    nav_title = _("Expenses")
     filter_instance = ReimbursementFilter()
     filter_form_context_name = "form"
     filter_body_template = "cbv/reimbursements/filter.html"
@@ -269,6 +273,7 @@ class ReimbursementsDetailView(SkylinxDetailedView):
     """
 
     body = [
+        (_("Category"), "get_category_display"),
         (_("Date"), "created_at"),
         (_("Amount"), "amount"),
         (_("Status"), "get_status_display"),
@@ -319,7 +324,7 @@ class ReimbursementsFormView(SkylinxFormView):
 
     model = Reimbursement
     form_class = ReimbursementForm
-    new_display_title = _("Create Reimbursement / Encashment")
+    new_display_title = _("Create Expense")
     template_name = "cbv/reimbursements/forms.html"
 
     def get_context_data(self, **kwargs):
@@ -328,7 +333,7 @@ class ReimbursementsFormView(SkylinxFormView):
         """
         context = super().get_context_data(**kwargs)
         if self.form.instance.pk:
-            self.form_class.verbose_name = _("Update Reimbursement / Encashment")
+            self.form_class.verbose_name = _("Update Expense")
         return context
 
     def form_valid(self, form: ReimbursementForm) -> HttpResponse:
@@ -338,9 +343,9 @@ class ReimbursementsFormView(SkylinxFormView):
         """
         if form.is_valid():
             if form.instance.pk:
-                message = _("Reimbursement updated successfully")
+                message = _("Expense updated successfully")
             else:
-                message = _("Reimbursement created successfully")
+                message = _("Expense created successfully")
             form.save()
             messages.success(self.request, message)
             return self.HttpResponse()

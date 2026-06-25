@@ -90,7 +90,7 @@
                             </div>
                             <div class="oh-kanban__section-body ui-sortable onboarding_items" data-stage-id="{{stage.grouper.id}}" data-recruitment-id="{{rec.id}}">
                                 {% for candidate in stage.list %}
-                                <div class="oh-kanban__card candidate" id="{{candidate.id}}"  data-candidate="{{candidate.candidate_id}}" data-candidate-id="{{candidate.candidate_id.id}}" data-recruitment-id="{{rec.id}}" data-candidate-now = "{{stage.id}}" data-job-position = "{{candidate.candidate_id.job_position_id}}" data-portal-count="{{candidate.candidate_id.onboarding_portal.count}}" data-join-date="{{candidate.candidate_id.joining_date}}" >
+                                <div class="oh-kanban__card candidate" id="{{candidate.id}}"  data-candidate="{{candidate.candidate_id}}" data-candidate-id="{{candidate.candidate_id.id}}" data-recruitment-id="{{rec.id}}" data-candidate-now = "{{stage.id}}" data-job-position = "{{candidate.candidate_id.job_position_id}}" data-portal-count="{{candidate.candidate_id.onboarding_portal.all|length}}" data-join-date="{{candidate.candidate_id.joining_date}}" >
                                     <div class="oh-kanban__card-head">
                                         <div class="oh-profile oh-profile--md">
                                             <div class="oh-profile__avatar mr-1">

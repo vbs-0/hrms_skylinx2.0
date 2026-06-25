@@ -80,7 +80,7 @@
 
 <script>
 
-    $(document).on('htmx:load','#companyLeave', function () {
+    $(document).off('htmx:load.company__company_leav').on('htmx:load.company__company_leav','#companyLeave', function () {
         // Create a new script element
         var scriptElement = document.createElement("script");
         // Set the source URL of the script file to be loaded

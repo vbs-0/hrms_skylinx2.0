@@ -280,9 +280,7 @@ class Recruitment(SkylinxModel):
             else self.title
         )
 
-        if not self.is_event_based and self.job_position_id is not None:
-            self.open_positions.add(self.job_position_id)
-
+        # ponytail: open_positions sync moved to save(); __str__ must not write to DB
         return str(title)
 
     def clean(self):
@@ -311,6 +309,8 @@ class Recruitment(SkylinxModel):
         super().save(*args, **kwargs)  # Save the Recruitment instance first
         if self.is_event_based and self.open_positions is None:
             raise ValidationError({"open_positions": _("This field is required")})
+        if not self.is_event_based and self.job_position_id is not None:
+            self.open_positions.add(self.job_position_id)
 
     def ordered_stages(self):
         """
@@ -700,7 +700,7 @@ class Candidate(SkylinxModel):
         max_length=30, null=True, blank=True, verbose_name=_("City")
     )
     zip = models.CharField(
-        max_length=30, null=True, blank=True, verbose_name=_("Zip Code")
+        max_length=30, null=True, blank=True, verbose_name=_("PIN Code")
     )
     gender = models.CharField(
         max_length=15,
@@ -904,15 +904,22 @@ class Candidate(SkylinxModel):
         """
 
         request = getattr(_thread_locals, "request", None)
-        mails = getattr(request, "mails", None)
+        emp_list = None
+        if request:
+            emp_list = getattr(request, "_cached_emp_list", None)
 
-        if not mails:
-            mails = list(Candidate.objects.values_list("email", flat=True))
-            setattr(request, "mails", mails)
+        if emp_list is None:
+            mails = getattr(request, "mails", None)
+            if not mails:
+                mails = list(Candidate.objects.values_list("email", flat=True))
+                if request:
+                    setattr(request, "mails", mails)
 
-        emp_list = SkylinxUser.objects.filter(username__in=mails).values_list(
-            "email", flat=True
-        )
+            emp_list = list(SkylinxUser.objects.filter(username__in=mails).values_list(
+                "email", flat=True
+            ))
+            if request:
+                setattr(request, "_cached_emp_list", emp_list)
 
         return render_template(
             path="cbv/candidates/option.html",
@@ -1076,14 +1083,16 @@ class Candidate(SkylinxModel):
         """
         url = reverse_lazy("send-mail", kwargs={"cand_id": self.pk})
         return url
-
     def is_offer_rejected(self):
         """
         Is offer rejected checking method
         """
-        first = RejectedCandidate.objects.filter(candidate_id=self).first()
+        try:
+            first = self.rejected_candidate
+        except ObjectDoesNotExist:
+            first = None
         if first:
-            return first.reject_reason_id.count() > 0
+            return len(first.reject_reason_id.all()) > 0
         return first
 
     def get_full_name(self):
@@ -1096,6 +1105,27 @@ class Candidate(SkylinxModel):
         if self.profile and default_storage.exists(self.profile.name):
             return self.profile.url
         return static("images/ui/default_avatar.jpg")
+
+    def get_send_mail(self):
+        """
+        Candidate detail
+        """
+        url = reverse_lazy("send-mail", kwargs={"cand_id": self.pk})
+        return url
+
+    def get_last_sent_mail(self):
+        """
+        This method is used to get last send mail
+        """
+        if hasattr(self, "_cached_last_sent_mail"):
+            return self._cached_last_sent_mail
+        from base.models import EmailLog
+
+        return (
+            EmailLog.objects.filter(to__icontains=self.email)
+            .order_by("-created_at")
+            .first()
+        )
 
     def get_company(self):
         """
@@ -1131,18 +1161,6 @@ class Candidate(SkylinxModel):
         This method is used to return the tracked history of the instance
         """
         return get_diff(self)
-
-    def get_last_sent_mail(self):
-        """
-        This method is used to get last send mail
-        """
-        from base.models import EmailLog
-
-        return (
-            EmailLog.objects.filter(to__icontains=self.email)
-            .order_by("-created_at")
-            .first()
-        )
 
     def get_schedule_interview(self):
         url = reverse_lazy("interview-schedule", kwargs={"cand_id": self.pk})
@@ -1977,22 +1995,31 @@ class CandidateDocument(SkylinxModel):
         if len(self.title) < 3:
             raise ValidationError({"title": _("Title must be at least 3 characters")})
 
-        if file and self.document_request_id:
-            format = self.document_request_id.format
-            max_size = self.document_request_id.max_size
-            if max_size:
-                if file.size > max_size * 1024 * 1024:
-                    raise ValidationError(
-                        {"document": _("File size exceeds the limit")}
-                    )
-
-            ext = file.name.split(".")[1].lower()
-            if format == "any":
-                pass
-            elif ext != format:
+        if file:
+            import os
+            raw_ext = os.path.splitext(file.name)[1].lower()
+            blocked_extensions = {".html", ".htm", ".js", ".svg", ".xml", ".php", ".py", ".sh", ".exe"}
+            if raw_ext in blocked_extensions:
                 raise ValidationError(
-                    {"document": _("Please upload {} file only.").format(format)}
+                    {"document": _("File type is not allowed for security reasons.")}
                 )
+            
+            if self.document_request_id:
+                format = self.document_request_id.format
+                max_size = self.document_request_id.max_size
+                if max_size:
+                    if file.size > max_size * 1024 * 1024:
+                        raise ValidationError(
+                            {"document": _("File size exceeds the limit")}
+                        )
+
+                ext = raw_ext.lstrip('.')
+                if format == "any":
+                    pass
+                elif ext != format.lower():
+                    raise ValidationError(
+                        {"document": _("Please upload {} file only.").format(format)}
+                    )
 
 
 class LinkedInAccount(SkylinxModel):

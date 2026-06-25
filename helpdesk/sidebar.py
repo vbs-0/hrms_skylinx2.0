@@ -13,10 +13,6 @@ IMG_SRC = "images/ui/headset-solid.svg"
 
 SUBMENUS = [
     {
-        "menu": _("Dashboard"),
-        "redirect": reverse_lazy("helpdesk-dashboard"),
-    },
-    {
         "menu": _("FAQs"),
         "redirect": reverse_lazy("faq-category-view"),
     },

@@ -61,7 +61,7 @@
                 <p class="mb-5 text-center text-sm text-color-600">
                     {% trans "Please login to access the dashboard." %}
                 </p>
-                <form method="post" class="oh-form-group">
+                <form method="post" class="oh-form-group" autocomplete="off">
                     {% csrf_token %}
                     <div class="mb-3">
                         <label for="username" class="text-sm text-color-600"
@@ -71,7 +71,8 @@
                             type="text"
                             id="username"
                             name="username"
-                            placeholder="e.g. adam.luis@skylinx.com"
+                            autocomplete="off"
+                            placeholder="e.g. adam.luis@emplinx.com"
                             class="text-color-600 w-full border border-dark-50 rounded-md p-3 mt-1 focus-visible:outline-0 placeholder:text-[#00000041] placeholder:font-medium text-xs [transition:.3s] {% if theme_obj %} focus:border-[{{theme_obj.primary_700}}] {% else %} focus:border-primary-600 {% endif %}"
                         />
                     </div>
@@ -83,6 +84,7 @@
                             type="password"
                             id="password"
                             name="password"
+                            autocomplete="new-password"
                             placeholder="Enter Password"
                             class="oh-input--password text-color-600 p-3 pr-[40px] w-full border border-dark-50 rounded-md mt-1 focus-visible:outline-0 placeholder:text-[#00000041] placeholder:font-medium text-xs [transition:.3s] {% if theme_obj %} focus:border-[{{theme_obj.primary_700}}] {% else %} focus:border-primary-600 {% endif %}"
                         />
@@ -105,13 +107,25 @@
                     {% if not initialize_database %}
                     <div class="flex justify-end">
                         <a
-                            href="{% url 'forgot-password' %}"
+                            href="{% url 'password-reset-otp' %}"
                             class="text-sm text-right font-medium text-[red] mb-3 mt-2 cursor-pointer"
                         >
                             {% trans "Forgot Password ?" %}
                         </a>
                     </div>
                     {% endif %}
+                    <div id="termsContainer" style="display:flex; align-items:flex-start; gap:8px; margin:14px 0 4px; transition: opacity 0.3s ease;">
+                        <input type="checkbox" id="acceptTerms" name="accept_terms" required
+                            style="width:16px; height:16px; margin-top:2px; cursor:pointer; flex-shrink:0;">
+                        <label for="acceptTerms" style="font-size:12px; margin:0; cursor:pointer; line-height:1.45; color:var(--sx-text-muted,#555);">
+                            {% trans "I accept the" %}
+                            <a href="{% url 'terms-view' %}" target="_blank"
+                                style="color:#e76955; font-weight:700; text-decoration:underline;">{% trans "Terms &amp; Conditions" %}</a>
+                            {% trans "and" %}
+                            <a href="{% url 'terms-view' %}" target="_blank"
+                                style="color:#e76955; font-weight:700; text-decoration:underline;">{% trans "Privacy Policy" %}</a>.
+                        </label>
+                    </div>
                     <button
                         type="submit"
                         class="p-3 mt-3 {% if theme_obj %} bg-[{{theme_obj.primary_600}}] hover:bg-[{{theme_obj.primary_800}}] {% else %} bg-primary-600 hover:bg-primary-800 {% endif %}  w-full flex gap-3 justify-center rounded-md text-[white] [transition:.3s]"
@@ -128,7 +142,7 @@
                             role="button"
                             style="
                                 background-color: rgba(229, 79, 56, 0.1);
-                                color: hsl(8, 77%, 56%);
+                                color: hsl(204, 73%, 43%);
                             "
                         >
                             {% trans "Initialize Database" %}
@@ -193,6 +207,69 @@
                     }
                 });
             });
+
+            // Dynamically check terms acceptance based on username
+            const usernameInput = document.getElementById('username');
+            const termsContainer = document.getElementById('termsContainer');
+            const acceptTermsCheckbox = document.getElementById('acceptTerms');
+            let termsCheckTimer;
+            let lastCheckedUsername = null;
+
+            function checkTermsAcceptance() {
+                if (!usernameInput || !termsContainer || !acceptTermsCheckbox) return;
+                const username = usernameInput.value.trim();
+                if (username === lastCheckedUsername) return;
+                lastCheckedUsername = username;
+
+                if (username) {
+                    fetch(`/check-terms/?username=${encodeURIComponent(username)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.accepted) {
+                                termsContainer.style.opacity = '0';
+                                setTimeout(() => { termsContainer.style.display = 'none'; }, 300);
+                                acceptTermsCheckbox.required = false;
+                                acceptTermsCheckbox.checked = true;
+                            } else {
+                                termsContainer.style.display = 'flex';
+                                setTimeout(() => { termsContainer.style.opacity = '1'; }, 10);
+                                acceptTermsCheckbox.required = true;
+                                acceptTermsCheckbox.checked = false;
+                            }
+                        })
+                        .catch(err => console.error('Error fetching terms status:', err));
+                } else {
+                    termsContainer.style.display = 'flex';
+                    setTimeout(() => { termsContainer.style.opacity = '1'; }, 10);
+                    acceptTermsCheckbox.required = true;
+                    acceptTermsCheckbox.checked = false;
+                }
+            }
+
+            if (usernameInput && termsContainer && acceptTermsCheckbox) {
+                usernameInput.addEventListener('input', function() {
+                    clearTimeout(termsCheckTimer);
+                    termsCheckTimer = setTimeout(checkTermsAcceptance, 300);
+                });
+                usernameInput.addEventListener('change', checkTermsAcceptance);
+                usernameInput.addEventListener('blur', checkTermsAcceptance);
+
+                // Run immediately on page load
+                document.addEventListener('DOMContentLoaded', checkTermsAcceptance);
+                window.addEventListener('load', () => {
+                    setTimeout(checkTermsAcceptance, 100);
+                });
+
+                // Periodic check for 3 seconds to catch browser password manager autofills
+                let checksCount = 0;
+                const autofillInterval = setInterval(() => {
+                    checkTermsAcceptance();
+                    checksCount++;
+                    if (checksCount > 15) {
+                        clearInterval(autofillInterval);
+                    }
+                }, 200);
+            }
         </script>
     </body>
 </html>

@@ -30,7 +30,7 @@
         /* Allow the tooltip width to adjust based on content */
         max-width: auto;
         /* Limit the maximum width of the tooltip to prevent it from overflowing */
-        background-color: hsl(8, 77%, 56%);
+        background-color: hsl(204, 73%, 43%);
         color: white;
         text-align: center;
         border-radius: 6px;
@@ -78,7 +78,7 @@
                     {% comment %} <div id="searchFieldDiv" style="display:none;">
                         <select name="search_field" class='oh-input__icon'
                             style="border: none; display: flex; position: absolute; z-index: 40px; margin-left:8%;" size="3"
-                            onclick="$('.filterButton')[0].click();">
+                            onclick="$('.filterButton').first().click();">
                             <option style="margin-left: -10px;" value="leave_type">{% trans "Search in : Leave Type" %}
                             </option>
                             <option style="margin-left: -10px;" value="status">{% trans "Search in : Status" %}</option>
@@ -275,7 +275,7 @@
 
 <script src="{% static '/leave_request/action.js' %}"></script>
 <script>
-    $(document).on('htmx:afterSwap', function () {
+    $(document).off('htmx:afterSwap.leaveRequest').on('htmx:afterSwap.leaveRequest', function () {
         // Create a new script element
         var scriptElement = document.createElement("script");
         // Set the source URL of the script file to be loaded
@@ -312,7 +312,7 @@
     });
     $(document).ready(function () {
         $('#id_field').on('change', function () {
-            $('.filterButton')[0].click();
+            $('.filterButton').first().click();
         })
     });
 

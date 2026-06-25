@@ -38,6 +38,9 @@ urlpatterns = [
     path("", include("skylinx_views.urls")),
     path("", include("skylinx_audit.urls")),
     path("employee/", include("employee.urls")),
+    path("api/", include("skylinx_api.urls")),
+    path("manage/", include("subscriptions.urls")),
+    path("subscription/", include("subscriptions.client_urls")),
     path("skylinx-widget/", include("skylinx_widgets.urls")),
     re_path(
         "^inbox/notifications/", include(notifications.urls, namespace="notifications")
@@ -49,3 +52,8 @@ urlpatterns = [
 
 # if settings.DEBUG:
 #     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Register dynamically generated tab URLs for SkylinxProfileView subclasses at startup
+from skylinx_views.generic.cbv.views import SkylinxProfileView
+for cls in list(SkylinxProfileView._registry):
+    cls.register_tab_urls()

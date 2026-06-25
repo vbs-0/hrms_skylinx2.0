@@ -61,7 +61,7 @@
 {% endif %}
 
 <script>
-    $(document).on("htmx:afterSettle", function () {
+    $(document).off("htmx:afterSettle.cbv_projects_project_tab").on("htmx:afterSettle.cbv_projects_project_tab", function () {
         $(".stickyleft-second").removeClass("stickyleft-second");
     });
 </script>

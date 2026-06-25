@@ -2,12 +2,12 @@
 {{ form.non_field_errors }}
 <div class="row">
 	{% for field in form %}
-    {% if field.label != "Employee profile" and field.label != 'Country' and field.label != 'State' and field.label != 'Address' and field.label != 'Badge id' %}
+    {% if field.name != 'badge_id' and field.name != 'employee_profile' and field.name != 'country' and field.name != 'state' and field.name != 'address' %}
         <div class="col-lg-6">
             <div class="oh-input__group">
                 <label
                     class="oh-label {% if field.field.required %}required-star{% endif %}"
-                    for="id_{{ field.name }}"
+                    for="{{ field.id_for_label }}"
                     title="{{ field.help_text }}"
                 >
                     {% trans field.label %}
@@ -24,12 +24,12 @@
                 {{field.errors }}
             </div>
         </div>
-	{% elif field.label == 'Address' %}
+	{% elif field.name == 'address' %}
 	<div class="col-lg-12">
 		<div class="oh-input__group">
 			<label
 				class="oh-label {% if field.field.required %}required-star{% endif %}"
-				for="id_{{ field.name }}"
+				for="{{ field.id_for_label }}"
 				title="{{ field.help_text }}"
 			>
 				{% trans field.label %}
@@ -38,7 +38,7 @@
             {{ field.errors }}
 		</div>
 	</div>
-	{% elif field.label == 'Country' %}
+	{% elif field.name == 'country' %}
 		<div class="col-lg-6">
 			<label class="oh-label" for="country">{% trans "Country" %}</label>
 			<select

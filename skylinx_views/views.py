@@ -47,6 +47,14 @@ from skylinx_views.forms import SavedFilterForm
 from skylinx_views.generic.cbv.views import SkylinxFormView, SkylinxListView
 from skylinx_views.templatetags.generic_template_filters import getattribute
 
+def strip_html_tags(text):
+    """Strip HTML tags from text"""
+    if not isinstance(text, str):
+        return text
+    clean = re.compile("<.*?>")
+    return re.sub(clean, "", text)
+
+
 # Create your views here.
 
 
@@ -389,6 +397,12 @@ class SkylinxDeleteConfirmationView(View):
             messages.error(self.request, "Invalid model parameter format.")
             return SkylinxFormView.HttpResponse()
 
+        if app == "employee" and MODEL_NAME.lower() == "employee":
+            employee_get = getattr(self.request.user, "employee_get", None)
+            if employee_get and str(pk) == str(employee_get.pk):
+                messages.error(self.request, "You cannot delete your own profile.")
+                return HttpResponseForbidden("You cannot delete your own profile.")
+
         if not self.request.user.has_perm(app + ".delete_" + MODEL_NAME.lower()):
             return render(self.request, "no_perm.html")
         model = apps.get_model(app, MODEL_NAME)
@@ -623,6 +637,12 @@ class SkylinxDeleteConfirmationView(View):
         """
         pk = self.request.GET["pk"]
         app, MODEL_NAME = self.request.GET["model"].split(".")
+        if app == "employee" and MODEL_NAME.lower() == "employee":
+            employee_get = getattr(self.request.user, "employee_get", None)
+            if employee_get and str(pk) == str(employee_get.pk):
+                messages.error(self.request, "You cannot delete your own profile.")
+                return HttpResponseForbidden("You cannot delete your own profile.")
+
         if not self.request.user.has_perm(app + ".delete_" + MODEL_NAME.lower()):
             return render(self.request, "no_perm.html")
         model = apps.get_model(app, MODEL_NAME)
@@ -1077,7 +1097,7 @@ def export_data(request, *args, **kwargs):
                 value = getattr(value, part, None)
                 if callable(value):
                     value = value()
-            method_maps[idx][obj_id] = str(value) if value is not None else ""
+            method_maps[idx][obj_id] = strip_html_tags(str(value) if value is not None else "")
 
     # =====================================================
     # FINAL ROWS
@@ -1089,7 +1109,9 @@ def export_data(request, *args, **kwargs):
         obj_id = row[0]
         for idx, mmap in method_maps.items():
             row[idx] = mmap.get(obj_id, "")
-        final_rows.append(row[1:])
+        # Strip HTML from all values
+        cleaned_row = [strip_html_tags(str(cell)) if cell is not None else "" for cell in row[1:]]
+        final_rows.append(cleaned_row)
 
     # =====================================================
     # XLSX EXPORT (FIXED WIDTH – PERFORMANCE SAFE)
@@ -1207,10 +1229,21 @@ class DynamicView(View):
     """
 
     def get(self, request, *args, **kwargs):
+        return self._dispatch(request, *args, **kwargs)
 
+    def post(self, request, *args, **kwargs):
+        return self._dispatch(request, *args, **kwargs)
+
+    def _dispatch(self, request, *args, **kwargs):
         field = kwargs.get("field")
         session_key = kwargs.get("session_key")
         if session_key != request.session.session_key:
             return HttpResponseForbidden("Invalid session key.")
 
-        return render(request, "dynamic.html", {"field": field})
+        view_path = CACHE.get(f"dynamic-view-{field}-{session_key}")
+        if view_path:
+            from skylinx.config import import_method
+            view_class = import_method(view_path)
+            return view_class.as_view()(request, *args, **kwargs)
+
+        return HttpResponse("<script>window.location.reload()</script>", status=200)

@@ -1,5 +1,6 @@
 {% load i18n %}
 <form hx-post="{% url 'user-group-assign' %}?group={{group_id}}" hx-target="#groupAssignBody"
+    data-settings-native="true"
     class="oh-profile-section">
     {{form.group.errors}}
     {{form.employee.errors}}
@@ -10,5 +11,21 @@
             {% trans "Save" %}
         </button>
     </div>
-
 </form>
+
+<script>
+  (function() {
+    function initGroupAssignSelect2() {
+      var el = $('#groupAssignBody .oh-select2');
+      if (!el.length || typeof $ === 'undefined' || !$.fn.select2) return;
+      // Destroy existing select2 instance first to prevent duplicate containers (fix #67bce92)
+      if (el.data("select2")) {
+        el.select2('destroy');
+      }
+      el.removeClass("select2-hidden-accessible");
+      el.select2();
+    }
+    // Delay to allow htmx to finish DOM swap
+    setTimeout(initGroupAssignSelect2, 100);
+  })();
+</script>

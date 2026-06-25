@@ -69,23 +69,23 @@ def generate_colors(num_colors):
 
 
 def any_project_manager(user):
-    employee = user.employee_get
-    if employee.project_managers.all().exists():
-        return True
-    else:
+    employee = getattr(user, "employee_get", None)
+    if employee is None:
         return False
+    return employee.project_managers.all().exists()
 
 
 def any_project_member(user):
-    employee = user.employee_get
-    if employee.project_members.all().exists():
-        return True
-    else:
+    employee = getattr(user, "employee_get", None)
+    if employee is None:
         return False
+    return employee.project_members.all().exists()
 
 
 def any_task_manager(user):
-    employee = user.employee_get
+    employee = getattr(user, "employee_get", None)
+    if employee is None:
+        return False
     if employee.task_set.all().exists():
         return True
     else:
@@ -93,7 +93,9 @@ def any_task_manager(user):
 
 
 def any_task_member(user):
-    employee = user.employee_get
+    employee = getattr(user, "employee_get", None)
+    if employee is None:
+        return False
     if employee.tasks.all().exists():
         return True
     else:

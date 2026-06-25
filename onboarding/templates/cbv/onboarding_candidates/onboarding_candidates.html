@@ -252,9 +252,9 @@ body.onboarding-list-hide-toolbar #onboardingCandidatesNavBar {
           }
         }
         document.addEventListener("DOMContentLoaded", syncOnboardingCandidatesNavBar);
-        document.body.addEventListener("htmx:afterSwap", onListContainerHtmxEvent);
-        document.body.addEventListener("htmx:afterSettle", onListContainerHtmxEvent);
-        document.body.addEventListener("htmx:afterRequest", function (e) {
+        window.oneListener(document.body, "htmx:afterSwap", onListContainerHtmxEvent, "onboardingListContainerSwap");
+        window.oneListener(document.body, "htmx:afterSettle", onListContainerHtmxEvent, "onboardingListContainerSettle");
+        window.oneListener(document.body, "htmx:afterRequest", function (e) {
           var url = (e.detail && e.detail.xhr && e.detail.xhr.responseURL) || "";
           if (url.indexOf("/recruitment/profile/recruitment/candidate-view/") !== -1) {
             setTimeout(syncOnboardingCandidatesNavBar, 0);
@@ -269,10 +269,10 @@ body.onboarding-list-hide-toolbar #onboardingCandidatesNavBar {
           ) {
             setTimeout(syncOnboardingCandidatesNavBar, 0);
           }
-        });
-        window.addEventListener("popstate", function () {
+        }, "onboardingAfterRequest");
+        window.oneListener(window, "popstate", function () {
           setTimeout(syncOnboardingCandidatesNavBar, 0);
-        });
+        }, "onboardingPopstate");
       })();
 
 

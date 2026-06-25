@@ -12,16 +12,11 @@ from base.context_processors import enable_late_come_early_out_tracking
 from base.templatetags.basefilters import is_reportingmanager
 from skylinx.menu import settings_menu
 
-MENU = _("Time & Attendance")
+MENU = _("Attendance")
 IMG_SRC = "images/ui/attendances.svg"
 
 
 SUBMENUS = [
-    {
-        "menu": _("Dashboard"),
-        "redirect": reverse_lazy("attendance-dashboard"),
-        "accessibility": "attendance.sidebar.dashboard_accessibility",
-    },
     {
         "menu": _("Attendances"),
         "redirect": reverse_lazy("attendance-view"),
@@ -31,25 +26,7 @@ SUBMENUS = [
         "menu": _("Attendance Requests"),
         "redirect": reverse_lazy("request-attendance-view"),
     },
-    {
-        "menu": _("Hour Account"),
-        "redirect": reverse_lazy("attendance-overtime-view"),
-        "accessibility": "attendance.sidebar.hour_account_accessibility",
-    },
-    {
-        "menu": _("Work Records"),
-        "redirect": reverse_lazy("work-records"),
-        "accessibility": "attendance.sidebar.work_record_accessibility",
-    },
-    {
-        "menu": _("Attendance Activities"),
-        "redirect": reverse_lazy("attendance-activity-view"),
-    },
-    {
-        "menu": _("Late Come Early Out"),
-        "redirect": reverse_lazy("late-come-early-out-view"),
-        "accessibility": "attendance.sidebar.tracking_accessibility",
-    },
+
     {
         "menu": _("My Attendances"),
         "redirect": reverse_lazy("view-my-attendance"),
@@ -59,9 +36,11 @@ SUBMENUS = [
 
 def attendances_accessibility(request, submenu, user_perms, *args, **kwargs):
     """
-    Check if the user has permission to view attendance or is a reporting manager.
+    The admin "Attendances" list is for managers/HR only. Employees (who only
+    have view_attendance for their own "My Attendances") must not see it, so gate
+    on change_attendance — a manager/HR-level perm employees don't have.
     """
-    return request.user.has_perm("attendance.view_attendance") or is_reportingmanager(
+    return request.user.has_perm("attendance.change_attendance") or is_reportingmanager(
         request.user
     )
 

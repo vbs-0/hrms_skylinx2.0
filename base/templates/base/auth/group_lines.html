@@ -1,7 +1,11 @@
 {% load static i18n basefilters %}
 {% if groups %}
 {% for group in groups %}
-  <div class="oh-user_permission-list_item" onclick="$(this).next().toggle();$(this).toggleClass('perm-accordion-active');">
+  <div class="oh-user_permission-list_item" 
+       onclick="$(this).next().toggle();$(this).toggleClass('perm-accordion-active');"
+       hx-get="{% url 'group-permissions-table-view' group.id %}"
+       hx-target="#panel{{group.id}}"
+       hx-trigger="click once">
     <div class="oh-user_permission-list_profile">
         <div class="oh-navbar__user-photo oh-user_permission--profile">
             <img src="https://ui-avatars.com/api/?name={{group}}&background=random"
@@ -15,13 +19,18 @@
             </span>
             <button style="display: none;" type="submit" onclick="event.stopPropagation()" id="hxSubmit"></button>
           </form>
-          <span class="oh-user_permission_list-text oh-text--light">{% trans "Total" %} {{ group.users_count }} {% trans "users in this group" %}</span>
+          {% if request.user.is_superuser %}
+            <span class="oh-user_permission_list-text" style="font-weight:600;color:#fff;background:{% if group.company_name %}#0d6efd{% else %}#6c757d{% endif %};border-radius:10px;padding:1px 10px;font-size:11px;display:inline-block;margin-bottom:2px;">
+              {% if group.company_name %}{{ group.company_name }}{% else %}{% trans "Global" %}{% endif %}
+            </span>
+          {% endif %}
+          <span class="oh-user_permission_list-text oh-text--light">{% trans "Total" %} {{ group.user_count }} {% trans "users in this group" %}</span>
         </div>
     </div>
     {% if perms.auth.change_group or perms.auth.delete_group %}
       <div class="btn-group">
         {% if perms.auth.change_group %}
-          <button class=" oh-btn oh-btn--light" hx-get="{% url "user-group-assign" %}" hx-vals='{"group":"{{group.id}}"}' hx-target="#groupAssignBody" data-toggle="oh-modal-toggle" data-target="#groupAssign" onclick="event.stopPropagation()">
+          <button type="button" class=" oh-btn oh-btn--light" hx-get="{% url "user-group-assign" %}" hx-vals='{"group":"{{group.id}}"}' hx-target="#groupAssignBody" data-toggle="oh-modal-toggle" data-target="#groupAssign" onclick="event.stopPropagation()">
             <ion-icon name="person-add-outline" class="text-dark"></ion-icon>
           </button>
         {% endif %}
@@ -36,14 +45,9 @@
       </div>
     {% endif %}
   </div>
-  <div class="panel view-groups" id="panel{{group.id}}" data-group-id="{{group.id}}" data-group-name="{{group.name}}">
-    <div class="oh-general__tab-target oh-profile-section">
-      <script>
-        $(document).ready(function () {
-          checkSelected(`{{group.permissions.all|user_perms|safe}}`,"#panel{{group.id}}",true)
-        });
-      </script>
-        {% include "base/auth/permission_table.html" %}
+  <div class="panel view-groups" id="panel{{group.id}}" data-group-id="{{group.id}}" data-group-name="{{group.name}}" style="display:none;">
+    <div class="oh-general__tab-target oh-profile-section text-center p-5">
+      <span class="oh-text--light">{% trans "Loading permissions..." %}</span>
     </div>
   </div>
 {% endfor %}

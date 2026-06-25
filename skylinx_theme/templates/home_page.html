@@ -1,0 +1,579 @@
+{% extends "index.html" %}
+{% load static i18n %}
+
+{% block content %}
+<style>
+  /* ── Layout ─────────────────────────────────────────────────────────── */
+  .hp-wrapper {
+    min-height: calc(100vh - 90px);
+    background: linear-gradient(145deg, #f0f4ff 0%, #f8fafc 50%, #fdf4ff 100%);
+    padding: 2.5rem 2rem 4rem;
+  }
+
+  .hp-layout-container {
+    display: grid;
+    grid-template-columns: 280px 1fr 300px;
+    gap: 2rem;
+    max-width: 1440px;
+    margin: 0 auto;
+    align-items: start;
+  }
+
+  .hp-col-left {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    position: sticky;
+    top: 2rem;
+  }
+
+  .hp-col-center {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .hp-col-right {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    position: sticky;
+    top: 2rem;
+  }
+
+  /* ── Left Sidebar Widgets ────────────────────────────────────────────── */
+  .hp-logo-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(15,23,42,0.05);
+    border: 1px solid rgba(226,232,240,0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .hp-logo-img {
+    max-height: 50px;
+    max-width: 100%;
+    object-fit: contain;
+    margin-bottom: 0.75rem;
+  }
+
+  .hp-logo-text {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.5px;
+  }
+
+  .hp-social-links {
+    display: flex;
+    gap: 12px;
+    margin-top: 0.75rem;
+  }
+
+  .hp-social-link {
+    color: #64748b;
+    font-size: 1.25rem;
+    transition: color 0.2s;
+  }
+  .hp-social-link:hover {
+    color: #3b82f6;
+  }
+
+  .hp-tasks-card {
+    background: #fff;
+    color: #1e293b;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(15,23,42,0.05);
+    border: 1px solid rgba(226,232,240,0.8);
+    transition: all 0.3s ease;
+  }
+
+  .hp-tasks-card.tasks-active {
+    box-shadow: 0 8px 32px rgba(15,23,42,0.1);
+    border: 1px solid rgba(226,232,240,0.8);
+  }
+
+  .hp-tasks-title {
+    font-size: 1rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    letter-spacing: -0.3px;
+    border-bottom: 1px solid rgba(226,232,240,0.8);
+    padding-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .pulsing-live-dot {
+    width: 9px;
+    height: 9px;
+    background-color: #ff3d00;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 0 0 rgba(255, 61, 0, 0.8);
+    animation: live-pulse 1.4s infinite;
+  }
+
+  @keyframes live-pulse {
+    0% {
+      transform: scale(0.9);
+      box-shadow: 0 0 0 0 rgba(255, 61, 0, 0.8);
+    }
+    70% {
+      transform: scale(1.1);
+      box-shadow: 0 0 0 8px rgba(255, 61, 0, 0);
+    }
+    100% {
+      transform: scale(0.9);
+      box-shadow: 0 0 0 0 rgba(255, 61, 0, 0);
+    }
+  }
+
+  .hp-task-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    margin-bottom: 0.85rem;
+    color: #64748b !important;
+    text-decoration: none !important;
+    transition: all 0.2s ease;
+    padding: 4px 0;
+    width: 100%;
+  }
+  .hp-task-item:hover {
+    color: #1e293b !important;
+    text-decoration: underline !important;
+    transform: translateX(4px);
+  }
+  .hp-task-item.item-highlight {
+    font-weight: 700;
+  }
+
+  /* ── Right Sidebar Announcement ──────────────────────────────────────── */
+  .hp-announcement-card {
+    background: #fff;
+    color: #1e293b;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(15,23,42,0.05);
+    border: 1px solid rgba(226,232,240,0.8);
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .hp-announcement-card form .oh-label {
+    color: #1e293b !important;
+  }
+
+  /* ── Center Content Header ────────────────────────────────────────────── */
+  .hp-header {
+    text-align: center;
+    margin-bottom: 1.25rem;
+  }
+  .hp-header h1 {
+    font-size: 1.9rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.6px;
+    margin-bottom: 0.3rem;
+  }
+  .hp-header p {
+    color: #64748b;
+    font-size: 0.95rem;
+  }
+
+  /* ── Dashboard hero card ─────────────────────────────────────────────── */
+  .hp-hero {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+  }
+  .hp-hero-card {
+    display: flex;
+    align-items: center;
+    gap: 1.15rem;
+    background: linear-gradient(135deg, #e34e38 0%, #c0392b 100%);
+    color: #fff;
+    border-radius: 18px;
+    padding: 1rem 2rem;
+    text-decoration: none !important;
+    box-shadow: 0 8px 30px rgba(227,78,56,0.38);
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+    min-width: 240px;
+  }
+  .hp-hero-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 42px rgba(227,78,56,0.48);
+    color: #fff;
+  }
+  .hp-hero-icon-wrap {
+    background: rgba(255,255,255,0.2);
+    border-radius: 12px;
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .hp-hero-label { font-size: 1.1rem; font-weight: 800; letter-spacing:-0.3px; }
+  .hp-hero-sub   { font-size: 0.75rem; opacity: 0.85; margin-top: 2px; }
+
+  /* ── Module grid ─────────────────────────────────────────────────────── */
+  .hp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.95rem;
+    width: 100%;
+  }
+  .hp-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    background: #fff;
+    border-radius: 16px;
+    padding: 1.25rem 0.85rem 1.05rem;
+    text-decoration: none !important;
+    color: inherit;
+    box-shadow: 0 2px 12px rgba(15,23,42,0.07);
+    border: 1.5px solid rgba(226,232,240,0.8);
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+    position: relative; overflow: hidden;
+  }
+  .hp-card::before {
+    content:""; position:absolute; inset:0;
+    background: linear-gradient(135deg, var(--hp-accent,#e34e38), transparent);
+    opacity:0; transition:opacity 0.25s;
+  }
+  .hp-card:hover { transform:translateY(-6px); box-shadow:0 16px 36px rgba(15,23,42,0.14); border-color:var(--hp-accent,#e34e38); color:inherit; }
+  .hp-card:hover::before { opacity:0.07; }
+
+  .hp-icon {
+    width: 50px; height: 50px;
+    border-radius: 14px;
+    background: var(--hp-bg, #fff3f0);
+    display: flex; align-items: center; justify-content: center;
+    position: relative; z-index:1;
+    transition: transform 0.22s ease;
+    flex-shrink: 0;
+  }
+  .hp-card:hover .hp-icon { transform: scale(1.12) rotate(-3deg); }
+  .hp-icon svg { width: 26px; height: 26px; }
+
+  .hp-card-label {
+    font-size: 0.82rem; font-weight: 700;
+    color: #1e293b; text-align: center; line-height: 1.35;
+    position: relative; z-index:1;
+  }
+
+  /* per-module color tokens */
+  .hp-c-employee    { --hp-accent:#3b82f6; --hp-bg:#dbeafe; }
+  .hp-c-recruitment { --hp-accent:#6366f1; --hp-bg:#e0e7ff; }
+  .hp-c-onboarding  { --hp-accent:#f59e0b; --hp-bg:#fef3c7; }
+  .hp-c-attendance  { --hp-accent:#10b981; --hp-bg:#d1fae5; }
+  .hp-c-leave       { --hp-accent:#14b8a6; --hp-bg:#ccfbf1; }
+  .hp-c-payroll     { --hp-accent:#8b5cf6; --hp-bg:#ede9fe; }
+  .hp-c-pms         { --hp-accent:#ec4899; --hp-bg:#fce7f3; }
+  .hp-c-project     { --hp-accent:#84cc16; --hp-bg:#ecfccb; }
+  .hp-c-asset       { --hp-accent:#f97316; --hp-bg:#ffedd5; }
+  .hp-c-helpdesk    { --hp-accent:#06b6d4; --hp-bg:#cffafe; }
+  .hp-c-offboarding { --hp-accent:#64748b; --hp-bg:#e2e8f0; }
+  .hp-c-report      { --hp-accent:#a855f7; --hp-bg:#f3e8ff; }
+  .hp-c-licensing   { --hp-accent:#f43f5e; --hp-bg:#ffe4e6; }
+
+  /* ── Responsive media queries ───────────────────────────────────────── */
+  @media (max-width: 1200px) {
+    .hp-layout-container {
+      grid-template-columns: 260px 1fr;
+    }
+    .hp-col-right {
+      grid-column: span 2;
+      position: static;
+    }
+  }
+
+  @media (max-width: 992px) {
+    .hp-layout-container {
+      grid-template-columns: 1fr;
+    }
+    .hp-col-left, .hp-col-right {
+      grid-column: span 1;
+      position: static;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .hp-grid { grid-template-columns: repeat(2, 1fr); gap: 0.8rem; }
+    .hp-hero-card { min-width: unset; width: 100%; }
+    .hp-icon { width: 44px; height: 44px; } .hp-icon svg { width: 22px; height: 22px; }
+  }
+
+  /* ── Dark Mode Overrides ─────────────────────────────────────────────── */
+  .dark .hp-wrapper {
+    background: #0f172a;
+  }
+  .dark .hp-header h1 {
+    color: #f8fafc;
+  }
+  .dark .hp-header p {
+    color: #94a3b8;
+  }
+  .dark .hp-card {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  }
+  .dark .hp-card-label {
+    color: #e2e8f0;
+  }
+  .dark .hp-card:hover {
+    box-shadow: 0 16px 36px rgba(0,0,0,0.4);
+    border-color: var(--hp-accent, #e34e38);
+  }
+  .dark .hp-icon {
+    filter: brightness(0.9) contrast(1.1);
+  }
+  .dark .hp-logo-card {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  }
+  .dark .hp-logo-text {
+    color: #f8fafc;
+  }
+
+  /* Tasks & Announcements Dark Mode */
+  .dark .hp-tasks-card {
+    background: #1e293b;
+    color: #f8fafc;
+    border-color: #334155;
+  }
+  .dark .hp-tasks-title {
+    color: #f8fafc;
+    border-bottom: 1px solid #334155;
+  }
+  .dark .hp-tasks-card .hp-task-item {
+    color: #94a3b8 !important;
+  }
+  .dark .hp-tasks-card .hp-task-item:hover {
+    color: #f8fafc !important;
+  }
+  .dark .hp-announcement-card {
+    background: #1e293b;
+    color: #f8fafc;
+    border-color: #334155;
+  }
+  .dark .hp-announcement-card h3.text-dark {
+    color: #f8fafc !important;
+  }
+  .dark .announcement-scroll-container {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: #334155;
+  }
+  .dark .announcement-scroll-text {
+    color: #cbd5e1;
+  }
+  .dark .announcement-scroll-container:hover .announcement-scroll-text {
+    color: #38bdf8;
+  }
+  .dark .hp-announcement-card label.oh-label {
+    color: #f8fafc !important;
+  }
+  .dark .hp-announcement-card input, 
+  .dark .hp-announcement-card textarea {
+    background-color: #1e293b !important;
+    color: #f8fafc !important;
+    border-color: #334155 !important;
+  }
+  .dark .hp-announcement-card input:focus, 
+  .dark .hp-announcement-card textarea:focus {
+    border-color: #3b82f6 !important;
+  }
+  .dark .announcement-scroll-container-editable:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+  }
+</style>
+
+<div class="hp-wrapper">
+  <div class="hp-layout-container">
+    
+    <!-- ── Left Column: Logo & Tasks ── -->
+    <div class="hp-col-left">
+      <!-- Logo Card Container loaded via HTMX -->
+      <div class="hp-logo-card" id="home-logo-container" hx-get="{% url 'get-home-logo-card' %}" hx-trigger="load" hx-swap="outerHTML">
+        <div style="display: flex; align-items: center; justify-content: center; height: 100px; width: 100%;">
+          <div style="width: 24px; height: 24px; border: 3px solid rgba(0,0,0,0.1); border-radius: 50%; border-top-color: #3b82f6; animation: spin 1s linear infinite;"></div>
+        </div>
+      </div>
+
+      <!-- Tasks and Notifications Card -->
+      <div class="hp-tasks-card {% if tasks_active %}tasks-active{% endif %}">
+        <div class="hp-tasks-title">
+          <span>{% trans "Tasks and Notifications" %}</span>
+          {% if tasks_active %}
+            <span class="pulsing-live-dot" title="{% trans 'Live updates available' %}"></span>
+          {% endif %}
+        </div>
+        
+        <!-- Leave Requests task -->
+        {% if pending_leaves_count > 0 %}
+          <a href="/leave/request-view/" class="hp-task-item item-highlight">
+            <ion-icon name="mail-unread-outline" style="font-size: 1.15rem; flex-shrink: 0; color: #eab308;"></ion-icon>
+            <span>
+              {% blocktrans count count=pending_leaves_count %}
+                1 leave request pending approval
+              {% plural %}
+                {{ count }} leave requests pending approval
+              {% endblocktrans %}
+            </span>
+          </a>
+        {% endif %}
+
+        <!-- Onboarding / Recent Employee Add Alert -->
+        {% if employee_add_alert %}
+          <a href="/onboarding/candidates-view/" class="hp-task-item item-highlight">
+            <ion-icon name="person-add-outline" style="font-size: 1.15rem; flex-shrink: 0; color: #22c55e;"></ion-icon>
+            <span>{% trans "New employee onboarding in progress" %}</span>
+          </a>
+        {% endif %}
+
+        <!-- Payroll Processing Alert -->
+        {% if is_payroll_time %}
+          <a href="/payroll/view-payslip/" class="hp-task-item item-highlight">
+            <ion-icon name="card-outline" style="font-size: 1.15rem; flex-shrink: 0; color: #f97316;"></ion-icon>
+            <span>{% trans "Payroll processing due for this month" %}</span>
+          </a>
+        {% endif %}
+
+        <!-- Notification task -->
+        {% if unread_notifications_count > 0 %}
+          <a href="/notifications/" class="hp-task-item">
+            <ion-icon name="notifications-outline" style="font-size: 1.1rem; flex-shrink: 0;"></ion-icon>
+            <span>
+              {% blocktrans count count=unread_notifications_count %}
+                You have 1 unread notification
+              {% plural %}
+                You have {{ count }} unread notifications
+              {% endblocktrans %}
+            </span>
+          </a>
+        {% endif %}
+
+        {% if not tasks_active %}
+          <div class="hp-task-item" style="color: #64748b; padding: 4px 8px;">
+            <ion-icon name="checkmark-circle-outline" style="font-size: 1.1rem; flex-shrink: 0; color: #22c55e;"></ion-icon>
+            <span>{% trans "All caught up! No pending tasks." %}</span>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ── Center Column: Welcome & Module Cards ── -->
+    <div class="hp-col-center">
+      <!-- Header -->
+      <div class="hp-header">
+        <h1>{% trans "Welcome back" %}{% if request.user.get_full_name %}, {{ request.user.get_full_name }}{% elif request.user.username %}, {{ request.user.username }}{% endif %} 👋</h1>
+        <p>{% trans "Search anything or pick a module to get started" %}</p>
+      </div>
+
+      <!-- Hero Card -->
+      <div class="hp-hero">
+        <a href="{% url 'dashboard' %}"
+           hx-get="{% url 'dashboard' %}" hx-target="#ohMainContent"
+           hx-select="#ohMainContent > *" hx-swap="innerHTML show:window:top" hx-push-url="true"
+           class="hp-hero-card" id="hp-hero-dashboard">
+          <span class="hp-hero-icon-wrap">
+            <svg width="28" height="28" fill="none" stroke="#fff" stroke-width="2.2" viewBox="0 0 24 24">
+              <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+              <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+            </svg>
+          </span>
+          <span>
+            <div class="hp-hero-label">{% trans "Overview and Analytics" %}</div>
+          </span>
+        </a>
+      </div>
+
+      <!-- Module Grid -->
+      <div class="hp-grid">
+        {% for module in sidebar %}
+          {% if module.submenu and module.app not in "pms,project,asset,report,licensing" %}
+          <a href="{{ module.submenu.0.redirect }}"
+             hx-get="{{ module.submenu.0.redirect }}" hx-target="#ohMainContent"
+             hx-select="#ohMainContent > *" hx-swap="innerHTML show:window:top" hx-push-url="true"
+             class="hp-card hp-c-{{ module.app }}">
+            <span class="hp-icon">
+              {% if module.app == "employee" %}
+                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              {% elif module.app == "recruitment" %}
+                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><path d="M12 12v4"/><path d="M10 14h4"/></svg>
+              {% elif module.app == "onboarding" %}
+                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+              {% elif module.app == "attendance" %}
+                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              {% elif module.app == "leave" %}
+                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+              {% elif module.app == "payroll" %}
+                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/><path d="M12 15a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" fill="var(--hp-accent)" stroke="none"/></svg>
+              {% elif module.app == "helpdesk" %}
+                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+              {% elif module.app == "offboarding" %}
+                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              {% else %}
+                <svg fill="none" stroke="var(--hp-accent, #e34e38)" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+              {% endif %}
+            </span>
+            <span class="hp-card-label">{{ module.menu }}</span>
+          </a>
+          {% endif %}
+        {% empty %}
+          <!-- Static fallback cards -->
+          <a href="/employee/employee-view/" class="hp-card hp-c-employee">
+            <span class="hp-icon"><svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>
+            <span class="hp-card-label">{% trans "Employees" %}</span>
+          </a>
+          <a href="/attendance/attendance-dashboard/" class="hp-card hp-c-attendance">
+            <span class="hp-icon"><svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+            <span class="hp-card-label">{% trans "Attendance" %}</span>
+          </a>
+        {% endfor %}
+        <!-- Explicit Expenses Card -->
+        <a href="/payroll/view-reimbursement/"
+           hx-get="/payroll/view-reimbursement/" hx-target="#ohMainContent"
+           hx-select="#ohMainContent > *" hx-swap="innerHTML show:window:top" hx-push-url="true"
+           class="hp-card hp-c-payroll">
+          <span class="hp-icon">
+            <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+          </span>
+          <span class="hp-card-label">{% trans "Expenses" %}</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- ── Right Column: Company Announcement ── -->
+    <div class="hp-col-right">
+      <div class="hp-announcement-card" id="home-announcement-container" hx-get="{% url 'get-home-announcement' %}" hx-trigger="load" hx-swap="innerHTML">
+        <!-- Spinner placeholder loaded via HTMX -->
+        <div style="display: flex; align-items: center; justify-content: center; height: 100%; width: 100%;">
+          <div style="width: 28px; height: 28px; border: 3px solid rgba(0,0,0,0.1); border-radius: 50%; border-top-color: #3b82f6; animation: spin 1s linear infinite;"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+{% endblock %}
+

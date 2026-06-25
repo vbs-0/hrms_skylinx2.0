@@ -1154,7 +1154,7 @@ input[type="file"] {
 .oh-btn--secondary:hover,
 .oh-btn--secondary:focus,
 .oh-btn--secondary:focus-visible {
-  background-color: hsl(8, 77%, 48%);
+  background-color: hsl(204, 73%, 38%);
   color: white;
 }
 
@@ -1169,7 +1169,7 @@ input[type="file"] {
 .oh-btn--secondary-outline:hover,
 .oh-btn--secondary-outline:focus,
 .oh-btn--secondary-outline:focus-visible {
-  color: hsl(8, 77%, 48%);
+  color: hsl(204, 73%, 38%);
 }
 
 .oh-btn--success {
@@ -1335,7 +1335,7 @@ input[type="file"] {
 .oh-btn--secondary-link:hover,
 .oh-btn--secondary-link:focus,
 .oh-btn--secondary-link:focus-visible {
-  color: hsl(8, 77%, 48%);
+  color: hsl(204, 73%, 38%);
   background-color: transparent;
 }
 
@@ -1359,7 +1359,7 @@ input[type="file"] {
 .oh-btn--light:hover,
 .oh-btn--light:focus,
 .oh-btn--light:focus-visible {
-  color: hsl(8, 77%, 48%);
+  color: hsl(204, 73%, 38%);
   background-color: hsl(213, 22%, 93%);
 }
 
@@ -1710,7 +1710,7 @@ table .oh-btn-group a {
   border: unset;
   border-radius: 5px;
   font-size: 13px;
-  color: #2d7ff9;
+  color: #1c75bc;
   font-weight: 600;
   margin-bottom: 10px;
 }
@@ -2359,7 +2359,7 @@ ul.errorlist ul.errorlist li {
   font-family: "Font Awesome 6 Free";
   font-weight: 600;
   font-size: 12px;
-  color: #2d7ff9;
+  color: #1c75bc;
   position: absolute;
   left: 0;
 }
@@ -2463,7 +2463,7 @@ ul.errorlist ul.errorlist li {
 .sidebox ul li a:hover {
   background: rgb(227 78 56 / 10%);
   color: #e34e38;
-  /* border-right: 2px solid #2d7ff9; */
+  /* border-right: 2px solid #1c75bc; */
 }
 
 .sidebox ul li a:hover:after,
@@ -3494,8 +3494,8 @@ span.oh-activity-sidebar__a img {
 }
 
 .oh-modal__dialog--custom .oh-general__tab .oh-general__tab-link--active {
-  background-color: #2d7ff9;
-  border: 1px solid #2d7ff9;
+  background-color: #1c75bc;
+  border: 1px solid #1c75bc;
   color: #fff;
   padding: 5px 12px;
   border-radius: 23px;
@@ -3534,7 +3534,7 @@ input[type="range"]::-webkit-slider-thumb {
   height: 20px;
   width: 20px;
   border-radius: 50%;
-  background: #2d7ff9;
+  background: #1c75bc;
   /* 🔴 Thumb color */
   cursor: pointer;
   margin-top: -7px;
@@ -3554,7 +3554,7 @@ input[type="range"]::-moz-range-thumb {
   height: 20px;
   width: 20px;
   border-radius: 50%;
-  background: #2d7ff9;
+  background: #1c75bc;
   cursor: pointer;
   border: none;
 }
@@ -3570,7 +3570,7 @@ input[type="range"]::-ms-thumb {
   height: 20px;
   width: 20px;
   border-radius: 50%;
-  background: #2d7ff9;
+  background: #1c75bc;
   cursor: pointer;
   border: none;
 }

@@ -37,13 +37,15 @@ class GeoFencingSetupGetPostAPIView(APIView):
     )
     def post(self, request):
         data = request.data
+        if isinstance(data, QueryDict):
+            data = data.dict()
+        else:
+            data = dict(data)
         if not request.user.is_superuser:
-            if isinstance(data, QueryDict):
-                data = data.dict()
             company = request.user.employee_get.get_company()
             if company:
                 data["company_id"] = company.id
-        serializer = GeoFencingSetupSerializer(data=request.data)
+        serializer = GeoFencingSetupSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -67,8 +69,15 @@ class GeoFencingSetupPutDeleteAPIView(APIView):
         location = self.get_location(pk)
         company = request.user.employee_get.get_company()
         if request.user.is_superuser or company == location.company_id:
+            data = request.data
+            if isinstance(data, QueryDict):
+                data = data.dict()
+            else:
+                data = dict(data)
+            if not request.user.is_superuser:
+                data["company_id"] = location.company_id.id if location.company_id else None
             serializer = GeoFencingSetupSerializer(
-                location, data=request.data, partial=True
+                location, data=data, partial=True
             )
             if serializer.is_valid():
                 serializer.save()
@@ -168,7 +177,7 @@ def get_company_location(request):
 
 
 @login_required
-@permission_required("geofencing.add_localbackup")
+@permission_required("geofencing.add_geofencing")
 def geo_location_config(request):
     try:
         form = GeoFencingSetupForm(instance=get_company_location(request))

@@ -53,7 +53,7 @@ x-data="{searchShow: false}"
         name='name'
         class="oh-input oh-input__icon"
         aria-label="Search Input"
-        onkeyup="$('.filterButton')[0].click();"
+        onkeyup="$('.filterButton').first().click();"
       />
     </div>
     <ul class="oh-view-types ml-2" style="margin-bottom: 0;" id="view-type">
@@ -62,7 +62,7 @@ x-data="{searchShow: false}"
           id = 'list'
           class="oh-btn oh-btn--view {% if request.GET.view == 'list' %} oh-btn--view-active {% endif %}"
           title ='{% trans "List" %}'
-          onclick="$('[name=view]').val('list');$('.filterButton')[0].click();"
+          onclick="$('[name=view]').val('list');$('.filterButton').first().click();"
           ><ion-icon name="list-outline"></ion-icon
         ></a>
       </li>
@@ -71,7 +71,7 @@ x-data="{searchShow: false}"
           id="card"
           class="oh-btn oh-btn--view {% if request.GET.view != 'list' %} oh-btn--view-active {% endif %}"
           title = '{% trans "Card" %}'
-          onclick="$('[name=view]').val('card');$('.filterButton')[0].click();"
+          onclick="$('[name=view]').val('card');$('.filterButton').first().click();"
           ><ion-icon name="grid-outline"></ion-icon
         ></a>
       </li>
@@ -331,7 +331,7 @@ x-data="{searchShow: false}"
       }
     });
     $('#id_field').on('change',function(){
-      $('.filterButton')[0].click();
+      $('.filterButton').first().click();
     })
   });
 </script>

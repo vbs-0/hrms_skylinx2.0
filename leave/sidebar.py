@@ -10,21 +10,16 @@ from base.templatetags.basefilters import is_leave_approval_manager, is_reportin
 from skylinx.menu import settings_menu
 from leave.templatetags.leavefilters import is_compensatory
 
-MENU = _("Time Off")
+MENU = _("Leave")
 IMG_SRC = "images/ui/leave.svg"
 
 SUBMENUS = [
     {
-        "menu": _("Dashboard"),
-        "redirect": reverse_lazy("leave-dashboard"),
-        "accessibility": "leave.sidebar.dashboard_accessibility",
-    },
-    {
-        "menu": _("My Leave Requests"),
+        "menu": _("Apply Leave"),
         "redirect": reverse_lazy("user-request-view"),
     },
     {
-        "menu": _("Leave Requests"),
+        "menu": _("Leave Approval"),
         "redirect": reverse_lazy("request-view"),
         "accessibility": "leave.sidebar.leave_request_accessibility",
     },
@@ -34,26 +29,20 @@ SUBMENUS = [
         "accessibility": "leave.sidebar.type_accessibility",
     },
     {
-        "menu": _("Assigned Leave"),
+        "menu": _("Assign Leave Type"),
         "redirect": reverse_lazy("assign-view"),
         "accessibility": "leave.sidebar.assign_accessibility",
     },
-    {
-        "menu": _("Leave Allocation Request"),
-        "redirect": reverse_lazy("leave-allocation-request-view"),
-    },
-    {
-        "menu": _("Holidays"),
-        "redirect": reverse_lazy("holiday-view"),
-        "accessibility": "leave.sidebar.holiday_accessibility",
-    },
+    # "Leave Allocation Request" removed — duplicate of "My Leave Allocation Requests"
+    # ponytail: dropped the redundant sidebar entry; the per-employee view covers it.
+    # Holiday Calendar lives in its own bottom-sidebar module; not duplicated here.
     {
         "menu": _("Company Leaves"),
         "redirect": reverse_lazy("company-leave-view"),
         "accessibility": "leave.sidebar.company_leave_accessibility",
     },
     {
-        "menu": _("Restrict Leaves"),
+        "menu": _("Restricted Leaves"),
         "redirect": reverse_lazy("restrict-view"),
         "accessibility": "leave.sidebar.restrict_leave_accessibility",
     },
@@ -70,8 +59,11 @@ def dashboard_accessibility(request, submenu, user_perms, *args, **kwargs):
 
 
 def leave_request_accessibility(request, submenu, user_perms, *args, **kwargs):
+    # "Leave Approval" is for approvers only. Employees have view_leaverequest
+    # (for their own requests) but must not see the approval page — gate on
+    # change_leaverequest / approval-manager / reporting-manager instead.
     return (
-        request.user.has_perm("leave.view_leaverequest")
+        request.user.has_perm("leave.change_leaverequest")
         or is_leave_approval_manager(request.user)
         or is_reportingmanager(request.user)
     )

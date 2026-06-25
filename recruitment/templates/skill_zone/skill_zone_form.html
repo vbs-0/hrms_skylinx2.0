@@ -1,7 +1,7 @@
 {% load i18n %}
 {% if messages %}
     <script>
-        $('.filterButton')[0].click()
+        $('.filterButton').first().click()
         reloadMessage();
         setTimeout(function () { $('.oh-modal__close').click(); }, 1000);
     </script>

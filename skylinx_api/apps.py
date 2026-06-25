@@ -6,6 +6,8 @@ class SkylinxApiConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "skylinx_api"
 
+    verbose_name = "API"
+
     def ready(self):
         """
         Initialize API documentation and configure Swagger when the app is ready.

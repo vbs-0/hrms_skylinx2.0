@@ -19,19 +19,19 @@ THEMES_DATA = [
         "description": "Warm coral-red based theme",
         "is_default": True,
         "primary_50": "#f6f6f6",
-        "primary_100": "#FFF5F1",  # f0f0f0
-        "primary_200": "#FEF6F5",
-        "primary_300": "#FCEDEB",
-        "primary_400": "#FBE5E1",
-        "primary_500": "#F7C8C1",
-        "primary_600": "#E54F38",
-        "primary_700": "#ce4732",
-        "primary_800": "#AC3B2A",
-        "primary_900": "#672419",
+        "primary_100": "#EFF6FF",  # f0f0f0
+        "primary_200": "#DBEAFE",
+        "primary_300": "#BFDBFE",
+        "primary_400": "#93C5FD",
+        "primary_500": "#60A5FA",
+        "primary_600": "#1C75BC",
+        "primary_700": "#1A5F9E",
+        "primary_800": "#1C3D6E",
+        "primary_900": "#13294A",
         "dark_50": "#E6E6E6",
         "dark_100": "#A8A8A8",
         "dark_200": "#515151",
-        "dark_300": "#501C14",
+        "dark_300": "#13294A",
         "dark_400": "#64748B",
         "dark_500": "#190906",
         "dark_600": "#000000",
@@ -39,9 +39,9 @@ THEMES_DATA = [
         "secondary_100": "#f1f5f9",
         "secondary_200": "#e2e8f0",
         "secondary_300": "#cbd5e1",
-        "secondary_400": "#FBE5E1",
-        "secondary_500": "#F7C8C1",
-        "secondary_600": "#E54F38",
+        "secondary_400": "#93C5FD",
+        "secondary_500": "#60A5FA",
+        "secondary_600": "#1C75BC",
         "secondary_700": "#334155",
         "secondary_800": "#1e293b",
         "secondary_900": "#0f172a",
@@ -423,7 +423,7 @@ THEMES_DATA = [
 
 class SkylinxColorTheme(SkylinxModel):
     """
-    Model to store predefined color themes for Skylinx
+    Model to store predefined color themes for EMPLINX
     """
 
     name = models.CharField(max_length=100, unique=True, verbose_name=_("Name"))
@@ -606,8 +606,8 @@ class CompanyTheme(SkylinxModel):
         Meta option for CompanyTheme model
         """
 
-        verbose_name = _("Company Theme")
-        verbose_name_plural = _("Company Themes")
+        verbose_name = _("Theme")
+        verbose_name_plural = _("Themes")
 
     def __str__(self):
         return f"{self.theme} - {self.company}"

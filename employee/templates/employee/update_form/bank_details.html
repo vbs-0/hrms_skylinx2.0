@@ -1,3 +1,4 @@
+{% load static %}
 {% load i18n %}
 <div class="oh-wrapper">
     <div class="oh-general__tab-target oh-profile-section mb-4{% if not active_tab or active_tab != 'bank' %} d-none{% endif %}" id="bank">
@@ -12,12 +13,78 @@
                 hx-on::after-request="if(event.detail.successful){var b=document.getElementById('reloadMessagesButton');if(b)b.click();}"
                 action="{% url 'employee-view-update' obj_id %}"
             >
-                <div id="bankMessage">
-                </div>
+                <div id="bankMessage"></div>
                 {% csrf_token %}
                 {% if container_mode %}<input type="hidden" name="container" value="true">{% endif %}
                 <input type="hidden" name="form" value="bank">
-                {{bank_form.as_p}}
+
+                <div class="row">
+                    {{bank_form.non_field_errors}}
+
+                    <!-- 1. IFSC Code -->
+                    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+                        <label class="oh-label required-star" for="{{bank_form.any_other_code1.id_for_label}}">{% trans "IFSC Code" %}</label>
+                        {{bank_form.any_other_code1}}
+                        {{bank_form.any_other_code1.errors}}
+                    </div>
+
+                    <!-- 2. Account Name -->
+                    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+                        <label class="oh-label required-star" for="{{bank_form.bank_name.id_for_label}}">{% trans "Account Name" %}</label>
+                        {{bank_form.bank_name}}
+                        {{bank_form.bank_name.errors}}
+                    </div>
+
+                    <!-- 3. Branch -->
+                    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+                        <label class="oh-label required-star" for="{{bank_form.branch.id_for_label}}">{% trans "Branch" %}</label>
+                        {{bank_form.branch}}
+                        {{bank_form.branch.errors}}
+                    </div>
+
+                    <!-- 4. Account Type -->
+                    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+                        <label class="oh-label" for="{{bank_form.account_type.id_for_label}}">{% trans "Account Type" %}</label>
+                        {{bank_form.account_type}}
+                        {{bank_form.account_type.errors}}
+                    </div>
+
+                    <!-- 5. Account Number -->
+                    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+                        <label class="oh-label required-star" for="{{bank_form.account_number.id_for_label}}">{% trans "Account Number" %}</label>
+                        {{bank_form.account_number}}
+                        {{bank_form.account_number.errors}}
+                    </div>
+
+                    <!-- 6. City -->
+                    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+                        <label class="oh-label" for="{{bank_form.city.id_for_label}}">{% trans "City" %}</label>
+                        {{bank_form.city}}
+                        {{bank_form.city.errors}}
+                    </div>
+
+                    <!-- 7. State -->
+                    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+                        <label class="oh-label d-block" for="state">{% trans "State" %}</label>
+                        <select name="state" class="oh-input w-100" id="state"
+                            data-selected="{{ bank_form.state.value|default:'' }}">
+                            <option value="{{ bank_form.instance.state }}">{{ bank_form.instance.state }}</option>
+                        </select>
+                        {{bank_form.state.errors}}
+                    </div>
+
+                    <!-- 8. Country -->
+                    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+                        <label class="oh-label" for="country">{% trans "Country" %}</label>
+                        <select name="country" class="oh-input w-100" id="country"
+                            data-selected="{{ bank_form.country.value|default:'' }}">
+                            <option value="{{ bank_form.instance.country }}">{{ bank_form.instance.country }}</option>
+                        </select>
+                        {{bank_form.country.errors}}
+                    </div>
+
+                </div><!-- /.row -->
+
             <hr class="mt-5 mb-3">
             <div class="w-100 d-flex align-items-center justify-content-end">
                 <button type="submit" class="oh-btn oh-btn--secondary oh-btn--w-100-resp">
@@ -27,5 +94,97 @@
             </form>
         </div>
     </div>
-    </div>
 </div>
+
+<script src="{% static '/index/country.js' %}"></script>
+<script>
+    $(document).ready(function() {
+        if (typeof initCountryStateDropdowns === 'function') {
+            initCountryStateDropdowns();
+        }
+    });
+
+        if (window.ifscFetchListenerInitialized === undefined) {
+        window.ifscFetchListenerInitialized = true;
+                $(document).on('input change', 'input[name$="any_other_code1"]', function() {
+            var $ifscInput = $(this);
+            var ifsc = $ifscInput.val().trim().toUpperCase();
+            $ifscInput.val(ifsc);
+            
+            var ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+            if (ifscRegex.test(ifsc)) {
+                console.log("Fetching bank details for IFSC:", ifsc);
+                fetch('/api/ifsc-lookup/?code=' + encodeURIComponent(ifsc))
+                    .then(function(response) {
+                        if (response.ok) {
+                            return response.json();
+                        }
+                        throw new Error('IFSC not found');
+                    })
+                    .then(function(data) {
+                        if (data) {
+                            var $form = $ifscInput.closest('form');
+                            if (!$form.length) {
+                                $form = $(document);
+                            }
+                            
+                            var $bankName = $form.find('input[name$="bank_name"]');
+                            if (!$bankName.length) $bankName = $('#id_bank_name');
+                            if ($bankName.length) {
+                                $bankName.val(data.BANK || data.BANK_NAME || data.bank_name || data.BANKNAME || '').trigger('change');
+                            }
+                            
+                            var $branch = $form.find('input[name$="branch"]');
+                            if (!$branch.length) $branch = $('#id_branch');
+                            if ($branch.length) {
+                                $branch.val(data.BRANCH || data.BRANCH_NAME || data.branch || '').trigger('change');
+                            }
+                            
+                            var $city = $form.find('input[name$="city"]');
+                            if (!$city.length) $city = $('#id_city');
+                            if ($city.length) {
+                                $city.val(data.CITY || data.city || '').trigger('change');
+                            }
+                            
+                            var $country = $form.find('select[name$="country"]');
+                            if (!$country.length) $country = $('#id_country');
+                            
+                            var $state = $form.find('select[name$="state"]');
+                            if (!$state.length) $state = $('#id_state');
+                            
+                            if ($country.length) {
+                                $country.val('India').trigger('change');
+                                if ($state.length && typeof populateStates === 'function') {
+                                    populateStates($country.attr('id'), $state.attr('id'));
+                                }
+                            }
+                            
+                            if ($state.length && data.STATE) {
+                                setTimeout(function() {
+                                    var stateToFind = data.STATE.trim().toUpperCase();
+                                    var foundValue = null;
+                                    $state.find('option').each(function() {
+                                        var optText = $(this).text().trim().toUpperCase();
+                                        if (optText === stateToFind || optText.includes(stateToFind) || stateToFind.includes(optText)) {
+                                            foundValue = $(this).val();
+                                            return false;
+                                        }
+                                    });
+                                    if (foundValue) {
+                                        $state.val(foundValue).trigger('change');
+                                    }
+                                }, 600);
+                            }
+                        }
+                    })
+                    .catch(function(error) {
+                        console.error("Error fetching IFSC details:", error);
+                    });
+            }
+        });
+    }
+</script>
+
+
+
+

@@ -38,7 +38,6 @@
                                 title="{% trans 'Select All' %}" />
                         </div>
                     </div>
-                    <div class="oh-sticky-table__th">{% trans "Contract" %}</div>
                     <div data-cell-index="1" data-cell-title="{% trans 'Employee' %}"
                         class="oh-sticky-table__th {% if request.sort_option.order == '-employee_id__employee_first_name' %}arrow-up {% elif request.sort_option.order == 'employee_id__employee_first_name' %}arrow-down {% else %} arrow-up-down {% endif %}"
                         hx-target="#payroll-contract-container"
@@ -72,14 +71,13 @@
                         data-target="#objectDetailsModal"
                         hx-get="{% url 'single-contract-view' contract.id %}?{{pd}}&instances_ids={{contract_ids}}"
                         hx-target="#objectDetailsModalTarget">
-                        <div class="oh-sticky-table__sd  {% if contract.contract_status == " active" %} row-status--yellow {% elif contract.contract_status=='draft' %} row-status--purple {% elif contract.contract_status=='expired' %} row-status--red {% elif contract.contract_status=='terminated' %} row-status--black {% endif %}" onclick="event.stopPropagation()">
+                        <div class="oh-sticky-table__sd  {% if contract.contract_status == 'active' %} row-status--yellow {% elif contract.contract_status == 'draft' %} row-status--purple {% elif contract.contract_status == 'expired' %} row-status--red {% elif contract.contract_status == 'terminated' %} row-status--black {% endif %}" onclick="event.stopPropagation()">
                             <div class="centered-div">
                                 <input type="checkbox" id="{{contract.id}}" onchange="highlightRow($(this))"
                                     value="{{contract.id}}"
                                     class="oh-input payslip-checkbox oh-input__checkbox all-contract-row" />
                             </div>
                         </div>
-                        <div class="oh-sticky-table__td">{{ contract.contract_name }}</div>
                         <div data-cell-index="1" class="oh-sticky-table__td">{{ contract.employee_id }}</div>
                         <div data-cell-index="2" class="oh-sticky-table__td dateformat_changer">{{ contract.contract_start_date}}</div>
                         <div data-cell-index="3" class="oh-sticky-table__td dateformat_changer">
@@ -96,7 +94,7 @@
                                     hx-post="{% url 'update-contract-status' contract.id %}?{{pd}}"
                                     hx-target="#payroll-contract-container" hx-vals='{"view":"table"}'
                                     class="oh-table__editable-input w-100">
-                                    {% for option in contract.CONTRACT_STATUS_CHOICES %} <option value="{{option.0}}" {% if option.0==contract.contract_status %}selected{% endif %}> {{option.1}}</option> {% endfor %}
+                                    {% for option in contract.CONTRACT_STATUS_CHOICES %} <option value="{{option.0}}" {% if option.0 == contract.contract_status %}selected{% endif %}> {{option.1}}</option> {% endfor %}
                                 </select>
                             </div>
                         {% else %}
@@ -118,7 +116,7 @@
                                     {% if perms.payroll.delete_contract %}
                                         <a onclick="event.preventDefault();event.stopPropagation();"
                                             class="oh-btn oh-btn--danger-outline oh-btn--light-bkg w-100"
-                                            hx-confirm="{% trans 'Do you want to delete this Contract?' %}"
+                                            hx-confirm="{% trans 'Do you want to delete this Register?' %}"
                                             hx-post="{% url 'delete-contract' contract.id %}?{{pd}}"
                                             hx-target="#payroll-contract-container" hx-swap="innerHTML"
                                             title="{% trans 'Delete' %}">

@@ -23,7 +23,7 @@
             aria-label="Search Input"
             placeholder="{% trans 'Search' %}"
             name="search"
-            onkeyup="$('.filterButton')[0].click()"
+            onkeyup="$('.filterButton').first().click()"
         />
     </div>
     <ul class="oh-view-types ml-2" style="margin-bottom: 0;">
@@ -184,7 +184,7 @@
 	{% comment %} $(document).ready(function () { {% endcomment %}
 
 		$("#id_field").on("change", function () {
-			$(".filterButton")[0].click();
+			$(".filterButton").first().click();
 		});
 	{% comment %} }); {% endcomment %}
 </script>

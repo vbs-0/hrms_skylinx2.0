@@ -6,18 +6,23 @@ This module is used to map url pattens with django views or methods
 
 import csv
 import json
+import logging
 import os
+import re
 import threading
 import uuid
 from datetime import datetime, timedelta
 from email.mime.image import MIMEImage
 from os import path
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 from urllib.parse import parse_qs, unquote, urlencode, urlparse
 
 import pandas as pd
 from dateutil import parser
 from django import forms
 from django.apps import apps
+from django.apps import apps as django_apps
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
@@ -129,7 +134,9 @@ from base.methods import (
     paginator_qry,
     sortby,
 )
+from base.rbac import current_company, groups_for_request, owns_group, scoped_name
 from base.models import (
+    CompanyGroup,
     WEEK_DAYS,
     WEEKS,
     AnnouncementExpire,
@@ -163,6 +170,20 @@ from base.models import (
     WorkTypeRequest,
     WorkTypeRequestComment,
 )
+
+
+def ifsc_lookup(request):
+    code = (request.GET.get("code") or "").strip().upper()
+    if not code or not re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", code):
+        return JsonResponse({"error": "invalid_ifsc"}, status=400)
+    try:
+        with urllib_request.urlopen(
+            f"https://ifsc.razorpay.com/{code}", timeout=8
+        ) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (urllib_error.HTTPError, urllib_error.URLError, TimeoutError, ValueError):
+        return JsonResponse({"error": "lookup_failed"}, status=502)
+    return JsonResponse(payload)
 from employee.filters import EmployeeFilter
 from employee.forms import ActiontypeForm, EmployeeGeneralSettingPrefixForm
 from employee.models import (
@@ -190,6 +211,8 @@ from skylinx_audit.models import AccountBlockUnblock, AuditTag, HistoryTrackingF
 from skylinx_auth.models import SkylinxUser
 from notifications.models import Notification
 from notifications.signals import notify
+
+logger = logging.getLogger(__name__)
 
 CHARTS = [
     ("employee_work_info", _("Employee Work Info")),
@@ -237,7 +260,7 @@ def is_reportingmanger(request, instance):
             instance.employee_id.employee_work_info.reporting_manager_id
         )
     except Exception:
-        return HttpResponse("This Employee Dont Have any work information")
+        return False
     return manager == employee_work_info_manager
 
 
@@ -295,7 +318,9 @@ def _shift_fixture_dates(file_path):
             pass
         return match.group(1)
 
-    with open(file_path, "r", encoding="utf-8") as f:
+    # utf-8-sig strips a leading BOM if present (some fixtures have one, which
+    # otherwise breaks json.loads during loaddata).
+    with open(file_path, "r", encoding="utf-8-sig") as f:
         content = f.read()
 
     return DATE_RE.sub(_shift, content)
@@ -691,6 +716,10 @@ def login_user(request):
 
         login(request, user)
 
+        if "accept_terms" in request.POST or request.POST.get("accept_terms") in ["on", "true", "1"]:
+            user.accepted_terms = True
+            user.save()
+
         messages.success(request, _("Login successful."))
 
         # Ensure `next_url` is a safe local URL
@@ -706,6 +735,18 @@ def login_user(request):
     return render(
         request, "login.html", {"initialize_database": initialize_database_condition()}
     )
+
+
+def check_terms_acceptance(request):
+    from django.http import JsonResponse
+    username = request.GET.get("username", "").strip()
+    if not username:
+        return JsonResponse({"accepted": False})
+    
+    user = _resolve_login_user(username)
+    if user and getattr(user, 'accepted_terms', False):
+        return JsonResponse({"accepted": True})
+    return JsonResponse({"accepted": False})
 
 
 def include_employee_instance(request, form):
@@ -724,13 +765,116 @@ def include_employee_instance(request, form):
     return form
 
 
+def _resolve_login_user(ident):
+    """Find a user by username / email / work-email / phone (shared with login)."""
+    from django.db.models import Q
+
+    ident = (ident or "").strip()
+    if not ident:
+        return None
+    return (
+        SkylinxUser.objects.filter(
+            Q(username__iexact=ident)
+            | Q(email__iexact=ident)
+            | Q(employee_get__email__iexact=ident)
+            | Q(employee_get__phone=ident)
+            | Q(employee_get__employee_work_info__email__iexact=ident)
+        )
+        .distinct()
+        .first()
+    )
+
+
+def _user_emails(user):
+    """Every distinct address this user might read."""
+    emp = getattr(user, "employee_get", None)
+    addrs = [user.email]
+    if emp:
+        addrs.append(emp.email)
+        addrs.append(getattr(getattr(emp, "employee_work_info", None), "email", None))
+    seen = []
+    for a in addrs:
+        if a and a not in seen:
+            seen.append(a)
+    return seen
+
+
+def password_reset_otp(request):
+    """OTP-based password reset — no email link, just a 6-digit code.
+
+    Stage 'request': enter email/phone -> emails a code (10-min TTL, in session).
+    Stage 'verify': enter code + new password -> sets it. Host-agnostic (no
+    hardcoded domain; the code works on any subdomain)."""
+    from base.methods import generate_otp
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "request":
+            ident = request.POST.get("identifier", "")
+            user = _resolve_login_user(ident)
+            if not user:
+                messages.error(request, _("No account found for that email or phone."))
+                return render(request, "otp_reset.html", {"stage": "request"})
+            otp = generate_otp()
+            request.session["reset_otp"] = otp
+            request.session["reset_otp_user"] = user.pk
+            request.session["reset_otp_ts"] = timezone.now().timestamp()
+            request.session.save()
+            backend = ConfiguredEmailBackend()
+            try:
+                EmailMessage(
+                    subject="Your EMPLINX password reset code",
+                    body=(
+                        f"Your password reset code is {otp}\n\n"
+                        "It expires in 10 minutes. If you didn't request this, ignore this email."
+                    ),
+                    from_email=backend.dynamic_from_email_with_display_name,
+                    to=_user_emails(user),
+                ).send(fail_silently=False)
+            except Exception as exc:
+                logger.exception("OTP reset email failed: %s", exc)
+                messages.error(request, _("Could not send the code. Contact support."))
+                return render(request, "otp_reset.html", {"stage": "request"})
+            messages.success(request, _("We emailed a 6-digit code to your registered address."))
+            return render(request, "otp_reset.html", {"stage": "verify", "ident": ident})
+
+        if action == "verify":
+            otp = request.session.get("reset_otp")
+            uid = request.session.get("reset_otp_user")
+            ts = request.session.get("reset_otp_ts", 0)
+            if not otp or (timezone.now().timestamp() - ts) > 600:
+                messages.error(request, _("Code expired. Please request a new one."))
+                return render(request, "otp_reset.html", {"stage": "request"})
+            if request.POST.get("otp", "").strip() != otp:
+                messages.error(request, _("Invalid code."))
+                return render(request, "otp_reset.html", {"stage": "verify"})
+            pw1 = request.POST.get("password", "")
+            pw2 = request.POST.get("confirm", "")
+            if len(pw1) < 6 or pw1 != pw2:
+                messages.error(request, _("Passwords must match and be at least 6 characters."))
+                return render(request, "otp_reset.html", {"stage": "verify"})
+            user = SkylinxUser.objects.filter(pk=uid).first()
+            if not user:
+                messages.error(request, _("Something went wrong. Start again."))
+                return render(request, "otp_reset.html", {"stage": "request"})
+            user.set_password(pw1)
+            user.save()
+            for k in ("reset_otp", "reset_otp_user", "reset_otp_ts"):
+                request.session.pop(k, None)
+            messages.success(request, _("Password updated. Please log in."))
+            return redirect("login")
+
+    return render(request, "otp_reset.html", {"stage": "request"})
+
+
 def reset_send_success(request):
     return render(request, "reset_send.html")
 
 
 class SkylinxPasswordResetView(PasswordResetView):
     """
-    Skylinx View for Reset Password
+    EMPLINX View for Reset Password
     """
 
     template_name = "forgot_password.html"
@@ -748,32 +892,37 @@ class SkylinxPasswordResetView(PasswordResetView):
             messages.error(self.request, _("Primary mail server is not configured"))
             return redirect("forgot-password")
 
-        username = form.cleaned_data["email"]
-        user = SkylinxUser.objects.filter(username=username).first()
-        if user:
-            opts = {
-                "use_https": self.request.is_secure(),
-                "token_generator": self.token_generator,
-                "from_email": email_backend.dynamic_from_email_with_display_name,
-                "email_template_name": self.email_template_name,
-                "subject_template_name": self.subject_template_name,
-                "request": self.request,
-                "html_email_template_name": self.html_email_template_name,
-                "extra_email_context": self.extra_email_context,
-            }
+        opts = {
+            "use_https": self.request.is_secure(),
+            "token_generator": self.token_generator,
+            "from_email": email_backend.dynamic_from_email_with_display_name,
+            "email_template_name": self.email_template_name,
+            "subject_template_name": self.subject_template_name,
+            "request": self.request,
+            "html_email_template_name": self.html_email_template_name,
+            "extra_email_context": self.extra_email_context,
+        }
+        try:
             form.save(**opts)
-            if self.request.user.is_authenticated:
-                messages.success(
-                    self.request, _("Password reset link sent successfully")
-                )
-                return SkylinxRedirect(self.request)
+        except Exception as exc:
+            # SMTP refused / bad creds / network — tell the truth, don't fake success.
+            logger.exception("Password reset email failed: %s", exc)
+            messages.error(
+                self.request,
+                _("Could not send the reset email. Please check the mail server settings or contact support."),
+            )
+            return redirect("forgot-password")
+
+        if self.request.user.is_authenticated:
+            messages.success(self.request, _("Password reset link sent successfully"))
+            return SkylinxRedirect(self.request)
 
         return redirect(reverse_lazy("reset-send-success"))
 
 
 class EmployeePasswordResetView(PasswordResetView):
     """
-    Skylinx View for Employee Reset Password
+    EMPLINX View for Employee Reset Password
     """
 
     template_name = "forgot_password.html"
@@ -1018,9 +1167,145 @@ class Workinfo:
 @login_required
 def home(request):
     """
-    This method is used to render index page — redirects to the modern dashboard.
+    Renders the Home Page — a visual launchpad showing all module navigation cards.
     """
-    return redirect("dashboard")
+    if not request.user.is_authenticated:
+        return redirect("login")
+
+    from django.apps import apps
+
+    def get_count_or_zero(app_label, model_name, filter_kwargs=None):
+        try:
+            model = apps.get_model(app_label, model_name)
+            if filter_kwargs:
+                return model.objects.filter(**filter_kwargs).count()
+            return model.objects.count()
+        except Exception:
+            return 0
+
+    pending_leaves_count = get_count_or_zero('leave', 'LeaveRequest', {'status': 'requested'})
+    onboarding_candidates_count = get_count_or_zero('onboarding', 'OnboardingCandidate')
+
+    employee_add_alert = onboarding_candidates_count > 0
+    is_payroll_time = get_count_or_zero('payroll', 'Payslip') == 0
+
+    unread_notifications_count = 0
+    try:
+        unread_notifications_count = request.user.notifications.unread().count()
+    except Exception:
+        pass
+
+    tasks_active = (pending_leaves_count > 0) or employee_add_alert or (unread_notifications_count > 0) or is_payroll_time
+
+    context = {
+        "pending_leaves_count": pending_leaves_count,
+        "employee_add_alert": employee_add_alert,
+        "is_payroll_time": is_payroll_time,
+        "unread_notifications_count": unread_notifications_count,
+        "tasks_active": tasks_active,
+    }
+
+    return render(request, "home_page.html", context)
+
+
+@login_required
+def global_search(request):
+    """
+    Global search API: searches employees and permission-filtered module pages.
+    Returns JSON for the header live search bar.
+    """
+    query = request.GET.get("q", "").strip()
+    results = []
+
+    if not query or len(query) < 2:
+        return JsonResponse({"results": []})
+
+    q_lower = query.lower()
+
+    # ── 1. Employee search (permission-scoped) ───────────────────────────────
+    if request.user.has_perm("employee.view_employee"):
+        try:
+            from employee.models import Employee
+
+            employees = Employee.objects.filter(is_active=True)
+            employees = filtersubordinatesemployeemodel(
+                request, employees, perm="employee.view_employee"
+            )
+            employees = employees.filter(
+                Q(employee_first_name__icontains=query)
+                | Q(employee_last_name__icontains=query)
+                | Q(badge_id__icontains=query)
+                | Q(email__icontains=query)
+                | Q(employee_work_info__department_id__department__icontains=query)
+                | Q(employee_work_info__job_position_id__job_position__icontains=query)
+            ).select_related(
+                "employee_work_info__department_id",
+                "employee_work_info__job_position_id",
+            ).distinct()[:8]
+
+            for emp in employees:
+                dept = ""
+                try:
+                    dept = (
+                        str(emp.employee_work_info.department_id)
+                        if emp.employee_work_info.department_id
+                        else ""
+                    )
+                except Exception:
+                    pass
+                results.append(
+                    {
+                        "type": "employee",
+                        "label": emp.get_full_name(),
+                        "sub": dept or emp.email or "",
+                        "url": f"/employee/employee-view/?search={emp.employee_first_name}",
+                        "icon": "person",
+                        "avatar": emp.employee_profile.url
+                        if emp.employee_profile
+                        else None,
+                    }
+                )
+        except Exception:
+            pass
+
+    # ── 2. Module / feature search from permission-filtered sidebar ─────────
+    from skylinx.config import get_MENUS
+
+    menus = get_MENUS(request).get("sidebar", [])
+    feature_entries = [
+        ("Dashboard", "Overview & Analytics", "/dashboard/", "dashboard"),
+        ("Home Page", "Module launchpad", "/", "dashboard"),
+    ]
+    for module in menus:
+        for submenu in module.get("submenu", []):
+            feature_entries.append(
+                (
+                    submenu.get("menu", module.get("menu", "")),
+                    module.get("menu", ""),
+                    submenu.get("redirect", "/"),
+                    module.get("app", "dashboard"),
+                )
+            )
+
+    seen_urls = set()
+    for label, sub, url, icon in feature_entries:
+        if not url or url in seen_urls:
+            continue
+        if q_lower not in label.lower() and q_lower not in sub.lower():
+            continue
+        seen_urls.add(url)
+        results.append(
+            {
+                "type": "feature",
+                "label": label,
+                "sub": sub,
+                "url": url,
+                "icon": icon,
+                "avatar": None,
+            }
+        )
+
+    return JsonResponse({"results": results[:10]})
 
 
 @login_required
@@ -1044,8 +1329,8 @@ def employee_workinfo_complete(request):
         "shift_id",
         "date_joining",
         "contract_end_date",
-        "basic_salary",
-        "salary_hour",
+        "ctc",
+        "salary_components",
     ]
     search = request.GET.get("search", "")
     employees_workinfos = filtersubordinates(
@@ -1137,11 +1422,19 @@ def user_group_table(request):
                     "model_name": model._meta.model_name,
                 }
             )
-        permissions.append({"app": app_name.capitalize(), "app_models": app_models})
+        permissions.append({"app": django_apps.get_app_config(app_name).verbose_name, "app_label": app_name, "app_models": app_models})
     if request.method == "POST":
-        form = UserGroupForm(request.POST)
+        company = current_company(request)
+        post = request.POST.copy()
+        if company and not request.user.is_superuser:
+            post["name"] = scoped_name(company.id, post.get("name", ""))
+        form = UserGroupForm(post)
         if form.is_valid():
-            form.save()
+            group = form.save()
+            if company and not request.user.is_superuser:
+                CompanyGroup.objects.get_or_create(
+                    group=group, defaults={"company": company}
+                )
             messages.success(request, _("User group created."))
             return SkylinxRedirect(request)
     return render(
@@ -1157,7 +1450,7 @@ def user_group_table(request):
 
 @login_required
 @require_http_methods(["POST"])
-@permission_required("auth.add_permission")
+@permission_required("auth.change_group")
 def update_group_permission(
     request,
 ):
@@ -1169,24 +1462,26 @@ def update_group_permission(
     if not instance:
         messages.error(request, _("Group not found"))
         return JsonResponse({"message": "Group not found", "type": "danger"})
+    if not owns_group(request, instance.id):
+        return JsonResponse({"message": "Group not found", "type": "danger"})
+    company = current_company(request)
+    scope = company and not request.user.is_superuser
     form = UserGroupForm(request.POST, instance=instance)
     if form.is_valid():
-        form.save()
+        grp = form.save()
+        if scope:  # keep the tenant prefix the form may have stripped
+            grp.name = scoped_name(company.id, grp.name)
+            grp.save(update_fields=["name"])
         messages.success(request, _("Updated the permissions"))
         return JsonResponse({})
     if request.POST.get("name_update"):
         name = request.POST["name"]
         if len(name) > 3:
-            instance.name = name
+            instance.name = scoped_name(company.id, name) if scope else name
             instance.save()
             messages.success(request, _("Name updated"))
             return JsonResponse({"message": "Name updated", "type": "success"})
         messages.info(request, _("At least 4 characters required"))
-        return JsonResponse({})
-    perms = form.cleaned_data.get("permissions")
-    if not perms:
-        instance.permissions.clear()
-        messages.info(request, _("All permission cleared"))
         return JsonResponse({})
     messages.error(request, _("Something went wrong"))
     return JsonResponse({"message": "Something went wrong", "type": "danger"})
@@ -1203,6 +1498,7 @@ def user_group(request):
     apps = settings.APPS
     no_permission_models = settings.NO_PERMISSION_MODALS
     form = UserGroupForm()
+    from django.apps import apps as django_apps
     for app_name in apps:
         app_models = []
         for model in get_models_in_app(app_name):
@@ -1212,10 +1508,23 @@ def user_group(request):
                     "model_name": model._meta.model_name,
                 }
             )
+        try:
+            app_config = django_apps.get_app_config(app_name)
+            display_name = app_config.verbose_name
+        except LookupError:
+            display_name = django_apps.get_app_config(app_name).verbose_name
+            
         permissions.append(
-            {"app": app_name.capitalize().replace("_", " "), "app_models": app_models}
+            {"app": display_name, "app_label": app_name, "app_models": app_models}
         )
-    groups = Group.objects.all()
+    from django.db.models import Prefetch, Count
+    groups = groups_for_request(request).select_related(
+        'company_link__company'
+    ).prefetch_related(
+        Prefetch('permissions')
+    ).annotate(
+        user_count=Count('user', distinct=True)
+    )
     return render(
         request,
         "base/auth/group.html",
@@ -1223,6 +1532,57 @@ def user_group(request):
             "permissions": permissions,
             "form": form,
             "groups": paginator_qry(groups, request.GET.get("page")),
+            "no_permission_models": no_permission_models,
+        },
+    )
+
+
+@login_required
+@permission_required("auth.view_group")
+def roles_page(request):
+    """Friendly card-based roles & permissions overview."""
+    from base.rbac import groups_for_request, strip_name
+    from django.db.models import Count
+
+    raw_groups = (
+        groups_for_request(request)
+        .annotate(user_count=Count("user", distinct=True))
+        .prefetch_related("permissions")
+    )
+    roles = [
+        {
+            "id": g.id,
+            "name": strip_name(g.name),
+            "user_count": g.user_count,
+            "perm_count": g.permissions.count(),
+        }
+        for g in raw_groups
+    ]
+
+    # build permission table data for create modal (reuse existing logic)
+    permissions = []
+    no_permission_models = settings.NO_PERMISSION_MODALS
+    form = UserGroupForm()
+    for app_name in settings.APPS:
+        app_models = []
+        for model in get_models_in_app(app_name):
+            app_models.append(
+                {
+                    "verbose_name": model._meta.verbose_name.capitalize(),
+                    "model_name": model._meta.model_name,
+                }
+            )
+        permissions.append(
+            {"app": django_apps.get_app_config(app_name).verbose_name, "app_label": app_name, "app_models": app_models}
+        )
+
+    return render(
+        request,
+        "base/auth/roles.html",
+        {
+            "roles": roles,
+            "form": form,
+            "permissions": permissions,
             "no_permission_models": no_permission_models,
         },
     )
@@ -1249,11 +1609,17 @@ def user_group_search(request):
                     "model_name": model._meta.model_name,
                 }
             )
-        permissions.append({"app": app_name.capitalize(), "app_models": app_models})
+        permissions.append({"app": django_apps.get_app_config(app_name).verbose_name, "app_label": app_name, "app_models": app_models})
     search = ""
     if request.GET.get("search"):
         search = str(request.GET["search"])
-    groups = Group.objects.filter(name__icontains=search)
+    # Optimize query with prefetch_related and annotate user count
+    from django.db.models import Prefetch, Count
+    groups = groups_for_request(request).filter(name__icontains=search).prefetch_related(
+        Prefetch('permissions')
+    ).annotate(
+        user_count=Count('user', distinct=True)
+    )
     return render(
         request,
         "base/auth/group_lines.html",
@@ -1262,6 +1628,99 @@ def user_group_search(request):
             "form": form,
             "groups": paginator_qry(groups, request.GET.get("page")),
             "no_permission_models": no_permission_models,
+        },
+    )
+
+
+
+@login_required
+@hx_request_required
+@permission_required("auth.view_group")
+def group_permissions_table_view(request, group_id):
+    """
+    Lazy-loads permissions table for a specific group.
+    """
+    if not owns_group(request, group_id):
+        return HttpResponse("Group not found", status=404)
+    try:
+        group = Group.objects.get(id=group_id)
+    except Group.DoesNotExist:
+        return HttpResponse("Group not found", status=404)
+
+    permissions = []
+    apps = settings.APPS
+    no_permission_models = settings.NO_PERMISSION_MODALS
+    for app_name in apps:
+        app_models = []
+        for model in get_models_in_app(app_name):
+            app_models.append(
+                {
+                    "verbose_name": model._meta.verbose_name.capitalize(),
+                    "model_name": model._meta.model_name,
+                }
+            )
+        permissions.append(
+            {"app": django_apps.get_app_config(app_name).verbose_name, "app_label": app_name, "app_models": app_models}
+        )
+
+    selected_perms = [
+        f"{p['content_type__app_label']}.{p['codename']}"
+        for p in group.permissions.values("content_type__app_label", "codename")
+    ]
+
+    return render(
+        request,
+        "base/auth/permission_table_lazy.html",
+        {
+            "permissions": permissions,
+            "group": group,
+            "selected_perms": selected_perms,
+            "no_permission_models": no_permission_models,
+            "panel_id": f"panel{group.id}",
+        },
+    )
+
+
+@login_required
+@hx_request_required
+@permission_required("view_permissions")
+def user_permission_table_view(request, emp_id):
+    """
+    Lazy-loads the permission table for a specific employee (user).
+    Mirrors group_permissions_table_view to avoid rendering one full
+    permission table per employee on the page (the 10MB N-times bug).
+    """
+    employee = Employee.objects.filter(id=emp_id).first()
+    if not employee or not employee.employee_user_id:
+        return HttpResponse("Employee not found", status=404)
+
+    permissions = []
+    for app_name in settings.APPS:
+        app_models = []
+        for model in get_models_in_app(app_name):
+            app_models.append(
+                {
+                    "verbose_name": model._meta.verbose_name.capitalize(),
+                    "model_name": model._meta.model_name,
+                }
+            )
+        permissions.append(
+            {"app": django_apps.get_app_config(app_name).verbose_name, "app_label": app_name, "app_models": app_models}
+        )
+
+    selected_perms = [
+        f"{p['content_type__app_label']}.{p['codename']}"
+        for p in employee.employee_user_id.user_permissions.values("content_type__app_label", "codename")
+    ]
+
+    return render(
+        request,
+        "base/auth/permission_table_lazy.html",
+        {
+            "permissions": permissions,
+            "selected_perms": selected_perms,
+            "no_permission_models": settings.NO_PERMISSION_MODALS,
+            "panel_id": f"panel{employee.id}",
         },
     )
 
@@ -1276,12 +1735,14 @@ def group_assign(request):
     group_id = request.GET.get("group")
     if not group_id:
         return SkylinxRedirect(request, message=_("Required parameters are missing"))
+    if not owns_group(request, group_id):
+        return SkylinxRedirect(request, message=_("Group not found"))
     form = AssignUserGroup(
         initial={
             "group": group_id,
             "employee": Employee.objects.filter(
                 employee_user_id__groups__id=group_id
-            ).values_list("id", flat=True),
+            ).exclude(employee_user_id__is_superuser=True).values_list("id", flat=True),
         }
     )
     if request.POST:
@@ -1290,13 +1751,24 @@ def group_assign(request):
             return SkylinxRedirect(
                 request, message=_("Required parameters are missing")
             )
+        if not owns_group(request, group_id):
+            return SkylinxRedirect(request, message=_("Group not found"))
         form = AssignUserGroup(
             {"group": group_id, "employee": request.POST.getlist("employee")}
         )
         if form.is_valid():
             form.save()
             messages.success(request, _("User group assigned."))
-            return SkylinxRedirect(request)
+            return HttpResponse(
+                '<script>'
+                '$("#groupAssign").removeClass("oh-modal--show");'
+                '$(".oh-modal--show").removeClass("oh-modal--show");'
+                '$(".oh-modal-backdrop").remove();'
+                '$("#permissionSearch").trigger("keyup");'
+                'htmx.trigger("#permissionSearch", "keyup");'
+                'if (typeof reloadMessage === "function") { reloadMessage(); }'
+                '</script>'
+            )
     return render(
         request,
         "base/auth/group_user_assign.html",
@@ -1314,7 +1786,7 @@ def group_assign_view(request):
     search = ""
     if request.GET.get("search") is not None:
         search = request.GET.get("search")
-    groups = Group.objects.filter(name__icontains=search)
+    groups = groups_for_request(request).filter(name__icontains=search)
     previous_data = request.GET.urlencode()
     return render(
         request,
@@ -1332,7 +1804,7 @@ def user_group_view(request):
     search = ""
     if request.GET.get("search") is not None:
         search = request.GET["search"]
-    user_group = Group.objects.filter()
+    user_group = groups_for_request(request).filter(name__icontains=search)
     return render(request, "base/auth/group_assign.html", {"data": user_group})
 
 
@@ -1346,8 +1818,8 @@ def user_group_permission_remove(request, pid, gid):
         pid: permission id
         gid: group id
     """
-    group = Group.objects.get(id=1)
-    permission = Permission.objects.get(id=2)
+    group = Group.objects.get(id=gid)
+    permission = Permission.objects.get(id=pid)
     group.permissions.remove(permission)
     return SkylinxRedirect(request)
 
@@ -1624,7 +2096,7 @@ def mail_server_test_email(request):
     instance_id = request.GET.get("instance_id")
     white_labelling = getattr(settings, "WHITE_LABELLING", False)
     image_path = path.join(settings.STATIC_ROOT, "images/ui/skylinx-logo.png")
-    company_name = "Skylinx"
+    company_name = "EMPLINX"
 
     if white_labelling:
         hq = Company.objects.filter(hq=True).last()
@@ -1646,7 +2118,7 @@ def mail_server_test_email(request):
         form = DynamicMailTestForm(request.POST)
         if form.is_valid():
             email_to = form.cleaned_data["to_email"]
-            subject = _("Test mail from Skylinx")
+            subject = _("Test mail from EMPLINX")
 
             # HTML content
             html_content = f"""
@@ -1881,6 +2353,9 @@ def company_create(request):
     This method render template and form to create company and save if the form is valid
     """
 
+    if not request.user.is_superuser:
+        return HttpResponse(status=403)
+
     form = CompanyForm()
     companies = Company.objects.all()
     if request.method == "POST":
@@ -1905,7 +2380,12 @@ def company_view(request):
     """
     This method used to view created companies
     """
-    companies = Company.objects.all()
+    if request.user.is_superuser:
+        companies = Company.objects.all()
+    else:
+        employee = getattr(request.user, "employee_get", None)
+        company = getattr(getattr(employee, "employee_work_info", None), "company_id", None)
+        companies = Company.objects.filter(id=company.id) if company else Company.objects.none()
     return render(
         request,
         "base/company/company.html",
@@ -1924,6 +2404,11 @@ def company_update(request, id, **kwargs):
 
     """
     company = Company.objects.get(id=id)
+    if not request.user.is_superuser:
+        employee = getattr(request.user, "employee_get", None)
+        own_company = getattr(getattr(employee, "employee_work_info", None), "company_id", None)
+        if not own_company or own_company.id != company.id:
+            return HttpResponse(status=403)
     form = CompanyForm(instance=company)
     if request.method == "POST":
         form = CompanyForm(request.POST, request.FILES, instance=company)
@@ -2169,14 +2654,23 @@ def work_type_create(request):
     company = None
     if selected_company and selected_company != "all":
         company = Company.objects.filter(id=selected_company).first()
-    initial = {"company_id": [company] if company else []}
-    form = WorkTypeForm(initial=initial)
+    form = WorkTypeForm()
     work_types = WorkType.objects.all()
     if request.method == "POST":
         form = WorkTypeForm(request.POST)
         if form.is_valid():
-            form.save()
-            form = WorkTypeForm(initial=initial)
+            work_type_instance = form.save()
+            company_to_add = company
+            if not company_to_add:
+                if hasattr(request.user, "employee_get") and request.user.employee_get:
+                    work_info = getattr(request.user.employee_get, "employee_work_info", None)
+                    if work_info and work_info.company_id:
+                        company_to_add = work_info.company_id
+                if not company_to_add:
+                    company_to_add = Company.objects.first()
+            if company_to_add:
+                work_type_instance.company_id.add(company_to_add)
+            form = WorkTypeForm()
             messages.success(request, _("Work Type has been created successfully!"))
             return SkylinxRedirect(request)
 
@@ -3263,7 +3757,7 @@ def rotating_shift_assign_import(request):
             start_date = parser.parse(str(start_date), dayfirst=True).date()
 
         for total_rows, row in enumerate(work_info_dicts, start=1):
-            employee_ids.append(row["Badge Id"])
+            employee_ids.append(row["Employee ID"])
             current_list = list(row.values())[3:]
             current_list = normalize_list(current_list)
             if start_date < datetime.today().date():
@@ -3337,7 +3831,7 @@ def rotating_shift_assign_import(request):
                 else:
                     error_message = f"Rotating Shift with ID {rshift.name} is already assigned to employee {employee}"
                     for row in work_info_dicts:
-                        if row["Badge Id"] == employee.badge_id:
+                        if row["Employee ID"] == employee.badge_id:
                             row["Employee Error"] = error_message
                             error_list.append(row)
                             break
@@ -3354,7 +3848,7 @@ def rotating_shift_assign_import(request):
         unique_error_list = []
 
         for row in error_list:
-            badge_id = row["Badge Id"]
+            badge_id = row["Employee ID"]
             if badge_id not in flg:
                 unique_error_list.append(row)
                 flg.add(badge_id)
@@ -3614,7 +4108,8 @@ def employee_permission_assign(request, pk=None):
         context["show_assign"] = True
     permissions = [
         {
-            "app": app_name.capitalize().replace("_", " "),
+            "app": django_apps.get_app_config(app_name).verbose_name,
+            "app_label": app_name,
             "app_models": [
                 {
                     "verbose_name": model._meta.verbose_name.capitalize(),
@@ -3656,7 +4151,8 @@ def employee_permission_search(request, codename=None, uid=None):
         context["show_assign"] = True
     permissions = [
         {
-            "app": app_name.capitalize().replace("_", " "),
+            "app": django_apps.get_app_config(app_name).verbose_name,
+            "app_label": app_name,
             "app_models": [
                 {
                     "verbose_name": model._meta.verbose_name.capitalize(),
@@ -3680,7 +4176,7 @@ def employee_permission_search(request, codename=None, uid=None):
 
 @login_required
 @require_http_methods(["POST"])
-@permission_required("auth.add_permission")
+@permission_required("auth.view_permission")
 def update_permission(
     request,
 ):
@@ -3704,15 +4200,29 @@ def update_permission(
         )
         user = employee.employee_user_id
 
-        all_codenames = [p["codename"] for p in permissions_data]
-        checked_codenames = [p["codename"] for p in permissions_data if p["checked"]]
+        all_values = [p["codename"] for p in permissions_data]
+        checked_values = [p["codename"] for p in permissions_data if p["checked"]]
 
-        existing_managed = user.user_permissions.filter(codename__in=all_codenames)
-        managed_permissions = Permission.objects.filter(codename__in=all_codenames)
-        checked_permissions = managed_permissions.filter(codename__in=checked_codenames)
+        from django.db.models import Q
+        all_q = Q()
+        for pv in all_values:
+            if "." in pv:
+                app_label, codename = pv.split(".", 1)
+                all_q |= Q(content_type__app_label=app_label, codename=codename)
+                
+        checked_q = Q()
+        for pv in checked_values:
+            if "." in pv:
+                app_label, codename = pv.split(".", 1)
+                checked_q |= Q(content_type__app_label=app_label, codename=codename)
 
-        user.user_permissions.remove(*existing_managed)
-        user.user_permissions.add(*checked_permissions)
+        if all_q:
+            existing_managed = user.user_permissions.filter(all_q)
+            user.user_permissions.remove(*existing_managed)
+            
+        if checked_q:
+            checked_permissions = Permission.objects.filter(checked_q)
+            user.user_permissions.add(*checked_permissions)
 
         messages.success(request, _("Permissions updated successfully"))
 
@@ -3735,7 +4245,7 @@ def update_permission(
 
 @login_required
 @hx_request_required
-@permission_required("auth.add_permission")
+@permission_required("auth.view_permission")
 def permission_table(request):
     """
     This method is used to render the permission table
@@ -3757,7 +4267,7 @@ def permission_table(request):
                     }
                 )
         permissions.append(
-            {"app": app_name.capitalize().replace("_", " "), "app_models": app_models}
+            {"app": django_apps.get_app_config(app_name).verbose_name, "app_label": app_name, "app_models": app_models}
         )
     if request.method == "POST":
         form = AssignPermission(request.POST)
@@ -5360,6 +5870,17 @@ def notifications(request):
 
 
 @login_required
+def notifications_page(request):
+    """
+    This method will render full notification page
+    """
+    all_notifications = request.user.notifications.all()
+    return render(
+        request,
+        "notification/notification_page.html",
+        {"notifications": all_notifications},
+    )
+
 def clear_notification(request):
     """
     This method is used to clear notification
@@ -5417,12 +5938,14 @@ def delete_notification(request, id):
 @login_required
 def mark_as_read_notification(request, notification_id):
     script = ""
-    notification_id = request.GET.get("notification_id")
+    if not notification_id:
+        notification_id = request.GET.get("notification_id")
     if not notification_id:
         return SkylinxRedirect(
             request, message=_("No notification found matching the query.")
         )
-    notification = Notification.objects.get(id=notification_id)
+    # ponytail: scope to own notifications — else any user marks anyone's read by id.
+    notification = request.user.notifications.get(id=notification_id)
     notification.mark_as_read()
     if not request.user.notifications.unread():
         script = """<span hx-get='/notifications' hx-target='#notificationContainer' hx-trigger='load'></span>"""
@@ -5434,7 +5957,8 @@ def mark_as_read_notification_json(request):
     try:
         notification_id = request.POST["notification_id"]
         notification_id = int(notification_id)
-        notification = Notification.objects.get(id=notification_id)
+        # ponytail: scope to own notifications (IDOR otherwise).
+        notification = request.user.notifications.get(id=notification_id)
         notification.mark_as_read()
         return JsonResponse({"success": True})
     except:
@@ -5602,7 +6126,10 @@ def save_date_format(request):
                         cmp.save()
                     messages.success(request, _("Date format saved successfully."))
                 else:
-                    company = Company.objects.get(id=selected_company)
+                    company = Company.objects.filter(id=selected_company).first()
+                    if not company:
+                        messages.warning(request, _("Selected company no longer exists."))
+                        return JsonResponse({"success": False}, status=404)
                     company.date_format = selected_format
                     company.save()
                     messages.success(request, _("Date format saved successfully."))
@@ -5648,7 +6175,9 @@ def get_date_format(request):
 
     selected_company = request.session.get("selected_company")
     if selected_company != "all" and request.user.is_superuser:
-        company = Company.objects.get(id=selected_company)
+        company = Company.objects.filter(id=selected_company).first()
+        if not company:
+            return JsonResponse({"selected_format": "MMM. D, YYYY"})
         date_format = company.date_format
         if date_format:
             date_format = date_format
@@ -5695,7 +6224,10 @@ def save_time_format(request):
                         cmp.save()
                     messages.success(request, _("Date format saved successfully."))
                 else:
-                    company = Company.objects.get(id=selected_company)
+                    company = Company.objects.filter(id=selected_company).first()
+                    if not company:
+                        messages.warning(request, _("Selected company no longer exists."))
+                        return JsonResponse({"success": False}, status=404)
                     company.time_format = selected_format
                     company.save()
                     messages.success(request, _("Date format saved successfully."))
@@ -5742,7 +6274,9 @@ def get_time_format(request):
 
     selected_company = request.session.get("selected_company")
     if selected_company != "all" and request.user.is_superuser:
-        company = Company.objects.get(id=selected_company)
+        company = Company.objects.filter(id=selected_company).first()
+        if not company:
+            return JsonResponse({"selected_format": "hh:mm A"})
         time_format = company.time_format
         if time_format:
             time_format = time_format
@@ -7872,6 +8406,7 @@ def protected_media(request, path):
         "base/icon/",
         "base/company/icon/",
         "recruitment/candidate/profile/",
+        "legal/",  # owner-uploaded legal PDFs, shown on the public /terms/ page
     )
 
     # Prevent path traversal
@@ -7884,15 +8419,540 @@ def protected_media(request, path):
     if not os.path.exists(media_path) or not os.path.isfile(media_path):
         raise Http404("File not found")
 
+    # Media paths follow "app_label/model_name/field_name/...". These prefixes
+    # hold sensitive employee data (payslips, biometric face templates, HR
+    # documents/notes, disciplinary records). Direct /media/ access to them
+    # requires the corresponding view permission — ordinary employees reach
+    # their own copies through the dedicated, ownership-checked views that
+    # stream the file rather than linking to /media/.
+    sensitive_media_prefixes = {
+        "payroll/": "payroll.view_payslip",
+        "facedetection/": "facedetection.view_employeefacedetection",
+        "skylinx_documents/": "skylinx_documents.view_document",
+        "employee/employeenote/": "employee.view_employeenote",
+        "employee/notefiles/": "employee.view_employeenote",
+        "employee/disciplinaryaction/": "employee.view_disciplinaryaction",
+    }
+
     is_public_asset = any(path.startswith(prefix) for prefix in public_media_prefixes)
 
     if not is_public_asset:
         jwt_user = is_jwt_token_valid(request.META.get("HTTP_AUTHORIZATION", ""))
-        if not request.user.is_authenticated and not jwt_user:
+        auth_user = request.user if request.user.is_authenticated else jwt_user
+        if not auth_user:
             messages.error(
                 request,
                 "You must be logged in or provide a valid token to access this file.",
             )
             return redirect("login")
 
+        # Check if the user is accessing their own face detection data
+        is_own_resource = False
+        if path.startswith("facedetection/"):
+            try:
+                emp_face = auth_user.employee_get.face_detection
+                if emp_face and emp_face.image and emp_face.image.name == path:
+                    is_own_resource = True
+            except Exception:
+                pass
+
+        required_perm = next(
+            (
+                perm
+                for prefix, perm in sensitive_media_prefixes.items()
+                if path.startswith(prefix)
+            ),
+            None,
+        )
+        if required_perm and not (
+            getattr(auth_user, "is_superuser", False) or auth_user.has_perm(required_perm)
+        ):
+            raise Http404("File not found")
+
     return FileResponse(open(media_path, "rb"))
+
+def get_home_announcement(request):
+    from base.models import Announcement
+    latest_announcement = Announcement.objects.filter(is_active=True).order_by('id').last()
+    if not latest_announcement:
+        latest_announcement = Announcement.objects.order_by('id').last()
+    return render(request, "home_announcement.html", {"latest_announcement": latest_announcement})
+
+@login_required
+def edit_home_announcement(request):
+    from django.http import HttpResponseForbidden
+    # Allow superuser OR company admin with change_announcement permission
+    if not (request.user.is_superuser or request.user.has_perm("base.change_announcement")):
+        return HttpResponseForbidden("Permission Denied")
+        
+    from base.models import Announcement
+    latest_announcement = Announcement.objects.filter(is_active=True).order_by('id').last()
+    if not latest_announcement:
+        latest_announcement = Announcement.objects.order_by('id').last()
+        
+    if request.method == "POST":
+        title = request.POST.get("title", "Company Announcement").strip()
+        description = request.POST.get("description", "").strip()
+        if latest_announcement:
+            latest_announcement.title = title
+            latest_announcement.description = description
+            latest_announcement.save()
+        else:
+            latest_announcement = Announcement.objects.create(title=title, description=description)
+            from base.models import Company
+            company = Company.objects.filter(hq=True).first()
+            if company:
+                latest_announcement.company_id.add(company)
+        return render(request, "home_announcement.html", {"latest_announcement": latest_announcement, "edit_mode": False})
+        
+    return render(request, "home_announcement.html", {"latest_announcement": latest_announcement, "edit_mode": True})
+
+def get_home_logo_card(request):
+    from base.models import Company
+    company = current_company(request) or Company.objects.filter(hq=True).first() or Company.objects.first()
+    
+    # Load social links from JSON file (keyed by company ID)
+    social_links_file = os.path.join(settings.BASE_DIR, "base", "company_social_links.json")
+    social_links = {"linkedin": "", "facebook": "", "instagram": ""}
+    company_id_str = str(company.id) if company else "hq"
+    if os.path.exists(social_links_file):
+        try:
+            with open(social_links_file, "r", encoding="utf-8") as f:
+                all_links = json.load(f)
+                social_links.update(all_links.get(company_id_str, {}))
+        except Exception:
+            pass
+            
+    return render(request, "home_logo_card.html", {
+        "company": company,
+        "social_links": social_links,
+        "edit_mode": False,
+    })
+
+
+@login_required
+def edit_home_logo_card(request):
+    from django.http import HttpResponseForbidden
+    # Allow superuser OR company admin with change_company permission
+    if not (request.user.is_superuser or request.user.has_perm("base.change_company")):
+        return HttpResponseForbidden("Permission Denied")
+        
+    from base.models import Company
+    company = current_company(request) or Company.objects.filter(hq=True).first() or Company.objects.first()
+    
+    social_links_file = os.path.join(settings.BASE_DIR, "base", "company_social_links.json")
+    social_links = {"linkedin": "", "facebook": "", "instagram": ""}
+    company_id_str = str(company.id) if company else "hq"
+    if os.path.exists(social_links_file):
+        try:
+            with open(social_links_file, "r", encoding="utf-8") as f:
+                all_links = json.load(f)
+                social_links.update(all_links.get(company_id_str, {}))
+        except Exception:
+            pass
+
+    if request.method == "POST":
+        company_name = request.POST.get("company_name", "").strip() or "SkyLinx"
+        linkedin = request.POST.get("linkedin", "").strip()
+        facebook = request.POST.get("facebook", "").strip()
+        instagram = request.POST.get("instagram", "").strip()
+        
+        if company:
+            company.company = company_name
+            if request.FILES.get("icon"):
+                company.icon = request.FILES.get("icon")
+            company.save()
+        else:
+            # Fallback if no company exists
+            company = Company.objects.create(company=company_name, hq=True)
+            if request.FILES.get("icon"):
+                company.icon = request.FILES.get("icon")
+                company.save()
+                
+        # Update session selected_company_instance so sidebar updates instantly
+        try:
+            prev_instance = request.session.get("selected_company_instance") or {}
+            request.session["selected_company_instance"] = {
+                "company": company.company,
+                "icon": company.icon.url if company.icon else "",
+                "text": prev_instance.get("text", "My Company"),
+                "id": company.id,
+            }
+            request.session.modified = True
+        except Exception:
+            pass
+                
+        social_links = {
+            "linkedin": linkedin,
+            "facebook": facebook,
+            "instagram": instagram,
+        }
+        
+        # Save social links to JSON (keyed by company ID)
+        try:
+            all_links = {}
+            if os.path.exists(social_links_file):
+                with open(social_links_file, "r", encoding="utf-8") as f:
+                    all_links = json.load(f)
+            all_links[company_id_str] = social_links
+            with open(social_links_file, "w", encoding="utf-8") as f:
+                json.dump(all_links, f, indent=4)
+        except Exception:
+            pass
+            
+        return render(request, "home_logo_card.html", {
+            "company": company,
+            "social_links": social_links,
+            "edit_mode": False,
+        })
+        
+    return render(request, "home_logo_card.html", {
+        "company": company,
+        "social_links": social_links,
+        "edit_mode": True,
+    })
+
+
+@login_required
+def edit_home_logo_card_image(request):
+    from django.http import HttpResponseForbidden
+    # Allow superuser OR company admin with change_company permission
+    if not (request.user.is_superuser or request.user.has_perm("base.change_company")):
+        return HttpResponseForbidden("Permission Denied")
+        
+    from base.models import Company
+    company = current_company(request) or Company.objects.filter(hq=True).first() or Company.objects.first()
+    
+    if request.method == "POST" and request.FILES.get("icon"):
+        import re
+        uploaded_file = request.FILES.get("icon")
+        filename = uploaded_file.name
+        
+        # Strip extension
+        base_name = os.path.splitext(filename)[0]
+        
+        # Remove UUID/hex suffix if any (e.g. -d16c3baa)
+        base_name = re.sub(r'-[0-9a-fA-F]{8}$', '', base_name)
+        
+        base_name_lower = base_name.lower()
+        if "sgs" in base_name_lower or "skylinx" in base_name_lower:
+            company_name = "SkyLinx"
+        else:
+            # Replace separators with spaces
+            company_name = base_name.replace("_", " ").replace("-", " ").strip()
+            
+            # Filter out generic words
+            words = company_name.split()
+            filtered_words = [w for w in words if w.lower() not in ["logo", "icon", "company"]]
+            if filtered_words:
+                company_name = " ".join(filtered_words)
+                
+            company_name = company_name.title().strip()
+            
+            # Fallback if name is empty or too generic/short
+            if len(company_name) < 2 or not company_name or company_name.lower() in ["logo", "icon", "company", "company logo"]:
+                company_name = "SkyLinx"
+            
+        if company:
+            company.icon = uploaded_file
+            company.company = company_name
+            company.save()
+        else:
+            company = Company.objects.create(company=company_name, hq=True)
+            company.icon = uploaded_file
+            company.save()
+            
+        # Update session selected_company_instance so sidebar updates instantly
+        try:
+            prev_instance = request.session.get("selected_company_instance") or {}
+            request.session["selected_company_instance"] = {
+                "company": company.company,
+                "icon": company.icon.url if company.icon else "",
+                "text": prev_instance.get("text", "My Company"),
+                "id": company.id,
+            }
+            request.session.modified = True
+        except Exception:
+            pass
+            
+    # Load social links from JSON file (keyed by company ID)
+    social_links_file = os.path.join(settings.BASE_DIR, "base", "company_social_links.json")
+    social_links = {"linkedin": "", "facebook": "", "instagram": ""}
+    company_id_str = str(company.id) if company else "hq"
+    if os.path.exists(social_links_file):
+        try:
+            with open(social_links_file, "r", encoding="utf-8") as f:
+                all_links = json.load(f)
+                social_links.update(all_links.get(company_id_str, {}))
+        except Exception:
+            pass
+            
+    return render(request, "home_logo_card.html", {
+        "company": company,
+        "social_links": social_links,
+        "edit_mode": False,
+    })
+
+
+
+
+
+
+def holiday_calendar_view(request):
+    """
+    Renders a unified Holiday Calendar containing public holidays and approved leaves.
+    Supports year/month selection and AJAX/HTMX sub-rendering.
+    """
+    import calendar
+    from datetime import date, timedelta
+    from django.db.models import Q
+    from base.models import Holidays
+    from leave.models import LeaveRequest
+
+    today = date.today()
+    try:
+        year = int(request.GET.get("year", today.year))
+        month = int(request.GET.get("month", today.month))
+    except (ValueError, TypeError):
+        year = today.year
+        month = today.month
+
+    # Clamp year/month
+    if not (1 <= month <= 12):
+        month = today.month
+    if year < 1970 or year > 2100:
+        year = today.year
+
+    # Calculate month bounds
+    first_weekday, num_days = calendar.monthrange(year, month)
+
+    start_date = date(year, month, 1)
+    end_date = date(year, month, num_days)
+
+    # Holidays in this range
+    from base.rbac import current_company
+    company = current_company(request)
+    holidays = Holidays.objects.filter(
+        Q(start_date__lte=end_date) & Q(end_date__gte=start_date)
+    )
+    if company:
+        holidays = holidays.filter(Q(company_id=company) | Q(company_id__isnull=True))
+
+    # Approved leaves in this range
+    leaves_qs = LeaveRequest.objects.filter(
+        status="approved",
+        start_date__lte=end_date,
+        end_date__gte=start_date,
+    )
+    if not request.user.is_superuser and not request.user.has_perm("leave.view_leaverequest"):
+        # Regular user: only show his/her own leaves
+        employee = getattr(request.user, "employee_get", None)
+        if employee:
+            leaves_qs = leaves_qs.filter(employee_id=employee)
+        else:
+            leaves_qs = leaves_qs.none()
+
+    leaves = leaves_qs.select_related("employee_id", "leave_type_id")
+
+    # Map events to day number
+    events_by_day = {}
+    for h in holidays:
+        curr = max(h.start_date, start_date)
+        end = min(h.end_date or h.start_date, end_date)
+        while curr <= end:
+            events_by_day.setdefault(curr.day, []).append({
+                "type": "holiday",
+                "name": h.name,
+                "is_optional": h.is_optional,
+            })
+            curr += timedelta(days=1)
+
+    for l in leaves:
+        curr = max(l.start_date, start_date)
+        end = min(l.end_date, end_date)
+        while curr <= end:
+            events_by_day.setdefault(curr.day, []).append({
+                "type": "leave",
+                "employee": l.employee_id.get_full_name() if l.employee_id else "Employee",
+                "leave_type": l.leave_type_id.name if l.leave_type_id else "Leave",
+            })
+            curr += timedelta(days=1)
+
+    # Build calendar day list
+    weeks = []
+    current_week = []
+    
+    # Determine weekends dynamically based on company leaves / work week
+    from base.models import CompanyLeaves
+    if company:
+        company_leaves = CompanyLeaves.objects.filter(company_id=company)
+    else:
+        company_leaves = CompanyLeaves.objects.none()
+    company_leaves_exist = company_leaves.exists()
+    
+    if company_leaves_exist:
+        from leave.methods import company_leave_dates_list
+        company_leave_dates = set(company_leave_dates_list(company_leaves, start_date))
+        weekend_indices = {int(cl.based_on_week_day) for cl in company_leaves}
+    else:
+        company_leave_dates = set()
+        weekend_indices = {5, 6}
+
+    # Pad start of month (0=Mon, ..., 6=Sun)
+    for _ in range(first_weekday):
+        current_week.append({"day": "", "events": [], "is_weekend": False})
+
+    for day in range(1, num_days + 1):
+        cur_date = date(year, month, day)
+        day_of_week = cur_date.weekday()
+        
+        if company_leaves_exist:
+            is_weekend = cur_date in company_leave_dates
+        else:
+            is_weekend = day_of_week >= 5
+
+        current_week.append({
+            "day": day,
+            "date": cur_date.isoformat(),
+            "events": events_by_day.get(day, []),
+            "is_weekend": is_weekend,
+            "is_today": (cur_date == today),
+        })
+
+        if len(current_week) == 7:
+            weeks.append(current_week)
+            current_week = []
+
+    # Pad end of month
+    if current_week:
+        while len(current_week) < 7:
+            current_week.append({"day": "", "events": [], "is_weekend": False})
+        weeks.append(current_week)
+
+    # Next/Prev navigation
+    prev_month = month - 1
+    prev_year = year
+    if prev_month == 0:
+        prev_month = 12
+        prev_year -= 1
+
+    next_month = month + 1
+    next_year = year
+    if next_month == 13:
+        next_month = 1
+        next_year += 1
+
+    month_name = calendar.month_name[month]
+
+    from django.utils.translation import gettext
+    weekday_headers = [
+        (0, gettext("Mon")),
+        (1, gettext("Tue")),
+        (2, gettext("Wed")),
+        (3, gettext("Thu")),
+        (4, gettext("Fri")),
+        (5, gettext("Sat")),
+        (6, gettext("Sun")),
+    ]
+
+    dashboard = (request.GET.get("dashboard") == "1")
+    context = {
+        "weeks": weeks,
+        "year": year,
+        "month": month,
+        "month_name": month_name,
+        "prev_year": prev_year,
+        "prev_month": prev_month,
+        "next_year": next_year,
+        "next_month": next_month,
+        "today": today,
+        "holidays_list": holidays,
+        "leaves_list": leaves,
+        "show_list": not dashboard,
+        "extra_params": "&dashboard=1" if dashboard else "",
+        "weekday_headers": weekday_headers,
+        "weekend_indices": weekend_indices,
+    }
+
+    if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.GET.get("hx") == "1":
+        return render(request, "holiday_calendar_fragment.html", context)
+
+    return render(request, "holiday_calendar.html", context)
+
+
+
+
+
+
+from django.views.decorators.csrf import csrf_exempt
+import json
+from django.conf import settings
+from django.http import JsonResponse
+
+@csrf_exempt
+def legal_editor(request):
+    legal_dir = os.path.join(settings.BASE_DIR, 'base', 'templates', 'legal')
+    md_dir = os.path.join(legal_dir, 'md')
+    os.makedirs(md_dir, exist_ok=True)
+    
+    docs = ['privacy_policy', 'terms_and_conditions', 'user_agreement']
+    
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            doc_type = data.get('type')
+            markdown = data.get('markdown')
+            html = data.get('html')
+            
+            if doc_type in docs:
+                # Save markdown
+                md_path = os.path.join(md_dir, f"{doc_type}.md")
+                with open(md_path, 'w', encoding='utf-8') as f:
+                    f.write(markdown)
+                
+                # Regenerate template
+                template_path = os.path.join(legal_dir, f"{doc_type}.html")
+                
+                title_map = {
+                    'privacy_policy': 'Privacy Policy',
+                    'terms_and_conditions': 'Terms & Conditions',
+                    'user_agreement': 'User Agreement'
+                }
+                
+                template_content = f"""{{% load static %}} {{% load i18n %}} <!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'/><meta name='viewport' content='width=device-width, initial-scale=1.0'/><title>SkyLinx Legal</title><link rel='stylesheet' href='{{% static 'build/css/style.min.css' %}}' /><link rel='stylesheet' href='{{% static 'css/skylinx-redesign.css' %}}' /><style>body {{ font-family: 'Plus Jakarta Sans', system-ui, sans-serif; background: #f8fafc; color: #334155; line-height: 1.6; }} .legal-container {{ max-width: 800px; margin: 40px auto; padding: 40px; background: #fff; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }} .legal-container h1 {{ font-size: 32px; font-weight: 800; margin-bottom: 24px; color: #0f172a; }} .legal-container h2 {{ font-size: 24px; font-weight: 700; margin-top: 32px; margin-bottom: 16px; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }} .legal-container h3 {{ font-size: 18px; font-weight: 600; margin-top: 24px; margin-bottom: 12px; }} .legal-container p {{ margin-bottom: 16px; }} .legal-container table {{ width: 100%; border-collapse: collapse; margin-bottom: 24px; }} .legal-container th, .legal-container td {{ border: 1px solid #e2e8f0; padding: 12px; text-align: left; }} .legal-container th {{ background: #f1f5f9; font-weight: 600; }} .back-link {{ display: inline-block; margin-bottom: 24px; color: #2563eb; text-decoration: none; font-weight: 500; }} .back-link:hover {{ text-decoration: underline; }}</style></head><body><div class='legal-container'><a href='/' class='back-link'>&larr; Back to Home</a><div><h1>{title_map[doc_type]}</h1>\n{html}\n</div></div></body></html>"""
+                
+                with open(template_path, 'w', encoding='utf-8') as f:
+                    f.write(template_content)
+                    
+                return JsonResponse({"status": "success"})
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=400)
+            
+    md_contents = {}
+    for doc in docs:
+        md_path = os.path.join(md_dir, f"{doc}.md")
+        if os.path.exists(md_path):
+            with open(md_path, 'r', encoding='utf-8') as f:
+                md_contents[doc] = f.read()
+        else:
+            artifact_path = os.path.join(settings.BASE_DIR, '..', '..', '.gemini', 'antigravity-ide', 'brain', '951b4942-01f5-4571-a457-613a6019603e', f"{doc}.md")
+            if os.path.exists(artifact_path):
+                with open(artifact_path, 'r', encoding='utf-8') as f:
+                    md_contents[doc] = f.read()
+            else:
+                md_contents[doc] = ""
+                
+    return render(request, "legal/editor.html", {"md_contents": md_contents})
+
+
+def terms_and_conditions(request):
+    """Public legal page: lists the owner-uploaded legal PDFs. If none are
+    uploaded yet, falls back to the configured external URL (demo placeholder)."""
+    from base.models import LegalDocument, LegalSetting
+
+    docs = LegalDocument.objects.all()
+    if not docs.exists():
+        url = LegalSetting.load().terms_url
+        if url:
+            return redirect(url)
+    return render(request, "legal/legal_documents.html", {"docs": docs})

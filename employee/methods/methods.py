@@ -33,25 +33,24 @@ is_postgres = connection.vendor == "postgresql"
 error_data_template = {
     field: []
     for field in [
-        "Badge ID",
+        "Employee ID",
         "First Name",
         "Last Name",
         "Phone",
         "Email",
         "Gender",
         "Department",
-        "Job Position",
+        "Designation",
         "Job Role",
-        "Work Type",
+        "Work Mode",
         "Shift",
-        "Employee Type",
+        "Employment Type",
         "Reporting Manager",
         "Company",
         "Location",
         "Date Joining",
         "Contract End Date",
-        "Basic Salary",
-        "Salary Hour",
+        "CTC",
         "Email Error",
         "First Name Error",
         "Name and Email Error",
@@ -59,9 +58,8 @@ error_data_template = {
         "Gender Error",
         "Joining Date Error",
         "Contract Date Error",
-        "Badge ID Error",
-        "Basic Salary Error",
-        "Salary Hour Error",
+        "Employee ID Error",
+        "CTC Error",
         "User ID Error",
         "Company Error",
     ]
@@ -225,25 +223,24 @@ def valid_import_file_headers(data_frame):
         return False, message
 
     required_keys = [
-        "Badge ID",
+        "Employee ID",
         "First Name",
         "Last Name",
         "Phone",
         "Email",
         "Gender",
         "Department",
-        "Job Position",
+        "Designation",
         "Job Role",
-        "Work Type",
+        "Work Mode",
         "Shift",
-        "Employee Type",
+        "Employment Type",
         "Reporting Manager",
         "Company",
         "Location",
         "Date Joining",
         "Contract End Date",
-        "Basic Salary",
-        "Salary Hour",
+        "CTC",
     ]
 
     missing_keys = [key for key in required_keys if key not in data_frame.columns]
@@ -292,14 +289,13 @@ def process_employee_records(data_frame):
         email = str(emp.get("Email", "")).strip().lower()
         raw_phone = emp.get("Phone", "")
         phone = normalize_phone(raw_phone)
-        badge_id = clean_badge_id(emp.get("Badge ID"))
+        badge_id = clean_badge_id(emp.get("Employee ID"))
         first_name = emp.get("First Name")
         last_name = emp.get("Last Name")
         address = emp.get("Address")
         gender = str(gender).strip().lower() if gender else None
         company = emp.get("Company")
-        basic_salary = emp.get("Basic Salary")
-        salary_hour = emp.get("Salary Hour")
+        ctc = emp.get("CTC")
 
         # Date validation
         joining_date = import_valid_date(
@@ -337,19 +333,19 @@ def process_employee_records(data_frame):
             errors["Phone Error"] = "Invalid phone number format."
             save = False
 
-        # Badge ID validation
+        # Employee ID validation
         if not badge_id:
-            errors["Badge ID Error"] = "Badge ID cannot be empty."
+            errors["Employee ID Error"] = "Employee ID cannot be empty."
             save = False
 
         elif badge_id in seen_badge_ids:
-            errors["Badge ID Error"] = "An employee with this badge ID already exists."
+            errors["Employee ID Error"] = "An employee with this badge ID already exists."
             save = False
 
         else:
             # Ensure consistent type (convert to string if needed)
             badge_id = str(badge_id).strip()
-            emp["Badge ID"] = badge_id
+            emp["Employee ID"] = badge_id
             seen_badge_ids.add(badge_id)
 
         # Username/email uniqueness
@@ -381,25 +377,14 @@ def process_employee_records(data_frame):
             errors["Company Error"] = f"Company '{company}' does not exist."
             save = False
 
-        # Salary validation
-        if basic_salary not in [None, ""]:
+        # CTC validation
+        if ctc not in [None, ""]:
             try:
-                basic_salary_val = float(basic_salary)
-                if basic_salary_val <= 0:
+                ctc_val = float(ctc)
+                if ctc_val <= 0:
                     raise ValueError
             except (ValueError, TypeError):
-                errors["Basic Salary Error"] = "Basic salary must be a positive number."
-                save = False
-
-        if salary_hour not in [None, ""]:
-            try:
-                salary_hour_val = float(salary_hour)
-                if salary_hour_val < 0:
-                    raise ValueError
-            except (ValueError, TypeError):
-                errors["Salary Hour Error"] = (
-                    "Salary hour must be a non-negative number."
-                )
+                errors["CTC Error"] = "CTC must be a positive number."
                 save = False
 
         # Final processing
@@ -484,7 +469,7 @@ def bulk_create_employee_import(success_lists):
     employees_to_create = [
         Employee(
             employee_user_id=existing_users[row.get("Email")],
-            badge_id=row.get("Badge ID"),
+            badge_id=row.get("Employee ID"),
             employee_first_name=row.get("First Name"),
             employee_last_name=row.get("Last Name"),
             address=row.get("Address"),
@@ -570,7 +555,7 @@ def bulk_create_job_position_import(success_lists):
     job_positions_to_import = {
         (jp, dep)
         for item in success_lists
-        if (jp := item.get("Job Position")) and (dep := item.get("Department"))
+        if (jp := item.get("Designation")) and (dep := item.get("Department"))
     }
 
     if not job_positions_to_import:
@@ -621,7 +606,7 @@ def bulk_create_job_role_import(success_lists):
         (role, pos)
         for work_info in success_lists
         if (role := work_info.get("Job Role"))
-        and (pos := work_info.get("Job Position"))
+        and (pos := work_info.get("Designation"))
     }
 
     # Prefetch existing data efficiently
@@ -652,7 +637,7 @@ def bulk_create_work_types(success_lists):
     """
     # Extract unique work types, filtering out None values
     work_types_to_import = {
-        wt for work_info in success_lists if (wt := work_info.get("Work Type"))
+        wt for work_info in success_lists if (wt := work_info.get("Work Mode"))
     }
 
     # Get existing work types in one optimized query
@@ -705,7 +690,7 @@ def bulk_create_employee_types(success_lists):
     """
 
     employee_types_to_import = {
-        et for row in success_lists if (et := row.get("Employee Type"))
+        et for row in success_lists if (et := row.get("Employment Type"))
     }
 
     if not employee_types_to_import:
@@ -761,12 +746,12 @@ def bulk_create_work_info_import(success_lists):
     new_work_info_list = []
     update_work_info_list = []
 
-    badge_ids = [row["Badge ID"] for row in success_lists]
+    badge_ids = [row["Employee ID"] for row in success_lists]
     departments = set(row.get("Department") for row in success_lists)
-    job_positions = set(row.get("Job Position") for row in success_lists)
+    job_positions = set(row.get("Designation") for row in success_lists)
     job_roles = set(row.get("Job Role") for row in success_lists)
-    work_types = set(row.get("Work Type") for row in success_lists)
-    employee_types = set(row.get("Employee Type") for row in success_lists)
+    work_types = set(row.get("Work Mode") for row in success_lists)
+    employee_types = set(row.get("Employment Type") for row in success_lists)
     shifts = set(row.get("Shift") for row in success_lists)
     companies = set(row.get("Company") for row in success_lists)
 
@@ -839,7 +824,7 @@ def bulk_create_work_info_import(success_lists):
     reporting_manager_dict = optimize_reporting_manager_lookup()
 
     for work_info in success_lists:
-        badge_id = work_info["Badge ID"]
+        badge_id = work_info["Employee ID"]
         employee_obj = existing_employees.get(badge_id)
         if not employee_obj:
             continue
@@ -850,7 +835,7 @@ def bulk_create_work_info_import(success_lists):
 
         job_position_key = (
             existing_departments.get(work_info.get("Department")),
-            work_info.get("Job Position"),
+            work_info.get("Designation"),
         )
         job_position_obj = existing_job_positions.get(job_position_key)
 
@@ -860,8 +845,8 @@ def bulk_create_work_info_import(success_lists):
         )
         job_role_obj = existing_job_roles.get(job_role_key)
 
-        work_type_obj = existing_work_types.get(work_info.get("Work Type"))
-        employee_type_obj = existing_employee_types.get(work_info.get("Employee Type"))
+        work_type_obj = existing_work_types.get(work_info.get("Work Mode"))
+        employee_type_obj = existing_employee_types.get(work_info.get("Employment Type"))
         shift_obj = existing_shifts.get(work_info.get("Shift"))
         reporting_manager = work_info.get("Reporting Manager")
         reporting_manager_obj = None
@@ -884,12 +869,11 @@ def bulk_create_work_info_import(success_lists):
             if not pd.isnull(work_info["Contract End Date"])
             else None
         )
-        basic_salary = (
-            work_info.get("Basic Salary") if work_info.get("Basic Salary") else 0
+        ctc_val = (
+            work_info.get("CTC") if work_info.get("CTC") else 0
         )
-        salary_hour = (
-            work_info.get("Salary Hour") if work_info.get("Salary Hour") else 0
-        )
+        # ponytail: default basic % of CTC (monthly basic = CTC/12 * basic%)
+        default_components = {"basic": 50}
 
         if employee_work_info is None:
             # Create a new instance
@@ -911,8 +895,8 @@ def bulk_create_work_info_import(success_lists):
                 contract_end_date=(
                     contract_end_date if not pd.isnull(contract_end_date) else None
                 ),
-                basic_salary=basic_salary,
-                salary_hour=salary_hour,
+                ctc=ctc_val,
+                salary_components=default_components,
             )
             new_work_info_list.append(employee_work_info)
         else:
@@ -933,8 +917,8 @@ def bulk_create_work_info_import(success_lists):
             employee_work_info.contract_end_date = (
                 contract_end_date if not pd.isnull(contract_end_date) else None
             )
-            employee_work_info.basic_salary = basic_salary
-            employee_work_info.salary_hour = salary_hour
+            employee_work_info.ctc = ctc_val
+            employee_work_info.salary_components = default_components
             update_work_info_list.append(employee_work_info)
     if new_work_info_list:
         EmployeeWorkInformation.objects.bulk_create(
@@ -956,8 +940,8 @@ def bulk_create_work_info_import(success_lists):
                 "location",
                 "date_joining",
                 "contract_end_date",
-                "basic_salary",
-                "salary_hour",
+                "ctc",
+                "salary_components",
             ],
             batch_size=None if is_postgres else 999,
         )

@@ -243,7 +243,37 @@ class SkylinxListView(ListView):
                     self.queryset = self.queryset.filter(
                         id__in=self.request.session["hlv_selected_ids"]
                     )
+            # ponytail: auto select_related from columns -> kills N+1 on every
+            # list view (FK / one-to-one chains only; methods & reverse-FK skipped).
+            self._auto_select_related()
         return self.queryset
+
+    def _auto_select_related(self):
+        try:
+            specs = list(self.columns or []) + list(getattr(self, "sortby_mapping", []) or [])
+            model = self.queryset.model
+            paths = set()
+            for spec in specs:
+                field = spec[1] if isinstance(spec, (list, tuple)) and len(spec) > 1 else spec
+                if not isinstance(field, str) or "__" not in field:
+                    continue
+                m, prefix = model, []
+                for part in field.split("__"):
+                    try:
+                        f = m._meta.get_field(part)
+                    except Exception:
+                        break
+                    if f.is_relation and (f.many_to_one or f.one_to_one):
+                        prefix.append(part)
+                        m = f.related_model
+                    else:
+                        break
+                if prefix:
+                    paths.add("__".join(prefix))
+            if paths:
+                self.queryset = self.queryset.select_related(*paths)
+        except Exception:
+            pass  # never let an optimization break a page
 
     def get_context_data(self, **kwargs: Any):
         context = super().get_context_data(**kwargs)
@@ -1458,7 +1488,7 @@ class SkylinxListView(ListView):
 
 class SkylinxSectionView(TemplateView):
     """
-    Skylinx Template View
+    EMPLINX Template View
     """
 
     def __init__(self, **kwargs: Any) -> None:
@@ -1510,8 +1540,8 @@ class SkylinxDetailedView(DetailView):
     title = _("Detailed View")
     template_name = "generic/skylinx_detailed_view.html"
     header: dict = {
-        "title": "Skylinx",
-        "subtitle": "Skylinx Detailed View",
+        "title": "EMPLINX",
+        "subtitle": "EMPLINX Detailed View",
         "avatar": "",
     }
     body: list = []
@@ -2091,17 +2121,15 @@ class SkylinxFormView(FormView):
                             "model": form._meta.model,
                         },
                     )
-
-                    from django.urls import path
-
-                    from skylinx.urls import urlpatterns
-
-                    urlpatterns.append(
-                        path(
-                            f"dynamic-path-{field}-{self.request.session.session_key}",
-                            view.as_view(),
-                            name=f"dynamic-path-{field}-{self.request.session.session_key}",
-                        )
+                    if hasattr(self, "dynamic_create_path") and self.dynamic_create_path and field in self.dynamic_create_path:
+                        view_path = self.dynamic_create_path.get(field)["path"]
+                        view = import_method(view_path)
+                    else:
+                        view_path = f"{view.__module__}.{view.__name__}"
+                    CACHE.set(
+                        f"dynamic-view-{field}-{self.request.session.session_key}",
+                        view_path,
+                        3600,
                     )
                     queryset = form.fields[field].queryset
                     choices = [(instance.id, instance) for instance in queryset]
@@ -2199,6 +2227,7 @@ class SkylinxNavView(TemplateView):
     empty_inputs: list = []
     view_types: list = []
     create_attrs: str = """"""
+    create_label: str = ""  # empty = default to 'Create' in template
     apply_first_filter = True
 
     def __init__(self, **kwargs: Any) -> None:
@@ -2268,6 +2297,7 @@ class SkylinxNavView(TemplateView):
         context["actions"] = self.actions
         context["filter_body_template"] = self.filter_body_template
         context["create_attrs"] = self.create_attrs
+        context["create_label"] = self.create_label
         context["search_in"] = self.search_in
         context["apply_first_filter"] = self.apply_first_filter
         context["filter_instance_context_name"] = self.filter_instance
@@ -2344,6 +2374,7 @@ class SkylinxProfileView(DetailView):
     GenericSkylinxProfileView
     """
 
+    _registry = []
     template_name = "generic/skylinx_profile_view.html"
     view_id: str = None
     filter_class: FilterSet = None
@@ -2369,18 +2400,34 @@ class SkylinxProfileView(DetailView):
         self.ordered_ids_key = f"ordered_ids_{self.model.__name__.lower()}"
         # update_initial_cache(request, CACHE, SkylinxProfileView)
 
-        from skylinx.urls import path, urlpatterns
+        self.register_tab_urls()
 
-        for tab in self.tabs:
-            if not tab.get("url"):
-                url = f"{self.url_prefix}-{tab['title']}"
+    @classmethod
+    def register_tab_urls(cls) -> None:
+        url_prefix = str(cls.__name__.lower())
+        try:
+            from skylinx.urls import path, urlpatterns
+        except ImportError:
+            if cls not in SkylinxProfileView._registry:
+                SkylinxProfileView._registry.append(cls)
+            return
+
+        new_tabs = []
+        for tab in cls.tabs:
+            tab_copy = tab.copy()
+            expected_prefix = f"/{url_prefix}-"
+            current_url = tab_copy.get("url", "")
+            if not current_url or not current_url.startswith(expected_prefix):
+                url = f"{url_prefix}-{tab_copy['title']}"
                 urlpatterns.append(
                     path(
                         url + "/<int:pk>/",
-                        tab["view"],
+                        tab_copy["view"],
                     )
                 )
-                tab["url"] = "/" + url + "/{pk}/"
+                tab_copy["url"] = "/" + url + "/{pk}/"
+            new_tabs.append(tab_copy)
+        cls.tabs = new_tabs
 
     @classmethod
     def add_tab(cls, tab: dict = None, index: int = None, tabs: list = None) -> None:
@@ -2407,6 +2454,8 @@ class SkylinxProfileView(DetailView):
 
     @classmethod
     def as_view(cls, **initkwargs):
+        cls.register_tab_urls()
+
         def view(request, *args, **kwargs):
             # Inject URL params into initkwargs
             initkwargs_with_url = {**initkwargs, **kwargs}

@@ -91,7 +91,15 @@ def pipeline_grouper(filters={}, offboardings=[]):
             stage_employees = PipelineEmployeeFilter(
                 filters,
                 OffboardingEmployee.objects.filter(stage_id=stage),
-            ).qs.order_by("stage_id__id")
+            ).qs.select_related(
+                "employee_id",
+                "employee_id__employee_work_info",
+                "employee_id__employee_work_info__department_id",
+                "employee_id__employee_work_info__job_position_id",
+                "employee_id__employee_work_info__job_position_id__department_id",
+            ).prefetch_related(
+                "employeetask_set",
+            ).order_by("stage_id__id")
 
             if request and not (
                 request.user.has_perm("offboarding.view_offboarding")
@@ -102,15 +110,20 @@ def pipeline_grouper(filters={}, offboardings=[]):
                 )
 
             page_name = "page" + stage.title + str(offboarding.id)
-            employee_grouper = group_by(
-                stage_employees,
-                "stage_id",
-                filters.get(page_name),
-                page_name,
-            ).object_list
-            employees = employees + [
-                employee.id for employee in stage.offboardingemployee_set.all()
-            ]
+            page_name_dynamic = f"dynamic_page_{page_name}{stage.id}"
+            from skylinx.group_by import record_queryset_paginator
+            employee_grouper = []
+            if stage_employees.exists():
+                employee_grouper = [{
+                    "grouper": stage,
+                    "list": record_queryset_paginator(
+                        request,
+                        stage_employees,
+                        page_name_dynamic,
+                    ),
+                    "dynamic_name": page_name_dynamic,
+                }]
+            employees = employees + list(stage.offboardingemployee_set.values_list("id", flat=True))
             data["stages"] = data["stages"] + employee_grouper
 
         ordered_data = []
@@ -154,7 +167,7 @@ def pipeline(request):
     Offboarding pipeline view
     """
     # Apply filters and pagination
-    offboardings = PipelineFilter().qs
+    offboardings = PipelineFilter().qs.order_by("-id")
     paginated_offboardings = paginator_qry_offboarding_limited(
         offboardings, request.GET.get("page")
     )
@@ -832,7 +845,7 @@ def request_view(request):
     """
     default_filter = {"status": "requested"}
     filter_instance = LetterFilter(default_filter)
-    letters = ResignationLetter.objects.all()
+    letters = ResignationLetter.objects.select_related("employee_id").order_by("-id")
     offboardings = Offboarding.objects.all()
 
     return render(
@@ -879,10 +892,11 @@ def search_resignation_request(request):
     """
     This method is used to search/filter the letter
     """
+    base_qs = ResignationLetter.objects.select_related("employee_id").order_by("-id")
     if request.user.has_perm("offboarding.view_resignationletter"):
-        letters = LetterFilter(request.GET).qs
+        letters = LetterFilter(request.GET, queryset=base_qs).qs
     else:
-        letters = ResignationLetter.objects.filter(
+        letters = base_qs.filter(
             employee_id__employee_user_id=request.user
         )
     field = request.GET.get("field")
@@ -949,7 +963,7 @@ def resignation_tab(request, pk):
 def resignation_list_swap_response(original_request):
     """
     Render the resignation list CBV fragment for hx-target=\"#listContainer\" swaps.
-    Subrequest keeps session (Skylinx CACHE filters) without relying on client-side JS reload.
+    Subrequest keeps session (EMPLINX CACHE filters) without relying on client-side JS reload.
     """
     from django.test import RequestFactory
 
@@ -1011,10 +1025,28 @@ def create_resignation_request(request):
     instance = None
     if instance_id:
         instance = ResignationLetter.objects.get(id=instance_id)
+        # IDOR guard: a non-permitted user may only edit their own resignation.
+        if (
+            not request.user.has_perm("offboarding.change_resignationletter")
+            and instance.employee_id != request.user.employee_get
+        ):
+            return HttpResponse("You don't have permission")
     form = ResignationLetterForm(instance=instance)
+    if not request.user.has_perm("offboarding.add_resignationletter"):
+        if "employee_id" in form.fields:
+            form.fields["employee_id"].queryset = Employee.objects.filter(id=request.user.employee_get.id)
+            form.fields["employee_id"].initial = request.user.employee_get
+
     if request.method == "POST":
         form = ResignationLetterForm(request.POST, instance=instance)
+        if not request.user.has_perm("offboarding.add_resignationletter"):
+            if "employee_id" in form.fields:
+                form.fields["employee_id"].queryset = Employee.objects.filter(id=request.user.employee_get.id)
         if form.is_valid():
+            if not request.user.has_perm("offboarding.add_resignationletter"):
+                form.instance.employee_id = request.user.employee_get
+            if not request.user.has_perm("offboarding.change_resignationletter"):
+                form.instance.status = "requested"
             form.save()
             messages.success(request, _("Resignation letter saved"))
             return SkylinxRedirect(request)

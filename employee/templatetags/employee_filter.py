@@ -16,4 +16,4 @@ def add_days(value, days):
 
 @register.filter(name="edit_accessibility")
 def edit_accessibility(emp):
-    return emp.default_accessibility.filter(feature="profile_edit").exists()
+    return any(acc.feature == "profile_edit" for acc in emp.default_accessibility.all())

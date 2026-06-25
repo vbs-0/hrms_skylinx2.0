@@ -1,7 +1,7 @@
 """
 onboarding/sidebar.py
 
-To set Skylinx sidebar for onboarding
+To set EMPLINX sidebar for onboarding
 """
 
 from django.contrib.auth.context_processors import PermWrapper
@@ -15,10 +15,6 @@ ACCESSIBILITY = "onboarding.sidebar.menu_accessibilty"
 IMG_SRC = "images/ui/rocket.svg"
 
 SUBMENUS = [
-    {
-        "menu": _("Dashboard"),
-        "redirect": reverse("onboarding-dashboard"),
-    },
     {
         "menu": _("Onboarding view"),
         "redirect": reverse("cbv-pipeline-onboarding") + "?closed=false",

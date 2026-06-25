@@ -149,7 +149,7 @@
     <script>
         $(document).ready(function () {
             $("#id_field").on("change", function () {
-                $(".filterButton")[0].click();
+                $(".filterButton").first().click();
             });
 
             var form = $("#shiftImportForm");
@@ -320,7 +320,7 @@
                                 .attr("href", window.URL.createObjectURL(blob))
                                 .attr("download", "shift_schedule_template.csv")
                                 .appendTo("body");
-                            link[0].click();
+                            (link[0] && link[0].click());
                             link.remove();
                         },
                         error: function (xhr, status, error) {

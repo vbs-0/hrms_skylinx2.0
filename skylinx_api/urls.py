@@ -9,11 +9,11 @@ from skylinx_api.schema import OrderedTagSchemaGenerator
 # Create schema view for Swagger and ReDoc
 schema_view = get_schema_view(
     openapi.Info(
-        title="Skylinx API",
+        title="EMPLINX API",
         default_version="v1",
-        description="API documentation for Skylinx HRMS. Click the 'Authorize' button at the top to authenticate.",
-        terms_of_service="https://www.skylinx.com/terms/",
-        contact=openapi.Contact(email="support@skylinx.com"),
+        description="API documentation for EMPLINX. Click the 'Authorize' button at the top to authenticate.",
+        terms_of_service="https://www.emplinx.com/terms/",
+        contact=openapi.Contact(email="support@emplinx.com"),
         license=openapi.License(name="BSD License"),
     ),
     public=True,
@@ -48,4 +48,12 @@ urlpatterns = [
     path("offboarding/", include("skylinx_api.api_urls.offboarding.urls")),
     path("recruitment/", include("skylinx_api.api_urls.recruitment.urls")),
     path("pms/", include("skylinx_api.api_urls.pms.urls")),
+    # --- Mobile API (v1) for the Flutter app ---
+    path("v1/auth/", include("skylinx_api.api_urls.auth.mobile_urls")),
+    path("v1/attendance/", include("skylinx_api.api_urls.attendance.mobile_urls")),
+    path("v1/leaves/", include("skylinx_api.api_urls.leave.mobile_urls")),
+    path("v1/payroll/", include("skylinx_api.api_urls.payroll.mobile_urls")),
+    path("v1/employee/", include("skylinx_api.api_urls.employee.mobile_urls")),
+    path("v1/base/", include("skylinx_api.api_urls.base.mobile_urls")),
+    path("v1/admin/", include("skylinx_api.api_urls.admin.mobile_urls")),
 ]

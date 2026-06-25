@@ -1,4 +1,4 @@
-﻿{% extends "index.html" %}
+{% extends "index.html" %}
 {% load static i18n %}
 
 {% block content %}
@@ -223,7 +223,7 @@
   .ess-cal-day--absent   { background: rgba(239,68,68,0.12);   color: #dc2626; }
   .ess-cal-day--late     { background: rgba(245,158,11,0.15);  color: #d97706; }
   .ess-cal-day--leave    { background: rgba(99,102,241,0.13);  color: #4f46e5; }
-  .ess-cal-day--holiday  { background: rgba(168,85,247,0.13);  color: #7c3aed; }
+  .ess-cal-day--holiday  { background: rgba(168,85,247,0.13);  color: #1c75bc; }
   .ess-cal-day--weekend  { opacity: 0.35; }
   .ess-cal-day--future   { opacity: 0.25; }
   .ess-cal-day--empty    { visibility: hidden; }
@@ -305,7 +305,7 @@
   .ess-action-btn--green  { background: rgba(34,197,94,0.1);  color: #16a34a; }
   .ess-action-btn--blue   { background: rgba(59,130,246,0.1); color: #2563eb; }
   .ess-action-btn--indigo { background: rgba(99,102,241,0.1); color: #4f46e5; }
-  .ess-action-btn--purple { background: rgba(168,85,247,0.1); color: #7c3aed; }
+  .ess-action-btn--purple { background: rgba(168,85,247,0.1); color: #1c75bc; }
   .dark .ess-action-btn--green  { color: #4ade80; }
   .dark .ess-action-btn--blue   { color: #60a5fa; }
   .dark .ess-action-btn--indigo { color: #818cf8; }
@@ -345,6 +345,32 @@
   }
   .ess-skeleton--kpi { height: 110px; }
   @keyframes ess-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  /* ── Customize Panel (slide-out) ── */
+  .md-customize-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 1050; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .md-customize-overlay--open { opacity: 1; pointer-events: auto; }
+  .md-customize-panel { position: fixed; top: 0; right: -420px; width: 400px; height: 100vh; background: #ffffff; box-shadow: -4px 0 24px rgba(0,0,0,0.12); z-index: 1051; display: flex; flex-direction: column; transition: right 0.25s ease; }
+  .dark .md-customize-panel { background: #242424; }
+  .md-customize-panel--open { right: 0; }
+  .md-customize-panel__header { padding: 18px 20px; border-bottom: 1px solid rgba(128,128,128,0.12); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+  .md-customize-panel__header h3 { font-size: 16px; font-weight: 700; margin: 0; }
+  .md-customize-panel__close { width: 32px; height: 32px; border-radius: 8px; border: none; background: rgba(128,128,128,0.08); cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; color: inherit; }
+  .md-customize-panel__close:hover { background: rgba(128,128,128,0.16); }
+  .md-customize-panel__body { flex: 1; overflow-y: auto; padding: 12px 20px; }
+  .md-customize-panel__footer { padding: 14px 20px; border-top: 1px solid rgba(128,128,128,0.12); display: flex; justify-content: space-between; flex-shrink: 0; }
+  .md-cust-btn { padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+  .md-cust-btn--primary { background: var(--ess-indigo); color: #fff; }
+  .md-cust-btn--ghost { background: none; color: inherit; opacity: 0.6; }
+  .md-cust-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-bottom: 6px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.1); background: rgba(128,128,128,0.02); cursor: grab; user-select: none; }
+  .md-cust-item.md-dragging { opacity: 0.85; box-shadow: 0 4px 16px rgba(0,0,0,0.12); border-color: var(--ess-indigo); z-index: 10; }
+  .md-cust-item.md-drag-over { border-top: 2px solid var(--ess-indigo); }
+  .md-cust-item__handle { font-size: 16px; opacity: 0.3; cursor: grab; }
+  .md-cust-item__label { flex: 1; font-size: 13px; font-weight: 500; }
+  .md-cust-item__toggle { width: 36px; height: 20px; border-radius: 12px; background: #e2e8f0; position: relative; cursor: pointer; border: none; }
+  .md-cust-item__toggle::after { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; top: 2px; left: 2px; background: #fff; transition: transform 0.2s; }
+  .md-cust-item__toggle--on { background-color: var(--ess-indigo); }
+  .md-cust-item__toggle--on::after { transform: translateX(16px); }
+  .md-cust-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; opacity: 0.4; padding: 12px 0 4px; }
 </style>
 <div class="ess-dashboard">
 
@@ -363,6 +389,11 @@
         <span class="ess-period-picker__sep">&rarr;</span>
         <input type="date" id="essToDate" title="{% trans 'To' %}">
       </div>
+      
+      <button class="ess-btn-back" id="md-open-customize" title="{% trans 'Customize dashboard' %}" style="display:flex;align-items:center;gap:5px;background:none;cursor:pointer;">
+        <ion-icon name="options-outline" style="font-size:16px"></ion-icon>
+        {% trans "Customize" %}
+      </button>
       <a href="{% url 'dashboard' %}" class="ess-btn-back">{% trans "Back" %}</a>
     </div>
   </div>
@@ -491,7 +522,18 @@
 
       <!-- Announcements -->
       <div class="ess-info-panel">
-        <div class="ess-info-panel__header">{% trans "Announcements" %}</div>
+        <div class="ess-info-panel__header d-flex justify-content-between align-items-center">
+            <span>{% trans "Announcements" %}</span>
+            {% if perms.base.add_announcement %}
+            <a href="#" class="md-panel-action" hx-get="{% url 'create-announcement' %}"
+                hx-target="#objectCreateModalTarget"
+                onclick="document.getElementById('objectCreateModal').classList.add('oh-modal--show');"
+                title="{% trans 'Create Announcement' %}"
+                style="color: inherit; opacity: 0.6; padding: 4px; display: inline-flex;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </a>
+            {% endif %}
+        </div>
         <div id="essAnnouncementsList" class="ess-info-panel__body">
           <div class="ess-empty-sm">{% trans "Loading..." %}</div>
         </div>
@@ -509,6 +551,21 @@
   </div><!-- /ess-layout -->
 
 </div><!-- /ess-dashboard -->
+<!-- Customize Panel -->
+<div class="md-customize-overlay" id="md-customize-overlay"></div>
+<div class="md-customize-panel" id="md-customize-panel">
+    <div class="md-customize-panel__header">
+        <h3>{% trans "Customize Dashboard" %}</h3>
+        <button class="md-customize-panel__close" id="md-close-customize">&times;</button>
+    </div>
+    <div class="md-customize-panel__body" id="md-customize-list">
+    </div>
+    <div class="md-customize-panel__footer">
+        <button class="md-cust-btn md-cust-btn--ghost" id="md-cust-reset">{% trans "Reset to Default" %}</button>
+        <button class="md-cust-btn md-cust-btn--primary" id="md-cust-save">{% trans "Save Changes" %}</button>
+    </div>
+</div>
+
 
 <script>
 (function () {
@@ -573,6 +630,115 @@
     }
     var calLabel = document.getElementById('essCalMonthLabel');
     if (calLabel) calLabel.textContent = lbl;
+  }
+
+  
+  // ── Customize panel ──
+  var overlay = document.getElementById('md-customize-overlay');
+  var panel = document.getElementById('md-customize-panel');
+  var listEl = document.getElementById('md-customize-list');
+
+  var SECTION_LABELS = {
+    'leave': 'Leave Balance',
+    'attendance': 'Work Hours',
+    'calendar': 'My Attendance',
+    'payroll': 'Recent Payslips',
+    'goals': 'My Goals'
+  };
+
+  function getDefaultOrder() {
+    return Array.from(document.querySelectorAll('.ess-chart-card[data-section]')).map(c => ({
+      id: c.dataset.section,
+      visible: true
+    }));
+  }
+
+  function loadPrefs() {
+    try {
+      var saved = localStorage.getItem('ess_dashboard_prefs');
+      if (saved) return JSON.parse(saved);
+    } catch(e) {}
+    return null;
+  }
+
+  function savePrefs(prefs) {
+    localStorage.setItem('ess_dashboard_prefs', JSON.stringify(prefs));
+  }
+
+  function applyPrefs(prefs) {
+    if (!prefs) return;
+    
+    // Hide/show based on prefs
+    prefs.forEach(p => {
+      var card = document.querySelector(`.ess-chart-card[data-section="${p.id}"]`);
+      if (card) {
+        card.style.display = p.visible ? '' : 'none';
+      }
+    });
+  }
+
+  function openCustomize() {
+    var prefs = loadPrefs() || getDefaultOrder();
+    renderCustomizeList(prefs);
+    overlay.classList.add('md-customize-overlay--open');
+    panel.classList.add('md-customize-panel--open');
+  }
+
+  function closeCustomize() {
+    overlay.classList.remove('md-customize-overlay--open');
+    panel.classList.remove('md-customize-panel--open');
+  }
+
+  function renderCustomizeList(prefs) {
+    var html = '';
+    prefs.forEach((item, idx) => {
+      var label = SECTION_LABELS[item.id] || item.id;
+      html += `
+        <div class="md-cust-item" data-cust-id="${item.id}" data-cust-idx="${idx}">
+          <span class="md-cust-item__handle">&#x2630;</span>
+          <div class="md-cust-item__label">${label}</div>
+          <button class="md-cust-item__toggle ${item.visible ? 'md-cust-item__toggle--on' : ''}" data-cust-toggle="${item.id}"></button>
+        </div>`;
+    });
+    listEl.innerHTML = html;
+    
+    listEl.querySelectorAll('.md-cust-item__toggle').forEach(btn => {
+      btn.addEventListener('click', e => {
+        btn.classList.toggle('md-cust-item__toggle--on');
+      });
+    });
+  }
+
+  function getCustomizeState() {
+    var items = listEl.querySelectorAll('.md-cust-item');
+    return Array.from(items).map(item => ({
+      id: item.dataset.custId,
+      visible: item.querySelector('.md-cust-item__toggle').classList.contains('md-cust-item__toggle--on')
+    }));
+  }
+
+  document.getElementById('md-open-customize').addEventListener('click', openCustomize);
+  document.getElementById('md-close-customize').addEventListener('click', closeCustomize);
+  overlay.addEventListener('click', closeCustomize);
+
+  document.getElementById('md-cust-save').addEventListener('click', () => {
+    var prefs = getCustomizeState();
+    savePrefs(prefs);
+    applyPrefs(prefs);
+    closeCustomize();
+  });
+
+  document.getElementById('md-cust-reset').addEventListener('click', () => {
+    var prefs = getDefaultOrder();
+    savePrefs(prefs);
+    applyPrefs(prefs);
+    renderCustomizeList(prefs);
+  });
+
+  // Apply on initial load
+  var initialPrefs = loadPrefs();
+  if (initialPrefs) {
+    applyPrefs(initialPrefs);
   }
 
   function reloadAll() {

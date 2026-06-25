@@ -51,7 +51,7 @@
 </div>
 
 <script>
-    $(document).on("htmx:load", "#view-container", function () {
+    $(document).off("htmx:load.template_work_typ_work_type_re").on("htmx:load.template_work_typ_work_type_re", "#view-container", function () {
         $("[data-toggle='oh-modal-toggle']").on("click", function () {
             let clickedEl = $(this).closest(
                 '[data-toggle = "oh-modal-toggle"]'

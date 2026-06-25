@@ -88,17 +88,41 @@
         <div class="row">
             <div class="col-12 col-sm-12 col-md-12 col-lg-6">
             <div class="oh-input-group">
-                <label class="oh-label">{% trans "Basic Salary" %}</label>
-                {{work_form.basic_salary}}
-            </div>
-            </div>
-            <div class="col-12 col-sm-12 col-md-12 col-lg-6">
-            <div class="oh-input-group">
-                <label class="oh-label" for="workEmail">{% trans "Salary Per Hour" %}</label>
-                {{work_form.salary_hour}}
+                <label class="oh-label">{% trans "Probation Period (Days)" %}</label>
+                {{work_form.probation_days}}
             </div>
             </div>
         </div>
+        <div class="row">
+            <div class="col-12 col-sm-12 col-md-12 col-lg-6">
+            <div class="oh-input-group">
+                <label class="oh-label">{% trans "CTC" %}</label>
+                {{work_form.ctc}}
+            </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12 col-sm-12 col-md-12 col-lg-6">
+            <div class="oh-input-group">
+                <label class="oh-label">{% trans "Basic (%)" %}</label>
+                {{work_form.basic_pct}}
+            </div>
+            </div>
+            <div class="col-12 mt-1">
+                <small class="form-text text-muted" id="salaryComponentHint"></small>
+            </div>
+        </div>
+        <script>
+        function updateSalaryComponents() {
+            var b = parseInt($('#id_basic_pct').val()) || 0;
+            var ctc = parseInt($('#id_ctc').val()) || 0;
+            var hint = $('#salaryComponentHint');
+            // Monthly basic = (CTC / 12) * basic%
+            var monthlyBasic = ctc ? Math.round(ctc / 12 * b / 100) : 0;
+            hint.html('{% trans "Monthly basic pay" %}: ' + monthlyBasic + ' = ({% trans "CTC" %}/12) × ' + b + '%').css('color', '#5cb85c');
+        }
+        $(document).ready(function(){ $('#id_ctc, #id_basic_pct').on('change keyup', updateSalaryComponents); updateSalaryComponents(); });
+        </script>
 
 
         </form>

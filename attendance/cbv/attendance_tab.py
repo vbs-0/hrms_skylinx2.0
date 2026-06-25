@@ -60,10 +60,10 @@ class AttendanceTabView(SkylinxTabView):
                 "title": _("Validate Attendances"),
                 "url": f"{reverse('validate-attendance-individual-tab',kwargs={'pk': pk})}",
             },
-            {
-                "title": _("Hour Account"),
-                "url": f"{reverse('attendance-overtime-individual-tab',kwargs={'pk': pk})}",
-            },
+            # {
+            #     "title": _("Hour Account"),
+            #     "url": f"{reverse('attendance-overtime-individual-tab',kwargs={'pk': pk})}",
+            # },
             {
                 "title": _("All Attendances"),
                 "url": f"{reverse('all-attendances-individual-tab',kwargs={'pk': pk})}",
@@ -95,27 +95,27 @@ class RequestedAttendanceIndividualView(AttendanceRequestListTab):
         return queryset
 
 
-@method_decorator(login_required, name="dispatch")
-class HourAccountIndividualTabView(HourAccountList):
-    """
-    list view for hour account tab
-    """
-
-    template_name = "cbv/hour_account/hour_account_main.html"
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        pk = self.request.resolver_match.kwargs.get("pk")
-        self.search_url = reverse(
-            "attendance-overtime-individual-tab", kwargs={"pk": pk}
-        )
-        self.view_id = "ot-table"
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        pk = self.kwargs.get("pk")
-        queryset = self.model.objects.filter(employee_id=pk)
-        return queryset
+# @method_decorator(login_required, name="dispatch")
+# class HourAccountIndividualTabView(HourAccountList):
+#     """
+#     list view for hour account tab
+#     """
+# 
+#     template_name = "cbv/hour_account/hour_account_main.html"
+# 
+#     def __init__(self, **kwargs: Any) -> None:
+#         super().__init__(**kwargs)
+#         pk = self.request.resolver_match.kwargs.get("pk")
+#         self.search_url = reverse(
+#             "attendance-overtime-individual-tab", kwargs={"pk": pk}
+#         )
+#         self.view_id = "ot-table"
+# 
+#     def get_queryset(self):
+#         queryset = super().get_queryset()
+#         pk = self.kwargs.get("pk")
+#         queryset = self.model.objects.filter(employee_id=pk)
+#         return queryset
 
 
 @method_decorator(login_required, name="dispatch")

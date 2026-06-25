@@ -18,7 +18,7 @@
     </div>
 
         <script>
-            $(document).on("htmx:afterSwap", function () {
+            $(document).off("htmx:afterSwap.cbv_stages_title").on("htmx:afterSwap.cbv_stages_title", function () {
                   $("[data-toggle-count]").off("click").on("click", function (e) {
                     e.stopPropagation();
                     let recViewContainer = $(this).closest('tr');

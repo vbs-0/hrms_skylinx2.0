@@ -84,9 +84,11 @@
 									<div class="oh-sticky-table__th">{% trans "Employee" %}</div>
 									<div class="oh-sticky-table__th">{% trans "Start Date" %}</div>
 									<div class="oh-sticky-table__th">{% trans "End Date" %}</div>
-									<div class="oh-sticky-table__th">{% trans "Batch" %}</div>
 									<div class="oh-sticky-table__th">{% trans "Gross Pay" %}</div>
+									<div class="oh-sticky-table__th">{% trans "Basic Pay" %}</div>
+									<div class="oh-sticky-table__th">{% trans "Allowances" %}</div>
 									<div class="oh-sticky-table__th">{% trans "Deduction" %}</div>
+									<div class="oh-sticky-table__th">{% trans "LOP" %}</div>
 									<div class="oh-sticky-table__th">{% trans "Net Pay" %}</div>
 									<div class="oh-sticky-table__th">{% trans "Status" %}</div>
 									<div class="oh-sticky-table__th oh-sticky-table__right">{% trans "Actions" %}</div>
@@ -130,15 +132,21 @@
                                       {{payslip.end_date}}
                                     </div>
                                     <div data-cell-index="4" class="oh-sticky-table__td">
-                                      {{payslip.group_name}}
-                                    </div>
-                                    <div data-cell-index="5" class="oh-sticky-table__td">
                                       {{payslip.gross_pay|floatformat:2|currency_symbol_position}}
                                     </div>
+                                    <div data-cell-index="5" class="oh-sticky-table__td">
+                                      {{payslip.basic_pay|floatformat:2|currency_symbol_position}}
+                                    </div>
                                     <div data-cell-index="6" class="oh-sticky-table__td">
-                                      {{payslip.deduction|floatformat:2|currency_symbol_position}}
+                                      {{payslip.total_allowance|floatformat:2|currency_symbol_position}}
                                     </div>
                                     <div data-cell-index="7" class="oh-sticky-table__td">
+                                      {{payslip.deduction|floatformat:2|currency_symbol_position}}
+                                    </div>
+                                    <div data-cell-index="8" class="oh-sticky-table__td">
+                                      {{payslip.total_lop|floatformat:2|currency_symbol_position}}
+                                    </div>
+                                    <div data-cell-index="9" class="oh-sticky-table__td">
                                       {{payslip.net_pay|floatformat:2|currency_symbol_position}}
                                     </div>
                                     {% if perms.payroll.change_payslip %}

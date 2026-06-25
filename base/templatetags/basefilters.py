@@ -36,10 +36,17 @@ def is_reportingmanager(user):
 
     This method will return true if the user employee profile is reporting manager to any employee
     """
-    employee = Employee.objects.filter(employee_user_id=user).first()
-    return EmployeeWorkInformation.objects.filter(
-        reporting_manager_id=employee
-    ).exists()
+    if not user or user.is_anonymous:
+        return False
+    if not hasattr(user, "_is_reporting_manager_cached"):
+        employee = getattr(user, "employee_get", None)
+        if not employee:
+            user._is_reporting_manager_cached = False
+        else:
+            user._is_reporting_manager_cached = EmployeeWorkInformation.objects.filter(
+                reporting_manager_id=employee
+            ).exists()
+    return user._is_reporting_manager_cached
 
 
 @register.filter(name="is_leave_approval_manager")
@@ -47,24 +54,31 @@ def is_leave_approval_manager(user):
     """
     This method will return true if the user is comes in MultipleApprovalCondition model as approving manager
     """
-    employee = Employee.objects.filter(employee_user_id=user).first()
-    manager = (
-        MultipleApprovalManagers.objects.entire()
-        .filter(employee_id=employee.id)
-        .exists()
-        if employee
-        else False
-    )
-    return manager
+    if not user or user.is_anonymous:
+        return False
+    if not hasattr(user, "_is_leave_approval_manager_cached"):
+        employee = getattr(user, "employee_get", None)
+        if not employee:
+            user._is_leave_approval_manager_cached = False
+        else:
+            user._is_leave_approval_manager_cached = (
+                MultipleApprovalManagers.objects.entire()
+                .filter(employee_id=employee.id)
+                .exists()
+            )
+    return user._is_leave_approval_manager_cached
 
 
 @register.filter(name="check_manager")
 def check_manager(user, instance):
     try:
+        employee = getattr(user, "employee_get", None)
+        if not employee:
+            return False
         if isinstance(instance, Employee):
-            return instance.employee_work_info.reporting_manager_id == user.employee_get
+            return instance.employee_work_info.reporting_manager_id == employee
         return (
-            user.employee_get
+            employee
             == instance.employee_id.employee_work_info.reporting_manager_id
         )
     except:
@@ -78,10 +92,15 @@ def filtersubordinates(user):
     args:
         user    : request.user
     """
-
-    employee = user.employee_get
-    employee_manages = employee.reporting_manager.all()
-    return employee_manages.exists()
+    if not user or user.is_anonymous:
+        return False
+    if not hasattr(user, "_filtersubordinates_cached"):
+        employee = getattr(user, "employee_get", None)
+        if not employee:
+            user._filtersubordinates_cached = False
+        else:
+            user._filtersubordinates_cached = employee.reporting_manager.exists()
+    return user._filtersubordinates_cached
 
 
 @register.filter(name="filter_field")
@@ -100,7 +119,8 @@ def user_perms(perms):
     """
     permission names return method
     """
-    return json.dumps(list(perms.values_list("codename", flat="True")))
+    perms_list = [f"{p['content_type__app_label']}.{p['codename']}" for p in perms.values("content_type__app_label", "codename")]
+    return json.dumps(perms_list)
 
 
 @register.filter(name="abs_value")
@@ -113,25 +133,38 @@ def abs_value(value):
 
 @register.filter(name="config_perms")
 def config_perms(user):
-    app_permissions = {
-        "leave": [
-            "leave.view_restrictleave",
-        ],
-        "base": [
-            "base.add_holiday",
-            "base.change_holiday",
-            "base.add_companyleaves",
-            "base.change_companyleaves",
-            "base.add_skylinxmailtemplates",
-            "base.view_skylinxmailtemplates",
-        ],
-    }
+    if not user or not user.is_authenticated:
+        return False
 
-    for app, perms in app_permissions.items():
-        if apps.is_installed(app):
-            for perm in perms:
-                if user.has_perm(perm):
-                    return True
+    # 1. Multiple Approvals
+    if apps.is_installed("leave") and user.has_perm("base.view_multipleapprovalcondition"):
+        return True
+
+    # 2. Mail Templates
+    if user.has_perm("base.view_skylinxmailtemplate") or user.has_perm("base.view_skylinxmailtemplates"):
+        return True
+
+    # 3. Mail Automations
+    if apps.is_installed("skylinx_automations") and user.has_perm("skylinx_automations.view_mailautomation"):
+        return True
+
+    # 4. Holidays
+    if user.has_perm("base.add_holidays") or user.has_perm("base.add_holiday"):
+        return True
+
+    # 5. Company Leaves
+    if user.has_perm("base.view_companyleaves"):
+        return True
+
+    # 6. Google Meet (requires skylinx_meet app and integration installed, plus permission)
+    if apps.is_installed("skylinx_meet"):
+        try:
+            from base.models import IntegrationApps
+            if IntegrationApps.objects.filter(app_label="skylinx_meet", is_enabled=True).exists() and user.has_perm("skylinx_meet.view_googlemeeting"):
+                return True
+        except Exception:
+            pass
+
     return False
 
 

@@ -28,10 +28,48 @@
 
 					<li class="oh-profile__card-info-item">
 						<span class="oh-profile__info-label mb-1">
+							<ion-icon name="water-outline"></ion-icon>
+							<span>{% trans "Blood Group" %}</span>
+						</span>
+						<span class="oh-profile__info-value">{{employee.blood_group|default:_("None")}}</span>
+					</li>
+
+					<li class="oh-profile__card-info-item">
+						<span class="oh-profile__info-label mb-1">
 							<ion-icon name="home-outline"></ion-icon>
 							<span>{% trans "Address" %}</span>
 						</span>
 						<span class="oh-profile__info-value">{{employee.address|default:_("None")}}</span>
+					</li>
+
+					<li class="oh-profile__card-info-item">
+						<span class="oh-profile__info-label mb-1">
+							<ion-icon name="finger-print-outline"></ion-icon>
+							<span>{% trans "Aadhaar Number" %}</span>
+						</span>
+						<span class="oh-profile__info-value">
+						{% if perms.employee.change_employee or request.user.employee_get == employee %}
+							{{ employee.aadhaar_number|default:_("None") }}
+						{% else %}
+							{{ employee.masked_aadhaar|default:_("None") }}
+						{% endif %}
+						</span>
+					</li>
+
+					<li class="oh-profile__card-info-item">
+						<span class="oh-profile__info-label mb-1">
+							<ion-icon name="card-outline"></ion-icon>
+							<span>{% trans "PAN Number" %}</span>
+						</span>
+						<span class="oh-profile__info-value">{{employee.pan_number|default:_("None")}}</span>
+					</li>
+
+					<li class="oh-profile__card-info-item">
+						<span class="oh-profile__info-label mb-1">
+							<ion-icon name="albums-outline"></ion-icon>
+							<span>{% trans "UAN" %}</span>
+						</span>
+						<span class="oh-profile__info-value">{{employee.uan|default:_("None")}}</span>
 					</li>
 
 					<li class="oh-profile__card-info-item">
@@ -355,6 +393,15 @@
 									</span>
 									<span
 										class="oh-profile__info-value">{{employee.employee_bank_details.account_number|default:_("None")}}</span>
+								</li>
+
+								<li class="oh-profile__card-info-item">
+									<span class="oh-profile__info-label mb-1">
+										<ion-icon name="layers-outline"></ion-icon>
+										<span>{% trans "Account Type" %}</span>
+									</span>
+									<span
+										class="oh-profile__info-value">{{employee.employee_bank_details.get_account_type_display|default:_("None")}}</span>
 								</li>
 
 								<li class="oh-profile__card-info-item">

@@ -3,9 +3,11 @@ from django.template.loader import render_to_string
 
 from base.forms import ModelForm
 from base.methods import reload_queryset
+from base.rbac import current_company
 from employee.filters import EmployeeFilter
 from employee.models import Employee
 from skylinx_documents.models import Document, DocumentRequest
+from skylinx.skylinx_middlewares import _thread_locals
 from skylinx_widgets.widgets.skylinx_multi_select_field import SkylinxMultiSelectField
 from skylinx_widgets.widgets.select_widgets import SkylinxMultiSelectWidget
 
@@ -34,8 +36,15 @@ class DocumentRequestForm(ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        request = getattr(_thread_locals, "request", None)
+        company = current_company(request) if request else None
+        employee_qs = Employee.objects.all()
+        if company:
+            employee_qs = employee_qs.filter(
+                employee_work_info__company_id=company
+            ).exclude(employee_user_id__is_superuser=True)
         self.fields["employee_id"] = SkylinxMultiSelectField(
-            queryset=Employee.objects.all(),
+            queryset=employee_qs,
             widget=SkylinxMultiSelectWidget(
                 filter_route_name="employee-widget-filter",
                 filter_class=EmployeeFilter,

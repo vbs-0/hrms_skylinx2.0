@@ -190,7 +190,7 @@
           {% endif %}
           hx-target="#{{view_id|safe}}"
           hx-swap="outerHTML"
-            style="color: hsl(8, 77%, 56%);cursor: pointer;"
+            style="color: hsl(204, 73%, 43%);cursor: pointer;"
             class="ms-1 fw-bold"
           >
             <ion-icon
@@ -208,7 +208,7 @@
             {% endif %}
             hx-target="#{{view_id|safe}}"
             hx-swap="outerHTML"
-            style="color: hsl(8, 77%, 56%);cursor: pointer;"
+            style="color: hsl(204, 73%, 43%);cursor: pointer;"
             class="ms-1 fw-bold"
           >
             <ion-icon
@@ -345,7 +345,8 @@
             onclick="switchGeneralTab(event)"
             data-target="#profileTab{{forloop.counter}}"
             hx-get="{{tab.url|format:instance}}"
-            hx-trigger="revealed"
+            {# ponytail: 'load' not 'revealed' — revealed doesn't fire for htmx-swapped already-visible tabs #}
+            hx-trigger="load"
             hx-target="#profileTab{{forloop.counter}}"
             >{{tab.title}}</a
           >
@@ -406,7 +407,7 @@
       });
     }
 
-    window.onclick = function (event) {
+    window.oneListener(document, "click", function (event) {
       if (
         !event.target.matches("#dropdownLink") &&
         !event.target.closest("#dropdownContent")
@@ -419,7 +420,7 @@
           }
         }
       }
-    };
+    }, "profileDropdownClose");
 
   </script>
 </div>

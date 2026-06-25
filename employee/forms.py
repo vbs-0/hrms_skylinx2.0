@@ -33,6 +33,7 @@ from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
 
 from base.methods import eval_validate, reload_queryset
+from skylinx.skylinx_middlewares import _thread_locals
 from employee.models import (
     Actiontype,
     BonusPoint,
@@ -217,9 +218,18 @@ class EmployeeForm(ModelForm):
             "is_from_onboarding",
             "is_directly_converted",
             "is_active",
+            "account_type",
         )
         widgets = {
             "dob": TextInput(attrs={"type": "date", "id": "dob"}),
+        }
+        labels = {
+            "email": _("Official Email ID"),
+            "phone": _("Phone Number"),
+            "employee_first_name": _("First Name"),
+            "employee_last_name": _("Last Name"),
+            "dob": _("Date of Birth"),
+            "badge_id": _("Employee ID"),
         }
 
     def __init__(self, *args, **kwargs):
@@ -238,13 +248,71 @@ class EmployeeForm(ModelForm):
             kwargs["initial"] = initial
         else:
             self.initial = {"badge_id": self.get_next_badge_id()}
+        if not self.instance or not self.instance.pk:
+            self.initial["country"] = "India"
+
+
+        # ── India Localization: PAN / Aadhaar / Account Type ────────────────
+        if "pan_number" in self.fields:
+            self.fields["pan_number"].required = True
+            self.fields["pan_number"].widget.attrs.update({
+                "placeholder": "ABCDE1234F",
+                "style": "text-transform:uppercase",
+                "maxlength": "10",
+            })
+        if "aadhaar_number" in self.fields:
+            self.fields["aadhaar_number"].required = True
+            self.fields["aadhaar_number"].widget.attrs.update({
+                "placeholder": "xxxx xxxx xxxx",
+                "maxlength": "12",
+                "inputmode": "numeric",
+            })
+
+        if "account_type" in self.fields:
+            self.fields["account_type"].required = False
 
     def as_p(self, *args, **kwargs):
         context = {"form": self}
         return render_to_string("employee/create_form/personal_info_as_p.html", context)
 
+    def clean_pan_number(self):
+        """Validate PAN format: 5 letters, 4 digits, 1 letter (ABCDE1234F)."""
+        import re as _re
+        pan = self.cleaned_data.get("pan_number")
+        if pan:
+            pan = pan.upper().strip()
+            if not _re.match(r"^[A-Z]{5}[0-9]{4}[A-Z]$", pan):
+                raise forms.ValidationError(
+                    _("Invalid PAN format. Must be like ABCDE1234F.")
+                )
+        return pan or None
+
+    def clean_aadhaar_number(self):
+        """Validate Aadhaar: exactly 12 digits."""
+        import re as _re
+        aadhaar = self.cleaned_data.get("aadhaar_number")
+        if aadhaar:
+            aadhaar = aadhaar.replace(" ", "").strip()
+            if not _re.match(r"^\d{12}$", aadhaar):
+                raise forms.ValidationError(
+                    _("Aadhaar number must be exactly 12 digits.")
+                )
+        return aadhaar or None
+
     def clean(self):
+
         super().clean()
+        # License cap: block creating a NEW active employee past the plan limit,
+        # surfaced as a normal form error (popup) instead of the cap signal's
+        # hard 403/timeout. Only on create — editing an existing one is fine.
+        if not (self.instance and self.instance.id):
+            from subscriptions.utils import can_add_employee, company_for_user
+
+            request = getattr(_thread_locals, "request", None)
+            company = company_for_user(request.user) if request else None
+            ok, message = can_add_employee(company)
+            if not ok:
+                raise forms.ValidationError(_(message))
         email = self.cleaned_data["email"]
         query = Employee.objects.entire().filter(email=email)
         if self.instance and self.instance.id:
@@ -275,52 +343,9 @@ class EmployeeForm(ModelForm):
         """
         This method is used to generate badge id
         """
-        from base.context_processors import get_initial_prefix
-        from employee.methods.methods import get_ordered_badge_ids
-
-        prefix = get_initial_prefix(None)["get_initial_prefix"]
-        data = get_ordered_badge_ids()
-        result = []
-        try:
-            for sublist in data:
-                for item in sublist:
-                    if isinstance(item, str) and item.lower().startswith(
-                        prefix.lower()
-                    ):
-                        # Find the index of the item in the sublist
-                        index = sublist.index(item)
-                        # Check if there is a next item in the sublist
-                        if index + 1 < len(sublist):
-                            result = sublist[index + 1]
-                            result = re.findall(r"[a-zA-Z]+|\d+|[^a-zA-Z\d\s]", result)
-
-            if result:
-                prefix = []
-                incremented = False
-                for item in reversed(result):
-                    total_letters = len(item)
-                    total_zero_leads = 0
-                    for letter in item:
-                        if letter == "0":
-                            total_zero_leads = total_zero_leads + 1
-                            continue
-                        break
-
-                    if total_zero_leads:
-                        item = item[total_zero_leads:]
-                    if isinstance(item, list):
-                        item = item[-1]
-                    if not incremented and isinstance(eval_validate(str(item)), int):
-                        item = int(item) + 1
-                        incremented = True
-                    if isinstance(item, int):
-                        item = "{:0{}d}".format(item, total_letters)
-                    prefix.insert(0, str(item))
-                prefix = "".join(prefix)
-        except Exception as e:
-            logger.exception(e)
-            prefix = get_initial_prefix(None)["get_initial_prefix"]
-        return prefix
+        from django.db.models import Max
+        max_id = Employee.objects.entire().aggregate(max_id=Max('id'))['max_id']
+        return str((max_id or 0) + 1)
 
     def clean_badge_id(self):
         """
@@ -333,10 +358,10 @@ class EmployeeForm(ModelForm):
                 pk=self.instance.pk if self.instance else None
             )
             if queryset.exists():
-                raise forms.ValidationError(_("Badge ID must be unique."))
+                raise forms.ValidationError(_("Employee ID must be unique."))
             if not re.search(r"\d", badge_id):
                 raise forms.ValidationError(
-                    _("Badge ID must contain at least one digit.")
+                    _("Employee ID must contain at least one digit.")
                 )
         return badge_id
 
@@ -346,6 +371,13 @@ class EmployeeWorkInformationForm(ModelForm):
     Form for EmployeeWorkInformation model
     """
 
+    # Basic % of CTC (stored in salary_components JSON). Monthly basic pay =
+    # (CTC / 12) * basic% — fed into the contract wage / pay register.
+    basic_pct = forms.IntegerField(
+        label=_("Basic (%)"), required=False, min_value=0, max_value=100,
+        widget=forms.NumberInput(attrs={"class": "oh-input w-100", "onchange": "updateSalaryComponents()"}),
+    )
+
     class Meta:
         """
         Meta class to add the additional info
@@ -353,16 +385,48 @@ class EmployeeWorkInformationForm(ModelForm):
 
         model = EmployeeWorkInformation
         fields = "__all__"
-        exclude = ("employee_id", "additional_info", "experience")
+        exclude = (
+            "employee_id", "additional_info", "experience", "tags",
+            "salary_hour", "salary_components",
+        )
 
         widgets = {
             "date_joining": DateInput(attrs={"type": "date"}),
             "contract_end_date": DateInput(attrs={"type": "date"}),
         }
+        labels = {
+            "job_position_id": _("Designation"),
+            "job_role_id": _("Job Title"),
+            "location": _("Work Location"),
+            "date_joining": _("Date of Joining"),
+            "employee_type_id": _("Employee Type"),
+            "reporting_manager_id": _("Reporting Manager"),
+            "department_id": _("Department"),
+            "company_id": _("Company"),
+            "ctc": _("CTC"),
+            "probation_days": _("Probation Period (Days)"),
+        }
 
     def __init__(self, *args, disable=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["email"].widget.attrs["autocomplete"] = "email"
+        request = getattr(_thread_locals, "request", None)
+        selected_company = None
+        if request and getattr(request, "session", None):
+            selected_company = request.session.get("selected_company")
+        if selected_company and selected_company != "all":
+            manager_qs = Employee.objects.filter(
+                employee_work_info__company_id=selected_company,
+                is_active=True,
+            ).exclude(employee_user_id__is_superuser=True)
+            if "reporting_manager_id" in self.fields:
+                self.fields["reporting_manager_id"].queryset = manager_qs
+            if "employee_work_info__reporting_manager_id" in self.fields:
+                self.fields["employee_work_info__reporting_manager_id"].queryset = manager_qs
+
+        # Seed the basic % from the stored JSON (default 50).
+        components = (self.instance.salary_components or {}) if self.instance else {}
+        self.fields["basic_pct"].initial = components.get("basic", 50)
 
         self.fields["job_position_id"].widget.attrs.update(
             {
@@ -376,16 +440,16 @@ class EmployeeWorkInformationForm(ModelForm):
                 self.fields[field].disabled = True
         field_names = {
             "Department": "department",
-            "Job Position": "job_position",
-            "Job Role": "job_role",
+            "Designation": "job_position",   # was "Job Position"
+            "Job Title": "job_role",           # was "Job Role"
             "Work Type": "work_type",
             "Employee Type": "employee_type",
             "Shift": "employee_shift",
         }
         urls = {
             "Department": "#dynamicDept",
-            "Job Position": "#dynamicJobPosition",
-            "Job Role": "#dynamicJobRole",
+            "Designation": "#dynamicJobPosition",   # was "Job Position"
+            "Job Title": "#dynamicJobRole",          # was "Job Role"
             "Work Type": "#dynamicWorkType",
             "Employee Type": "#dynamicEmployeeType",
             "Shift": "#dynamicShift",
@@ -413,9 +477,23 @@ class EmployeeWorkInformationForm(ModelForm):
                                 }
                             ),
                         )
-                        self.fields[label].choices += [
-                            ("create", _("Create New {} ").format(translated_label))
-                        ]
+                        request = getattr(_thread_locals, "request", None)
+                        perm_map = {
+                            "Department": "base.add_department",
+                            "Designation": "base.add_jobposition",
+                            "Job Title": "base.add_jobrole",
+                            "Work Type": "base.add_worktype",
+                            "Employee Type": "base.add_employeetype",
+                            "Shift": "base.add_employee_shift",
+                        }
+                        can_create = True
+                        perm = perm_map.get(field.label)
+                        if request and getattr(request, "user", None) and perm:
+                            can_create = request.user.is_superuser or request.user.has_perm(perm)
+                        if can_create:
+                            self.fields[label].choices += [
+                                ("create", _("Create New {} ").format(translated_label))
+                            ]
 
     def clean(self):
         cleaned_data = super().clean()
@@ -423,15 +501,52 @@ class EmployeeWorkInformationForm(ModelForm):
             del self.errors["employee_id"]
         return cleaned_data
 
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        # Multi-tenant safety: never leave company blank. A company-less work
+        # info row leaks the employee into EVERY tenant's list (manager's
+        # __isnull clause), so default to the acting user's company.
+        if instance.company_id is None:
+            instance.company_id = _default_company_id()
+        # Persist the basic % into the salary_components JSON.
+        instance.salary_components = {"basic": self.cleaned_data.get("basic_pct") or 0}
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
+
     def as_p(self, *args, **kwargs):
         context = {"form": self}
         return render_to_string("employee/create_form/personal_info_as_p.html", context)
+
+
+def _default_company_id():
+    """The Company the acting user is in, used to stamp company-less records."""
+    from base.models import Company
+
+    cid = skylinx_middlewares.get_selected_company()
+    if cid and cid != "all":
+        return Company.objects.filter(id=cid).first()
+    request = getattr(skylinx_middlewares._thread_locals, "request", None)
+    if request and getattr(request, "user", None) and request.user.is_authenticated:
+        try:
+            return request.user.employee_get.employee_work_info.company_id
+        except Exception:
+            return None
+    return None
 
 
 class EmployeeWorkInformationUpdateForm(ModelForm):
     """
     Form for EmployeeWorkInformation model
     """
+
+    # Basic % of CTC (stored in salary_components JSON). Monthly basic pay =
+    # (CTC / 12) * basic% — fed into the contract wage / pay register.
+    basic_pct = forms.IntegerField(
+        label=_("Basic (%)"), required=False, min_value=0, max_value=100,
+        widget=forms.NumberInput(attrs={"class": "oh-input w-100", "onchange": "updateSalaryComponents()"}),
+    )
 
     class Meta:
         """
@@ -440,33 +555,43 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
 
         model = EmployeeWorkInformation
         fields = "__all__"
-        # fields = [
-        #     "department_id",
-        #     "job_position_id",
-        #     "job_role_id",
-        #     "work_type_id",
-        #     "employee_type_id",
-        #     "reporting_manager_id",
-        #     "company_id",
-        #     "tags",
-        #     "location",
-        #     "email",
-        #     "mobile",
-        #     "shift_id",
-        #     "date_joining",
-        #     "contract_end_date",
-        #     "basic_salary",
-        #     "salary_hour",
-        # ]
-        exclude = ("employee_id", "experience", "additional_info")
+        exclude = (
+            "employee_id", "experience", "additional_info", "tags",
+            "salary_hour", "salary_components",
+        )
 
         widgets = {
             "date_joining": DateInput(attrs={"type": "date"}),
             "contract_end_date": DateInput(attrs={"type": "date"}),
         }
+        labels = {
+            "job_position_id": _("Designation"),
+            "job_role_id": _("Job Title"),
+            "location": _("Work Location"),
+            "date_joining": _("Date of Joining"),
+            "employee_type_id": _("Employee Type"),
+            "reporting_manager_id": _("Reporting Manager"),
+            "department_id": _("Department"),
+            "company_id": _("Company"),
+            "ctc": _("CTC"),
+            "probation_days": _("Probation Period (Days)"),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        request = getattr(_thread_locals, "request", None)
+        selected_company = None
+        if request and getattr(request, "session", None):
+            selected_company = request.session.get("selected_company")
+        if selected_company and selected_company != "all":
+            manager_qs = Employee.objects.filter(
+                employee_work_info__company_id=selected_company,
+                is_active=True,
+            ).exclude(employee_user_id__is_superuser=True)
+            if "reporting_manager_id" in self.fields:
+                self.fields["reporting_manager_id"].queryset = manager_qs
+            if "employee_work_info__reporting_manager_id" in self.fields:
+                self.fields["employee_work_info__reporting_manager_id"].queryset = manager_qs
         self.fields["department_id"].widget.attrs.update(
             {
                 "hx-target": "#id_job_position_id_parent_div",
@@ -485,6 +610,17 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
                 "hx-get": "/employee/get-job-roles-hx",
             }
         )
+        # Seed the basic % from the stored JSON (default 50).
+        components = (self.instance.salary_components or {}) if self.instance else {}
+        self.fields["basic_pct"].initial = components.get("basic", 50)
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.salary_components = {"basic": self.cleaned_data.get("basic_pct") or 0}
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
 
     def as_p(self, *args, **kwargs):
         context = {"form": self}
@@ -496,7 +632,12 @@ class EmployeeBankDetailsForm(ModelForm):
     Form for EmployeeBankDetails model
     """
 
-    address = forms.CharField(widget=forms.Textarea(attrs={"rows": 2, "cols": 40}))
+    account_type = forms.ChoiceField(
+        choices=[("", _("---Choose Account Type---"))] + Employee.ACCOUNT_TYPE_CHOICES,
+        required=False,
+        label=_("Bank Account Type"),
+        initial="savings",
+    )
 
     class Meta:
         """
@@ -505,27 +646,57 @@ class EmployeeBankDetailsForm(ModelForm):
 
         model = EmployeeBankDetails
         fields = (
-            "bank_name",
-            "account_number",
-            "branch",
             "any_other_code1",
-            "address",
-            "country",
-            "state",
+            "bank_name",
+            "branch",
+            "account_type",
+            "account_number",
             "city",
-            "any_other_code2",
+            "state",
+            "country",
         )
-        exclude = ["employee_id", "is_active", "additional_info"]
+        labels = {
+            "any_other_code1": _("IFSC Code"),
+            "bank_name": _("Account Name"),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["address"].widget.attrs["autocomplete"] = "address"
+        self.initial["account_type"] = "savings"
+        self.initial["country"] = "India"
         for visible in self.visible_fields():
             visible.field.widget.attrs["class"] = "oh-input w-100"
+            visible.field.widget.attrs["autocomplete"] = "off"
+        if self.instance and hasattr(self.instance, "employee_id") and self.instance.employee_id:
+            self.initial["account_type"] = self.instance.employee_id.account_type or "savings"
+        if self.instance and self.instance.country:
+            self.initial["country"] = self.instance.country
 
-    def as_p(self, *args, **kwargs):
-        context = {"form": self}
-        return render_to_string("employee/update_form/bank_info_as_p.html", context)
+
+
+    def clean_any_other_code1(self):
+        ifsc = self.cleaned_data.get("any_other_code1")
+        if ifsc and not re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", ifsc):
+            raise forms.ValidationError(_("Invalid IFSC Code. Format should be 4 letters, '0', then 6 alphanumeric characters."))
+        return ifsc
+
+    def save(self, commit=True):
+        bank_details = super().save(commit=False)
+        account_type = self.cleaned_data.get("account_type")
+        
+        orig_save = bank_details.save
+        def custom_save(*args, **kwargs):
+            orig_save(*args, **kwargs)
+            if bank_details.employee_id:
+                employee = bank_details.employee_id
+                if employee.account_type != account_type:
+                    employee.account_type = account_type
+                    employee.save(update_fields=["account_type"])
+        bank_details.save = custom_save
+        
+        if commit:
+            bank_details.save()
+        return bank_details
 
 
 class EmployeeBankDetailsUpdateForm(ModelForm):
@@ -533,29 +704,79 @@ class EmployeeBankDetailsUpdateForm(ModelForm):
     Form for EmployeeBankDetails model
     """
 
+    account_type = forms.ChoiceField(
+        choices=[("", _("---Choose Account Type---"))] + Employee.ACCOUNT_TYPE_CHOICES,
+        required=False,
+        label=_("Bank Account Type"),
+        initial="savings",
+    )
+
     class Meta:
         """
         Meta class to add the additional info
         """
 
         model = EmployeeBankDetails
-        fields = "__all__"
-        exclude = ["employee_id", "is_active", "additional_info"]
+        fields = (
+            "any_other_code1",
+            "bank_name",
+            "branch",
+            "account_type",
+            "account_number",
+            "city",
+            "state",
+            "country",
+        )
+        labels = {
+            "any_other_code1": _("IFSC Code"),
+            "bank_name": _("Account Name"),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.initial["account_type"] = "savings"
+        self.initial["country"] = "India"
         for visible in self.visible_fields():
             visible.field.widget.attrs["class"] = "oh-input w-100"
+            visible.field.widget.attrs["autocomplete"] = "off"
         for field in self.fields:
             self.fields[field].widget.attrs["placeholder"] = self.fields[field].label
+        if self.instance and hasattr(self.instance, "employee_id") and self.instance.employee_id:
+            self.initial["account_type"] = self.instance.employee_id.account_type or "savings"
+        if self.instance and self.instance.country:
+            self.initial["country"] = self.instance.country
 
     def as_p(self, *args, **kwargs):
         context = {"form": self}
         return render_to_string("employee/update_form/bank_info_as_p.html", context)
 
+    def clean_any_other_code1(self):
+        ifsc = self.cleaned_data.get("any_other_code1")
+        if ifsc and not re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", ifsc):
+            raise forms.ValidationError(_("Invalid IFSC Code. Format should be 4 letters, '0', then 6 alphanumeric characters."))
+        return ifsc
+
+    def save(self, commit=True):
+        bank_details = super().save(commit=False)
+        account_type = self.cleaned_data.get("account_type")
+        
+        orig_save = bank_details.save
+        def custom_save(*args, **kwargs):
+            orig_save(*args, **kwargs)
+            if bank_details.employee_id:
+                employee = bank_details.employee_id
+                if employee.account_type != account_type:
+                    employee.account_type = account_type
+                    employee.save(update_fields=["account_type"])
+        bank_details.save = custom_save
+        
+        if commit:
+            bank_details.save()
+        return bank_details
+
 
 excel_columns = [
-    ("badge_id", _("Badge ID")),
+    ("badge_id", _("Employee ID")),
     ("employee_first_name", _("First Name")),
     ("employee_last_name", _("Last Name")),
     ("email", _("Email")),
@@ -567,7 +788,7 @@ excel_columns = [
     ("state", _("State")),
     ("city", _("City")),
     ("address", _("Address")),
-    ("zip", _("Zip Code")),
+    ("zip", _("PIN Code")),
     ("marital_status", _("Marital Status")),
     ("children", _("Children")),
     ("is_active", _("Is active")),
@@ -577,26 +798,30 @@ excel_columns = [
     ("employee_work_info__email", _("Work Email")),
     ("employee_work_info__mobile", _("Work Phone")),
     ("employee_work_info__department_id", _("Department")),
-    ("employee_work_info__job_position_id", _("Job Position")),
+    ("employee_work_info__job_position_id", _("Designation")),
     ("employee_work_info__job_role_id", _("Job Role")),
     ("employee_work_info__shift_id", _("Shift")),
-    ("employee_work_info__work_type_id", _("Work Type")),
+    ("employee_work_info__work_type_id", _("Work Mode")),
     ("employee_work_info__reporting_manager_id", _("Reporting Manager")),
-    ("employee_work_info__employee_type_id", _("Employee Type")),
+    ("employee_work_info__employee_type_id", _("Employment Type")),
     ("employee_work_info__location", _("Location")),
     ("employee_work_info__date_joining", _("Date Joining")),
-    ("employee_work_info__basic_salary", _("Basic Salary")),
-    ("employee_work_info__salary_hour", _("Salary Hour")),
+    ("employee_work_info__ctc", _("CTC")),
+    ("employee_work_info__salary_components", _("Salary Components")),
     ("employee_work_info__contract_end_date", _("Contract End Date")),
     ("employee_work_info__company_id", _("Company")),
     ("employee_bank_details__bank_name", _("Bank Name")),
     ("employee_bank_details__branch", _("Branch")),
     ("employee_bank_details__account_number", _("Account Number")),
-    ("employee_bank_details__any_other_code1", _("Bank Code #1")),
+    ("employee_bank_details__any_other_code1", _("IFSC Code")),
     ("employee_bank_details__any_other_code2", _("Bank Code #2")),
     ("employee_bank_details__country", _("Bank Country")),
     ("employee_bank_details__state", _("Bank State")),
     ("employee_bank_details__city", _("Bank City")),
+    # ── India Localization fields ──────────────────────────────────────────
+    ("pan_number", _("PAN Number")),
+    ("aadhaar_number", _("Aadhaar Number")),
+    ("account_type", _("Bank Account Type")),
 ]
 fields_to_remove = [
     "badge_id",
@@ -629,8 +854,8 @@ class EmployeeExportExcelForm(forms.Form):
             "employee_work_info__employee_type_id",
             "employee_work_info__location",
             "employee_work_info__date_joining",
-            "employee_work_info__basic_salary",
-            "employee_work_info__salary_hour",
+            "employee_work_info__ctc",
+            "employee_work_info__salary_components",
             "employee_work_info__contract_end_date",
             "employee_work_info__company_id",
         ],
@@ -723,7 +948,7 @@ class PolicyForm(ModelForm):
     class Meta:
         model = Policy
         fields = "__all__"
-        exclude = ["attachments", "is_active"]
+        exclude = ["attachments", "is_active", "company_id"]
         widgets = {
             "body": forms.Textarea(
                 attrs={"data-summernote": "", "style": "display:none;"}

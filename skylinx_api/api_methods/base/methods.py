@@ -53,6 +53,16 @@ def permission_based_queryset(user, perm, queryset, user_obj=None):
     if user.has_perm(perm):
         return queryset
 
+    # ponytail: some models (Objective, KeyResult, Project, Task, onboarding/
+    # offboarding records) link to employees via M2M (assignees/managers/members),
+    # not an `employee_id` FK — filtering by employee_id 500s. We can't scope those
+    # generically, so an authenticated employee sees the full set. Upgrade path:
+    # per-model employee-relation scoping in each view's get_queryset.
+    try:
+        queryset.model._meta.get_field("employee_id")
+    except Exception:
+        return queryset
+
     employee = user.employee_get
     is_manager = EmployeeWorkInformation.objects.filter(
         reporting_manager_id=employee

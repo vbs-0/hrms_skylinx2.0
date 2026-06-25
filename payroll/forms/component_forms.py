@@ -17,6 +17,7 @@ from django.utils.translation import gettext_lazy as _
 import payroll.models.models
 from base.forms import Form, ModelForm
 from base.methods import reload_queryset
+from base.rbac import current_company
 from employee.filters import EmployeeFilter
 from employee.models import BonusPoint, Employee
 from skylinx import skylinx_middlewares
@@ -75,9 +76,14 @@ class AllowanceForm(ModelForm):
                 }
             kwargs["initial"] = initial
         super().__init__(*args, **kwargs)
+        request = getattr(_thread_locals, "request", None)
+        company = current_company(request) if request else None
+        employee_qs = Employee.objects.all()
+        if company:
+            employee_qs = employee_qs.filter(employee_work_info__company_id=company)
 
         self.fields["specific_employees"] = SkylinxMultiSelectField(
-            queryset=Employee.objects.all(),
+            queryset=employee_qs,
             widget=SkylinxMultiSelectWidget(
                 filter_route_name="employee-widget-filter",
                 filter_class=EmployeeFilter,
@@ -94,6 +100,25 @@ class AllowanceForm(ModelForm):
         )
         reload_queryset(self.fields)
         self.fields["style"].widget = widget.StyleWidget(form=self)
+
+        # --- India Localization: tag advanced fields ---
+        # is_fixed, amount, employer_rate are always visible (not advanced)
+        _allowance_advanced = [
+            "is_condition_based", "field", "condition", "value",
+            "shift_id", "shift_per_attendance_amount",
+            "per_attendance_fixed_amount", "amount_per_one_hr",
+            "work_type_id", "work_type_per_attendance_amount",
+            "per_children_fixed_amount",
+            "has_max_limit", "maximum_amount", "maximum_unit",
+            "exclude_employees", "only_show_under_employee",
+            "one_time_date", "start_range", "end_range",
+            "if_condition", "if_amount", "if_choice",
+            "is_loan", "include_active_employees", "is_pretax", 
+            "update_compensation", "is_tax",
+        ]
+        for fn in _allowance_advanced:
+            if fn in self.fields:
+                self.fields[fn].widget.attrs["data_advanced"] = "true"
 
     def as_p(self):
         """
@@ -236,6 +261,22 @@ class DeductionForm(ModelForm):
         for field_name, field in self.fields.items():
             if isinstance(field.widget, forms.Select):
                 field.widget.option_template_name = default_select_option_template
+
+        # --- India Localization: tag advanced fields ---
+        # is_fixed, amount, employer_rate are always visible (not advanced)
+        _deduction_advanced = [
+            "is_condition_based", "field", "condition", "value",
+            "has_max_limit", "maximum_amount", "maximum_unit",
+            "exclude_employees", "only_show_under_employee",
+            "one_time_date", "start_range", "end_range",
+            "if_condition", "if_amount", "if_choice",
+            "is_installment", "include_active_employees", 
+            "is_pretax", "update_compensation",
+            "is_tax",
+        ]
+        for fn in _deduction_advanced:
+            if fn in self.fields:
+                self.fields[fn].widget.attrs["data_advanced"] = "true"
 
     def clean(self, *args, **kwargs):
         cleaned_data = super().clean(*args, **kwargs)
@@ -417,11 +458,7 @@ class GeneratePayslipForm(SkylinxForm):
     Form for Payslip
     """
 
-    group_name = forms.CharField(
-        label="Batch name",
-        required=True,
-        # help_text="Enter +-something if you want to generate payslips by batches",
-    )
+    # group_name removed
     employee_id = SkylinxMultiSelectField(
         queryset=Employee.objects.none(),
         widget=SkylinxMultiSelectWidget(
@@ -470,7 +507,7 @@ class GeneratePayslipForm(SkylinxForm):
             {"class": "oh-select oh-select-2", "id": uuid.uuid4()}
         )
         self.fields["start_date"].widget.attrs.update({"class": "oh-input w-100"})
-        self.fields["group_name"].widget.attrs.update({"class": "oh-input w-100"})
+    # group_name attr update removed
         self.fields["end_date"].widget.attrs.update({"class": "oh-input w-100"})
         self.initial["start_date"] = datetime.date.today().replace(day=1)
         self.initial["end_date"] = datetime.date.today()
@@ -502,7 +539,7 @@ class PayrollSettingsForm(ModelForm):
 
 excel_columns = [
     ("employee_id", _("Employee")),
-    ("group_name", _("Batch")),
+    # ("group_name", _("Batch")), removed
     ("start_date", _("Start Date")),
     ("end_date", _("End Date")),
     ("contract_wage", _("Contract Wage")),
@@ -528,7 +565,7 @@ class PayslipExportColumnForm(forms.Form):
         widget=forms.CheckboxSelectMultiple,
         initial=[
             "employee_id",
-            "group_name",
+    # group_name initial removed
             "start_date",
             "end_date",
             "basic_pay",
@@ -801,7 +838,7 @@ class ReimbursementForm(ModelForm):
 
     cols = {"description": 12}
 
-    verbose_name = "Reimbursement / Encashment"
+    verbose_name = "Expense"
 
     class Meta:
         model = Reimbursement
@@ -856,16 +893,23 @@ class ReimbursementForm(ModelForm):
 
         self.setup_leave_fields()
 
-        self.fields["type"].widget.attrs["onchange"] = "toggleReimbursmentType($(this))"
+        # Expenses page is reimbursement-only: pin the type and hide the selector
+        # plus all encashment-only fields. Category is required for an expense.
+        self.fields["type"].initial = "reimbursement"
+        self.fields["type"].widget = forms.HiddenInput()
+        exclude_fields += ["leave_type_id", "cfd_to_encash", "ad_to_encash", "bonus_to_encash"]
+        if "category" in self.fields:
+            self.fields["category"].required = True
         self.fields["employee_id"].widget.attrs[
             "onchange"
         ] = "getAssignedLeave($(this))"
 
+        self.fields["allowance_on"].label = _("Date of expense")
         self.fields["allowance_on"].widget = forms.DateInput(
             attrs={"type": "date", "class": "oh-input w-100"}
         )
 
-        self.fields["attachment"] = MultipleFileField(label="Attachments")
+        self.fields["attachment"] = MultipleFileField(label=_("Receipt / Bill"))
         self.fields["attachment"].widget.attrs["accept"] = ".jpg, .jpeg, .png, .pdf"
 
         self.exclude_fields_by_type(exclude_fields)

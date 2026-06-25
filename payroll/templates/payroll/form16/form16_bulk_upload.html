@@ -1,0 +1,23 @@
+{% load i18n %}
+<div class="oh-modal__dialog oh-modal__dialog--time-off">
+    <div class="oh-modal__dialog-header">
+        <h2 class="oh-modal__dialog-title" id="createTitle">
+            {% trans "Bulk Upload Form 16 (ZIP)" %}
+        </h2>
+        <button type="button" class="oh-modal__close" aria-label="Close">
+            <ion-icon name="close-outline"></ion-icon>
+        </button>
+    </div>
+    <div class="oh-modal__dialog-body">
+        <form method="post" action="{% url 'form16-bulk-upload' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <div class="d-flex flex-row-reverse">
+                <button type="submit" class="oh-btn oh-btn--primary mt-2 w-100">
+                    <ion-icon name="cloud-upload-outline" class="mr-2"></ion-icon>
+                    {% trans "Start Bulk Upload" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

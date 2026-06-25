@@ -1,57 +1,146 @@
-{% load i18n %} {% load basefilters %}{% load widget_tweaks %}
+{% load i18n %}{% load static %}{% load widget_tweaks %}
 {{ form.non_field_errors }}
 
-<div class="row">
-    {% for field in form %}
-        {% if field.label != "Employee profile" and field.label != 'Country' and field.label != 'State' and field.label != 'Address' and field.label != 'Badge id' %}
-            <div class="col-lg-6">
-                <div class="oh-input__group">
-                    <label class="oh-label {% if field.field.required %}required-star{% endif %}" for="id_{{ field.name }}"
-                        title="{{ field.help_text }}">
-                        {% trans field.label %}
-                    </label>
+<div class="row g-3">
 
-                    {% if field.field.widget.input_type == 'checkbox' %}
-                        <div class="oh-switch" style="width: 30px;">{{ field|add_class:'oh-switch__checkbox' }}</div>
-                    {% else %}
-                        {{ field|add_class:'form-control' }}
-                    {% endif %}
+    {# 1. IFSC Code #}
+    <div class="col-lg-6">
+        <div class="oh-input__group">
+            <label class="oh-label {% if form.any_other_code1.field.required %}required-star{% endif %}" for="id_any_other_code1">
+                {% trans "IFSC Code" %}
+            </label>
+            {{ form.any_other_code1|add_class:"oh-input w-100" }}
+            {{ form.any_other_code1.errors }}
+        </div>
+    </div>
 
-                    {{ field.errors }}
-                </div>
-            </div>
-        {% elif field.label == 'Address' %}
-            <div class="col-lg-12">
-                <div class="oh-input__group">
-                    <label class="oh-label {% if field.field.required %}required-star{% endif %}" for="id_{{ field.name }}"
-                        title="{{ field.help_text }}">
-                        {% trans field.label %}
-                    </label>
-                    {{ field }}
-                    {{ field.errors }}
-                </div>
-            </div>
-        {% elif field.label == 'Country' %}
-            <div class="row">
-                <div class="col-lg-6">
-                    <label class="oh-label" for="country">{% trans "Country" %}</label>
-                    <select name="country" class="w-100 oh-select-2" id="country"
-                        data-selected="{{ form.country.value|default:'' }}">
-                        <option value="{{form.instance.country}}" selected>{{form.instance.country}}</option>
-                    </select>
-                    {{form.country.errors}}
-                    <span class="dropdown-wrapper" aria-hidden="true"></span>
-                    </span>
-                </div>
-                <div class="col-lg-6">
-                    <label class="oh-label d-block" for="state">{% trans "State" %}</label>
-                    <select name="state" class="w-100 oh-select-2" id="state" data-selected="{{ form.state.value|default:'' }}">
-                        <option value="{{form.instance.state}}" selected>{{form.instance.state}}</option>
+    {# 2. Account Name #}
+    <div class="col-lg-6">
+        <div class="oh-input__group">
+            <label class="oh-label {% if form.bank_name.field.required %}required-star{% endif %}" for="id_bank_name">
+                {% trans "Account Name" %}
+            </label>
+            {{ form.bank_name|add_class:"oh-input w-100" }}
+            {{ form.bank_name.errors }}
+        </div>
+    </div>
 
-                    </select>
-                    {{form.state.errors}}
-                </div>
-            </div>
-        {% endif %}
-    {% endfor %}
+    {# 3. Branch #}
+    <div class="col-lg-6">
+        <div class="oh-input__group">
+            <label class="oh-label {% if form.branch.field.required %}required-star{% endif %}" for="id_branch">
+                {% trans "Branch" %}
+            </label>
+            {{ form.branch|add_class:"oh-input w-100" }}
+            {{ form.branch.errors }}
+        </div>
+    </div>
+
+    {# 4. Account Type #}
+    <div class="col-lg-6">
+        <div class="oh-input__group">
+            <label class="oh-label {% if form.account_type.field.required %}required-star{% endif %}" for="id_account_type">
+                {% trans "Account Type" %}
+            </label>
+            {{ form.account_type|add_class:"oh-input w-100" }}
+            {{ form.account_type.errors }}
+        </div>
+    </div>
+
+    {# 5. Account Number #}
+    <div class="col-lg-6">
+        <div class="oh-input__group">
+            <label class="oh-label {% if form.account_number.field.required %}required-star{% endif %}" for="id_account_number">
+                {% trans "Account Number" %}
+            </label>
+            {{ form.account_number|add_class:"oh-input w-100" }}
+            {{ form.account_number.errors }}
+        </div>
+    </div>
+
+    {# 6. City #}
+    <div class="col-lg-6">
+        <div class="oh-input__group">
+            <label class="oh-label" for="id_city">
+                {% trans "City" %}
+            </label>
+            {{ form.city|add_class:"oh-input w-100" }}
+            {{ form.city.errors }}
+        </div>
+    </div>
+
+    {# 7. State #}
+    <div class="col-lg-6">
+        <div class="oh-input__group">
+            <label class="oh-label d-block" for="state">{% trans "State" %}</label>
+            <select name="state" class="w-100 oh-select-2" id="state"
+                data-selected="{{ form.state.value|default:'' }}">
+                <option value="{{ form.instance.state }}" selected>{{ form.instance.state }}</option>
+            </select>
+            {{ form.state.errors }}
+        </div>
+    </div>
+
+    {# 8. Country #}
+    <div class="col-lg-6">
+        <div class="oh-input__group">
+            <label class="oh-label" for="country">{% trans "Country" %}</label>
+            <select name="country" class="w-100 oh-select-2" id="country"
+                data-selected="{{ form.country.value|default:'' }}">
+                <option value="{{ form.instance.country }}" selected>{{ form.instance.country }}</option>
+            </select>
+            {{ form.country.errors }}
+        </div>
+    </div>
+
 </div>
+
+<script src="{% static '/index/country.js' %}"></script>
+<script>
+    $(document).ready(function() {
+        if (typeof initCountryStateDropdowns === 'function') {
+            initCountryStateDropdowns();
+        }
+    });
+
+    if (window.ifscFetchListenerInitialized === undefined) {
+        window.ifscFetchListenerInitialized = true;
+        $(document).on('input change', '#id_any_other_code1', function() {
+            var ifsc = $(this).val().trim().toUpperCase();
+            $(this).val(ifsc);
+            var ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+            if (ifscRegex.test(ifsc)) {
+                fetch('https://ifsc.razorpay.com/' + ifsc)
+                    .then(function(response) {
+                        if (response.ok) return response.json();
+                        throw new Error('IFSC not found');
+                    })
+                    .then(function(data) {
+                        if (data) {
+                            if ($('#id_bank_name').length) { $('#id_bank_name').val(data.BANK || '').trigger('change'); }
+                            if ($('#id_branch').length)    { $('#id_branch').val(data.BRANCH || '').trigger('change'); }
+                            if ($('#id_city').length)      { $('#id_city').val(data.CITY || '').trigger('change'); }
+                            var $country = $('#country');
+                            var $state   = $('#state');
+                            if ($country.length) {
+                                $country.val('India').trigger('change');
+                                if ($state.length && data.STATE) {
+                                    setTimeout(function() {
+                                        var stateToFind = data.STATE.trim().toUpperCase();
+                                        $state.find('option').each(function() {
+                                            if ($(this).text().trim().toUpperCase() === stateToFind) {
+                                                $state.val($(this).val()).trigger('change');
+                                                return false;
+                                            }
+                                        });
+                                    }, 600);
+                                }
+                            }
+                        }
+                    })
+                    .catch(function(error) { console.error('IFSC fetch error:', error); });
+            }
+        });
+    }
+</script>
+

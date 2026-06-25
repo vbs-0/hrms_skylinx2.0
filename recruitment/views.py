@@ -958,7 +958,9 @@ def candidate_view(request):
     This method render all candidate to the template
     """
     previous_data = request.environ["QUERY_STRING"]
-    candidates = Candidate.objects.filter(is_active=True)
+    candidates = Candidate.objects.select_related(
+        "recruitment_id", "job_position_id", "stage_id"
+    ).filter(is_active=True)
     filter_obj = CandidateFilter(queryset=candidates)
     return render(
         request,
@@ -979,7 +981,9 @@ def candidate_filter_view(request):
     """
     previous_data = request.environ["QUERY_STRING"]
     filter_obj = CandidateFilter(
-        request.GET, queryset=Candidate.objects.filter(is_active=True)
+        request.GET, queryset=Candidate.objects.select_related(
+            "recruitment_id", "job_position_id", "stage_id"
+        ).filter(is_active=True)
     )
     paginator = Paginator(filter_obj.qs, 24)
     page_number = request.GET.get("page")
@@ -1001,7 +1005,9 @@ def candidate_search(request):
     search = request.GET.get("search")
     if search is None:
         search = ""
-    candidates = Candidate.objects.filter(name__icontains=search)
+    candidates = Candidate.objects.select_related(
+        "recruitment_id", "job_position_id", "stage_id"
+    ).filter(name__icontains=search)
     candidates = CandidateFilter(request.GET, queryset=candidates).qs
     template = "candidate/candidate_card.html"
     if request.GET.get("view") == "list":
@@ -1018,7 +1024,9 @@ def candidate_view_list(request):
     This method renders all candidate on candidate_list.html template
     """
     previous_data = request.environ["QUERY_STRING"]
-    candidates = Candidate.objects.all()
+    candidates = Candidate.objects.select_related(
+        "recruitment_id", "job_position_id", "stage_id"
+    ).all()
     if request.GET.get("is_active") is None:
         candidates = candidates.filter(is_active=True)
     candidates = CandidateFilter(request.GET, queryset=candidates).qs
@@ -1039,7 +1047,9 @@ def candidate_view_card(request):
     This method renders all candidate on candidate_card.html template
     """
     previous_data = request.environ["QUERY_STRING"]
-    candidates = Candidate.objects.all()
+    candidates = Candidate.objects.select_related(
+        "recruitment_id", "job_position_id", "stage_id"
+    ).all()
     if request.GET.get("is_active") is None:
         candidates = candidates.filter(is_active=True)
     candidates = CandidateFilter(request.GET, queryset=candidates).qs

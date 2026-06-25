@@ -275,7 +275,7 @@
 <!-- end of holiday export modal -->
 <!-- end of modals -->
 <script>
-  $(document).on("htmx:load", "#holidays", function () {
+  $(document).off("htmx:load.leave_holiday_holiday_view").on("htmx:load.leave_holiday_holiday_view", "#holidays", function () {
     // Create a new script element
     var scriptElement = document.createElement("script");
     // Set the source URL of the script file to be loaded

@@ -1005,6 +1005,9 @@ def ticket_individual_view(request, ticket_id):
             request, message=_("No Ticket found matching the query.")
         )
 
+    if not can_access_ticket(request, ticket):
+        return handle_no_permission(request)
+
     context = {
         "ticket": ticket,
     }
@@ -1209,7 +1212,6 @@ def can_access_ticket(request, ticket):
 
 @login_required
 @hx_request_required
-@ticket_owner_can_enter(perm="helpdesk.view_ticket", model=Ticket)
 def view_ticket_document(request, doc_id):
     """
     This function used to view the uploaded document in the modal.
@@ -1258,7 +1260,6 @@ def view_ticket_document(request, doc_id):
 
 @login_required
 @hx_request_required
-@ticket_owner_can_enter(perm="helpdesk.view_ticket", model=Ticket)
 def delete_ticket_document(request, doc_id):
     """
     This function used to delete the uploaded document in the modal.

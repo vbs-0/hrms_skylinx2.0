@@ -34,11 +34,11 @@ def process_attendance_data(attendance_dicts):
     today = datetime.today().date()
 
     # Cache all necessary data in bulk to reduce DB hits
-    badge_ids = [d["Badge ID"] for d in attendance_dicts]
+    badge_ids = [d["Employee ID"] for d in attendance_dicts]
     employees = {
         emp.badge_id: emp
         for emp in Employee.objects.filter(
-            badge_id__in=[d["Badge ID"] for d in attendance_dicts], is_active=True
+            badge_id__in=[d["Employee ID"] for d in attendance_dicts], is_active=True
         )
     }
     shifts = {shift.employee_shift: shift for shift in EmployeeShift.objects.all()}
@@ -53,7 +53,7 @@ def process_attendance_data(attendance_dicts):
     for attendance_data in attendance_dicts:
         save = True
         try:
-            badge_id = attendance_data["Badge ID"]
+            badge_id = attendance_data["Employee ID"]
             shift_id = attendance_data["Shift"]
             work_type_id = attendance_data["Work type"]
 
@@ -132,7 +132,7 @@ def process_attendance_data(attendance_dicts):
                 save = False
 
             if employee is None or not employee.is_active:
-                attendance_data["Badge ID Error"] = f"Invalid Badge ID given {badge_id}"
+                attendance_data["Employee ID Error"] = f"Invalid Employee ID given {badge_id}"
                 save = False
 
             if shift is None:

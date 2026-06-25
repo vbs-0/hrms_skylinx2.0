@@ -25,24 +25,6 @@
                     </div>
                 </div>
             </li>
-            <li class="oh-tabs__tab oh-tabs__tab" data-target="#tab_3">
-                {% trans "OT Attendances" %}
-                <div class="oh-dropdown float-end" x-data="{open: false}">
-                    <button class="oh-btn oh-stop-prop oh-btn--transparent oh-accordion-meta__btn" @click="open = !open"
-                        @click.outside="open = false" title='{% trans "Actions" %}'>
-                        <ion-icon name="ellipsis-vertical"></ion-icon>
-                    </button>
-                    <div class="oh-dropdown__menu oh-dropdown__menu--right" x-show="open" style="display: none">
-                        <ul class="oh-dropdown__items">
-                            {% if perms.attendance.change_attendance or request.user|is_reportingmanager %}
-                                <li class="oh-dropdown__item">
-                                    <a href="#" id="approveOt" class="oh-dropdown__link">{% trans "Approve OT" %}</a>
-                                </li>
-                            {% endif %}
-                        </ul>
-                    </div>
-                </div>
-            </li>
             <li class="oh-tabs__tab" data-target="#tab_2">
                 {% trans "Validated Attendances" %}
             </li>

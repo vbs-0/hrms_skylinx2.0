@@ -1,0 +1,14 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% block content %}
+<div class="oh-wrapper">
+  <div class="bg-white rounded-md shadow-card p-10 text-center max-w-lg mx-auto mt-10">
+    <ion-icon name="lock-closed-outline" class="text-5xl text-red-500"></ion-icon>
+    <h1 class="text-xl font-semibold mt-4">{% trans "Subscription inactive" %}</h1>
+    <p class="text-gray-500 mt-2">
+      {% trans "Your subscription is not active (expired, suspended or cancelled)." %}
+      {% trans "Please contact your administrator to renew access." %}
+    </p>
+  </div>
+</div>
+{% endblock %}

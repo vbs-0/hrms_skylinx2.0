@@ -47,10 +47,10 @@ class PayslipView(TemplateView):
         form = forms.GeneratePayslipForm()
         individual_form = forms.PayslipForm()
         bulk_form = forms.GeneratePayslipForm()
-        group_name = form["group_name"]
+        # group_name removed
         context = super().get_context_data(**kwargs)
         context["individual_form"] = individual_form
-        context["group_name"] = group_name
+        # context["group_name"] = group_name
         context["bulk_form"] = bulk_form
         return context
 
@@ -90,11 +90,21 @@ class PayslipList(SkylinxListView):
         (_("Employee"), "employee_id", "employee_id__get_avatar"),
         (_("Start date"), "start_date"),
         (_("End Date"), "end_date"),
-        (_("Batch"), "group_name"),
+        # (_("Batch"), "group_name"), removed
         (_("Gross Pay"), "gross_pay_display"),
         (_("Deduction"), "deduction_display"),
         (_("Net Pay"), "net_pay_display"),
         (_("Status"), "custom_status_col"),
+    ]
+    export_columns = [
+        (_("Employee"), "employee_id", "employee_id__get_avatar"),
+        (_("Start date"), "start_date"),
+        (_("End Date"), "end_date"),
+        # (_("Batch"), "group_name"), removed
+        (_("Gross Pay"), "gross_pay_text"),
+        (_("Deduction"), "deduction_text"),
+        (_("Net Pay"), "net_pay_text"),
+        (_("Status"), "get_status_display"),
     ]
 
     sortby_mapping = [
@@ -191,6 +201,7 @@ class PayslipNav(SkylinxNavView):
                 hx-get="{reverse('payroll-create-form-view')}"
                 hx-target="#genericModalBody"
             """
+            self.create_label = _("Generate")
 
             self.actions = [
                 {
@@ -249,7 +260,7 @@ class PayslipNav(SkylinxNavView):
 
     group_by_fields = [
         ("employee_id", _("Employee")),
-        ("group_name", _("Pay Slip Batch")),
+        # ("group_name", _("Pay Slip Batch")), removed
         ("start_date", _("Start date")),
         ("end_date", _("End Date")),
         ("basic_pay", _("Basic Pay")),
@@ -281,7 +292,7 @@ class PayslipBulkExport(TemplateView):
             Dict[str, Any]: Updated context dictionary containing export form and filter.
         """
         payslip = Payslip.objects.all()
-        export_column = forms.PayslipExportColumnForm
+        export_column = forms.PayslipExportColumnForm()
         export_filter = PayslipFilter(queryset=payslip)
         context = super().get_context_data(**kwargs)
         context["export_column"] = export_column

@@ -606,7 +606,7 @@ class CandidateList(SkylinxListView):
                    data-target="#genericModal"
                    class="oh-hover-btn__small"
                    style="
-                   border:1px hsl(8,77%,56%) solid;
+                   border:1px hsl(204,73%,43%) solid;
                    "
                    title="{_('Edit')}"
                    >
@@ -619,7 +619,7 @@ class CandidateList(SkylinxListView):
                     data-toggle="oh-modal-toggle"
                     class="oh-hover-btn__small"
                     style="
-                    border:1px hsl(8,77%,56%) solid;
+                    border:1px hsl(204,73%,43%) solid;
                     "
                     title="{_('Delete')}"
 

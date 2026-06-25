@@ -1,0 +1,13 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% block content %}
+<div class="oh-wrapper">
+  <div class="bg-white rounded-md shadow-card p-10 text-center max-w-lg mx-auto mt-10">
+    <ion-icon name="sparkles-outline" class="text-5xl text-primary-500"></ion-icon>
+    <h1 class="text-xl font-semibold mt-4">{{ feature_label }} — {% trans "not in your plan" %}</h1>
+    <p class="text-gray-500 mt-2">
+      {% trans "This module isn't included in your current subscription. Upgrade your plan to unlock it." %}
+    </p>
+  </div>
+</div>
+{% endblock %}

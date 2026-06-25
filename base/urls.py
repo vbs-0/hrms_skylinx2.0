@@ -1,6 +1,7 @@
 from django.contrib.auth.models import Group
 from django.urls import path, re_path
 from django.utils.translation import gettext_lazy as _
+from django.views.generic import TemplateView
 
 from base import announcement
 from base import dashboard as dashboard_module
@@ -66,7 +67,53 @@ from skylinx_audit.models import AuditTag
 
 urlpatterns = [
     path("", views.home, name="home-page"),
+    path("terms/", views.terms_and_conditions, name="terms-view"),
+    path("privacy-policy/", TemplateView.as_view(template_name="legal/privacy_policy.html"), name="privacy-policy"),
+    path("terms-and-conditions/", TemplateView.as_view(template_name="legal/terms_and_conditions.html"), name="terms-and-conditions"),
+    path("user-agreement/", TemplateView.as_view(template_name="legal/user_agreement.html"), name="user-agreement"),
+    path(
+        "get-home-logo-card/",
+        views.get_home_logo_card,
+        name="get-home-logo-card",
+    ),
+    path(
+        "edit-home-logo-card/",
+        views.edit_home_logo_card,
+        name="edit-home-logo-card",
+    ),
+    path(
+        "edit-home-logo-card-image/",
+        views.edit_home_logo_card_image,
+        name="edit-home-logo-card-image",
+    ),
+    path(
+        "get-home-announcement/",
+        views.get_home_announcement,
+        name="get-home-announcement",
+    ),
+    path(
+        "edit-home-announcement/",
+        views.edit_home_announcement,
+        name="edit-home-announcement",
+    ),
+    path("global-search/", views.global_search, name="global-search"),
+    path("api/ifsc-lookup/", views.ifsc_lookup, name="ifsc-lookup"),
     path("dashboard/", dashboard_module.main_dashboard_view, name="dashboard"),
+    path(
+        "dashboard/api/projects/",
+        dashboard_module.dashboard_project_status,
+        name="dashboard-project-status",
+    ),
+    path(
+        "dashboard/api/tickets/",
+        dashboard_module.dashboard_ticket_status,
+        name="dashboard-ticket-status",
+    ),
+    path(
+        "dashboard/api/assets/",
+        dashboard_module.dashboard_asset_status,
+        name="dashboard-asset-status",
+    ),
     path(
         "dashboard/api/kpi/",
         dashboard_module.dashboard_kpi_data,
@@ -323,11 +370,13 @@ urlpatterns = [
         name="employee-reset-password",
     ),
     path("reset-send-success/", views.reset_send_success, name="reset-send-success"),
+    path("password-reset-otp/", views.password_reset_otp, name="password-reset-otp"),
     path("change-password/", views.change_password, name="change-password"),
     path("change-username/", views.change_username, name="change-username"),
     path("two-factor/", views.two_factor_auth, name="two-factor"),
     path("send-otp/", views.send_otp, name="send-otp"),
     path("logout/", views.logout_user, name="logout"),
+    path("check-terms/", views.check_terms_acceptance, name="check-terms"),
     path("toggle-theme/", views.toggle_theme, name="toggle_theme"),
     # path("settings/", views.common_settings, name="settings"),
     path("settings/", views.SettingsView.as_view(), name="settings"),
@@ -335,8 +384,19 @@ urlpatterns = [
         "settings/user-group-create/", views.user_group_table, name="user-group-create"
     ),
     path("settings/user-group-view/", views.user_group, name="user-group-view"),
+    path("settings/roles/", views.roles_page, name="roles-page"),
     path(
         "settings/user-group-search/", views.user_group_search, name="user-group-search"
+    ),
+    path(
+        "settings/group-permissions-table-view/<int:group_id>/",
+        views.group_permissions_table_view,
+        name="group-permissions-table-view",
+    ),
+    path(
+        "settings/user-permission-table-view/<int:emp_id>/",
+        views.user_permission_table_view,
+        name="user-permission-table-view",
     ),
     path(
         "user-group-delete/<int:obj_id>/",
@@ -1226,7 +1286,8 @@ urlpatterns = [
         views.shift_request_bulk_delete,
         name="shift-request-bulk-delete",
     ),
-    path("notifications/", views.notifications, name="notifications"),
+    path("notifications/", views.notifications_page, name="notifications"),
+    path("notifications-partial/", views.notifications, name="notifications-partial"),
     path("clear-notifications/", views.clear_notification, name="clear-notifications"),
     path(
         "delete-all-notifications/",
@@ -1766,6 +1827,11 @@ urlpatterns = [
         views.holiday_select_filter,
         name="holiday-select-filter",
     ),
+    path(
+        "holiday-calendar/",
+        views.holiday_calendar_view,
+        name="holiday-calendar-view",
+    ),
     # path(
     #     "company-leave-creation",
     #     views.company_leave_creation,
@@ -1898,3 +1964,4 @@ urlpatterns = [
 urlpatterns.append(
     re_path(r"^media/(?P<path>.*)$", views.protected_media, name="protected_media"),
 )
+

@@ -47,7 +47,7 @@ _VIEW_SKIP_KEYS = frozenset(
 
 class SkylinxViewInheritMixin:
     """
-    Mixin that enables _inherit on Skylinx CBV extension classes.
+    Mixin that enables _inherit on EMPLINX CBV extension classes.
 
     Include as the first base alongside the target view class.
     The target view's own metaclass is inherited from the second base,

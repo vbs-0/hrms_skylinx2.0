@@ -1,5 +1,5 @@
 """
-This module provides Skylinx ModelForms for creating and managing leave-related data,
+This module provides EMPLINX ModelForms for creating and managing leave-related data,
 including leave type, leave request, leave allocation request, holidays and company leaves.
 """
 
@@ -18,6 +18,7 @@ from django.utils.translation import gettext_lazy as _
 
 from base.forms import ModelForm as BaseModelForm
 from base.methods import filtersubordinatesemployeemodel, reload_queryset
+from base.rbac import current_company
 from base.models import CompanyLeaves, Holidays
 from employee.filters import EmployeeFilter
 from employee.forms import MultipleFileField
@@ -170,7 +171,7 @@ class LeaveTypeAdminForm(forms.ModelForm):
 class LeaveTypeForm(ConditionForm):
 
     employee_id = SkylinxMultiSelectField(
-        queryset=Employee.objects.all(),
+        queryset=Employee.objects.none(),
         widget=SkylinxMultiSelectWidget(
             filter_route_name="employee-widget-filter",
             filter_class=EmployeeFilter,
@@ -249,6 +250,12 @@ class LeaveTypeForm(ConditionForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        request = getattr(_thread_locals, "request", None)
+        company = current_company(request) if request else None
+        employee_qs = Employee.objects.all()
+        if company:
+            employee_qs = employee_qs.filter(employee_work_info__company_id=company)
+        self.fields["employee_id"].queryset = employee_qs
         self.fields["payment_percentage"].required = False
 
 

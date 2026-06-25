@@ -103,7 +103,7 @@ class LeaveMailSendThread(Thread):
 
             email.attach_alternative(html_message, "text/html")
 
-            # Attach company logo inline, fall back to static Skylinx logo if file missing
+            # Attach company logo inline, fall back to static EMPLINX logo if file missing
             if company and company.icon and os.path.exists(company.icon.path):
                 image_path = company.icon.path
             else:

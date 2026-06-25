@@ -35,11 +35,26 @@ class PolicyFormView(SkylinxFormView):
 
     def form_valid(self, form: PolicyForm) -> HttpResponse:
         if form.is_valid():
+            is_new = form.instance.pk is None
             if form.instance.pk:
                 message = _("Policy saved")
             else:
                 message = _("Policy updated")
-            form.save()
+            policy = form.save()
+            if is_new:
+                from base.models import Company
+                selected_company = self.request.session.get("selected_company")
+                company = None
+                if selected_company and selected_company != "all":
+                    company = Company.objects.filter(id=selected_company).first()
+                if not company and hasattr(self.request.user, "employee_get") and self.request.user.employee_get:
+                    work_info = getattr(self.request.user.employee_get, "employee_work_info", None)
+                    if work_info:
+                        company = work_info.company_id
+                if not company:
+                    company = Company.objects.first()
+                if company:
+                    policy.company_id.add(company)
             messages.success(self.request, _(message))
             return self.HttpResponse(targets_to_reload=["#policyContainerReload"])
 
@@ -56,11 +71,14 @@ class PoliciesNav(SkylinxNavView):
     search_url = reverse_lazy("search-policies")
     search_swap_target = "#policyContainer"
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.create_attrs = f"""
-            data-toggle="oh-modal-toggle"
-            data-target="#genericModal"
-            hx-get="{reverse_lazy('create-policy')}"
-            hx-target="#genericModalBody"
-        """
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.has_perm("employee.add_policy"):
+            self.create_attrs = ""
+        else:
+            self.create_attrs = f"""
+                data-toggle="oh-modal-toggle"
+                data-target="#genericModal"
+                hx-get="{reverse_lazy('create-policy')}"
+                hx-target="#genericModalBody"
+            """
+        return super().dispatch(request, *args, **kwargs)

@@ -23,9 +23,11 @@ def get_skylinx_model_class(app_label, model):
         Model: The Django model class corresponding to the specified app label and model name.
 
     """
-    content_type = ContentType.objects.get(app_label=app_label, model=model)
-    model_class = content_type.model_class()
-    return model_class
+    # ponytail: was a ContentType DB query on every call (hot path); the apps
+    # registry resolves the same class in-memory, no DB hit.
+    from django.apps import apps
+
+    return apps.get_model(app_label, model)
 
 
 def dynamic_attr(obj, attribute_path):

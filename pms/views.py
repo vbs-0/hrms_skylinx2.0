@@ -2147,6 +2147,10 @@ def feedback_detailed_view_status(request, id):
     """
     status = request.POST.get("feedback_status")
     feedback = get_object_or_404(Feedback, id=id)
+    if not check_permission_feedback_detailed_view(
+        request, feedback, "pms.change_feedback"
+    ):
+        return render(request, "no_perm.html")
     answer = Answer.objects.filter(feedback_id=feedback)
     if status == "Not Started" and answer:
         messages.warning(request, _("Feedback is already started"))
@@ -3970,6 +3974,15 @@ def meeting_single_view(request, id):
         return SkylinxRedirect(
             request, message=_("No Meetings found matching the query.")
         )
+
+    employee = request.user.employee_get
+    is_participant = (
+        meeting.employee_id.filter(id=employee.id).exists()
+        or meeting.manager.filter(id=employee.id).exists()
+        or meeting.answer_employees.filter(id=employee.id).exists()
+    )
+    if not (request.user.has_perm("pms.view_meetings") or is_participant):
+        return render(request, "no_perm.html")
 
     context = {"meeting": meeting}
     requests_ids_json = request.GET.get("requests_ids")

@@ -66,23 +66,23 @@
             .select2-container--default
             .select2-selection--multiple
             .select2-selection__choice {
-                background-color: {{ theme.primary_600|default:"#E54F38" }};
+                background-color: {{ theme.primary_600|default:"#1C75BC" }};
             }
 
             .oh-titlebar__tag--custom{
-                background-color: {{ theme.primary_600|default:"#E54F38" }} !important;
+                background-color: {{ theme.primary_600|default:"#1C75BC" }} !important;
                 color: {{theme_obj.secondary_100|default:"#F0F0F0"}} !important;
             }
 
             .usertablist li button.active,
             .usertablist li button:hover{
-                border: 1px solid {{ theme_obj.primary_600|default:"#E54F38" }};
+                border: 1px solid {{ theme_obj.primary_600|default:"#1C75BC" }};
             }
 
             .myform input:focus, .myform select:focus, .myform textarea:focus,
             .oh-input:focus, .oh-input:focus-visible, .oh-select:focus, .oh-select:focus-visible
             {
-                border: 1px solid {{ theme_obj.primary_600|default:"#E54F38" }} !important;
+                border: 1px solid {{ theme_obj.primary_600|default:"#1C75BC" }} !important;
             }
 
             {% comment %} .oh-activity-sidebar {
@@ -95,25 +95,25 @@
             .oh-btn--secondary:focus-visible,
             .oh-switch .oh-switch__checkbox:checked:hover
             {
-                background-color: {{ theme_obj.primary_800 | default:"#AC3B2A" }};
+                background-color: {{ theme_obj.primary_800 | default:"#1C3D6E" }};
             }
 
             /* Primary 300 background */
             .sidebox ul li a:after,
             .sidebox ul li a:hover,
             .oh-accordion-header:hover {
-                background-color: {{ theme.primary_300|default:"#FCEDEB" }};
+                background-color: {{ theme.primary_300|default:"#BFDBFE" }};
             }
 
             /* Accordion base */
             .oh-accordion-header {
-                background-color: {{ theme.primary_200|default:"#FEF6F5" }};
-                color: {{ theme.primary_600|default:"#E54F38" }};
+                background-color: {{ theme.primary_200|default:"#DBEAFE" }};
+                color: {{ theme.primary_600|default:"#1C75BC" }};
             }
 
             .oh-tabs__movable-header,
             .oh-tabs__movable:hover {
-                background-color: {{ theme.primary_100|default:"#FEF6F5" }};
+                background-color: {{ theme.primary_100|default:"#DBEAFE" }};
             }
 
             /* Text color */
@@ -121,7 +121,91 @@
             .sidebox ul li a:hover,
             .breadcrumb li:last-child,
             .breadcrumb li a:hover {
-                color: {{ theme.primary_600|default:"#E54F38" }};
+                color: {{ theme.primary_600|default:"#1C75BC" }};
+            }
+
+            /* Submodule Toolbar Active Tab */
+            .submodule-tab-active {
+                background-color: {{ theme.primary_600|default:"#1C75BC" }} !important;
+                color: #ffffff !important;
+            }
+
+            /* Sidebar: hidden by default, full panel via hamburger only */
+            #sidebar {
+                width: 260px !important;
+                transform: translateX(-100%);
+                transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+                pointer-events: none;
+            }
+            #main-content-wrapper {
+                margin-left: 0 !important;
+                transition: margin-left 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+            }
+            #header > div,
+            #submodules-toolbar {
+                width: 100% !important;
+                left: 0 !important;
+                right: 0 !important;
+                transition: width 0.22s cubic-bezier(0.22, 1, 0.36, 1), left 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+            }
+            #header > div > div.flex.items-center.gap-3 {
+                padding-left: 0 !important;
+            }
+            body.sidebar-toggled #sidebarToggle {
+                display: none !important;
+            }
+            body.dark #submodules-toolbar {
+                background-color: #000000 !important;
+            }
+
+            /* Labels & header only when sidebar is open */
+            #sidebar .sidebar-top-header {
+                display: none !important;
+            }
+            .sidebar-text {
+                display: none !important;
+                opacity: 0;
+            }
+
+            body.sidebar-toggled #sidebar {
+                transform: translateX(0) !important;
+                pointer-events: auto;
+                box-shadow: 10px 0 35px -5px rgba(15, 23, 42, 0.2);
+            }
+            /* Don't push main content, just hover */
+            body.sidebar-toggled #main-content-wrapper {
+                margin-left: 0 !important;
+            }
+            body.sidebar-toggled #header > div,
+            body.sidebar-toggled #submodules-toolbar {
+                width: 100% !important;
+                left: 0 !important;
+            }
+            body.sidebar-toggled #sidebar .sidebar-top-header {
+                display: flex !important;
+            }
+            body.sidebar-toggled .sidebar-text {
+                display: inline-block !important;
+                animation: fadeInText 0.2s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both;
+            }
+            body.sidebar-toggled #sidebarSharedPanel {
+                left: 259px !important;
+            }
+            /* Add an overlay when sidebar is open for better UX */
+            body.sidebar-toggled::before {
+                content: "";
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.15);
+                z-index: 35;
+            }
+
+            @keyframes fadeInText {
+                0% { opacity: 0; transform: translateX(-6px); }
+                100% { opacity: 1; transform: translateX(0); }
             }
         </style>
         {% endwith %}
@@ -137,23 +221,56 @@
         <div hidden id="statiUrl" data-url='{% static "" %}'></div>
         <span hidden id="whiteLabelCompany" data-company = '{{ white_label_company_name }}'></span>
         <!-- Include Sidebar -->
-        <div id="sidebar">
+        <div>
             {% include "skylinx_theme/components/sidebar.html" %}
         </div>
 
-        <div id="floating-buttons">
-            {% include "floating_button.html" %}
-        </div>
-
         <!-- Main Content -->
-        <div class="ml-[4.7rem] h-screen overflow-auto">
+        <div id="main-content-wrapper" class="h-screen overflow-auto">
             <div>
                 <!-- Include Header -->
                 <div id="header">
                     {% include "skylinx_theme/components/header.html" %}
                 </div>
 
+                <!-- Submodules Toolbar -->
+                <div id="submodules-toolbar" class="fixed z-30 bg-[#f8fafc] dark:bg-black border-b border-b-dark-50 px-6 py-2 flex items-center gap-2 overflow-x-auto scrollbar-none" style="top: 73px; height: 48px; display: none;">
+                    <div id="submodules-toolbar-links" class="flex items-center gap-2"></div>
+                </div>
+
                 <div id="ohMainContent" class="p-6 pt-24">
+                    {% if request.user.is_superuser or perms.subscriptions.change_subscription or perms.base.change_company %}
+                    {% if trial_days_left is not None and trial_days_left <= 7 %}
+                    <div class="mb-4 rounded-md px-4 py-3 text-sm flex items-center justify-between
+                                {% if trial_days_left <= 2 %}bg-red-50 text-red-700 border border-red-200
+                                {% else %}bg-amber-50 text-amber-800 border border-amber-200{% endif %}">
+                      <span>
+                        {% if trial_days_left <= 0 %}
+                          Your free trial has ended. Choose a plan to keep using your account.
+                        {% else %}
+                          Your free trial ends in <strong>{{ trial_days_left }}</strong> day{{ trial_days_left|pluralize }}.
+                        {% endif %}
+                      </span>
+                      <a href="{% url 'subscription-plans' %}" class="ml-4 px-3 py-1.5 rounded bg-primary-600 text-white whitespace-nowrap">Choose a plan</a>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                    {% if request.user.is_superuser or perms.subscriptions.change_subscription or perms.base.change_company %}
+                    {% if seat_limit is not None and seat_left <= 3 %}
+                    <div class="mb-4 rounded-md px-4 py-3 text-sm flex items-center justify-between
+                                {% if seat_left <= 0 %}bg-red-50 text-red-700 border border-red-200
+                                {% else %}bg-amber-50 text-amber-800 border border-amber-200{% endif %}">
+                      <span>
+                        {% if seat_left <= 0 %}
+                          You've used all <strong>{{ seat_limit }}</strong> employee seats on your plan. Upgrade to add more.
+                        {% else %}
+                          <strong>{{ seat_used }}/{{ seat_limit }}</strong> employee seats used — only {{ seat_left }} left.
+                        {% endif %}
+                      </span>
+                      <a href="{% url 'subscription-plans' %}" class="ml-4 px-3 py-1.5 rounded bg-primary-600 text-white whitespace-nowrap">Upgrade plan</a>
+                    </div>
+                    {% endif %}
+                    {% endif %}
                     {% block content %}
                         {% include "skylinx_theme/components/dashboard.html" %}
                     {% endblock %}

@@ -145,7 +145,7 @@
   }
 
   /* Delete / approve / reject swap #listContainer from the server; refresh flash messages after. */
-  document.body.addEventListener("htmx:afterSwap", function (ev) {
+  window.oneListener(document.body, "htmx:afterSwap", function (ev) {
     var lc = document.getElementById("listContainer");
     var t = ev.detail && ev.detail.target;
     if (!lc || !t) return;
@@ -155,7 +155,7 @@
     });
     var mbtn = document.getElementById("reloadMessagesButton");
     if (mbtn) mbtn.click();
-  });
+  }, "resignationAfterSwap");
   </script>
 
 {% endblock %}

@@ -20,6 +20,26 @@ class BaseConfig(AppConfig):
         super().ready()
         check_for_no_permissions_models()
 
+        # Show tenant-scoped group names without their `c<id>::` storage prefix.
+        from django.contrib.auth.models import Group
+
+        from base.rbac import strip_name
+
+        Group.add_to_class("__str__", lambda self: strip_name(self.name))
+        Group.add_to_class(
+            "display_name", property(lambda self: strip_name(self.name))
+        )
+
+        # Owning company name (for the owner's all-tenants group list), or None
+        # for global groups. hasattr safely returns False when no CompanyGroup
+        # link exists (the reverse-O2O exception subclasses AttributeError).
+        def _company_name(self):
+            if hasattr(self, "company_link") and self.company_link.company_id:
+                return self.company_link.company.company
+            return None
+
+        Group.add_to_class("company_name", property(_company_name))
+
 
 def check_for_no_permissions_models():
 

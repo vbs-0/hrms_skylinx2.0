@@ -709,6 +709,9 @@ function populateStates(countryElementId, stateElementId) {
             stateEl.options[stateEl.length] = option;
         }
     }
+    if (typeof $ !== 'undefined' && $(stateEl).data('select2')) {
+        $(stateEl).trigger('change');
+    }
 }
 
 
@@ -724,22 +727,34 @@ function populateCountries(countryElementId, stateElementId) {
 
     for (var i = 0; i < country_arr.length; i++) {
         let country = country_arr[i].replace(/'/g, '`');
-        let option = new Option(country_arr[i], country);
+        let option = new Option(country, country);
         if (selectedCountry && selectedCountry === country) {
             option.selected = true;
         }
         countryEl.options[countryEl.length] = option;
     }
-    // # 913
-    countryEl.onchange = function () {
-        let selectedValue = this.value;
-        this.setAttribute("data-selected", selectedValue);
+
+    var changeHandler = function () {
+        let selectedValue = countryEl.value;
+        countryEl.setAttribute("data-selected", selectedValue);
+        if (stateEl) {
+            populateStates(countryElementId, stateElementId);
+            if (typeof $ !== 'undefined' && $(stateEl).data('select2')) {
+                $(stateEl).trigger('change');
+            }
+        }
     };
+
+    countryEl.onchange = changeHandler;
+    if (typeof $ !== 'undefined') {
+        $(countryEl).off('change.countryjs').on('change.countryjs', changeHandler);
+    }
+
     if (stateEl) {
         populateStates(countryElementId, stateElementId);
-        countryEl.onchange = function () {
-            populateStates(countryElementId, stateElementId);
-        };
+    }
+    if (typeof $ !== 'undefined' && $(countryEl).data('select2')) {
+        $(countryEl).trigger('change');
     }
 }
 

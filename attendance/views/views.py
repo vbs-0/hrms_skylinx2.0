@@ -101,6 +101,7 @@ from attendance.views.handle_attendance_errors import handle_attendance_errors
 from attendance.views.process_attendance_data import process_attendance_data
 from base.forms import AttendanceAllowedIPForm, TrackLateComeEarlyOutForm
 from base.methods import (
+    check_manager,
     choosesubordinates,
     closest_numbers,
     eval_validate,
@@ -244,7 +245,7 @@ def attendance_excel(_request):
     """
     try:
         columns = [
-            "Badge ID",
+            "Employee ID",
             "Shift",
             "Work type",
             "Attendance date",
@@ -340,10 +341,22 @@ def attendance_view(request):
     minot = strtime_seconds("00:00")
     if condition is not None and condition.minimum_overtime_to_approve is not None:
         minot = strtime_seconds(condition.minimum_overtime_to_approve)
-    validate_attendances = Attendance.objects.filter(
+    validate_attendances = Attendance.objects.select_related(
+        "employee_id",
+        "employee_id__employee_work_info",
+        "employee_id__employee_work_info__department_id",
+        "employee_id__employee_work_info__job_position_id",
+        "employee_id__employee_work_info__job_position_id__department_id"
+    ).filter(
         attendance_validated=False, employee_id__is_active=True
     )
-    attendances = Attendance.objects.filter(
+    attendances = Attendance.objects.select_related(
+        "employee_id",
+        "employee_id__employee_work_info",
+        "employee_id__employee_work_info__department_id",
+        "employee_id__employee_work_info__job_position_id",
+        "employee_id__employee_work_info__job_position_id__department_id"
+    ).filter(
         attendance_validated=True, employee_id__is_active=True
     )
     # ot_attendances = Attendance.objects.filter(
@@ -353,7 +366,13 @@ def attendance_view(request):
     # )
     # for attendance in ot_attendances:
     #     attendance.min_ot_achieved = True
-    ot_attendances = Attendance.objects.filter(
+    ot_attendances = Attendance.objects.select_related(
+        "employee_id",
+        "employee_id__employee_work_info",
+        "employee_id__employee_work_info__department_id",
+        "employee_id__employee_work_info__job_position_id",
+        "employee_id__employee_work_info__job_position_id__department_id"
+    ).filter(
         overtime_second__gt=0,
         attendance_validated=True,
         employee_id__is_active=True,
@@ -868,6 +887,15 @@ def activity_single_view(request, obj_id):
     previous_data = request_copy.urlencode()
     activity = AttendanceActivity.objects.filter(id=obj_id).first()
 
+    if activity:
+        employee = activity.employee_id
+        if not (
+            request.user.has_perm("attendance.view_attendanceactivity")
+            or employee == request.user.employee_get
+            or check_manager(request.user.employee_get, employee)
+        ):
+            return render(request, "no_perm.html")
+
     instance_ids_json = request.GET["instances_ids"]
     instance_ids = json.loads(instance_ids_json) if instance_ids_json else []
     previous_instance, next_instance = closest_numbers(instance_ids, obj_id)
@@ -940,19 +968,19 @@ def attendance_activity_bulk_delete(request):
             ids = json.loads(ids_json)
         except json.JSONDecodeError:
             messages.error(request, _("Invalid list of IDs provided."))
-            return HttpResponse("<script>$('.filterButton')[0].click()</script>")
+            return HttpResponse("<script>$('.filterButton').first().click()</script>")
 
         try:
             ids = [int(i) for i in ids]
         except (ValueError, TypeError):
             messages.error(request, _("Invalid list of IDs provided."))
-            return HttpResponse("<script>$('.filterButton')[0].click()</script>")
+            return HttpResponse("<script>$('.filterButton').first().click()</script>")
 
         if not ids:
             messages.warning(
                 request, _("No attendance activities selected for deletion.")
             )
-            return HttpResponse("<script>$('.filterButton')[0].click()</script>")
+            return HttpResponse("<script>$('.filterButton').first().click()</script>")
 
         # Perform the delete operation in a transaction
         with transaction.atomic():
@@ -980,7 +1008,7 @@ def attendance_activity_bulk_delete(request):
             _("Failed to delete attendance activities: {error}").format(error=str(e)),
         )
 
-    return HttpResponse("<script>$('.filterButton')[0].click()</script>")
+    return HttpResponse("<script>$('.filterButton').first().click()</script>")
 
 
 def process_activity_dicts(activity_dicts):
@@ -993,15 +1021,15 @@ def process_activity_dicts(activity_dicts):
     error_dicts = []  # List to store dictionaries with errors
 
     for activity in sorted_activity_dicts:
-        badge_id = activity.get("Badge ID")
+        badge_id = activity.get("Employee ID")
         if not badge_id:
-            activity["Error 1"] = "Please add the Badge ID column in the Excel sheet."
+            activity["Error 1"] = "Please add the Employee ID column in the Excel sheet."
             error_dicts.append(activity)
             continue
 
         employee = Employee.objects.filter(badge_id=badge_id).first()
         if not employee:
-            activity["Error 2"] = "Invalid Badge ID"
+            activity["Error 2"] = "Invalid Employee ID"
             error_dicts.append(activity)
             continue
 
@@ -1112,7 +1140,7 @@ def attendance_activity_import_excel(request):
     if request.method == "GET":
         data_frame = pd.DataFrame(
             columns=[
-                "Badge ID",
+                "Employee ID",
                 "Employee",
                 "Attendance Date",
                 "In Date",
@@ -1161,6 +1189,9 @@ def on_time_view(request):
     This method render template to view all on come early out entries
     """
     total_attendances = AttendanceFilters(request.GET).qs
+    total_attendances = filtersubordinates(
+        request, total_attendances, "attendance.view_attendance"
+    )
     ids_to_exclude = AttendanceLateComeEarlyOut.objects.filter(
         attendance_id__in=total_attendances.values_list("id", flat=True),
         type="late_come",
@@ -1884,6 +1915,14 @@ def user_request_one_view(request, id):
             request, message=_("No Attendance found matching the query.")
         )
 
+    employee = attendance_request.employee_id
+    if not (
+        request.user.has_perm("attendance.view_attendance")
+        or employee == request.user.employee_get
+        or check_manager(request.user.employee_get, employee)
+    ):
+        return render(request, "no_perm.html")
+
     at_work_seconds = attendance_request.at_work_second
     hours_at_work = at_work_seconds // 3600
     minutes_at_work = (at_work_seconds % 3600) // 60
@@ -1915,6 +1954,14 @@ def user_request_one_view(request, id):
 @hx_request_required
 def get_attendance_activities(request, obj_id):
     attendance = Attendance.find(obj_id)
+    if attendance:
+        employee = attendance.employee_id
+        if not (
+            request.user.has_perm("attendance.view_attendance")
+            or employee == request.user.employee_get
+            or check_manager(request.user.employee_get, employee)
+        ):
+            return render(request, "no_perm.html")
     return render(
         request,
         "attendance/attendance/attendance_activites_view.html",
@@ -2328,6 +2375,14 @@ def create_attendancerequest_comment(request, attendance_id):
     """
     previous_data = request.GET.urlencode()
     attendance = Attendance.objects.filter(id=attendance_id).first()
+    if attendance:
+        owner = attendance.employee_id
+        if not (
+            request.user.has_perm("attendance.view_attendance")
+            or owner == request.user.employee_get
+            or check_manager(request.user.employee_get, owner)
+        ):
+            return render(request, "no_perm.html")
     emp = request.user.employee_get
     form = AttendanceRequestCommentForm(
         initial={"employee_id": emp.id, "request_id": attendance_id}
@@ -2447,6 +2502,15 @@ def view_attendancerequest_comment(request, attendance_id):
     """
     This method is used to show Attendance request comments
     """
+    attendance = Attendance.objects.filter(id=attendance_id).first()
+    if attendance:
+        owner = attendance.employee_id
+        if not (
+            request.user.has_perm("attendance.view_attendance")
+            or owner == request.user.employee_get
+            or check_manager(request.user.employee_get, owner)
+        ):
+            return render(request, "no_perm.html")
     comments = AttendanceRequestComment.objects.filter(
         request_id=attendance_id
     ).order_by("-created_at")
@@ -2485,6 +2549,15 @@ def delete_attendancerequest_comment(request, comment_id):
             request, message=_("No Comment found matching the query.")
         )
 
+    owner = comment.request_id.employee_id
+    if not (
+        request.user.has_perm("attendance.delete_attendancerequestcomment")
+        or comment.employee_id == request.user.employee_get
+        or owner == request.user.employee_get
+        or check_manager(request.user.employee_get, owner)
+    ):
+        return render(request, "no_perm.html")
+
     script = ""
     comment.delete()
     messages.success(request, _("Comment deleted successfully!"))
@@ -2499,6 +2572,16 @@ def delete_comment_file(request):
     """
     script = ""
     ids = request.GET.getlist("ids")
+    if not request.user.has_perm("attendance.delete_attendancerequestcomment"):
+        related_comments = AttendanceRequestComment.objects.filter(files__id__in=ids)
+        for comment in related_comments:
+            owner = comment.request_id.employee_id
+            if not (
+                comment.employee_id == request.user.employee_get
+                or owner == request.user.employee_get
+                or check_manager(request.user.employee_get, owner)
+            ):
+                return render(request, "no_perm.html")
     AttendanceRequestFile.objects.filter(id__in=ids).delete()
     messages.success(request, _("File deleted successfully"))
     return HttpResponse(script)

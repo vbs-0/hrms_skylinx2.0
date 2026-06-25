@@ -136,8 +136,8 @@ class FilingStatus(SkylinxModel):
 
     class Meta:
         ordering = ["-id"]
-        verbose_name = _("Filing Status")
-        verbose_name_plural = _("Filing Statuses")
+        verbose_name = _("Tax Regime")
+        verbose_name_plural = _("Tax Regimes")
 
 
 class Contract(SkylinxModel):
@@ -160,9 +160,8 @@ class Contract(SkylinxModel):
         ("daily", _("Daily")),
         ("monthly", _("Monthly")),
     ]
-
-    if apps.is_installed("attendance"):
-        WAGE_CHOICES.append(("hourly", _("Hourly")))
+    # ponytail: Hourly wage type removed — not used. (was appended when attendance
+    # is installed) Re-add the append below if hourly payroll is ever needed.
 
     CONTRACT_STATUS_CHOICES = (
         ("draft", _("Draft")),
@@ -472,16 +471,9 @@ class Contract(SkylinxModel):
                 _("A draft contract already exists for this employee.")
             )
         super().save(*args, **kwargs)
-        if self.contract_status == "active" and self.wage is not None:
-            try:
-                wage_int = int(self.wage)
-                work_info = self.employee_id.employee_work_info
-                work_info.basic_salary = wage_int
-                work_info.save()
-            except ValueError:
-                logger.error((f"Failed to convert wage '{self.wage}' to an integer."))
-            except Exception as e:
-                logger.error(f"An unexpected error occurred: {e}")
+        # NOTE: basic_salary is now a computed property on EmployeeWorkInformation
+        # (monthly basic = CTC/12 * basic%), so it is derived FROM the employee's
+        # CTC/basic% and must not be written back from the contract wage.
         return self
 
     class Meta:
@@ -1924,6 +1916,20 @@ class Payslip(SkylinxModel):
     def __str__(self) -> str:
         return f"Payslip for {self.employee_id} - Period: {self.start_date} to {self.end_date}"
 
+    @property
+    def total_allowance(self):
+        try:
+            return sum(float(a.get("amount", 0)) for a in self.pay_head_data.get("allowances", []) if str(a.get("amount", 0)).replace(".","",1).isdigit())
+        except Exception:
+            return 0
+
+    @property
+    def total_lop(self):
+        try:
+            return float(self.pay_head_data.get("loss_of_pay", 0))
+        except Exception:
+            return 0
+
     def get_status(self):
         """
         Display status
@@ -1971,6 +1977,69 @@ class Payslip(SkylinxModel):
             path="cbv/payslip/pay_display.html",
             context={"amount": net_pay},
         )
+
+    def gross_pay_text(self):
+        """
+        Plain text gross pay for exports
+        """
+        from django.apps import apps
+        from skylinx.methods import get_skylinx_model_class
+        
+        gross_pay = self.gross_pay
+        amount_str = f"{gross_pay:.2f}"
+        
+        if apps.is_installed("payroll"):
+            PayrollSettings = get_skylinx_model_class(
+                app_label="payroll", model="payrollsettings"
+            )
+            symbol = PayrollSettings.objects.first()
+            currency = symbol.currency_symbol if symbol else "₹"
+            if symbol and symbol.position == "postfix":
+                return f"{amount_str} {currency}"
+            return f"{currency} {amount_str}"
+        return f"₹ {amount_str}"
+
+    def deduction_text(self):
+        """
+        Plain text deduction for exports
+        """
+        from django.apps import apps
+        from skylinx.methods import get_skylinx_model_class
+        
+        deduction = self.deduction
+        amount_str = f"{deduction:.2f}"
+        
+        if apps.is_installed("payroll"):
+            PayrollSettings = get_skylinx_model_class(
+                app_label="payroll", model="payrollsettings"
+            )
+            symbol = PayrollSettings.objects.first()
+            currency = symbol.currency_symbol if symbol else "₹"
+            if symbol and symbol.position == "postfix":
+                return f"{amount_str} {currency}"
+            return f"{currency} {amount_str}"
+        return f"₹ {amount_str}"
+
+    def net_pay_text(self):
+        """
+        Plain text net pay for exports
+        """
+        from django.apps import apps
+        from skylinx.methods import get_skylinx_model_class
+        
+        net_pay = self.net_pay
+        amount_str = f"{net_pay:.2f}"
+        
+        if apps.is_installed("payroll"):
+            PayrollSettings = get_skylinx_model_class(
+                app_label="payroll", model="payrollsettings"
+            )
+            symbol = PayrollSettings.objects.first()
+            currency = symbol.currency_symbol if symbol else "₹"
+            if symbol and symbol.position == "postfix":
+                return f"{amount_str} {currency}"
+            return f"{currency} {amount_str}"
+        return f"₹ {amount_str}"
 
     def custom_status_col(self):
         """
@@ -2274,7 +2343,7 @@ class Reimbursement(SkylinxModel):
     """
 
     reimbursement_types = [
-        ("reimbursement", _("Reimbursement")),
+        ("reimbursement", _("Expense")),
         ("bonus_encashment", _("Bonus Point Encashment")),
     ]
 
@@ -2289,6 +2358,24 @@ class Reimbursement(SkylinxModel):
     title = models.CharField(max_length=50)
     type = models.CharField(
         choices=reimbursement_types, max_length=16, default="reimbursement"
+    )
+    # Expense claim categories (only apply to type="reimbursement"); leave/bonus
+    # encashment rows leave this null.
+    expense_categories = [
+        ("travel", _("Travel & Conveyance")),
+        ("fuel", _("Fuel / Mileage")),
+        ("mobile", _("Mobile & Internet")),
+        ("medical", _("Medical")),
+        ("food", _("Food & Meals")),
+        ("books", _("Books & Professional Development")),
+        ("entertainment", _("Client Entertainment")),
+    ]
+    category = models.CharField(
+        choices=expense_categories,
+        max_length=20,
+        null=True,
+        blank=True,
+        verbose_name=_("Category"),
     )
     employee_id = models.ForeignKey(
         Employee, on_delete=models.PROTECT, verbose_name="Employee"
@@ -2449,7 +2536,7 @@ class Reimbursement(SkylinxModel):
             elif self.status == "rejected" and self.allowance_id is not None:
                 cfd_days = self.cfd_to_encash
                 available_days = self.ad_to_encash
-                if self.type == "leave encashment":
+                if self.type == "leave_encashment":  # ponytail: was "leave encashment" (space) -> never matched, balance never restored on reject
                     if assigned_leave:
                         assigned_leave.available_days = (
                             assigned_leave.available_days + available_days

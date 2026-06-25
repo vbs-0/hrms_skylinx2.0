@@ -7,9 +7,13 @@ This module is used to bind url patterns with django views that related to feder
 from django.urls import path
 
 from payroll.cbv import federal_tax
-from payroll.views import tax_views
+from payroll.views import tax_views, form16_views
 
 urlpatterns = [
+    path("form16/", form16_views.form16_list_view, name="form16-list"),
+    path("form16/upload/", form16_views.upload_form16, name="form16-upload"),
+    path("form16/bulk-upload/", form16_views.bulk_upload_form16, name="form16-bulk-upload"),
+    path("form16/download/<int:pk>/", form16_views.download_form16, name="form16-download"),
     path(
         "filing-status-view/", tax_views.filing_status_view, name="filing-status-view"
     ),

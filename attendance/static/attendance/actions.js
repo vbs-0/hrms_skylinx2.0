@@ -1,14 +1,17 @@
-tickCheckboxes();
+// ponytail: these tick* helpers live in page-specific scripts that aren't
+// loaded on every page that includes this global file. Guard each call so its
+// absence doesn't throw a ReferenceError that kills the rest of the page's JS.
+if (typeof tickCheckboxes === "function") tickCheckboxes();
 function makeListUnique(list) {
     return Array.from(new Set(list));
 }
 
-tickactivityCheckboxes();
+if (typeof tickactivityCheckboxes === "function") tickactivityCheckboxes();
 function makeactivityListUnique(list) {
     return Array.from(new Set(list));
 }
 
-ticklatecomeCheckboxes();
+if (typeof ticklatecomeCheckboxes === "function") ticklatecomeCheckboxes();
 function makelatecomeListUnique(list) {
     return Array.from(new Set(list));
 }

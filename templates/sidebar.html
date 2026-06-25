@@ -66,10 +66,12 @@
     <div class="oh-sidebar__company" style="padding: 14px">
         {% if request.session.selected_company_instance %}
             <span class="mr-3">
-                {% if not request.session.selected_company_instance %}
-                    <img src="https://ui-avatars.com/api/?name=C&background=random" style="width: 34px; border-radius: 3px" />
+                {% if request.session.selected_company_instance.icon %}
+                    <img src="{{request.session.selected_company_instance.icon}}"
+                        onerror="this.onerror=null;this.src='{% static 'favicons/android-chrome-192x192.png' %}';"
+                        style="width: 34px; border-radius: 3px" />
                 {% else %}
-                    <img src="{{request.session.selected_company_instance.icon}}" style="width: 34px; border-radius: 3px" />
+                    <img src="{% static 'favicons/android-chrome-192x192.png' %}" style="width: 34px; border-radius: 3px" />
                 {% endif %}
             </span>
             <div class="oh-sidebar__company-details">
@@ -81,11 +83,12 @@
             </div>
         {% else %}
             <span class="mr-3">
-                {% if request.user.employee_get.employee_work_info.company_id.icon == None %}
-                    <img src="https://ui-avatars.com/api/?name=C&background=random" style="width: 34px; border-radius: 3px" />
-                {% else %}
+                {% if request.user.employee_get.employee_work_info.company_id.icon %}
                     <img src="{{request.user.employee_get.employee_work_info.company_id.icon.url}}"
+                        onerror="this.onerror=null;this.src='{% static 'favicons/android-chrome-192x192.png' %}';"
                         style="width: 34px; border-radius: 3px" />
+                {% else %}
+                    <img src="{% static 'favicons/android-chrome-192x192.png' %}" style="width: 34px; border-radius: 3px" />
                 {% endif %}
             </span>
             <div class="oh-sidebar__company-details">
@@ -109,6 +112,19 @@
                 </a>
             </li>
             {% for menues in sidebar %}
+                {% if menues.locked %}
+                <li class="oh-sidebar__menu-item">
+                    <a class="oh-sidebar__menu-link" style="opacity: 0.5; cursor: not-allowed;" title="{% trans 'Coming Soon' %}" onclick="return false;">
+                        <div class="oh-sidebar__menu-icon">
+                            <img src="{% static menues.img_src %}" alt="{{menues.menu}}" style="filter: brightness(0) invert(1);"
+                                width="24" height="24" />
+                        </div>
+                        <span>
+                            {{menues.menu}}
+                        </span>
+                    </a>
+                </li>
+                {% else %}
                 <li class="oh-sidebar__menu-item" x-data="{ isOpen: getOpenState('{{menues.app}}GenericNav') }">
                     <a class="oh-sidebar__menu-link" data-id="{{menues.app}}GenericNav"
                         x-on:click.prevent="isOpen = !isOpen; saveOpenState('{{menues.app}}GenericNav', isOpen)"
@@ -134,6 +150,7 @@
                         </ul>
                     </div>
                 </li>
+                {% endif %}
             {% endfor %}
 
             {% if request.user|config_perms %}
@@ -188,7 +205,7 @@
                             {% endif %}
                             {% if perms.base.add_holidays %}
                                 <li class="oh-sidebar__submenu-item">
-                                    <a href="{% url 'holiday-view' %}" class="oh-sidebar__submenu-link">{% trans "Holidays" %}</a>
+                                    <a href="{% url 'holiday-view' %}" class="oh-sidebar__submenu-link">{% trans "Public Holidays" %}</a>
                                 </li>
                             {% endif %}
                             {% if perms.base.view_companyleaves %}
@@ -196,9 +213,9 @@
                                     <a href="{% url 'company-leave-view' %}" class="oh-sidebar__submenu-link">{% trans "Company Leaves" %}</a>
                                 </li>
                             {% endif %}
-                            {% if "leave"|app_installed %}
+                            {% if "leave"|app_installed and perms.leave.view_restrictleave %}
                                 <li class="oh-sidebar__submenu-item">
-                                    <a href="{% url 'restrict-view' %}" class="oh-sidebar__submenu-link">{% trans "Restrict Leaves" %}</a>
+                                    <a href="{% url 'restrict-view' %}" class="oh-sidebar__submenu-link">{% trans "Leave Restrictions" %}</a>
                                 </li>
                             {% endif %}
                         </ul>

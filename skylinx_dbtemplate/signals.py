@@ -8,6 +8,17 @@ from .models import Template
 from .utils.cache import remove_cached_template, warm_template_cache
 
 
+def _clear_any_active_flag(*args, **kwargs):
+    """Drop the cached has-active-templates flag so the loader re-checks the DB."""
+    from .utils.cache import cache
+
+    if cache:
+        try:
+            cache.delete("dbtemplate:any_active")
+        except Exception:
+            pass
+
+
 def _schedule_warm_template_cache(pk):
     """Warm cache after DB state (including M2M) is committed."""
 
@@ -45,6 +56,8 @@ def invalidate_template_cache_on_sites_changed(sender, instance, action, **kwarg
 
 signals.post_save.connect(invalidate_template_cache_on_save, sender=Template)
 signals.pre_delete.connect(remove_cached_template, sender=Template)
+signals.post_save.connect(_clear_any_active_flag, sender=Template)
+signals.post_delete.connect(_clear_any_active_flag, sender=Template)
 m2m_changed.connect(
     invalidate_template_cache_on_sites_changed,
     sender=Template.sites.through,

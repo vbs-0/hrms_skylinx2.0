@@ -1,7 +1,7 @@
 """
 offerletter.py
 
-This module is related offerletter feature in Skylinx
+This module is related offerletter feature in EMPLINX
 """
 
 from django import template

@@ -49,7 +49,10 @@
         $(document).ready(function () {
             var exists = $("#view-container").find(".oh-general__tab-link--active").length;
             if (!exists) {
-                $("#view-container").find(".oh-general__tab-link")[0].click();
+                var tabLink = $("#view-container").find(".oh-general__tab-link");
+                if (tabLink.length) {
+                    tabLink.first().click();
+                }
             }
         });
 
@@ -414,7 +417,10 @@
 	$(document).ready(function () {
 		var exits = $("#view-container").find(".oh-general__tab-link--active").length;
 		if (!exits) {
-			$("#view-container").find(".oh-general__tab-link")[0].click()
+			var tabLink = $("#view-container").find(".oh-general__tab-link");
+			if (tabLink.length) {
+				tabLink.first().click();
+			}
 		}
 	});
 

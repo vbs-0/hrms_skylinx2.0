@@ -23,7 +23,7 @@
 		position: absolute;
 		top: 0;
 		right: 50%;
-		border-top: 2px solid #ccc;
+		border-top: 2px solid #cbd5e1;
 		width: 50%;
 		height: 18px;
 	}
@@ -31,7 +31,7 @@
 	.genealogy-tree li::after {
 		right: auto;
 		left: 50%;
-		border-left: 2px solid #ccc;
+		border-left: 2px solid #cbd5e1;
 	}
 
 	.genealogy-tree li:only-child::after,
@@ -49,7 +49,7 @@
 	}
 
 	.genealogy-tree li:last-child::before {
-		border-right: 2px solid #ccc;
+		border-right: 2px solid #cbd5e1;
 		border-radius: 0 5px 0 0;
 		-webkit-border-radius: 0 5px 0 0;
 		-moz-border-radius: 0 5px 0 0;
@@ -66,77 +66,100 @@
 		position: absolute;
 		top: 0;
 		left: 50%;
-		border-left: 2px solid #ccc;
+		border-left: 2px solid #cbd5e1;
 		width: 0;
 		height: 20px;
 	}
 
 	.genealogy-tree li a {
 		text-decoration: none;
-		color: #666;
+		color: #475569;
 		font-size: 13px;
 		display: inline-block;
-		border-radius: 10px;
-		transition: 0.3s;
-		min-width: 180px;
-		min-height: 120px;
+		border-radius: 14px;
+		transition: 0.2s;
+		min-width: 200px;
 	}
 
 	.member-view-box {
-		padding: 10px 10px;
+		padding: 18px 18px 22px;
 		text-align: center;
-		border-radius: 10px;
-		border: 1px;
-		border-color: #ffb6ab;
-		border-style: solid;
+		border-radius: 14px;
+		border: 1px solid #e2e8f0;
+		border-top: 3px solid #2563eb;
 		position: relative;
-		background-color: #fff6e0;
+		background-color: #fff;
+		box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
 		display: flex;
 		flex-flow: column;
 		align-items: center;
 		justify-content: center;
+		transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
 	}
 
-	.genealogy-tree li > a .member-view-box span {
+	.member-view-box:hover {
+		box-shadow: 0 8px 22px rgba(37, 99, 235, 0.16);
+		transform: translateY(-2px);
+	}
+
+	/* avatar with initials */
+	.member-avatar {
+		width: 52px;
+		height: 52px;
+		border-radius: 50%;
+		background: linear-gradient(135deg, #3b82f6, #2563eb);
+		color: #fff;
+		font-size: 18px;
+		font-weight: 700;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 10px;
+		box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+	}
+
+	.genealogy-tree li > a .member-view-box span.toggle-caret {
 		display: none;
 	}
 
-	.genealogy-tree li.has-children > a .member-view-box span {
-		display: block;
+	.genealogy-tree li.has-children > a .member-view-box span.toggle-caret {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		position: absolute;
+		bottom: -13px;
+		left: 0;
+		right: 0;
+		margin: auto;
+		width: 26px;
+		height: 26px;
+		border-radius: 50%;
+		background: #fff;
+		border: 1px solid #e2e8f0;
+		box-shadow: 0 2px 6px rgba(15, 23, 42, 0.1);
+		color: #2563eb;
 	}
 
 	.has-children > a .member-view-box {
-		background-color: #ffe4e0;
-	}
-
-	.member-image {
-		padding: 10px;
-		width: 120px;
-		position: relative;
-	}
-
-	.member-image img {
-		width: 100px;
-		height: 100px;
-		border-radius: 6px;
-		background-color: #fff;
-		z-index: 1;
+		border-top-color: #1d4ed8;
+		background-color: #f8fbff;
 	}
 
 	.member-header {
-		color: #333;
-		font-size: 16px;
+		color: #0f172a;
+		font-size: 15px;
 		font-weight: 600;
+		line-height: 1.2;
 	}
 
 	.member-footer {
 		text-align: center;
+		margin-top: 4px;
 	}
 
 	.member-footer div.name {
-		color: #666;
-		font-size: 13px;
-		margin-bottom: 15px;
+		color: #64748b;
+		font-size: 12px;
 		font-weight: 500;
 	}
 
@@ -289,6 +312,13 @@
 <script>
 	var orgData = JSON.parse($("#chart-data").text());
 
+	// Build initials from a name (e.g. "Gunadeep Yadav" -> "GY")
+	function initials(name) {
+		if (!name) return "?";
+		const parts = name.trim().split(/\s+/);
+		return ((parts[0][0] || "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
+	}
+
 	// Function to create a tree node
 	function createNode(person) {
 		const hasChildren = person.children && person.children.length > 0;
@@ -297,13 +327,14 @@
                 <li class="flex-1 flex flex-col items-center justify-start ${
 					hasChildren ? "has-children" : ""
 				}">
-                    <a class="block" href="#" onclick="event.preventDefault()">
+                    <a class="block" href="#" data-id="${person.id || ''}" onclick="event.preventDefault()">
                         <div class="member-view-box relative h-full">
+                            <div class="member-avatar">${initials(person.name)}</div>
                             <div class="member-header">${person.name}</div>
                             <div class="member-footer">
                                 <div class="name">${person.title}</div>
                             </div>
-							<span class="absolute bottom-[-10px] left-0 right-0 text-xl"><ion-icon name="chevron-down-outline"></ion-icon></span>
+							<span class="toggle-caret text-base"><ion-icon name="chevron-down-outline"></ion-icon></span>
                         </div>
                     </a>
                     ${hasChildren ? createChildrenList(person.children) : ""}
@@ -350,6 +381,29 @@
 			}
 		});
 
+		$(".member-header").each(function() {
+			const personId = $(this).closest("a").attr("data-id");
+			if (personId && $("#managerSelect option[value='" + personId + "']").length > 0) {
+				$(this).css("cursor", "pointer");
+				$(this).hover(
+					function() { $(this).css("text-decoration", "underline"); },
+					function() { $(this).css("text-decoration", "none"); }
+				);
+			}
+		});
+
+		$(".member-header")
+			.off("click")
+			.on("click", function (e) {
+				const personId = $(this).closest("a").attr("data-id");
+				if (personId && $("#managerSelect option[value='" + personId + "']").length > 0) {
+					$("#managerSelect").val(personId);
+					document.getElementById("managerSelect").dispatchEvent(new Event("change"));
+					e.stopPropagation();
+					e.preventDefault();
+				}
+			});
+
 		$(".genealogy-tree li .member-view-box")
 			.off("click")
 			.on("click", function (e) {
@@ -369,6 +423,7 @@
 					}
 				}
 
+				e.preventDefault();
 				e.stopPropagation();
 			});
 	}

@@ -47,6 +47,7 @@ from accessibility.middlewares import ACCESSIBILITY_CACHE_USER_KEYS
 from accessibility.models import DefaultAccessibility
 from base.forms import ModelForm
 from base.methods import (
+    check_manager,
     choosesubordinates,
     filtersubordinates,
     filtersubordinatesemployeemodel,
@@ -281,6 +282,8 @@ def self_info_update(request):
     )
 
 
+@login_required
+@permission_required("accessibility.change_defaultaccessibility")
 def profile_edit_access(request, emp_id):
     feature = request.GET.get("feature", None)
     accessibility = DefaultAccessibility.objects.filter(feature=feature).first()
@@ -391,7 +394,9 @@ def about_tab(request, pk, **kwargs):
     """
     This method is used to view profile of an employee.
     """
-    employee = Employee.objects.get(id=pk)
+    employee = Employee.objects.filter(id=pk).first()
+    if not can_view_employee_profile(request, employee):
+        return render(request, "no_perm.html")
     contracts = employee.contract_set.all() if apps.is_installed("payroll") else None
     employee_leaves = (
         employee.available_leave.all() if apps.is_installed("leave") else None
@@ -409,7 +414,7 @@ def about_tab(request, pk, **kwargs):
 
 @login_required
 @hx_request_required
-def allowances_deductions_tab(request, pk):
+def allowances_deductions_tab(request, pk=None, emp_id=None):
     """
     Retrieve and render the allowances and deductions applicable to an employee.
 
@@ -419,7 +424,10 @@ def allowances_deductions_tab(request, pk):
     condition-based rules. The results are then rendered in the allowance and
     deduction tab template.
     """
-    employee = Employee.objects.get(id=pk)
+    pk = pk or emp_id
+    employee = Employee.objects.filter(id=pk).first()
+    if not can_view_employee_profile(request, employee):
+        return render(request, "no_perm.html")
     active_contracts = (
         employee.contract_set.filter(contract_status="active").first()
         if apps.is_installed("payroll")
@@ -553,7 +561,6 @@ def shift_tab(request, pk):
 
 
 @login_required
-@manager_can_enter("skylinx_documents.view_documentrequest")
 def document_request_view(request):
     """
     This function is used to view documents requests of employees.
@@ -589,7 +596,6 @@ def document_request_view(request):
 
 @login_required
 @hx_request_required
-@manager_can_enter("skylinx_documents.view_documentrequest")
 def document_filter_view(request):
     """
     This method is used to filter employee.
@@ -783,6 +789,13 @@ def update_document_title(request, id):
     Returns: return document_tab template
     """
     document = get_object_or_404(Document, id=id)
+    # ponytail: same gate as document_delete — change perm OR own the document,
+    # else any logged-in user could rename anyone's document by id (IDOR).
+    if not request.user.has_perm("skylinx_documents.change_document") and (
+        document.employee_id is None
+        or document.employee_id.employee_user_id_id != request.user.id
+    ):
+        return HttpResponse(status=403)
     name = request.POST.get("title")
     if request.method == "POST":
         document.title = name
@@ -874,6 +887,27 @@ def can_access_document(request, document, perm):
         document.employee_id == employee
         or document.employee_id.get_reporting_manager() == employee
         or request.user.has_perm(perm)
+    )
+
+
+def can_view_employee_profile(request, employee, perm="employee.view_employee"):
+    """
+    Whether the requesting user may view the given employee's profile data.
+
+    True for: the employee themselves, their reporting manager, or a user
+    holding ``perm`` (HR/admin). Used to guard the per-employee profile tabs
+    so one employee cannot read another's personal / salary information by id.
+    """
+    if employee is None:
+        return False
+    try:
+        current = request.user.employee_get
+    except Exception:
+        current = None
+    return bool(
+        request.user.has_perm(perm)
+        or (current is not None and current == employee)
+        or (current is not None and check_manager(current, employee))
     )
 
 
@@ -1234,7 +1268,21 @@ def employee_view(request):
     page_number = request.GET.get("page")
     error_message = request.session.pop("error_message", None)
 
-    queryset = Employee.objects.filter()
+    base_qs = Employee.objects.select_related(
+        "employee_work_info",
+        "employee_work_info__department_id",
+        "employee_work_info__job_position_id",
+        "employee_work_info__job_position_id__department_id",
+        "employee_work_info__shift_id",
+        "employee_work_info__work_type_id",
+        "employee_work_info__job_role_id",
+        "employee_work_info__reporting_manager_id",
+        "employee_work_info__company_id",
+        "employee_user_id"
+    ).prefetch_related(
+        "default_accessibility"
+    )
+    queryset = base_qs.filter()
     filter_obj = EmployeeFilter(request.GET, queryset=queryset).qs
     if request.GET.get("is_active") != "False":
         filter_obj = filter_obj.filter(is_active=True)
@@ -1242,10 +1290,10 @@ def employee_view(request):
     update_fields = BulkUpdateFieldForm()
     data_dict = parse_qs(previous_data)
     get_key_instances(Employee, data_dict)
-    emp = Employee.objects.filter()
+    emp = base_qs.filter()
 
     # Store the employees in the session
-    request.session["filtered_employees"] = [employee.id for employee in queryset]
+    request.session["filtered_employees"] = list(queryset.values_list("id", flat=True))
 
     return render(
         request,
@@ -1858,10 +1906,25 @@ def employee_create_update_personal_info(request, obj_id=None):
     This method is used to update employee's personal info.
     """
     employee = Employee.objects.filter(id=obj_id).first()
+    # Seat limit: block creating a NEW employee once the plan's cap is hit.
+    if obj_id is None:
+        from subscriptions.utils import can_add_employee, company_for_user
+
+        ok, msg = can_add_employee(company_for_user(request.user))
+        if not ok:
+            messages.error(request, msg)
+            return render(
+                request,
+                "employee/create_form/form_view.html",
+                {"form": EmployeeForm(request.POST)},
+            )
     form = EmployeeForm(request.POST, request.FILES, instance=employee)
     if form.is_valid():
         form.save()
         if obj_id is None:
+            from base.email_utils import send_employee_welcome
+
+            send_employee_welcome(form.instance)
             messages.success(request, _("New Employee Added."))
             form = EmployeeForm(request.POST, instance=form.instance)
             work_form = EmployeeWorkInformationForm(
@@ -2150,6 +2213,12 @@ def employee_delete(request, obj_id):
         id  : employee id
     """
 
+    employee_get = getattr(request.user, "employee_get", None)
+    if employee_get and int(obj_id) == int(employee_get.pk):
+        messages.error(request, _("You cannot delete your own profile."))
+        view = request.POST.get("view")
+        return SkylinxRedirect(request, fallback_url=f"/view={view}")
+
     try:
         view = request.POST.get("view")
         employee = Employee.objects.get(id=obj_id)
@@ -2187,6 +2256,14 @@ def employee_bulk_delete(request):
     This method is used to delete set of Employee instances
     """
     ids = json.loads(request.POST.get("ids", "[]"))
+    employee_get = getattr(request.user, "employee_get", None)
+    if employee_get:
+        own_id = employee_get.pk
+        if any(int(x) == int(own_id) for x in ids):
+            ids = [x for x in ids if int(x) != int(own_id)]
+            messages.error(request, _("You cannot delete your own profile. Your ID was excluded from bulk deletion."))
+            if not ids:
+                return JsonResponse({"message": "Forbidden"}, status=403)
     if not ids:
         messages.error(request, _("No IDs provided."))
     deleted_count = 0
@@ -2469,7 +2546,20 @@ def employee_search(request):
     search = request.GET.get("search")
     view = request.GET.get("view")
     previous_data = request.GET.urlencode()
-    employees = EmployeeFilter(request.GET).qs
+    base_qs = Employee.objects.select_related(
+        "employee_work_info",
+        "employee_work_info__department_id",
+        "employee_work_info__job_position_id",
+        "employee_work_info__shift_id",
+        "employee_work_info__work_type_id",
+        "employee_work_info__job_role_id",
+        "employee_work_info__reporting_manager_id",
+        "employee_work_info__company_id",
+        "employee_user_id"
+    ).prefetch_related(
+        "default_accessibility"
+    )
+    employees = EmployeeFilter(request.GET, queryset=base_qs).qs
     if search == "":
         employees = employees.filter(is_active=True)
     page_number = request.GET.get("page")
@@ -2648,6 +2738,12 @@ def employee_import(request):
         data_frame = pd.read_excel(file)
         # Convert the DataFrame to a list of dictionaries
         employee_dicts = data_frame.to_dict("records")
+        # Seat limit: how many new employees this company may still add (None = unlimited)
+        from subscriptions.utils import company_for_user, subscription_for_company
+
+        _sub = subscription_for_company(company_for_user(request.user))
+        seats_left = _sub.seats_available() if _sub else None
+        skipped_seat = 0
         # Create or update Employee objects from the list of dictionaries
         error_list = []
         for employee_dict in employee_dicts:
@@ -2657,6 +2753,9 @@ def employee_import(request):
                 employee_full_name = employee_dict["employee_full_name"]
                 existing_user = SkylinxUser.objects.filter(username=email).first()
                 if existing_user is None:
+                    if seats_left is not None and seats_left <= 0:
+                        skipped_seat += 1
+                        continue
                     employee_first_name = employee_full_name
                     employee_last_name = ""
                     if " " in employee_full_name:
@@ -2678,10 +2777,23 @@ def employee_import(request):
                     employee.email = email
                     employee.phone = phone
                     employee.save()
+                    from base.email_utils import send_employee_welcome
+
+                    send_employee_welcome(employee)
+                    if seats_left is not None:
+                        seats_left -= 1
             except Exception:
                 error_list.append(employee_dict)
+        note = ""
+        if skipped_seat:
+            note = (
+                f"<div class='alert-warning p-3 border-rounded'>"
+                f"{skipped_seat} row(s) skipped — seat limit reached. "
+                f"Upgrade your plan to add more employees.</div>"
+            )
         return HttpResponse(
-            """
+            note
+            + """
     <div class='alert-success p-3 border-rounded'>
         Employee data has been imported successfully.
     </div>
@@ -2698,7 +2810,7 @@ def employee_import(request):
 
 @login_required
 @permission_required("employee.add_employee")
-def employee_export(_):
+def employee_export(request):
     """
     This method is used to export employee data to xlsx
     """
@@ -2711,9 +2823,22 @@ def employee_export(_):
     field_names.remove("is_directly_converted")
     field_names.remove("is_active")
 
-    # Get the existing employee data and convert it to a DataFrame
-    employee_data = Employee.objects.values_list(*field_names)
-    data_frame = pd.DataFrame(list(employee_data), columns=field_names)
+    # Get the existing employee data
+    employee_data = list(Employee.objects.values_list(*field_names))
+
+    if "aadhaar_number" in field_names and not request.user.has_perm("employee.change_employee"):
+        idx = field_names.index("aadhaar_number")
+        # Mask the aadhaar
+        masked_data = []
+        for row in employee_data:
+            row_list = list(row)
+            aadhaar = row_list[idx]
+            if aadhaar and len(str(aadhaar)) >= 4:
+                row_list[idx] = f"XXXX XXXX {str(aadhaar)[-4:]}"
+            masked_data.append(row_list)
+        employee_data = masked_data
+
+    data_frame = pd.DataFrame(employee_data, columns=field_names)
 
     # Export the DataFrame to an Excel file
 
@@ -2744,7 +2869,7 @@ def work_info_import_file(request):
     """
     data_frame = pd.DataFrame(
         columns=[
-            "Badge ID",
+            "Employee ID",
             "First Name",
             "Last Name",
             "Email",
@@ -3063,6 +3188,7 @@ def dashboard(request):
 
 
 @login_required
+@permission_required("employee.view_employee")
 @hx_request_required
 def total_employees_count(request):
     employees = Employee.objects.all().count()
@@ -3070,6 +3196,7 @@ def total_employees_count(request):
 
 
 @login_required
+@permission_required("employee.view_employee")
 @hx_request_required
 def joining_today_count(request):
     newbies_today = 0
@@ -3083,6 +3210,7 @@ def joining_today_count(request):
 
 
 @login_required
+@permission_required("employee.view_employee")
 @hx_request_required
 def joining_week_count(request):
     newbies_week = 0
@@ -3100,6 +3228,7 @@ def joining_week_count(request):
 
 
 @login_required
+@permission_required("employee.view_employee")
 @hx_request_required
 def leave_today_count(request):
     leave_today = 0
@@ -3114,6 +3243,7 @@ def leave_today_count(request):
 
 
 @login_required
+@permission_required("employee.view_employee")
 def dashboard_employee(request):
     """
     Active and in-active employee dashboard
@@ -3139,6 +3269,7 @@ def dashboard_employee(request):
 
 
 @login_required
+@permission_required("employee.view_employee")
 def dashboard_employee_gender(request):
     """
     This method is used to filter out gender vise employees
@@ -3163,6 +3294,7 @@ def dashboard_employee_gender(request):
 
 
 @login_required
+@permission_required("employee.view_employee")
 def dashboard_employee_department(request):
     """
     This method is used to find the count of employees corresponding to the departments
@@ -3203,7 +3335,9 @@ def widget_filter(request):
         # Remove keys with only empty string values
         if all(not v.strip() for v in cleaned_get.getlist(key)):
             del cleaned_get[key]
-    ids = EmployeeFilter(data=cleaned_get).qs.values_list("id", flat=True)
+    qs = EmployeeFilter(data=cleaned_get).qs
+    qs = filtersubordinatesemployeemodel(request, qs, "employee.view_employee")
+    ids = qs.values_list("id", flat=True)
     return JsonResponse({"ids": list(ids)})
 
 
@@ -3216,6 +3350,10 @@ def employee_select(request):
     employees = Employee.objects.filter()
     if page_number == "all":
         employees = Employee.objects.filter(is_active=True)
+
+    employees = filtersubordinatesemployeemodel(
+        request, employees, "employee.view_employee"
+    )
 
     employee_ids = [str(emp.id) for emp in employees]
     total_count = employees.count()
@@ -3265,7 +3403,11 @@ def note_tab(request, pk):
     Returns: return note-tab template
 
     """
-    employee_obj = Employee.objects.get(id=pk)
+    employee_obj = Employee.objects.filter(id=pk).first()
+    if not can_view_employee_profile(
+        request, employee_obj, perm="employee.view_employeenote"
+    ):
+        return render(request, "no_perm.html")
     notes = EmployeeNote.objects.filter(employee_id=pk).order_by("-id")
 
     return render(
@@ -3304,6 +3446,9 @@ def add_note(request, emp_id=None):
     Handles the addition of a note to a specific employee, including file attachments.
     Saves the note and redirects to the employee's note tab upon successful submission.
     """
+    employee_obj = get_object_or_404(Employee, id=emp_id)
+    if not can_view_employee_profile(request, employee_obj, perm="employee.add_employeenote"):
+        return render(request, "no_perm.html")
 
     form = EmployeeNoteForm(initial={"employee_id": emp_id})
     if request.method == "POST":
@@ -3347,6 +3492,8 @@ def employee_note_update(request, note_id):
         return SkylinxRedirect(
             request, message=_("No Employee Note found matching the query.")
         )
+    if not can_view_employee_profile(request, note.employee_id, perm="employee.change_employeenote"):
+        return render(request, "no_perm.html")
 
     form = EmployeeNoteForm(instance=note)
     if request.POST:
@@ -3383,6 +3530,8 @@ def employee_note_delete(request, note_id):
         return SkylinxRedirect(
             request, message=_("No Employee Note found matching the query.")
         )
+    if not can_view_employee_profile(request, note.employee_id, perm="employee.delete_employeenote"):
+        return render(request, "no_perm.html")
 
     emp_id = note.employee_id.id
     note.delete()
@@ -3400,6 +3549,8 @@ def add_more_employee_files(request, note_id):
         id : stage note instance id
     """
     note = EmployeeNote.objects.get(id=note_id)
+    if not can_view_employee_profile(request, note.employee_id, perm="employee.add_notefiles"):
+        return render(request, "no_perm.html")
     employee_id = note.employee_id.id
 
     if request.method == "POST":
@@ -3630,20 +3781,26 @@ def organisation_chart(request):
     This method is used to view oganisation chart
     """
     selected_company = request.session.get("selected_company")
-    if (
-        request.GET.get("employee_work_info__company_id") == None
-        and selected_company != "all"
-    ):
-        reporting_managers = Employee.objects.filter(
-            is_active=True,
-            reporting_manager__isnull=False,
-            employee_work_info__company_id=selected_company,
-        ).distinct()
+    if request.user.is_superuser or request.user.has_perm("employee.view_employee"):
+        if (
+            request.GET.get("employee_work_info__company_id") == None
+            and selected_company != "all"
+        ):
+            reporting_managers = Employee.objects.filter(
+                is_active=True,
+                reporting_manager__isnull=False,
+                employee_work_info__company_id=selected_company,
+            ).distinct()
+        else:
+            reporting_managers = Employee.objects.filter(
+                is_active=True,
+                reporting_manager__isnull=False,
+            ).distinct()
     else:
-        reporting_managers = Employee.objects.filter(
-            is_active=True,
-            reporting_manager__isnull=False,
-        ).distinct()
+        try:
+            reporting_managers = Employee.objects.filter(id=request.user.employee_get.id)
+        except Exception:
+            reporting_managers = Employee.objects.none()
 
     # Iterate through the queryset and add reporting manager id and name to the dictionary
     result_dict = {item.id: item.get_full_name() for item in reporting_managers}
@@ -3656,13 +3813,19 @@ def organisation_chart(request):
         Hierarchy generator method
         """
         nodes = []
+        if not manager:
+            return nodes
         # check the manager is a reporting manager if yes, store it into entered_req_managers
         if manager.id in result_dict.keys():
             entered_req_managers.append(manager)
-        # filter the subordinates
-        subordinates = Employee.objects.filter(
-            is_active=True, employee_work_info__reporting_manager_id=manager
-        ).exclude(id=manager.id)
+        # filter the subordinates — pull work info + job position in one query
+        # so get_job_position() doesn't fire 2 queries per node (was N+1 -> 420 q)
+        subordinates = (
+            Employee.objects.entire()
+            .filter(is_active=True, employee_work_info__reporting_manager_id=manager)
+            .exclude(id=manager.id)
+            .select_related("employee_work_info", "employee_work_info__job_position_id")
+        )
 
         # itrating through subordinates
         for employee in subordinates:
@@ -3673,6 +3836,7 @@ def organisation_chart(request):
             if employee.id in result_dict.keys():
                 nodes.append(
                     {
+                        "id": employee.id,
                         "name": employee.get_full_name(),
                         "title": getattr(
                             employee.get_job_position(), "job_position", _("Not set")
@@ -3685,6 +3849,7 @@ def organisation_chart(request):
             else:
                 nodes.append(
                     {
+                        "id": employee.id,
                         "name": employee.get_full_name(),
                         "title": getattr(
                             employee.get_job_position(), "job_position", _("Not set")
@@ -3710,35 +3875,78 @@ def organisation_chart(request):
             is_active=True, reporting_manager__isnull=False
         ).distinct()
 
-    manager = request.user.employee_get
+    # Default view is always centred on the logged-in user ("My view"): the
+    # chart then shows their reporting manager one level up and everyone below.
+    try:
+        manager = request.user.employee_get
+    except Exception:
+        manager = None
+    if not manager and (
+        request.user.is_superuser or request.user.has_perm("employee.view_employee")
+    ):
+        manager = Employee.objects.filter(
+            is_active=True, employee_work_info__reporting_manager_id__isnull=True
+        ).first()
+        if not manager:
+            manager = Employee.objects.filter(is_active=True).first()
 
-    if len(reporting_managers) == 0:
-        new_dict = {}
-    else:
-        new_dict = {reporting_managers[0].id: _("My view"), **result_dict}
+    new_dict = {}
+    if manager:
+        new_dict[manager.id] = _("My view")
+    for k, v in result_dict.items():
+        if manager and k == manager.id:
+            continue
+        new_dict[k] = v
+
     # POST method is used to change the reporting manager
     if request.method == "POST":
         if request.POST.get("manager_id"):
             manager_id = int(request.POST.get("manager_id"))
             manager = Employee.objects.get(id=manager_id)
-        node = {
-            "name": manager.get_full_name(),
-            "title": getattr(manager.get_job_position(), "job_position", _("Not set")),
-            "children": create_hierarchy(manager),
-        }
+        
+        if request.user.is_superuser or request.user.has_perm("employee.view_employee"):
+            chart_root = manager
+            if manager and manager.employee_work_info and manager.employee_work_info.reporting_manager_id:
+                chart_root = manager.employee_work_info.reporting_manager_id
+            
+            node = {
+                "id": chart_root.id if chart_root else None,
+                "name": chart_root.get_full_name() if chart_root else "",
+                "title": getattr(chart_root.get_job_position(), "job_position", _("Not set")) if chart_root else "",
+                "children": create_hierarchy(chart_root) if chart_root else [],
+            }
+        else:
+            try:
+                me = request.user.employee_get
+            except Exception:
+                me = None
+            if me and me.employee_work_info and me.employee_work_info.reporting_manager_id:
+                chart_root = me.employee_work_info.reporting_manager_id
+                node = {
+                    "id": chart_root.id,
+                    "name": chart_root.get_full_name(),
+                    "title": getattr(chart_root.get_job_position(), "job_position", _("Not set")),
+                    "children": create_hierarchy(chart_root)
+                }
+            else:
+                node = {
+                    "id": me.id if me else None,
+                    "name": me.get_full_name() if me else "",
+                    "title": getattr(me.get_job_position(), "job_position", _("Not set")) if me else "",
+                    "children": create_hierarchy(me) if me else [],
+                }
         context = {"act_datasource": node}
         return render(request, "organisation_chart/chart.html", context=context)
 
-    node = {
-        "name": manager.get_full_name(),
-        "title": getattr(manager.get_job_position(), "job_position", _("Not set")),
-        "children": create_hierarchy(manager),
-    }
+    # GET Request — org_chart.html loads the actual chart via a POST (htmx) into
+    # #chart_target, so it never uses act_datasource here. Building the full
+    # hierarchy on GET was wasted work (hundreds of queries); send an empty node.
+    node = {"id": None, "name": "", "title": "", "children": []}
 
     context = {
         "act_datasource": node,
         "reporting_manager_dict": new_dict,
-        "act_manager_id": manager.id,
+        "act_manager_id": manager.id if manager else None,
     }
     return render(request, "organisation_chart/org_chart.html", context=context)
 
@@ -3838,6 +4046,8 @@ def employee_get_mail_log(request, pk):
     This method is used to track mails sent along with the status
     """
     employee = Employee.objects.get(id=pk)
+    if not can_view_employee_profile(request, employee, perm="employee.view_employee"):
+        return render(request, "no_perm.html")
     tracked_mails = EmailLog.objects.filter(to__icontains=employee.email)
     try:
         if employee.employee_work_info and employee.employee_work_info.email:

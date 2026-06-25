@@ -23,18 +23,35 @@ def ticket_owner_can_enter(function, perm: str, model: object, manager_access=Fa
 
     def _function(request, *args, **kwargs):
         instance_id = kwargs[list(kwargs.keys())[0]]
+        instance = None
         if model == Employee:
             employee = Employee.objects.get(id=instance_id)
         else:
             try:
-                employee = model.objects.get(id=instance_id).employee_id
+                instance = model.objects.get(id=instance_id)
+                employee = instance.employee_id
             except:
                 messages.error(request, ("Sorry, something went wrong!"))
                 return SkylinxRedirect(request)
+
+        # Resolve the specific ticket this action targets (if any) so the
+        # owner/assignee checks below are scoped to THIS ticket only — never a
+        # blanket "owns any ticket" test.
+        ticket = instance if isinstance(instance, Ticket) else None
+        current_employee = request.user.employee_get
+
+        is_ticket_owner = bool(
+            ticket
+            and (
+                ticket.created_by == request.user
+                or current_employee in ticket.assigned_to.all()
+            )
+        )
+
         can_enter = (
-            request.user.employee_get == employee
+            current_employee == employee
             or request.user.has_perm(perm)
-            or check_manager(request.user.employee_get, employee)
+            or check_manager(current_employee, employee)
             or (
                 EmployeeWorkInformation.objects.filter(
                     reporting_manager_id__employee_user_id=request.user
@@ -42,8 +59,7 @@ def ticket_owner_can_enter(function, perm: str, model: object, manager_access=Fa
                 if manager_access
                 else False
             )
-            or Ticket.objects.filter(assigned_to__in=[request.user.employee_get])
-            or Ticket.objects.filter(created_by=request.user)
+            or is_ticket_owner
         )
         if can_enter:
             return function(request, *args, **kwargs)

@@ -1,0 +1,49 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% block content %}
+<div class="oh-wrapper">
+  <div class="bg-white rounded-md shadow-card p-8 text-center max-w-md mx-auto mt-10">
+    <h1 class="text-lg font-semibold">{% trans "Confirm payment" %}</h1>
+    <p class="text-gray-500 mt-2">
+      {{ plan.name }} — ₹{{ plan.price }}
+    </p>
+    <button id="pay" class="mt-5 px-6 py-3 bg-primary-600 text-white rounded-md font-semibold">
+      {% trans "Pay now" %}
+    </button>
+    <p class="text-xs text-gray-400 mt-3">{% trans "Secured by Razorpay" %}</p>
+
+    <!-- verify form, submitted by the Razorpay success handler -->
+    <form id="verifyForm" method="post" action="{% url 'subscription-pay-verify' %}" style="display:none">
+      {% csrf_token %}
+      <input type="hidden" name="plan" value="{{ plan.id }}" />
+      <input type="hidden" name="razorpay_order_id" />
+      <input type="hidden" name="razorpay_payment_id" />
+      <input type="hidden" name="razorpay_signature" />
+    </form>
+  </div>
+</div>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+  var options = {
+    key: "{{ key_id }}",
+    amount: "{{ order.amount }}",
+    currency: "{{ order.currency }}",
+    name: "EMPLINX",
+    description: "{{ plan.name }} plan",
+    order_id: "{{ order.id }}",
+    prefill: { name: "{{ company.company|escapejs }}" },
+    theme: { color: "#2563eb" },
+    handler: function (resp) {
+      var f = document.getElementById("verifyForm");
+      f.razorpay_order_id.value = resp.razorpay_order_id;
+      f.razorpay_payment_id.value = resp.razorpay_payment_id;
+      f.razorpay_signature.value = resp.razorpay_signature;
+      f.submit();
+    },
+  };
+  var rzp = new Razorpay(options);
+  document.getElementById("pay").onclick = function () { rzp.open(); };
+  rzp.open(); // auto-open
+</script>
+{% endblock %}

@@ -3972,15 +3972,17 @@
                             return (
                                 this.each(function () {
                                     var e = s.GetData(this, "select2");
-                                    null == e &&
-                                        window.console &&
-                                        console.error &&
-                                        console.error(
-                                            "The select2('" +
-                                            t +
-                                            "') method was called on an element that is not using Select2."
-                                        ),
-                                        (n = e[t].apply(e, r));
+                                    if (null == e) {
+                                        if (window.console && console.error) {
+                                            console.error(
+                                                "The select2('" +
+                                                t +
+                                                "') method was called on an element that is not using Select2."
+                                            );
+                                        }
+                                    } else {
+                                        n = e[t].apply(e, r);
+                                    }
                                 }),
                                 -1 < i.inArray(t, a) ? this : n
                             );
@@ -4025,11 +4027,22 @@ $(document).on("htmx:afterSettle", function (event) {
 
 // Helper function to hash data using SHA-256
 async function hashData(data) {
-    const encoder = new TextEncoder();
-    const dataBuffer = encoder.encode(data);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
+    if (crypto && crypto.subtle && crypto.subtle.digest) {
+        const encoder = new TextEncoder();
+        const dataBuffer = encoder.encode(data);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
+    } else {
+        // Fallback simple hash for non-HTTPS environments
+        let hash = 0;
+        for (let i = 0; i < data.length; i++) {
+            const char = data.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return hash.toString(16);
+    }
 }
 
 // Save installed apps with a hash to localStorage

@@ -22,6 +22,29 @@ function getCookie(name) {
     return cookieValue;
 }
 
+function preparePayslipExportForm(form) {
+    if (!form) return;
+    var idsSource = document.getElementById("selectedInstances")
+        || document.getElementById("selectedPayslip");
+    var ids = [];
+    if (idsSource) {
+        try {
+            ids = JSON.parse(idsSource.getAttribute("data-ids") || "[]");
+        } catch (_) {
+            ids = [];
+        }
+    }
+    var existing = form.querySelector('input[name="ids"]');
+    if (existing) existing.remove();
+    if (ids.length) {
+        var hidden = document.createElement("input");
+        hidden.type = "hidden";
+        hidden.name = "ids";
+        hidden.value = JSON.stringify(ids);
+        form.appendChild(hidden);
+    }
+}
+
 function bulkSendViaMail() {
     ids = [];
     ids.push($("#selectedInstances").attr("data-ids"));

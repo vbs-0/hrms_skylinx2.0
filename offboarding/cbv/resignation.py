@@ -10,6 +10,7 @@ from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 
+from skylinx.methods import handle_no_permission
 from skylinx_views.cbv_methods import (
     check_feature_enabled,
     login_required,
@@ -22,6 +23,7 @@ from skylinx_views.generic.cbv.views import (
     SkylinxNavView,
     TemplateView,
 )
+from employee.models import Employee
 from offboarding.filters import LetterFilter
 from offboarding.forms import ResignationLetterForm
 from offboarding.models import Offboarding, OffboardingGeneralSetting, ResignationLetter
@@ -180,7 +182,10 @@ class ResinationLettersNav(SkylinxNavView):
 
 
 @method_decorator(login_required, name="dispatch")
-# @method_decorator(check_feature_enabled("resignation_request",OffboardingGeneralSetting),name="dispatch")
+@method_decorator(
+    check_feature_enabled("resignation_request", OffboardingGeneralSetting),
+    name="dispatch",
+)
 class ResignationLettersFormView(SkylinxFormView):
     """
     Create and edit form for resignations
@@ -190,12 +195,40 @@ class ResignationLettersFormView(SkylinxFormView):
     form_class = ResignationLetterForm
     new_display_title = _("Create Resignation Letter")
 
+    def dispatch(self, request, *args, **kwargs):
+        """
+        Guard against IDOR: on update, only the owning employee or a user with
+        the offboarding permission may edit a resignation letter. On create,
+        non-permitted users are restricted to filing their own resignation
+        (the form forces employee_id to the requesting employee).
+        """
+        pk = kwargs.get("pk")
+        if pk and not request.user.has_perm("offboarding.change_resignationletter"):
+            letter = ResignationLetter.objects.filter(pk=pk).first()
+            if letter is None or letter.employee_id != request.user.employee_get:
+                return handle_no_permission(request)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        request = self.request
+        if not request.user.has_perm("offboarding.add_resignationletter"):
+            if "employee_id" in form.fields:
+                form.fields["employee_id"].queryset = Employee.objects.filter(id=request.user.employee_get.id)
+                form.fields["employee_id"].initial = request.user.employee_get
+        return form
+
     def form_valid(self, form: ResignationLetterForm) -> HttpResponse:
         """
         Handle a valid form submission.
         If the form is valid, save the instance and display a success message.
         """
         if form.is_valid():
+            if not self.request.user.has_perm("offboarding.add_resignationletter"):
+                form.instance.employee_id = self.request.user.employee_get
+            if not self.request.user.has_perm("offboarding.change_resignationletter"):
+                form.instance.status = "requested"
+
             if form.instance.pk:
                 message = _("Resignation updated successfully")
             else:

@@ -20,4 +20,9 @@ urlpatterns = [
         views.edit_audit_model_fields,
         name="audit-model-fields-edit",
     ),
+    path(
+        "audit/activity-log/",
+        views.activity_log,
+        name="audit-activity-log",
+    ),
 ]

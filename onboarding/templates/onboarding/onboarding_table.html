@@ -192,7 +192,7 @@
                   data-candidate="{{candidate.candidate_id}}"
                   data-job-position = "{{candidate.candidate_id.job_position_id}}"
                   data-join-date="{{candidate.candidate_id.joining_date}}"
-                  data-portal-count="{{candidate.candidate_id.onboarding_portal.count}}"
+                   data-portal-count="{{candidate.candidate_id.onboarding_portal.all|length}}"
                   data-toggle="oh-modal-toggle" data-target="#genericModal"
                   hx-get="{% url 'candidate-single-view' candidate.candidate_id.id %}?instance_ids={{recruitment.employee_ids}}" hx-target="#genericModalBody"
                   >
@@ -223,13 +223,15 @@
                   <div class="oh-sticky-table__td">{{candidate.candidate_id.mobile}}</div>
                   <div class="oh-sticky-table__td dateformat_changer">{{candidate.candidate_id.joining_date}}</div>
                   <div class="oh-sticky-table__td">
-                     <div class="oh-checkpoint-badge oh-checkpoint-badge--secondary" >
-                        {% if candidate.candidate_id.onboarding_portal.count %}
-                        {{candidate.candidate_id.onboarding_portal.count}} / 4
-                        {% else %}
-                        0 / 4
-                        {% endif %}
-                     </div>
+                      <div class="oh-checkpoint-badge oh-checkpoint-badge--secondary" >
+                         {% with portal_count=candidate.candidate_id.onboarding_portal.all|length %}
+                         {% if portal_count %}
+                         {{portal_count}} / 4
+                         {% else %}
+                         0 / 4
+                         {% endif %}
+                         {% endwith %}
+                      </div>
                   </div>
                   <div class="oh-sticky-table__td">
                      <div class="oh-checkpoint-badge oh-checkpoint-badge--primary" >

@@ -221,7 +221,7 @@ def is_reportingmanger(request, instance):
             instance.employee_id.employee_work_info.reporting_manager_id
         )
     except Exception:
-        return HttpResponse("This Employee Dont Have any work information")
+        return False
     return manager == employee_workinfo_manager
 
 

@@ -458,11 +458,9 @@ def choosesubordinates(request, form, perm):
                 employee_work_info__reporting_manager_id__in=sub_managers
             )
 
-    queryset = Employee.objects.filter(all_subordinates).distinct()
-
     # Assign to form field
     if "employee_id" in form.fields:
-        form.fields["employee_id"].queryset = queryset
+        form.fields["employee_id"].queryset = form.fields["employee_id"].queryset.filter(all_subordinates).distinct()
 
     return form
 
@@ -515,6 +513,10 @@ def choosesubordinatesemployeemodel(request, form, perm):
         return form
     manager = Employee.objects.filter(employee_user_id=user).first()
     queryset = Employee.objects.filter(employee_work_info__reporting_manager_id=manager)
+    selected_company = request.session.get("selected_company") if hasattr(request, "session") else None
+    if selected_company and selected_company != "all":
+        queryset = queryset.filter(employee_work_info__company_id=selected_company)
+    queryset = queryset.exclude(employee_user_id__is_superuser=True)
 
     form.fields["employee_id"].queryset = queryset
     return form
@@ -969,11 +971,14 @@ def reload_queryset(fields):
         model_name = model.__name__
 
         if model_name == "Company" and selected_company and selected_company != "all":
-            field.queryset = model.objects.filter(id=selected_company)
+            field.queryset = field.queryset.filter(id=selected_company)
         elif (filters := model_filters.get(model_name)) is not None:
-            field.queryset = model.objects.filter(**filters)
-        else:
-            field.queryset = model.objects.all()
+            field.queryset = field.queryset.filter(**filters)
+            
+        if model_name == "Employee":
+            field.queryset = field.queryset.exclude(employee_user_id__is_superuser=True)
+            if selected_company and selected_company != "all":
+                field.queryset = field.queryset.filter(employee_work_info__company_id=selected_company)
 
     return fields
 
@@ -1421,6 +1426,10 @@ def template_pdf(template, context={}, html=False, filename="payslip.pdf"):
         response = HttpResponse(pdf, content_type="application/pdf")
         response["Content-Disposition"] = f"inline; filename={filename}"
         return response
+    except OSError as e:
+        if "wkhtmltopdf" in str(e):
+            return HttpResponse(html_content, content_type="text/html")
+        return HttpResponse(f"Error generating PDF: {str(e)}", status=500)
     except Exception as e:
         return HttpResponse(f"Error generating PDF: {str(e)}", status=500)
 

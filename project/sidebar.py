@@ -18,14 +18,10 @@ from project.methods import (
 
 MENU = _("Projects")
 IMG_SRC = "images/ui/project.png"
+LOCKED = False
 ACCESSIBILITY = "project.sidebar.menu_accessibilty"
 
 SUBMENUS = [
-    {
-        "menu": _("Dashboard"),
-        "redirect": reverse("project-dashboard-view"),
-        "accessibility": "project.sidebar.dashboard_accessibility",
-    },
     {
         "menu": _("Projects"),
         "redirect": reverse("project-view"),
@@ -36,11 +32,7 @@ SUBMENUS = [
         "redirect": reverse("task-all"),
         "accessibility": "project.sidebar.task_accessibility",
     },
-    {
-        "menu": _("Timesheet"),
-        "redirect": reverse("view-time-sheet"),
-        "accessibility": "project.sidebar.timesheet_accessibility",
-    },
+    # ponytail: Timesheet hidden from Projects menu; backend/urls intact
 ]
 
 

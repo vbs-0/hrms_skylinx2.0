@@ -23,8 +23,14 @@ from django.template.loader import render_to_string
 from django.utils import timezone as django_timezone
 from django.utils.translation import gettext as __
 from django.utils.translation import gettext_lazy as _
-from zk import ZK
-from zk import exception as zk_exception
+try:  # ponytail: optional ZKTeco hardware dep; app boots without it, only ZK device sync needs it
+    from zk import ZK
+    from zk import exception as zk_exception
+except ImportError:
+    ZK = None
+
+    class zk_exception:  # noqa: N801 - stub so `except zk_exception.ZKErrorResponse` resolves
+        ZKErrorResponse = ZKNetworkError = Exception
 
 from attendance.methods.utils import Request
 from attendance.models import AttendanceActivity
@@ -2469,10 +2475,10 @@ def cosec_biometric_attendance_scheduler(device_id):
 
 def dahua_biometric_attendance_logs(device):
     """
-    Retrieves logs from a Dahua biometric device and marks attendance in Skylinx.
+    Retrieves logs from a Dahua biometric device and marks attendance in EMPLINX.
 
     This function fetches biometric logs from the specified device, processes the attendance records,
-    and updates the attendance system in Skylinx. If an employee has an active clock-in record,
+    and updates the attendance system in EMPLINX. If an employee has an active clock-in record,
     it marks their clock-out; otherwise, it registers a new clock-in entry.
 
     Args:

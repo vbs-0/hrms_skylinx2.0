@@ -20,7 +20,7 @@
     </script>
     <title class="time-runner stop-runner">{{white_label_company_name}}</title>
     <link rel="stylesheet" href="{% static 'build/css/driver.min.css' %}" />
-    <meta name="theme-color" content="orangered">
+    <meta name="theme-color" content="#1a5f9e">
     <link rel="manifest" href="{% static 'build/manifest.json' %}">
     <link rel="apple-touch-icon" sizes="180x180"
         href="{% if white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/apple-touch-icon.png' %}{% endif %}">
@@ -29,7 +29,7 @@
     <link rel="icon" type="image/png" sizes="16x16"
         href="{% if white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/favicon-16x16.png' %}{% endif %}">
 
-    <meta name="msapplication-TileColor" content="#da532c">
+    <meta name="msapplication-TileColor" content="#1a5f9e">
     <meta name="theme-color" content="#ffffff">
     <link rel="stylesheet" href="{% static 'build/css/style.min.css' %}" />
     <link rel="stylesheet" href="{% static 'build/css/sweetalert2.min.css' %}" />
@@ -40,7 +40,7 @@
     <link rel="stylesheet" href="{% static 'build/css/pivottable.min.css' %}" />
     <link rel="stylesheet" type="text/css" href="{% static 'css/skylinx-redesign.css' %}">
     <script>
-        // Apply saved Skylinx theme before paint to avoid flash
+        // Apply saved EMPLINX theme before paint to avoid flash
         (function () {
             try {
                 if (localStorage.getItem('skylinx-theme') === 'dark') {
@@ -164,13 +164,13 @@
                             <!-- End of check in/out button in nav bar -->
                         {% endif %}
 
-                        <!-- Start of Skylinx theme toggle -->
+                        <!-- Start of EMPLINX theme toggle -->
                         <div class="oh-navbar__action-icons" title="{% trans 'Toggle theme' %}">
                             <button type="button" id="skylinxThemeToggle" class="sx-theme-toggle" aria-label="{% trans 'Toggle dark mode' %}">
                                 <ion-icon name="moon-outline" id="skylinxThemeIcon"></ion-icon>
                             </button>
                         </div>
-                        <!-- End of Skylinx theme toggle -->
+                        <!-- End of EMPLINX theme toggle -->
 
                         {% if show_section %}
                             <!-- Start of settings button in nav bar -->
@@ -186,9 +186,7 @@
                         {% include 'notification/notification.html' %}
                         <!-- End of notifications button in nav bar -->
 
-                        <!-- Start of Languages dropdown in nav bar -->
-                        {% include "base/navbar_components/language_settings.html" %}
-                        <!-- End of Languages dropdown in nav bar -->
+
 
                         {% if perms.base.change_company %}
                             <!-- Start of Companies dropdown in nav bar -->
@@ -202,7 +200,7 @@
                     </div>
                 </div>
                 <!-- Start of quick access in index page -->
-                {% include "floating_button.html" %}
+                {% comment %} Quick actions FAB removed {% endcomment %}
                 <!-- End of quick access in index page -->
             </nav>
             <!-- End of Nav bar -->
@@ -239,8 +237,14 @@
                         <div id="dynamicCreateModalTarget" class="oh-modal__dialog" style="max-width: 550px"></div>
                     </div>
                 </div>
-            </div>
             <!-- End of main section -->
+            <footer class="text-center mt-auto py-3" style="border-top: 1px solid var(--sx-border); margin-top: 40px !important;">
+                <small class="sx-muted d-flex justify-content-center gap-3">
+                    <a href="{% url 'terms-and-conditions' %}" class="oh-link oh-link--secondary" target="_blank">{% trans "Terms" %}</a>
+                    <a href="{% url 'privacy-policy' %}" class="oh-link oh-link--secondary" target="_blank">{% trans "Privacy" %}</a>
+                    <a href="{% url 'user-agreement' %}" class="oh-link oh-link--secondary" target="_blank">{% trans "User Agreement" %}</a>
+                </small>
+            </footer>
         </div>
     </div>
 
@@ -251,7 +255,10 @@
     <script>
         document.body.addEventListener('htmx:configRequest', (event) => {
             event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
-        })
+        });
+        if (typeof htmx !== 'undefined') {
+            htmx.config.historyCacheSize = 0;
+        }
     </script>
     <!-- this is the master js  -->
     <script src="{% static '/index/index.js' %}"></script>
@@ -348,7 +355,7 @@
         </script>
     {% endif %}
     <script>
-        // Skylinx light/dark theme toggle
+        // EMPLINX light/dark theme toggle
         (function () {
             var body = document.body;
             document.documentElement.classList.remove('skylinx-dark-pre');

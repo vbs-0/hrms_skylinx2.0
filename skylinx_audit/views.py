@@ -4,6 +4,8 @@ views.py
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
+from django.core.paginator import Paginator
+from django.db.models import Q
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render
 from django.urls import reverse
@@ -126,3 +128,73 @@ def edit_audit_model_fields(request, pk):
         "skylinx_audit/audit_model_fields_form.html",
         {"form": form, "config": config},
     )
+
+
+@login_required
+@permission_required("skylinx_audit.view_auditmodelconfig")
+def activity_log(request):
+    """
+    Company-wide activity log: aggregates recent history entries from all
+    django-simple-history tracked models that are registered in AuditModelConfig.
+
+    Query params:
+      ?q=<search>         filter by actor username or model name
+      ?page=<n>           pagination
+    """
+    from django.apps import apps as django_apps
+
+    search_query = request.GET.get("q", "").strip()
+    all_history = []
+
+    configs = AuditModelConfig.objects.filter(is_enabled=True).order_by(
+        "app_label", "model_name"
+    )
+
+    for config in configs:
+        try:
+            model_cls = django_apps.get_model(config.app_label, config.model_name)
+        except LookupError:
+            continue
+
+        # django-simple-history attaches a `history` manager to tracked models
+        history_manager = getattr(model_cls, "history", None)
+        if history_manager is None:
+            continue
+
+        qs = history_manager.all().select_related("history_user").order_by(
+            "-history_date"
+        )[:200]  # cap per model to keep queries fast
+
+        for entry in qs:
+            entry.model_label_name = f"{config.app_label}.{config.model_name}"
+            entry.model_verbose_name = getattr(model_cls._meta, "verbose_name", config.model_name).title()
+            all_history.append(entry)
+
+    # Sort combined list by date descending
+    all_history.sort(key=lambda e: e.history_date, reverse=True)
+
+    # Search filter (actor username or model name)
+    if search_query:
+        filtered = []
+        sq_lower = search_query.lower()
+        for entry in all_history:
+            actor = getattr(entry, "history_user", None)
+            actor_name = str(actor) if actor else ""
+            if (
+                sq_lower in actor_name.lower()
+                or sq_lower in getattr(entry, "model_verbose_name", "").lower()
+                or sq_lower in str(getattr(entry, "history_type", "")).lower()
+            ):
+                filtered.append(entry)
+        all_history = filtered
+
+    paginator = Paginator(all_history, 50)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
+
+    context = {
+        "page_obj": page_obj,
+        "search_query": search_query,
+        "total_count": len(all_history),
+    }
+    return render(request, "skylinx_audit/activity_log.html", context)
+

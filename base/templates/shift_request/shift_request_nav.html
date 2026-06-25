@@ -262,7 +262,8 @@
             </div>
           </div>
 
-        {% if 'employee' in perms or request.user|is_reportingmanager %}
+        {# ponytail: Actions menu is manager/HR only — hide the empty button from employees #}
+        {% if perms.base.view_shiftrequest or perms.base.change_shiftrequest or request.user|is_reportingmanager %}
         <div class="oh-btn-group ml-2">
           <div class="oh-dropdown" x-data="{open: false}">
             <button
@@ -372,7 +373,7 @@
 <script>
   $(document).ready(function () {
     $("#id_field").on("change", function () {
-      $(".filterButton")[0].click();
+      $(".filterButton").first().click();
     });
   });
 </script>

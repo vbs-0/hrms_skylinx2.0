@@ -66,7 +66,7 @@
 		if (`{{keys_to_remove|safe}}`.includes(field)) {
 			return "";
 		}
-		const fiedlElem = $(`#applyFilter`).closest(`form`).find(`[name=${field}]`);
+		const fiedlElem = $(`#applyFilter`).closest(`form`).find(`[name="${field}"]`);
 		if (fiedlElem.is("select")) {
 			if (fiedlElem.is("select[multiple]")) {
 				const optionText = fiedlElem.find(`option[value="${value}"]`).text();

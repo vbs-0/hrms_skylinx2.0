@@ -1653,3 +1653,48 @@ class WorkRecords(models.Model):
         verbose_name = _("Work Record")
         verbose_name_plural = _("Work Records")
         # unique_together = ['date', 'employee_id']
+
+
+class MobileAttendanceDetail(models.Model):
+    """Extra metadata for mobile check-in/outs (selfie + GPS). Ported for the
+    Flutter app's /api/v1 layer."""
+
+    attendance_activity = models.OneToOneField(
+        AttendanceActivity,
+        on_delete=models.CASCADE,
+        related_name="mobile_detail",
+        verbose_name=_("Attendance Activity"),
+    )
+    check_in_selfie = models.ImageField(upload_to="selfies/check_in/", null=True, blank=True)
+    check_in_lat = models.FloatField(null=True, blank=True)
+    check_in_lng = models.FloatField(null=True, blank=True)
+    check_out_selfie = models.ImageField(upload_to="selfies/check_out/", null=True, blank=True)
+    check_out_lat = models.FloatField(null=True, blank=True)
+    check_out_lng = models.FloatField(null=True, blank=True)
+    within_geofence = models.BooleanField(default=True)
+    check_out_within_geofence = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = _("Mobile Attendance Detail")
+        verbose_name_plural = _("Mobile Attendance Details")
+
+
+class MobileLocationLog(models.Model):
+    """Continuous GPS tracking logs from the Flutter app."""
+
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name="mobile_location_logs",
+        verbose_name=_("Employee"),
+    )
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    accuracy = models.FloatField(null=True, blank=True)
+    gps_enabled = models.BooleanField(default=True)
+    captured_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = _("Mobile Location Log")
+        verbose_name_plural = _("Mobile Location Logs")
+        ordering = ["-captured_at"]

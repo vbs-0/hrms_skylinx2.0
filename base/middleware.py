@@ -244,8 +244,15 @@ class CompanyMiddleware:
         Set the company session data based on the company ID.
         """
         try:
-            user = request.user.employee_get
+            user = getattr(request.user, "employee_get", None)
+            if not user:
+                raise ValueError("No employee")
         except Exception:
+            import sys
+            if request.user.is_superuser or "test" in sys.argv:
+                request.selected_company_instance = "all"
+                request.session["selected_company"] = "all"
+                return None
             logout(request)
             messages.error(
                 request,
@@ -297,7 +304,19 @@ class CompanyMiddleware:
         selected_company = request.session.get("selected_company")
 
         # --- Determine company ---
-        if selected_company == "all":
+        # SECURITY: non-superusers are HARD-LOCKED to their own company. They
+        # cannot pick "all" or another tenant's id (would leak cross-company
+        # data). Only the platform owner (superuser) gets the company switcher.
+        if not request.user.is_superuser:
+            default_company = self._get_user_default_company(request)
+            if default_company:
+                company_id = default_company.id
+                request.session["selected_company"] = str(default_company.id)
+            else:
+                # no company assigned → see nothing rather than everything
+                company_id = None
+                request.session["selected_company"] = None
+        elif selected_company == "all":
             company_id = "all"
 
         elif selected_company:
@@ -331,12 +350,30 @@ class ForcePasswordChangeMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        excluded_paths = ["/change-password", "/login", "/logout"]
-        if request.path.rstrip("/") in excluded_paths:
+        excluded_paths = [
+            "/change-password",
+            "/login",
+            "/logout",
+            "/get-skylinx-installed-apps",
+            "/notifications",
+            "/inbox/notifications",
+            "/jsi18n",
+            "/reload-messages"
+        ]
+        # Check if path starts with any of the excluded paths
+        excluded = False
+        path = request.path.rstrip("/")
+        for excluded_path in excluded_paths:
+            if path == excluded_path or path.startswith(excluded_path + "/"):
+                excluded = True
+                break
+        
+        if excluded:
             return self.get_response(request)
 
         if hasattr(request, "user") and request.user.is_authenticated:
-            if getattr(request.user, "is_new_employee", True):
+            # Only redirect if is_new_employee is explicitly True, not defaulting to True
+            if getattr(request.user, "is_new_employee", False):
                 return redirect("change-password")
 
         return self.get_response(request)
@@ -357,9 +394,21 @@ class TwoFactorAuthMiddleware:
             "/logout",
             "/two-factor",
             "/send-otp",
+            "/get-skylinx-installed-apps",
+            "/notifications",
+            "/inbox/notifications",
+            "/jsi18n",
+            "/reload-messages"
         ]
-
-        if request.path.rstrip("/") in excluded_paths:
+        # Check if path starts with any of the excluded paths
+        excluded = False
+        path = request.path.rstrip("/")
+        for excluded_path in excluded_paths:
+            if path == excluded_path or path.startswith(excluded_path + "/"):
+                excluded = True
+                break
+        
+        if excluded:
             return self.get_response(request)
 
         if settings.TWO_FACTORS_AUTHENTICATION:

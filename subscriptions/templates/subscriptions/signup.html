@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+{% load i18n %}
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% trans "Create your company" %} · EMPLINX</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#f4f6fb;color:#0f172a}
+    .wrap{max-width:440px;margin:48px auto;padding:0 16px}
+    .card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:28px;box-shadow:0 4px 20px rgba(15,23,42,.06)}
+    h1{font-size:22px;margin:0 0 4px}.sub{color:#64748b;font-size:14px;margin:0 0 20px}
+    label{display:block;font-size:13px;font-weight:600;color:#475569;margin-top:14px}
+    input{width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;margin-top:5px;font-size:14px}
+    .btn{width:100%;margin-top:20px;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:12px;font-weight:700;font-size:15px;cursor:pointer}
+    .btn:hover{background:#1d4ed8}
+    .msg{background:#fee2e2;color:#b91c1c;padding:9px 12px;border-radius:8px;font-size:14px;margin-bottom:14px}
+    .foot{text-align:center;color:#64748b;font-size:13px;margin-top:16px}
+    a{color:#2563eb;text-decoration:none}
+    .brand{text-align:center;font-weight:800;color:#2563eb;font-size:20px;margin-bottom:18px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">EMPLINX</div>
+    <div class="card">
+      <h1>{% trans "Start your free trial" %}</h1>
+      <p class="sub">{% blocktrans %}Create your company account — {{ trial_days }} days free, no card required.{% endblocktrans %}</p>
+      {% if messages %}{% for m in messages %}<div class="msg">{{ m }}</div>{% endfor %}{% endif %}
+      <form method="post" action="{% url 'subscription-signup' %}">
+        {% csrf_token %}
+        <label>{% trans "Company name" %}</label>
+        <input name="company_name" required placeholder="Acme Pvt Ltd" />
+        <label>{% trans "Admin username" %}</label>
+        <input name="admin_username" required placeholder="you" />
+        <label>{% trans "Work email" %}</label>
+        <input name="admin_email" type="email" placeholder="you@acme.com" />
+        <label>{% trans "Password" %}</label>
+        <input name="admin_password" type="password" required minlength="6" />
+        <button class="btn" type="submit">{% trans "Create company & start trial" %}</button>
+      </form>
+      <p class="foot">{% trans "Already have an account?" %} <a href="/login">{% trans "Sign in" %}</a></p>
+    </div>
+  </div>
+</body>
+</html>

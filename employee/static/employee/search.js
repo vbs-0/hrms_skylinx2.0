@@ -28,14 +28,14 @@ $(document).ready(function () {
     function activeProfileTab() {
         var activeTab = localStorage.getItem("activeProfileTab")
         if (!$(activeTab).length && $(`[data-target="#personal_target"]`).length) {
-            $(`[data-target="#personal_target"]`)[0].click()
+            $(`[data-target="#personal_target"]`).first().click();
         } else if (activeTab != null) {
             $(".oh-general__tab-link--active").removeClass("oh-general__tab-link--active");
             $(`[data-target='${activeTab}']`).addClass("oh-general__tab-link--active");
             $(".oh-general__tab-target").addClass("d-none");
             $(activeTab).removeClass("d-none");
             if ($(`[data-target="${activeTab}"]`).length > 0) {
-                $(`[data-target="${activeTab}"]`)[0].click();
+                $(`[data-target="${activeTab}"]`).first().click();
             }
         }
     }

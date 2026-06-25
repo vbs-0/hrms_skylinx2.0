@@ -16,7 +16,7 @@
             <a
               class="oh-btn oh-btn--view {% if request.GET.view == 'list' %} oh-btn--view-active {% endif %}"
               title='{% trans "List" %}'
-              onclick="$('[name=view]').val('list');$('.filterButton')[0].click();"
+              onclick="$('[name=view]').val('list');$('.filterButton').first().click();"
             >
               <ion-icon
                 name="list-outline"
@@ -30,7 +30,7 @@
             <a
               class="oh-btn oh-btn--view {% if request.GET.view != 'list' %} oh-btn--view-active {% endif %}"
               title='{% trans "Card" %}'
-              onclick="$('[name=view]').val('card');$('.filterButton')[0].click();"
+              onclick="$('[name=view]').val('card');$('.filterButton').first().click();"
             >
               <ion-icon
                 name="grid-outline"
@@ -128,7 +128,7 @@
   });
   $(document).ready(function () {
     $("#id_field").on("change", function () {
-      $(".filterButton")[0].click();
+      $(".filterButton").first().click();
     });
   });
   $("[name=status]").val('requested').change();

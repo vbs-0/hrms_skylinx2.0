@@ -333,7 +333,7 @@ class EmployeeCreationForm(ModelForm):
     address = forms.CharField(required=True, label=_("Address"))
     country = forms.CharField(required=True, label=_("Country"))
     state = forms.CharField(required=True, label=_("State"))
-    zip = forms.CharField(required=True, label=_("Zip"))
+    zip = forms.CharField(required=True, label=_("PIN Code"))
     qualification = forms.CharField(required=True, label=_("Qualification"))
     experience = forms.IntegerField(required=True, label=_("Experience"))
     children = forms.IntegerField(required=True, label=_("Children"))
@@ -362,10 +362,15 @@ class EmployeeCreationForm(ModelForm):
             "additional_info",
             "is_from_onboarding",
             "is_directly_converted",
+            "account_type",
         )
         widgets = {
             "dob": DateInput(attrs={"type": "date"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.initial["country"] = "India"
 
     def clean(self):
         cleaned_data = self.cleaned_data
@@ -389,12 +394,17 @@ class BankDetailsCreationForm(ModelForm):
     bank_name = forms.CharField(required=True, label="Bank Name")
     account_number = forms.CharField(required=True, label="Account Number")
     branch = forms.CharField(required=True, label="Branch")
-    address = forms.Textarea()
+    address = forms.CharField(widget=forms.HiddenInput(), required=False)
     country = forms.CharField(required=True, label="Country")
     state = forms.CharField(required=True, label="State")
     city = forms.CharField(required=True, label="City")
-    any_other_code1 = forms.CharField(required=True, label="Code #1")
-    any_other_code2 = forms.CharField(required=False, label="Code #2")
+    any_other_code1 = forms.CharField(required=True, label="IFSC Code")
+    any_other_code2 = forms.CharField(required=False, label="SWIFT Code", widget=forms.HiddenInput())
+    account_type = forms.ChoiceField(
+        choices=[("", _("---Choose Account Type---"))] + Employee.ACCOUNT_TYPE_CHOICES,
+        required=False,
+        label=_("Bank Account Type"),
+    )
 
     class Meta:
         """
@@ -404,6 +414,34 @@ class BankDetailsCreationForm(ModelForm):
         model = EmployeeBankDetails
         fields = "__all__"
         exclude = ["employee_id", "additional_info", "is_active"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["address"].required = False
+        self.fields["address"].widget = forms.HiddenInput()
+        self.initial["country"] = "India"
+        self.initial["account_type"] = "savings"
+        if self.instance and hasattr(self.instance, "employee_id") and self.instance.employee_id:
+            if self.instance.employee_id.account_type:
+                self.initial["account_type"] = self.instance.employee_id.account_type
+
+    def save(self, commit=True):
+        bank_details = super().save(commit=False)
+        account_type = self.cleaned_data.get("account_type")
+        
+        orig_save = bank_details.save
+        def custom_save(*args, **kwargs):
+            orig_save(*args, **kwargs)
+            if bank_details.employee_id:
+                employee = bank_details.employee_id
+                if employee.account_type != account_type:
+                    employee.account_type = account_type
+                    employee.save(update_fields=["account_type"])
+        bank_details.save = custom_save
+        
+        if commit:
+            bank_details.save()
+        return bank_details
 
 
 class StageChangeForm(forms.ModelForm):

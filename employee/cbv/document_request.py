@@ -9,13 +9,14 @@ from urllib.parse import urlparse
 from django import forms
 from django.contrib import messages
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 from base.methods import choosesubordinates, is_reportingmanager
+from skylinx.decorators import check_manager
 from employee.filters import DocumentPipelineFilter, DocumentRequestFilter
 from employee.models import Employee
 from skylinx.decorators import manager_can_enter
@@ -78,7 +79,7 @@ def htmx_refresh_document_request_container(request) -> Optional[HttpResponse]:
 
 @method_decorator(login_required, name="dispatch")
 @method_decorator(
-    manager_can_enter("skylinx_documents.add_documentrequests"), name="dispatch"
+    manager_can_enter("skylinx_documents.add_documentrequest"), name="dispatch"
 )
 class DocumentRequestCreateForm(SkylinxFormView):
     """
@@ -147,6 +148,22 @@ class DocumentCreateForm(SkylinxFormView):
     form_class = DocumentForm
     model = Document
     new_display_title = _("Document")
+
+    def dispatch(self, request, *args, **kwargs):
+        employee_id = self.kwargs.get("emp_id")
+        try:
+            employee = Employee.objects.get(id=employee_id)
+        except Employee.DoesNotExist:
+            return render(request, "no_perm.html")
+        current = request.user.employee_get
+        is_authorized = (
+            request.user.has_perm("employee.change_employee")
+            or current == employee
+            or check_manager(current, employee)
+        )
+        if not is_authorized:
+            return render(request, "no_perm.html")
+        return super().dispatch(request, *args, **kwargs)
 
     def get_initial(self) -> dict:
         initial = super().get_initial()

@@ -112,7 +112,7 @@ async function loadComponent(elementId, path) {
 //     const departmentColors = [
 //         "#facc15",
 //         "#f87171",
-//         "#ddd6fe",
+//         "#bfdbfe",
 //         "#a5b4fc",
 //         "#93c5fd",
 //         "#d1d5db",

@@ -33,6 +33,7 @@ from django.utils.http import urlsafe_base64_encode
 from django.utils.translation import gettext_lazy as _
 
 from base.methods import reload_queryset
+from base.rbac import current_company, groups_for_request
 from base.models import (
     Announcement,
     AnnouncementComment,
@@ -400,7 +401,7 @@ class UserGroupForm(ModelForm):
         super().__init__(*args, **kwargs)
         try:
             self.fields["permissions"].choices = [
-                (perm.codename, perm.name) for perm in Permission.objects.all()
+                (f"{perm.content_type.app_label}.{perm.codename}", perm.name) for perm in Permission.objects.select_related("content_type").all()
             ]
         except Exception:
             # Safe fallback when DB is not ready
@@ -415,12 +416,42 @@ class UserGroupForm(ModelForm):
             group = self.instance
         group.save()
 
-        # Convert the selected codenames back to Permission instances
-        permissions_codenames = self.cleaned_data["permissions"]
-        permissions = Permission.objects.filter(codename__in=permissions_codenames)
+        # Convert the selected app_label.codenames back to Permission instances
+        permissions_values = self.cleaned_data["permissions"]
+        
+        from django.db.models import Q
+        from django.conf import settings
+        from django.apps import apps
+        
+        q_objs = Q()
+        for pv in permissions_values:
+            if "." in pv:
+                app_label, codename = pv.split(".", 1)
+                q_objs |= Q(content_type__app_label=app_label, codename=codename)
+        
+        if q_objs:
+            selected_permissions = Permission.objects.filter(q_objs)
+        else:
+            selected_permissions = Permission.objects.none()
 
-        # Set the associated permissions
-        group.permissions.set(permissions)
+        # Determine "editable" permissions to avoid wiping out hidden ones
+        editable_q = Q()
+        if hasattr(settings, 'APPS'):
+            for app_name in settings.APPS:
+                try:
+                    app_config = apps.get_app_config(app_name)
+                    model_names = [model._meta.model_name for model in app_config.get_models() if model.__name__ != "CompanyTheme" and model._meta.model_name not in settings.NO_PERMISSION_MODALS]
+                    if model_names:
+                        editable_q |= Q(content_type__app_label=app_name, content_type__model__in=model_names)
+                except Exception:
+                    pass
+        
+        if editable_q:
+            hidden_permissions = group.permissions.exclude(editable_q)
+            final_permissions = list(selected_permissions) + list(hidden_permissions)
+            group.permissions.set(final_permissions)
+        else:
+            group.permissions.set(selected_permissions)
 
         if commit:
             group.save()
@@ -433,12 +464,21 @@ class AssignUserGroup(Form):
     Form to assign groups
     """
 
-    employee = forms.ModelMultipleChoiceField(
-        queryset=Employee.objects.all(), required=False
+    employee = SkylinxMultiSelectField(
+        queryset=Employee.objects.none(),
+        widget=SkylinxMultiSelectWidget(
+            filter_route_name="employee-widget-filter",
+            filter_class=EmployeeFilter,
+            filter_instance_context_name="f",
+            filter_template_path="employee_filters.html",
+            required=False,
+        ),
+        label=_("Employee"),
+        required=False,
     )
 
     group = forms.ModelChoiceField(
-        queryset=Group.objects.all(),
+        queryset=Group.objects.none(),
         error_messages={
             "invalid_choice": _("Invalid group ID."),
         },
@@ -447,6 +487,13 @@ class AssignUserGroup(Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         reload_queryset(self.fields)
+        request = getattr(__import__("skylinx.skylinx_middlewares", fromlist=["_thread_locals"])._thread_locals, "request", None)
+        company = current_company(request) if request else None
+        if company:
+            self.fields["employee"].queryset = Employee.objects.filter(
+                employee_work_info__company_id=company
+            ).exclude(employee_user_id__is_superuser=True)
+            self.fields["group"].queryset = groups_for_request(request)
 
     def save(self):
         """
@@ -482,12 +529,19 @@ class AddToUserGroupForm(Form):
     Form to add employee in to  groups
     """
 
-    group = forms.ModelMultipleChoiceField(queryset=Group.objects.all(), required=False)
-    employee = forms.ModelChoiceField(queryset=Employee.objects.all())
+    group = forms.ModelMultipleChoiceField(queryset=Group.objects.none(), required=False)
+    employee = forms.ModelChoiceField(queryset=Employee.objects.none())
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         reload_queryset(self.fields)
+        request = getattr(__import__("skylinx.skylinx_middlewares", fromlist=["_thread_locals"])._thread_locals, "request", None)
+        company = current_company(request) if request else None
+        if company:
+            self.fields["employee"].queryset = Employee.objects.filter(
+                employee_work_info__company_id=company
+            ).exclude(employee_user_id__is_superuser=True)
+            self.fields["group"].queryset = groups_for_request(request)
 
     def save(self):
         """
@@ -533,7 +587,7 @@ class AssignPermission(Form):
         # Dynamically load permission choices only when DB is ready
         try:
             self.fields["permissions"].choices = [
-                (perm.codename, perm.name) for perm in Permission.objects.all()
+                (f"{perm.content_type.app_label}.{perm.codename}", perm.name) for perm in Permission.objects.select_related("content_type").all()
             ]
         except Exception:
             # Fallback in case the DB isn't ready yet
@@ -553,8 +607,20 @@ class AssignPermission(Form):
         user_ids = Employee.objects.filter(
             id__in=self.data.getlist("employee")
         ).values_list("employee_user_id", flat=True)
-        permissions = self.cleaned_data["permissions"]
-        permissions = Permission.objects.filter(codename__in=permissions)
+        permissions_values = self.cleaned_data["permissions"]
+        
+        from django.db.models import Q
+        q_objs = Q()
+        for pv in permissions_values:
+            if "." in pv:
+                app_label, codename = pv.split(".", 1)
+                q_objs |= Q(content_type__app_label=app_label, codename=codename)
+                
+        if q_objs:
+            permissions = Permission.objects.filter(q_objs)
+        else:
+            permissions = Permission.objects.none()
+            
         users = SkylinxUser.objects.filter(id__in=user_ids)
         for user in users:
             user.user_permissions.add(*permissions)
@@ -873,7 +939,7 @@ class WorkTypeForm(ModelForm):
     WorkType model's form
     """
 
-    cols = {"work_type": 12, "company_id": 12}
+    cols = {"work_type": 12}
 
     class Meta:
         """
@@ -882,18 +948,10 @@ class WorkTypeForm(ModelForm):
 
         model = WorkType
         fields = "__all__"
-        exclude = ["is_active"]
+        exclude = ["is_active", "company_id"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not self.instance.pk:
-            request = getattr(_thread_locals, "request", None)
-            if request:
-                selected_company = request.session.get("selected_company")
-                if selected_company and selected_company != "all":
-                    self.initial["company_id"] = Company.objects.filter(
-                        id=selected_company
-                    )
 
 
 class RotatingWorkTypeForm(ModelForm):
@@ -2545,12 +2603,11 @@ class MailTemplateForm(ModelForm):
 
     class Meta:
         model = SkylinxMailTemplate
-        fields = "__all__"
+        exclude = ["is_active"]
         widgets = {
             "body": forms.Textarea(
                 attrs={"data-summernote": "", "style": "display:none;"}
             ),
-            "is_active": forms.HiddenInput(),
         }
 
     def clean_body(self):
@@ -2576,15 +2633,45 @@ class MailTemplateForm(ModelForm):
             "th",
             "a",
             "span",
+            "div",
+            "img",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "font",
+            "sub",
+            "sup",
+            "blockquote",
+            "pre",
+            "code",
         ]
 
         ALLOWED_ATTRIBUTES = {
-            "a": ["href", "title"],
+            "a": ["href", "title", "target"],
             "span": ["style"],
+            "div": ["style", "class"],
+            "td": ["style", "colspan", "rowspan"],
+            "th": ["style", "colspan", "rowspan"],
+            "table": ["style", "class", "border", "cellpadding", "cellspacing"],
+            "img": ["src", "alt", "width", "height", "style"],
+            "p": ["style"],
+            "font": ["color", "size", "face"],
+            "h1": ["style"],
+            "h2": ["style"],
+            "h3": ["style"],
+            "h4": ["style"],
+            "h5": ["style"],
+            "h6": ["style"],
         }
 
+        from bleach.css_sanitizer import CSSSanitizer
+        css_sanitizer = CSSSanitizer()
+
         cleaned_body = bleach.clean(
-            body, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES, strip=True
+            body, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES, css_sanitizer=css_sanitizer, strip=True
         )
 
         return cleaned_body
@@ -2935,28 +3022,51 @@ class PassWordResetForm(forms.Form):
         Generate a one-use only link for resetting password and send it to the
         user.
         """
-        username = self.cleaned_data["email"]
-        user = SkylinxUser.objects.get(username=username)
+        from django.db.models import Q
+
+        ident = self.cleaned_data["email"].strip()
+        user = (
+            SkylinxUser.objects.filter(
+                Q(username__iexact=ident)
+                | Q(email__iexact=ident)
+                | Q(employee_get__email__iexact=ident)
+                | Q(employee_get__phone=ident)
+                | Q(employee_get__employee_work_info__email__iexact=ident)
+            )
+            .distinct()
+            .first()
+        )
+        if user is None:
+            # unknown identifier — don't reveal that; just send nothing
+            return
         employee = user.employee_get
-        email = employee.email
-        work_mail = None
-        try:
-            work_mail = employee.employee_work_info.email
-        except Exception as e:
-            pass
-        if work_mail:
-            email = work_mail
+        # send to every address the person might actually read: personal email,
+        # work email, and the login username if it looks like an email.
+        recipients = []
+        for addr in (
+            employee.email,
+            getattr(getattr(employee, "employee_work_info", None), "email", None),
+            user.email,
+            user.username if "@" in (user.username or "") else None,
+        ):
+            if addr and addr not in recipients:
+                recipients.append(addr)
 
         if not domain_override:
-            current_site = get_current_site(request)
-            site_name = current_site.name
-            domain = current_site.domain
+            try:
+                current_site = get_current_site(request)
+                site_name = current_site.name
+                domain = current_site.domain
+            except Exception:
+                # no django.contrib.sites row configured — use the request host
+                host = request.get_host() if request else "localhost"
+                site_name = domain = host
         else:
             site_name = domain = domain_override
-        if email:
+        if recipients:
             token = token_generator.make_token(user)
             context = {
-                "email": email,
+                "email": recipients[0],
                 "domain": domain,
                 "site_name": site_name,
                 "uid": urlsafe_base64_encode(force_bytes(user.pk)),
@@ -2965,14 +3075,15 @@ class PassWordResetForm(forms.Form):
                 "protocol": "https" if use_https else "http",
                 **(extra_email_context or {}),
             }
-            self.send_mail(
-                subject_template_name,
-                email_template_name,
-                context,
-                from_email,
-                email,
-                html_email_template_name=html_email_template_name,
-            )
+            for addr in recipients:
+                self.send_mail(
+                    subject_template_name,
+                    email_template_name,
+                    context,
+                    from_email,
+                    addr,
+                    html_email_template_name=html_email_template_name,
+                )
 
 
 def validate_ip_or_cidr(value):

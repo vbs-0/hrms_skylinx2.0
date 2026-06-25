@@ -1,5 +1,5 @@
 """
-App configuration for the Skylinx Automations app.
+App configuration for the EMPLINX Automations app.
 Initializes model choices and starts automation when the server runs.
 """
 
@@ -10,10 +10,12 @@ from django.apps import AppConfig
 
 
 class SkylinxAutomationConfig(AppConfig):
-    """Configuration class for the Skylinx Automations Django app."""
+    """Configuration class for the EMPLINX Automations Django app."""
 
     default_auto_field = "django.db.models.BigAutoField"
     name = "skylinx_automations"
+
+    verbose_name = "Automations"
 
     def ready(self) -> None:
         ready = super().ready()
@@ -25,6 +27,7 @@ class SkylinxAutomationConfig(AppConfig):
                 "compilemessages",
                 "flush",
                 "shell",
+                "test",
             ]
         ):
             return ready

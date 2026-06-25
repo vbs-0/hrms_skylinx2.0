@@ -69,6 +69,7 @@ from notifications.signals import notify
 from recruitment.auth import CandidateAuthenticationBackend
 from recruitment.decorators import (
     all_manager_can_enter,
+    candidate_can_access,
     candidate_login_required,
     manager_can_enter,
     recruitment_manager_can_enter,
@@ -740,7 +741,9 @@ def recruitment_pipeline_card(request):
     search = request.GET.get("search")
     search = search if search is not None else ""
     recruitment_obj = Recruitment.objects.all()
-    candidates = Candidate.objects.filter(name__icontains=search, is_active=True)
+    candidates = Candidate.objects.select_related(
+        "recruitment_id", "job_position_id", "stage_id"
+    ).filter(name__icontains=search, is_active=True)
     stages = Stage.objects.all()
     return render(
         request,
@@ -1497,14 +1500,16 @@ def candidate_view(request):
     """
     view_type = request.GET.get("view")
     previous_data = request.GET.urlencode()
-    candidates = Candidate.objects.filter(is_active=True)
+    candidates = Candidate.objects.select_related(
+        "recruitment_id",
+        "job_position_id",
+        "job_position_id__department_id",
+        "stage_id",
+        "rejected_candidate"
+    ).prefetch_related(
+        "rejected_candidate__reject_reason_id"
+    ).filter(is_active=True)
     recruitments = Recruitment.objects.filter(closed=False, is_active=True)
-
-    mails = list(Candidate.objects.values_list("email", flat=True))
-    # Query the SkylinxUser model to check if any email is present
-    existing_emails = list(
-        SkylinxUser.objects.filter(username__in=mails).values_list("email", flat=True)
-    )
 
     filter_obj = CandidateFilter(request.GET, queryset=candidates)
     if Candidate.objects.exists():
@@ -1515,13 +1520,19 @@ def candidate_view(request):
     get_key_instances(Candidate, data_dict)
 
     # Store the candidates in the session
-    request.session["filtered_candidates"] = [candidate.id for candidate in candidates]
+    request.session["filtered_candidates"] = list(filter_obj.qs.values_list("id", flat=True))
+
+    page_obj = paginator_qry(filter_obj.qs, request.GET.get("page"))
+    page_emails = [c.email for c in page_obj.object_list if c.email]
+    existing_emails = list(
+        SkylinxUser.objects.filter(username__in=page_emails).values_list("email", flat=True)
+    )
 
     return render(
         request,
         template,
         {
-            "data": paginator_qry(filter_obj.qs, request.GET.get("page")),
+            "data": page_obj,
             "pd": previous_data,
             "f": filter_obj,
             "view_type": view_type,
@@ -1628,6 +1639,7 @@ def interview_employee_remove(request, interview_id, employee_id):
 
 
 @login_required
+@manager_can_enter("recruitment.view_candidate")
 def candidate_export(request):
     """
     This method is used to Export candidate data
@@ -1656,16 +1668,24 @@ def candidate_view_list(request):
     This method renders all candidate on candidate_list.html template
     """
     previous_data = request.GET.urlencode()
-    candidates = Candidate.objects.all()
+    candidates = Candidate.objects.select_related(
+        "recruitment_id", "job_position_id", "stage_id"
+    ).all()
     if request.GET.get("is_active") is None:
         candidates = candidates.filter(is_active=True)
     candidates = CandidateFilter(request.GET, queryset=candidates).qs
+    page_obj = paginator_qry(candidates, request.GET.get("page"))
+    page_emails = [c.email for c in page_obj.object_list if c.email]
+    existing_emails = list(
+        SkylinxUser.objects.filter(username__in=page_emails).values_list("email", flat=True)
+    )
     return render(
         request,
         "candidate/candidate_list.html",
         {
-            "data": paginator_qry(candidates, request.GET.get("page")),
+            "data": page_obj,
             "pd": previous_data,
+            "emp_list": existing_emails,
         },
     )
 
@@ -1678,16 +1698,24 @@ def candidate_view_card(request):
     This method renders all candidate on candidate_card.html template
     """
     previous_data = request.GET.urlencode()
-    candidates = Candidate.objects.all()
+    candidates = Candidate.objects.select_related(
+        "recruitment_id", "job_position_id", "stage_id"
+    ).all()
     if request.GET.get("is_active") is None:
         candidates = candidates.filter(is_active=True)
     candidates = CandidateFilter(request.GET, queryset=candidates).qs
+    page_obj = paginator_qry(candidates, request.GET.get("page"))
+    page_emails = [c.email for c in page_obj.object_list if c.email]
+    existing_emails = list(
+        SkylinxUser.objects.filter(username__in=page_emails).values_list("email", flat=True)
+    )
     return render(
         request,
         "candidate/candidate_card.html",
         {
-            "data": paginator_qry(candidates, request.GET.get("page")),
+            "data": page_obj,
             "pd": previous_data,
+            "emp_list": existing_emails,
         },
     )
 
@@ -2069,9 +2097,10 @@ def candidate_conversion(request, cand_id, **kwargs):
         return SkylinxRedirect(request)
 
     user_exists = SkylinxUser.objects.filter(username=candidate_obj.email).exists()
-    employee_exists = Employee.objects.filter(
-        employee_user_id__username=candidate_obj.email
-    ).exists()
+    employee_exists = (
+        Employee.objects.filter(employee_user_id__username=candidate_obj.email).exists()
+        or Employee.objects.filter(email=candidate_obj.email).exists()
+    )
 
     if user_exists:
         messages.error(request, ("User instance with this mail already exists"))
@@ -2206,11 +2235,11 @@ def form_send_mail(request, cand_id=None):
                 "Hi {{instance.get_full_name}},</p>"
                 '<p style="font-size: 14px; color: #374151; line-height: 1.7; margin: 0 0 16px 0;">'
                 "You can track your application status from the candidate portal using the credentials below.</p>"
-                '<div style="margin: 18px 0; padding: 16px; background: #f9fafb; border-left: 4px solid hsl(8, 77%, 56%); border-radius: 8px;">'
+                '<div style="margin: 18px 0; padding: 16px; background: #f9fafb; border-left: 4px solid hsl(204, 73%, 43%); border-radius: 8px;">'
                 '<p style="margin: 0 0 8px 0; font-size: 14px; color: #111827;">'
                 "<strong>Portal Link:</strong> "
                 '<a href="{{ request.scheme }}://{{ request.get_host }}/recruitment/candidate-login/" target="_blank" '
-                'style="color: hsl(8, 77%, 56%); text-decoration: none;">'
+                'style="color: hsl(204, 73%, 43%); text-decoration: none;">'
                 "{{ request.scheme }}://{{ request.get_host }}/recruitment/candidate-login/"
                 "</a></p>"
                 '<p style="margin: 0 0 8px 0; font-size: 14px; color: #111827;"><strong>Username (Email):</strong> {{instance.email}}</p>'
@@ -2558,6 +2587,7 @@ def stage_sequence_update(request):
 
 
 @login_required
+@manager_can_enter("recruitment.view_candidate")
 def candidate_select(request):
     """
     This method is used for select all in candidate
@@ -2578,6 +2608,7 @@ def candidate_select(request):
 
 
 @login_required
+@manager_can_enter("recruitment.view_candidate")
 def candidate_select_filter(request):
     """
     This method is used to select all filtered candidates
@@ -2748,7 +2779,7 @@ def skill_zone_delete(request, sz_id):
         response["HX-Trigger"] = "skillZoneContainerReload"
         return response
     return HttpResponse(
-        "<script>$('.filterButton')[0].click();reloadMessage();</script>"
+        "<script>$('.filterButton').first().click();reloadMessage();</script>"
     )
 
 
@@ -3887,6 +3918,7 @@ def document_create(request, id):
 
 
 @login_required
+@manager_can_enter("recruitment.change_candidatedocument")
 def update_document_title(request, id):
     """
     This function is used to create documents from employee individual & profile view.
@@ -3962,6 +3994,8 @@ def file_upload(request, id):
     Returns: return document_form template
     """
     document_item = CandidateDocument.objects.get(id=id)
+    if not candidate_can_access(request, document_item.candidate_id_id):
+        return render(request, "no_perm.html")
     form = CandidateDocumentUpdateForm(instance=document_item)
     if request.method == "POST":
         form = CandidateDocumentUpdateForm(
@@ -3992,6 +4026,10 @@ def view_file(request, id):
     Returns: return view_file template
     """
     document_obj = CandidateDocument.objects.filter(id=id).first()
+    if document_obj is None or not candidate_can_access(
+        request, document_obj.candidate_id_id
+    ):
+        return render(request, "no_perm.html")
     context = {
         "document": document_obj,
     }
@@ -4086,6 +4124,9 @@ def candidate_add_notes(request, cand_id):
         return SkylinxRedirect(
             request, message=_("No Candidate found matching the query.")
         )
+
+    if not candidate_can_access(request, candidate.pk):
+        return render(request, "no_perm.html")
 
     updated_by = request.user.employee_get if request.user.is_authenticated else None
     label = (

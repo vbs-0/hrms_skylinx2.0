@@ -1,7 +1,7 @@
 """
 recruitment/sidebar.py
 
-To set Skylinx sidebar for onboarding
+To set EMPLINX sidebar for onboarding
 """
 
 from django.apps import apps
@@ -16,15 +16,11 @@ from recruitment.templatetags.recruitmentfilters import (
     is_stagemanager,
 )
 
-MENU = _("Hiring")
+MENU = _("Recruitment")
 ACCESSIBILITY = "recruitment.sidebar.menu_accessibilty"
 IMG_SRC = "images/ui/recruitment.svg"
 
 SUBMENUS = [
-    {
-        "menu": _("Dashboard"),
-        "redirect": reverse("recruitment-dashboard"),
-    },
     {
         "menu": _("Recruitment Pipeline"),
         "redirect": reverse("cbv-pipeline"),

@@ -1,4 +1,4 @@
-﻿{% extends "index.html" %}
+{% extends "index.html" %}
 {% load static i18n %}
 
 {% block content %}
@@ -110,7 +110,7 @@
     /* KPI Grid */
     .md-kpi-grid {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         gap: 14px;
         margin-bottom: 20px;
     }
@@ -577,7 +577,7 @@
         box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         transition: transform 0.2s;
     }
-    .md-cust-item__toggle--on { background-color: {{ theme_obj.primary_600|default:"#E54F38" }}; }
+    .md-cust-item__toggle--on { background-color: {{ theme_obj.primary_600|default:"#1C75BC" }}; }
     .dark .md-cust-item__toggle--on { background: var(--oh-primary, var(--md-indigo)); }
     .md-cust-item__toggle--on::after { transform: translateX(16px); }
 
@@ -786,6 +786,8 @@
         <div class="md-skeleton md-skeleton--kpi"></div>
         <div class="md-skeleton md-skeleton--kpi"></div>
         <div class="md-skeleton md-skeleton--kpi"></div>
+        <div class="md-skeleton md-skeleton--kpi"></div>
+        <div class="md-skeleton md-skeleton--kpi"></div>
     </div>
 
     <!-- Main layout -->
@@ -801,16 +803,20 @@
                     <div class="md-chart-card__body"><div id="chart-attendance-trend"></div></div>
                 </div>
 
+                <!-- Holiday Calendar -->
+                <div class="md-chart-card md-chart-card--wide" data-chart-id="holiday_calendar" data-chart-section="overview" data-chart-label="{% trans 'Holiday Calendar' %}" data-chart-wide="1">
+                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Holiday Calendar" %}</div><div class="md-chart-card__subtitle">{% trans "Holidays and approved leaves" %}</div></div></div>
+                    <div class="md-chart-card__body">
+                        <div id="holiday-calendar-container" hx-get="{% url 'holiday-calendar-view' %}?hx=1&dashboard=1" hx-trigger="load" hx-swap="innerHTML">
+                            <div style="padding:40px; text-align:center; opacity:0.5;">{% trans "Loading calendar..." %}</div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Department Headcount -->
                 <div class="md-chart-card" data-chart-id="department_headcount" data-chart-section="overview" data-chart-label="{% trans 'Department Headcount' %}">
                     <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Department Headcount" %}</div><div class="md-chart-card__subtitle">{% trans "Top 10 departments" %}</div></div></div>
                     <div class="md-chart-card__body"><div id="chart-departments"></div></div>
-                </div>
-
-                <!-- Gender Distribution -->
-                <div class="md-chart-card" data-chart-id="gender_distribution" data-chart-section="overview" data-chart-label="{% trans 'Gender Distribution' %}">
-                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Gender Distribution" %}</div><div class="md-chart-card__subtitle">{% trans "Active employees" %}</div></div></div>
-                    <div class="md-chart-card__body"><div id="chart-gender"></div></div>
                 </div>
 
                 <!-- Leave Breakdown -->
@@ -819,70 +825,22 @@
                     <div class="md-chart-card__body"><div id="chart-leave"></div></div>
                 </div>
 
-                <!-- Employee Status -->
-                <div class="md-chart-card" data-chart-id="employee_status" data-chart-section="overview" data-chart-label="{% trans 'Employee Status' %}">
-                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Employee Status" %}</div><div class="md-chart-card__subtitle">{% trans "Active vs Inactive" %}</div></div></div>
-                    <div class="md-chart-card__body"><div id="chart-employee-status"></div></div>
+                <!-- Projects by Status -->
+                <div class="md-chart-card" data-chart-id="project_status" data-chart-section="overview" data-chart-label="{% trans 'Projects by Status' %}">
+                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Projects by Status" %}</div><div class="md-chart-card__subtitle">{% trans "Project lifecycle stages" %}</div></div></div>
+                    <div class="md-chart-card__body"><div id="chart-project-status"></div></div>
                 </div>
 
-                <!-- Attendance Overview -->
-                <div class="md-chart-card md-chart-card--wide" data-chart-id="attendance_overview" data-chart-section="attendance" data-chart-label="{% trans 'Attendance Overview' %}" data-chart-wide="1">
-                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Attendance Overview" %}</div><div class="md-chart-card__subtitle">{% trans "On-time, late arrivals & early departures by department" %}</div></div></div>
-                    <div class="md-chart-card__body"><div id="chart-attendance-overview"></div></div>
+                <!-- Tickets by Status -->
+                <div class="md-chart-card" data-chart-id="ticket_status" data-chart-section="overview" data-chart-label="{% trans 'Tickets by Status' %}">
+                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Tickets by Status" %}</div><div class="md-chart-card__subtitle">{% trans "Open ticket priority and stages" %}</div></div></div>
+                    <div class="md-chart-card__body"><div id="chart-ticket-status"></div></div>
                 </div>
 
-                <!-- Department Overtime -->
-                <div class="md-chart-card" data-chart-id="department_overtime" data-chart-section="attendance" data-chart-label="{% trans 'Department Overtime' %}">
-                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Department Overtime" %}</div><div class="md-chart-card__subtitle">{% trans "Overtime hours distribution" %}</div></div></div>
-                    <div class="md-chart-card__body"><div id="chart-overtime"></div></div>
-                </div>
-
-                <!-- Leave Trends -->
-                <div class="md-chart-card" data-chart-id="leave_trends" data-chart-section="attendance" data-chart-label="{% trans 'Leave Trends' %}">
-                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Leave Trends" %}</div><div class="md-chart-card__subtitle">{% trans "Daily leaves — current week" %}</div></div></div>
-                    <div class="md-chart-card__body"><div id="chart-leave-trend"></div></div>
-                </div>
-
-                <!-- Recruitment Pipeline -->
-                <div class="md-chart-card md-chart-card--wide" data-chart-id="recruitment_pipeline" data-chart-section="recruitment" data-chart-label="{% trans 'Recruitment Pipeline' %}" data-chart-wide="1">
-                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Recruitment Pipeline" %}</div><div class="md-chart-card__subtitle">{% trans "Candidates by stage per recruitment" %}</div></div></div>
-                    <div class="md-chart-card__body"><div id="chart-pipeline"></div></div>
-                </div>
-
-                <!-- Hiring Timeline -->
-                <div class="md-chart-card md-chart-card--wide" data-chart-id="hiring_timeline" data-chart-section="recruitment" data-chart-label="{% trans 'Hiring Timeline' %}" data-chart-wide="1">
-                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Hiring Timeline" %}</div><div class="md-chart-card__subtitle">{% trans "Employees joined by month" %}</div></div></div>
-                    <div class="md-chart-card__body"><div id="chart-hiring"></div></div>
-                </div>
-
-                <!-- Leave by Department -->
-                <div class="md-chart-card" data-chart-id="leave_by_department" data-chart-section="leave" data-chart-label="{% trans 'Leave by Department' %}">
-                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Leave by Department" %}</div><div class="md-chart-card__subtitle">{% trans "Department-wise leave requests" %}</div></div></div>
-                    <div class="md-chart-card__body"><div id="chart-leave-dept"></div></div>
-                </div>
-
-                <!-- Department Leave Days -->
-                <div class="md-chart-card" data-chart-id="department_leave_days" data-chart-section="leave" data-chart-label="{% trans 'Department Leave Days' %}">
-                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Department Leave Days" %}</div><div class="md-chart-card__subtitle">{% trans "Total leave days by department" %}</div></div></div>
-                    <div class="md-chart-card__body"><div id="chart-leave-days"></div></div>
-                </div>
-
-                <!-- Recruitment Funnel (NEW) -->
-                <div class="md-chart-card md-chart-card--wide" data-chart-id="recruitment_funnel" data-chart-section="recruitment" data-chart-label="{% trans 'Recruitment Funnel' %}" data-chart-wide="1">
-                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Recruitment Funnel" %}</div><div class="md-chart-card__subtitle">{% trans "Candidates by stage — active recruitments" %}</div></div></div>
-                    <div class="md-chart-card__body"><div id="chart-recruitment-funnel"></div></div>
-                </div>
-
-                <!-- Employee Turnover (NEW) -->
-                <div class="md-chart-card md-chart-card--wide" data-chart-id="employee_turnover" data-chart-section="overview" data-chart-label="{% trans 'Employee Turnover' %}" data-chart-wide="1">
-                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Employee Turnover" %}</div><div class="md-chart-card__subtitle" id="turnover-rate">{% trans "New hires vs exits — last 6 months" %}</div></div></div>
-                    <div class="md-chart-card__body"><div id="chart-turnover"></div></div>
-                </div>
-
-                <!-- Payroll Summary (NEW) -->
-                <div class="md-chart-card" data-chart-id="payroll_summary" data-chart-section="overview" data-chart-label="{% trans 'Payroll Summary' %}">
-                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Payroll Summary" %}</div><div class="md-chart-card__subtitle" id="payroll-month">{% trans "Current vs previous month" %}</div></div></div>
-                    <div class="md-chart-card__body"><div id="chart-payroll"></div></div>
+                <!-- Assets by Status -->
+                <div class="md-chart-card" data-chart-id="asset_status" data-chart-section="overview" data-chart-label="{% trans 'Assets by Status' %}">
+                    <div class="md-chart-card__header"><div><div class="md-chart-card__title">{% trans "Assets by Status" %}</div><div class="md-chart-card__subtitle">{% trans "Asset allocation status" %}</div></div></div>
+                    <div class="md-chart-card__body"><div id="chart-asset-status"></div></div>
                 </div>
 
             </div>
@@ -1125,7 +1083,7 @@
             const raw = localStorage.getItem(STORAGE_KEY);
             if (!raw) return null;
             const parsed = JSON.parse(raw);
-            // Validate: must be array of objects with id property (not old Skylinx string format)
+            // Validate: must be array of objects with id property (not old EMPLINX string format)
             if (!Array.isArray(parsed) || (parsed.length > 0 && typeof parsed[0] !== 'object')) {
                 localStorage.removeItem(STORAGE_KEY);
                 return null;
@@ -1353,6 +1311,9 @@
     const refreshToggle = document.getElementById('md-refresh-toggle');
     let autoRefreshOn = localStorage.getItem(REFRESH_KEY) !== 'off';
 
+    // Guard against interval accumulation
+    if (window._mdRefreshTimer) { clearInterval(window._mdRefreshTimer); window._mdRefreshTimer = null; }
+
     function updateRefreshText() {
         const mins = Math.floor((Date.now() - lastRefresh) / 60000);
         refreshText.textContent = mins < 1 ? 'Just now' : mins + 'm ago';
@@ -1366,6 +1327,7 @@
         refreshToggle.textContent = '⟳';
         refreshToggle.title = 'Auto-refresh ON (5 min)';
         refreshTimer = setInterval(() => location.reload(), REFRESH_INTERVAL);
+        window._dashboardRefreshTimer = refreshTimer;
     }
     function stopAutoRefresh() {
         autoRefreshOn = false;
@@ -1373,7 +1335,7 @@
         refreshDot.classList.remove('md-refresh__dot--pulse');
         refreshToggle.textContent = '⏸';
         refreshToggle.title = 'Auto-refresh OFF';
-        if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+        if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; window._dashboardRefreshTimer = null; }
     }
     refreshToggle.addEventListener('click', () => { if (autoRefreshOn) stopAutoRefresh(); else startAutoRefresh(); });
     if (autoRefreshOn) startAutoRefresh(); else stopAutoRefresh();
@@ -1405,11 +1367,23 @@
                         ? '<span class="md-badge md-badge--amber">' + data.pending_leaves + ' {% trans "pending" %}</span>'
                         : '<span style="opacity:0.5">{% trans "No pending" %}</span>'}</div>
                 </a>
-                <a href="{% url 'recruitment-view' %}" class="md-kpi-card">
-                    <div class="md-kpi-card__icon md-kpi-card__icon--purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
-                    <div class="md-kpi-card__label">{% trans "Open Recruitments" %}</div>
-                    <div class="md-kpi-card__value">${data.open_recruitments}</div>
-                    <div class="md-kpi-card__sub"><span style="opacity:0.5">{% trans "Active hiring" %}</span></div>
+                <a href="{% url 'project-view' %}" class="md-kpi-card">
+                    <div class="md-kpi-card__icon md-kpi-card__icon--green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
+                    <div class="md-kpi-card__label">{% trans "Active Projects" %}</div>
+                    <div class="md-kpi-card__value">${data.active_projects}</div>
+                    <div class="md-kpi-card__sub"><span style="opacity:0.5">{% trans "Project tracking" %}</span></div>
+                </a>
+                <a href="{% url 'ticket-view' %}" class="md-kpi-card">
+                    <div class="md-kpi-card__icon md-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+                    <div class="md-kpi-card__label">{% trans "Open Tickets" %}</div>
+                    <div class="md-kpi-card__value">${data.active_tickets}</div>
+                    <div class="md-kpi-card__sub"><span style="opacity:0.5">{% trans "Helpdesk support" %}</span></div>
+                </a>
+                <a href="{% url 'asset-category-view' %}" class="md-kpi-card">
+                    <div class="md-kpi-card__icon md-kpi-card__icon--indigo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+                    <div class="md-kpi-card__label">{% trans "Total Assets" %}</div>
+                    <div class="md-kpi-card__value">${data.total_assets}</div>
+                    <div class="md-kpi-card__sub"><span style="opacity:0.5">{% trans "Asset tracking" %}</span></div>
                 </a>`;
         });
 
@@ -1426,7 +1400,7 @@
                         <div class="md-ann-item__meta">${a.date}${a.expire_date ? '<span class="md-ann-item__expire">{% trans "Expires" %} ' + a.expire_date + '</span>' : ''}</div>
                     </div>`).join('');
 
-                // Clicking opens the announcement in the standard Skylinx detail modal
+                // Clicking opens the announcement in the standard EMPLINX detail modal
                 const annIds = data.announcements.map(a => a.id);
                 el.querySelectorAll('.md-ann-item[data-ann-id]').forEach(item => {
                     item.addEventListener('click', () => {
@@ -1532,31 +1506,6 @@
             }).render();
         });
 
-    // ─── GENDER ───
-    fetch("{% url 'dashboard-gender-split' %}")
-        .then(r => r.json())
-        .then(data => {
-            if (!data.genders.length) { document.querySelector("#chart-gender").innerHTML = emptyHtml('No data'); return; }
-            const gc = { 'Male': '#3b82f6', 'Female': '#ec4899', 'Other': '#a855f7', 'Not Specified': '#94a3b8' };
-            const genderKeys = { 'Male': 'male', 'Female': 'female', 'Other': 'other', 'Not Specified': '' };
-            new ApexCharts(document.querySelector("#chart-gender"), {
-                series: data.genders.map(g => g.count),
-                chart: { type: 'pie', height: 300, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
-                    events: { dataPointSelection: (e, ctx, config) => {
-                        const gender = data.genders[config.dataPointIndex].gender;
-                        window.location.href = "{% url 'employee-view' %}?gender=" + (genderKeys[gender] || gender.toLowerCase());
-                    }}
-                },
-                labels: data.genders.map(g => g.gender),
-                colors: data.genders.map(g => gc[g.gender] || '#94a3b8'),
-                plotOptions: { pie: { expandOnClick: true, dataLabels: { offset: -5, minAngleToShowLabel: 10 } } },
-                stroke: { width: 3, colors: [cardBg] },
-                dataLabels: { enabled: true, formatter: (v, opts) => opts.w.globals.labels[opts.seriesIndex] + ': ' + Math.round(v) + '%', style: { fontSize: '11px', fontWeight: 600 }, dropShadow: { enabled: false } },
-                legend: { ...LEGEND_STYLE },
-                tooltip: { ...TOOLTIP_STYLE },
-            }).render();
-        });
-
     // ─── LEAVE BREAKDOWN ───
     fetchP("{% url 'dashboard-leave-breakdown' %}")
         .then(r => r.json())
@@ -1583,232 +1532,83 @@
             }).render();
         });
 
-    // ─── EMPLOYEE STATUS ───
-    fetch("/employee/dashboard-employee")
+    // ─── PROJECTS BY STATUS ───
+    fetch("{% url 'dashboard-project-status' %}")
         .then(r => r.json())
         .then(data => {
-            if (!data.dataSet || !data.dataSet.length) { document.querySelector("#chart-employee-status").innerHTML = emptyHtml('No data'); return; }
-            const sc = { 'Active': '#22c55e', 'Inactive': '#ef4444' };
-            new ApexCharts(document.querySelector("#chart-employee-status"), {
-                series: data.dataSet[0].data,
-                chart: { type: 'radialBar', height: 300, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
-                    events: { legendClick: (ctx, seriesIndex) => {
-                        const label = data.labels[seriesIndex];
-                        const active = label.toLowerCase().includes('active') && !label.toLowerCase().includes('in') ? 'true' : 'false';
-                        window.location.href = "{% url 'employee-view' %}?is_active=" + active;
+            if (!data.statuses.length) { document.querySelector("#chart-project-status").innerHTML = emptyHtml('No project data'); return; }
+            new ApexCharts(document.querySelector("#chart-project-status"), {
+                series: data.statuses.map(s => s.count),
+                chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
+                    events: { dataPointSelection: (e, ctx, config) => {
+                        window.location.href = "{% url 'project-view' %}";
                     }}
                 },
-                labels: data.labels,
-                colors: data.labels.map(l => sc[l] || '#6366f1'),
-                plotOptions: { radialBar: {
-                    hollow: { size: '40%', background: 'transparent' },
-                    track: { background: isDark ? '#242424' : '#f1f5f9', strokeWidth: '90%', margin: 6 },
-                    dataLabels: {
-                        name: { fontSize: '12px', fontWeight: 600, color: textColor, offsetY: -4 },
-                        value: { fontSize: '20px', fontWeight: 800, color: textColor, offsetY: 4 },
-                        total: { show: true, label: 'Total', color: subTextColor, fontSize: '11px', fontWeight: 600,
-                            formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) }
-                    }
-                } },
-                stroke: { lineCap: 'round' },
-                legend: { ...LEGEND_STYLE, show: true },
+                labels: data.statuses.map(s => s.status),
+                colors: COLORS.slice(0, data.statuses.length),
+                plotOptions: { pie: { expandOnClick: true, donut: { size: '68%',
+                    labels: { show: true,
+                        name: { fontSize: '13px', fontWeight: 700, color: textColor, offsetY: -4 },
+                        value: { fontSize: '22px', fontWeight: 800, color: textColor, offsetY: 4 },
+                        total: { show: true, label: 'Total', color: subTextColor, fontSize: '12px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
+                stroke: { width: 3, colors: [cardBg] },
+                dataLabels: { enabled: false },
+                legend: { ...LEGEND_STYLE },
+                tooltip: { ...TOOLTIP_STYLE },
             }).render();
         });
 
-    // ─── ATTENDANCE OVERVIEW ───
-    fetch("{% url 'dashboard-attendance' %}")
+    // ─── TICKETS BY STATUS ───
+    fetch("{% url 'dashboard-ticket-status' %}")
         .then(r => r.json())
         .then(data => {
-            if (!data.dataSet || !data.dataSet.length) { document.querySelector("#chart-attendance-overview").innerHTML = emptyHtml('No attendance records available'); return; }
-            new ApexCharts(document.querySelector("#chart-attendance-overview"), {
-                series: data.dataSet.map(d => ({ name: d.label, data: d.data })),
-                chart: { type: 'bar', height: 320, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', stacked: false, animations: ANIM,
-                    events: { dataPointSelection: (e, ctx, config) => {
-                        const dept = data.labels[config.dataPointIndex];
-                        const seriesLabel = data.dataSet[config.seriesIndex]?.label || '';
-                        if (seriesLabel.toLowerCase().includes('late') || seriesLabel.toLowerCase().includes('early')) {
-                            window.location.href = "{% url 'late-come-early-out-view' %}?department=" + encodeURIComponent(dept);
-                        } else {
-                            window.location.href = "{% url 'attendance-view' %}?department=" + encodeURIComponent(dept);
-                        }
-                    }}
-                },
-                colors: ['#22c55e', '#f59e0b', '#ef4444'],
-                fill: { type: 'gradient', gradient: { type: 'vertical', shadeIntensity: 0.25, opacityFrom: 1, opacityTo: 0.85 } },
-                plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', columnWidth: '58%' } },
-                xaxis: { ...XAXIS_STYLE, categories: data.labels },
-                yaxis: { ...YAXIS_STYLE },
-                grid: GRID,
-                dataLabels: { enabled: false },
-                legend: { ...LEGEND_STYLE, position: 'top', horizontalAlign: 'right' },
-                tooltip: { ...TOOLTIP_STYLE },
-                states: { hover: { filter: { type: 'darken', value: 0.85 } } },
-            }).render();
-        }).catch(() => { document.querySelector("#chart-attendance-overview").innerHTML = emptyHtml('Unable to load attendance data'); });
-
-    // ─── DEPARTMENT OVERTIME ───
-    fetch("{% url 'department-overtime-chart' %}")
-        .then(r => r.json())
-        .then(data => {
-            if (!data.labels || !data.labels.length || !data.dataset || !data.dataset.length) { document.querySelector("#chart-overtime").innerHTML = emptyHtml('No overtime data'); return; }
-            new ApexCharts(document.querySelector("#chart-overtime"), {
-                series: data.dataset[0].data,
+            if (!data.statuses.length) { document.querySelector("#chart-ticket-status").innerHTML = emptyHtml('No ticket data'); return; }
+            new ApexCharts(document.querySelector("#chart-ticket-status"), {
+                series: data.statuses.map(s => s.count),
                 chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
                     events: { dataPointSelection: (e, ctx, config) => {
-                        const dept = data.labels[config.dataPointIndex];
-                        window.location.href = "{% url 'attendance-overtime-view' %}?department=" + encodeURIComponent(dept);
+                        window.location.href = "{% url 'ticket-view' %}";
                     }}
                 },
-                labels: data.labels,
-                colors: ['#22c55e','#06b6d4','#6366f1','#f59e0b','#a855f7','#ef4444'].slice(0, data.labels.length),
+                labels: data.statuses.map(s => s.status),
+                colors: COLORS.slice(0, data.statuses.length),
                 plotOptions: { pie: { expandOnClick: true, donut: { size: '68%',
                     labels: { show: true,
-                        name: { fontSize: '13px', fontWeight: 700, color: textColor },
-                        value: { fontSize: '20px', fontWeight: 800, color: textColor, formatter: v => parseFloat(v).toFixed(1) + 'h' },
-                        total: { show: true, label: 'Total Hrs', color: subTextColor, fontSize: '11px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0).toFixed(1) + 'h' } } } } },
-                stroke: { width: 3, colors: [cardBg] },
-                dataLabels: { enabled: false },
-                legend: { ...LEGEND_STYLE },
-                tooltip: { ...TOOLTIP_STYLE, y: { formatter: v => v.toFixed(1) + ' hrs' } },
-            }).render();
-        }).catch(() => { document.querySelector("#chart-overtime").innerHTML = emptyHtml('No overtime data'); });
-
-    // ─── LEAVE OVER PERIOD ───
-    fetch("{% url 'leave-over-period' %}")
-        .then(r => r.json())
-        .then(data => {
-            if (!data.labels || !data.labels.length) { document.querySelector("#chart-leave-trend").innerHTML = emptyHtml('No data for this week'); return; }
-            const seriesArr = Array.isArray(data.dataset) ? data.dataset : [data.dataset];
-            new ApexCharts(document.querySelector("#chart-leave-trend"), {
-                series: seriesArr.map(s => ({ name: s.label || 'Leaves', data: s.data })),
-                chart: { type: 'area', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
-                    dropShadow: { enabled: true, top: 4, blur: 10, opacity: 0.1, color: '#a855f7' } },
-                colors: ['#a855f7'],
-                fill: { type: 'gradient', gradient: { type: 'vertical', shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.02, stops: [0, 90, 100] } },
-                stroke: { curve: 'smooth', width: 3 },
-                markers: { size: 5, colors: ['#a855f7'], strokeColors: cardBg, strokeWidth: 2, hover: { size: 7 } },
-                dataLabels: { enabled: true, style: { fontSize: '11px', fontWeight: 700, colors: ['#a855f7'] }, background: { enabled: true, foreColor: '#fff', borderRadius: 4, padding: 3, borderWidth: 0, fillColors: ['#a855f7'] } },
-                xaxis: { ...XAXIS_STYLE, categories: data.labels },
-                yaxis: { ...YAXIS_STYLE, min: 0, tickAmount: 4 },
-                grid: GRID,
-                tooltip: { ...TOOLTIP_STYLE, y: { formatter: v => v + ' leave(s)' } },
-            }).render();
-        }).catch(() => { document.querySelector("#chart-leave-trend").innerHTML = emptyHtml('No data for this week'); });
-
-    // ─── RECRUITMENT PIPELINE ───
-    fetch("{% url 'recruitment-pipeline' %}?_t=" + Date.now())
-        .then(r => r.json())
-        .then(data => {
-            if (!data.dataSet || !data.dataSet.length) { document.querySelector("#chart-pipeline").innerHTML = emptyHtml('No active recruitments'); return; }
-            try {
-                new ApexCharts(document.querySelector("#chart-pipeline"), {
-                    series: data.dataSet.map(r => ({ name: r.label, data: r.data })),
-                    chart: { type: 'bar', height: 320, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
-                        events: { dataPointSelection: (e, ctx, config) => {
-                            const recruitment = data.dataSet[config.seriesIndex]?.label || '';
-                            const stage = data.labels[config.dataPointIndex] || '';
-                            window.location.href = "{% url 'candidate-view' %}?recruitment=" + encodeURIComponent(recruitment) + "&stage_id__stage_type=" + encodeURIComponent(stage.toLowerCase());
-                        }}
-                    },
-                    colors: ['#6366f1', '#3b82f6', '#06b6d4', '#22c55e', '#f59e0b'],
-                    plotOptions: { bar: { borderRadius: 6, columnWidth: '60%' } },
-                    xaxis: { ...XAXIS_STYLE, categories: data.labels },
-                    yaxis: { ...YAXIS_STYLE },
-                    grid: GRID,
-                    dataLabels: { enabled: false },
-                    legend: { ...LEGEND_STYLE, position: 'top', horizontalAlign: 'right' },
-                    tooltip: { ...TOOLTIP_STYLE,
-                        custom: ({ seriesIndex, dataPointIndex, w }) => {
-                            const stage = w.globals.labels[dataPointIndex] || '';
-                            const recruitment = w.globals.seriesNames[seriesIndex] || '';
-                            const value = w.globals.series[seriesIndex][dataPointIndex] || 0;
-                            return `<div style="padding:10px 14px;font-size:12px;border-radius:8px;"><b>${recruitment}</b><br><span style="opacity:0.7">${stage}:</span> <b>${value}</b> candidates</div>`;
-                        }
-                    },
-                }).render();
-            } catch(e) { document.querySelector("#chart-pipeline").innerHTML = emptyHtml('Chart error: ' + e.message); }
-        }).catch(e => { document.querySelector("#chart-pipeline").innerHTML = emptyHtml('Failed to load recruitment data'); });
-
-    // ─── HIRING TIMELINE ───
-    fetch("{% url 'dashboard-hiring' %}")
-        .then(r => r.json())
-        .then(data => {
-            if (!data.dataSet || !data.dataSet.length) { document.querySelector("#chart-hiring").innerHTML = emptyHtml('No hiring data'); return; }
-            new ApexCharts(document.querySelector("#chart-hiring"), {
-                series: [{ name: data.dataSet[0].label || 'Joined', data: data.dataSet[0].data }],
-                chart: { type: 'bar', height: 280, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
-                    events: { dataPointSelection: (e, ctx, config) => {
-                        const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-                        const label = data.labels[config.dataPointIndex] || '';
-                        const monthNum = monthNames.indexOf(label) + 1;
-                        if (!monthNum) return;
-                        const year = new Date().getFullYear();
-                        const lastDay = new Date(year, monthNum, 0).getDate();
-                        const pad = n => String(n).padStart(2, '0');
-                        const from = `${year}-${pad(monthNum)}-01`;
-                        const till = `${year}-${pad(monthNum)}-${lastDay}`;
-                        window.location.href = "{% url 'candidate-view' %}?joining_date_from=" + from + "&joining_date_till=" + till + "&hired=true";
-                    }}
-                },
-                colors: ['#f59e0b'],
-                fill: { type: 'gradient', gradient: { type: 'vertical', shadeIntensity: 0.4, opacityFrom: 1, opacityTo: 0.75,
-                    colorStops: [{ offset: 0, color: '#f59e0b', opacity: 1 }, { offset: 100, color: '#ef4444', opacity: 0.8 }] } },
-                plotOptions: { bar: { borderRadius: 8, borderRadiusApplication: 'end', columnWidth: '48%' } },
-                xaxis: { ...XAXIS_STYLE, categories: data.labels },
-                yaxis: { ...YAXIS_STYLE },
-                grid: GRID,
-                dataLabels: { enabled: true, style: { fontSize: '11px', fontWeight: 700, colors: ['#fff'] }, background: { enabled: false } },
-                tooltip: { ...TOOLTIP_STYLE, y: { formatter: v => v + ' employee(s)' } },
-                states: { hover: { filter: { type: 'darken', value: 0.85 } } },
-            }).render();
-        }).catch(() => { document.querySelector("#chart-hiring").innerHTML = emptyHtml('No hiring data'); });
-
-    // ─── LEAVE BY DEPARTMENT ───
-    fetch("{% url 'overall-leave' %}")
-        .then(r => r.json())
-        .then(data => {
-            if (!data.labels || !data.labels.length || !data.data || !data.data.length) { document.querySelector("#chart-leave-dept").innerHTML = emptyHtml('No leave data'); return; }
-            new ApexCharts(document.querySelector("#chart-leave-dept"), {
-                series: data.data,
-                chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
-                    events: { dataPointSelection: (e, ctx, config) => {
-                        const dept = data.labels[config.dataPointIndex];
-                        window.location.href = "{% url 'request-view' %}?department=" + encodeURIComponent(dept);
-                    }}
-                },
-                labels: data.labels,
-                colors: ['#3b82f6','#6366f1','#a855f7','#ec4899','#06b6d4','#14b8a6'].slice(0, data.labels.length),
-                plotOptions: { pie: { expandOnClick: true, donut: { size: '68%',
-                    labels: { show: true,
-                        name: { fontSize: '13px', fontWeight: 700, color: textColor },
-                        value: { fontSize: '20px', fontWeight: 800, color: textColor },
-                        total: { show: true, label: 'Total', color: subTextColor, fontSize: '11px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
+                        name: { fontSize: '13px', fontWeight: 700, color: textColor, offsetY: -4 },
+                        value: { fontSize: '22px', fontWeight: 800, color: textColor, offsetY: 4 },
+                        total: { show: true, label: 'Total', color: subTextColor, fontSize: '12px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
                 stroke: { width: 3, colors: [cardBg] },
                 dataLabels: { enabled: false },
                 legend: { ...LEGEND_STYLE },
                 tooltip: { ...TOOLTIP_STYLE },
             }).render();
-        }).catch(() => { document.querySelector("#chart-leave-dept").innerHTML = emptyHtml('No leave data'); });
+        });
 
-    // ─── DEPARTMENT LEAVE DAYS ───
-    fetch("{% url 'department-leave-chart' %}")
+    // ─── ASSETS BY STATUS ───
+    fetch("{% url 'dashboard-asset-status' %}")
         .then(r => r.json())
         .then(data => {
-            if (!data.labels || !data.labels.length || !data.dataset || !data.dataset.length) { document.querySelector("#chart-leave-days").innerHTML = emptyHtml('No leave data this month'); return; }
-            new ApexCharts(document.querySelector("#chart-leave-days"), {
-                series: [{ name: 'Leave Days', data: data.dataset[0].data }],
-                chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM },
-                colors: ['#3b82f6','#6366f1','#a855f7','#06b6d4','#14b8a6','#ec4899','#f59e0b','#22c55e','#ef4444','#f97316'],
-                plotOptions: { bar: { borderRadius: 8, borderRadiusApplication: 'end', horizontal: true, barHeight: '50%', distributed: true } },
-                xaxis: { ...XAXIS_STYLE, categories: data.labels },
-                yaxis: { labels: { style: { colors: textColor, fontSize: '11px', fontWeight: 500 } } },
-                grid: GRID,
-                dataLabels: { enabled: true, formatter: v => v + ' days', style: { fontSize: '11px', fontWeight: 600 }, offsetX: 0 },
-                legend: { show: false },
-                tooltip: { ...TOOLTIP_STYLE, y: { formatter: v => v + ' day(s)' } },
-                states: { hover: { filter: { type: 'darken', value: 0.85 } } },
+            if (!data.statuses.length) { document.querySelector("#chart-asset-status").innerHTML = emptyHtml('No asset data'); return; }
+            new ApexCharts(document.querySelector("#chart-asset-status"), {
+                series: data.statuses.map(s => s.count),
+                chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
+                    events: { dataPointSelection: (e, ctx, config) => {
+                        window.location.href = "{% url 'asset-category-view' %}";
+                    }}
+                },
+                labels: data.statuses.map(s => s.status),
+                colors: COLORS.slice(0, data.statuses.length),
+                plotOptions: { pie: { expandOnClick: true, donut: { size: '68%',
+                    labels: { show: true,
+                        name: { fontSize: '13px', fontWeight: 700, color: textColor, offsetY: -4 },
+                        value: { fontSize: '22px', fontWeight: 800, color: textColor, offsetY: 4 },
+                        total: { show: true, label: 'Total', color: subTextColor, fontSize: '12px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
+                stroke: { width: 3, colors: [cardBg] },
+                dataLabels: { enabled: false },
+                legend: { ...LEGEND_STYLE },
+                tooltip: { ...TOOLTIP_STYLE },
             }).render();
-        }).catch(() => { document.querySelector("#chart-leave-days").innerHTML = emptyHtml('No leave data this month'); });
+        });
 
     // ─── UPCOMING HOLIDAYS ───
     fetch("{% url 'dashboard-upcoming-holidays' %}")
@@ -1868,111 +1668,12 @@
                     </a>
                     <a href="{% url 'view-reimbursement' %}" class="md-pending-card md-pending-card--purple">
                         <div class="md-pending-card__count">${p.reimbursements}</div>
-                        <div class="md-pending-card__label">{% trans "Reimbursements" %}</div>
+                        <div class="md-pending-card__label">{% trans "Expenses" %}</div>
                     </a>
                 </div>`;
         }).catch(() => { document.getElementById('md-pending-approvals').innerHTML = '<div class="md-info-panel__empty">{% trans "Unable to load" %}</div>'; });
 
-    // ─── RECRUITMENT FUNNEL ───
-    fetch("{% url 'dashboard-recruitment-pipeline' %}?_t=" + Date.now())
-        .then(r => r.json())
-        .then(data => {
-            if (!data.stages || !data.stages.length) { document.querySelector("#chart-recruitment-funnel").innerHTML = emptyHtml('{% trans "No active recruitments" %}'); return; }
-            const stageColors = { initial: '#94a3b8', applied: '#6366f1', test: '#3b82f6', interview: '#f59e0b', hired: '#22c55e', cancelled: '#ef4444' };
-            try {
-                new ApexCharts(document.querySelector("#chart-recruitment-funnel"), {
-                    series: [{ name: '{% trans "Candidates" %}', data: data.stages.map(s => s.count) }],
-                    chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
-                        events: { dataPointSelection: (e, ctx, config) => {
-                            const stage = data.stages[config.dataPointIndex];
-                            if (!stage) return;
-                            window.location.href = "{% url 'candidate-view' %}?stage_id__stage_type=" + encodeURIComponent(stage.type);
-                        }}
-                    },
-                    colors: data.stages.map((s, i) => stageColors[s.type] || COLORS[i % COLORS.length]),
-                    plotOptions: { bar: { horizontal: true, barHeight: '55%', distributed: true } },
-                    xaxis: { ...XAXIS_STYLE, categories: data.stages.map(s => s.stage) },
-                    yaxis: { labels: { style: { colors: textColor, fontSize: '12px', fontWeight: 600 } } },
-                    grid: GRID,
-                    dataLabels: { enabled: true, formatter: v => v + ' {% trans "candidates" %}', style: { fontSize: '11px', fontWeight: 600 }, offsetX: 0 },
-                    legend: { show: false },
-                    subtitle: {
-                        text: `${data.total_active || ''} {% trans "active recruitments" %} · ${data.total_candidates || ''} {% trans "total" %} · ${data.hired || ''} {% trans "hired" %}`,
-                        align: 'right', style: { fontSize: '11px', color: subTextColor }
-                    },
-                    tooltip: { ...TOOLTIP_STYLE, y: { formatter: v => v + ' candidate(s)' } },
-                }).render();
-            } catch(e) { document.querySelector("#chart-recruitment-funnel").innerHTML = emptyHtml('Chart error: ' + e.message); }
-        }).catch(e => { document.querySelector("#chart-recruitment-funnel").innerHTML = emptyHtml('{% trans "Failed to load recruitment data" %}'); });
 
-    // ─── EMPLOYEE TURNOVER ───
-    fetchP("{% url 'dashboard-turnover' %}")
-        .then(r => r.json())
-        .then(data => {
-            if (!data.months.length) { document.querySelector("#chart-turnover").innerHTML = emptyHtml('{% trans "No data" %}'); return; }
-            document.getElementById('turnover-rate').textContent = `{% trans "6-month turnover rate" %}: ${data.turnover_rate_6m}%`;
-            new ApexCharts(document.querySelector("#chart-turnover"), {
-                series: [
-                    { name: '{% trans "New Hires" %}', data: data.months.map(m => m.hires) },
-                    { name: '{% trans "Exits" %}', data: data.months.map(m => m.exits) },
-                ],
-                chart: { type: 'bar', height: 290, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM },
-                colors: ['#22c55e', '#ef4444'],
-                fill: { type: 'gradient', gradient: { type: 'vertical', shadeIntensity: 0.3, opacityFrom: 1, opacityTo: 0.8 } },
-                plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', columnWidth: '52%', grouped: true } },
-                xaxis: { ...XAXIS_STYLE, categories: data.months.map(m => m.month) },
-                yaxis: { ...YAXIS_STYLE },
-                grid: GRID,
-                dataLabels: { enabled: true, style: { fontSize: '11px', fontWeight: 700, colors: ['#fff'] }, background: { enabled: false } },
-                legend: { ...LEGEND_STYLE, position: 'top', horizontalAlign: 'right' },
-                tooltip: { ...TOOLTIP_STYLE },
-                states: { hover: { filter: { type: 'darken', value: 0.85 } } },
-            }).render();
-        }).catch(() => { document.querySelector("#chart-turnover").innerHTML = emptyHtml('{% trans "No turnover data" %}'); });
-
-    // ─── PAYROLL SUMMARY ───
-    fetchP("{% url 'dashboard-payroll-summary' %}")
-        .then(r => r.json())
-        .then(data => {
-            const el = document.querySelector("#chart-payroll");
-            document.getElementById('payroll-month').textContent = data.current_month;
-            if (data.current.count === 0 && data.previous.count === 0) {
-                el.innerHTML = emptyHtml('{% trans "No payroll data" %}');
-                return;
-            }
-            const fmt = v => v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-            const changeIcon = data.change_percent > 0 ? '↑' : data.change_percent < 0 ? '↓' : '→';
-            const changeClass = data.change_percent > 0 ? 'md-badge--amber' : data.change_percent < 0 ? 'md-badge--green' : '';
-
-            el.innerHTML = `
-                <div style="padding:10px 4px 4px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:14px 16px;border-radius:12px;background:linear-gradient(135deg,#6366f1 0%,#a855f7 100%);">
-                        <div>
-                            <div style="font-size:10px;color:rgba(255,255,255,0.7);text-transform:uppercase;font-weight:700;letter-spacing:0.06em;margin-bottom:2px;">{% trans "Net Pay" %}</div>
-                            <div style="font-size:28px;font-weight:800;color:#fff;line-height:1;">${fmt(data.current.net)}</div>
-                        </div>
-                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;">${changeIcon} ${Math.abs(data.change_percent)}%</span>
-                    </div>
-                    <div class="md-payroll-summary">
-                        <div class="md-payroll-stat" style="background:rgba(34,197,94,0.08);border-radius:10px;padding:10px;">
-                            <div class="md-payroll-stat__value" style="color:var(--md-green)">${fmt(data.current.gross)}</div>
-                            <div class="md-payroll-stat__label">{% trans "Gross" %}</div>
-                        </div>
-                        <div class="md-payroll-stat" style="background:rgba(239,68,68,0.08);border-radius:10px;padding:10px;">
-                            <div class="md-payroll-stat__value" style="color:var(--md-red)">${fmt(data.current.deductions)}</div>
-                            <div class="md-payroll-stat__label">{% trans "Deductions" %}</div>
-                        </div>
-                        <div class="md-payroll-stat" style="background:rgba(99,102,241,0.08);border-radius:10px;padding:10px;">
-                            <div class="md-payroll-stat__value" style="color:var(--md-indigo)">${data.current.count}</div>
-                            <div class="md-payroll-stat__label">{% trans "Payslips" %}</div>
-                        </div>
-                        <div class="md-payroll-stat" style="background:rgba(128,128,128,0.06);border-radius:10px;padding:10px;">
-                            <div class="md-payroll-stat__value" style="opacity:0.55">${fmt(data.previous.net)}</div>
-                            <div class="md-payroll-stat__label">{% trans "Prev Month" %}</div>
-                        </div>
-                    </div>
-                </div>`;
-        }).catch(() => { document.querySelector("#chart-payroll").innerHTML = emptyHtml('{% trans "No payroll data" %}'); });
 
     // ═══════════════════════════════════════════
     //  ANNOUNCEMENT MODALS
@@ -1993,5 +1694,19 @@
     }
 
 })();
+</script>
+<script>
+// Dashboard cards are injected after htmx has processed the page; a soft
+// (htmx history) navigation from them can drop the app chrome (sidebar/navbar)
+// until a refresh. Force a real browser navigation instead — same approach the
+// sidebar "Home" link already uses (window.location.href). Capture phase so we
+// win before any delegated handler. Scoped to dashboard card classes only.
+document.addEventListener('click', function (e) {
+    var card = e.target.closest('.md-pending-card, .md-kpi-card');
+    if (card && card.tagName === 'A' && card.href) {
+        e.preventDefault();
+        window.location.assign(card.href);
+    }
+}, true);
 </script>
 {% endblock %}

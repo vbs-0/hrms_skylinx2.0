@@ -15,7 +15,7 @@
                         role="img" aria-label="search outline"></ion-icon>
                     <input name="search" type="text" placeholder="Search" style="margin-right:10px"
                         class="oh-input oh-input__icon mr-3" autocomplete="false" aria-label="Search Input"
-                        onkeyup="$('.filterButton')[0].click()" />
+                        onkeyup="$('.filterButton').first().click()" />
                 </div>
                 <div class="oh-dropdown" x-data="{open: false}">
                     <button class="oh-btn ml-2" @click="open = !open" onclick="event.preventDefault()">
@@ -125,7 +125,7 @@
             }
         });
         $('#id_field').on('change', function () {
-            $('.filterButton')[0].click();
+            $('.filterButton').first().click();
         })
     });
 </script>

@@ -1,7 +1,7 @@
 """
 skylinx/config.py
 
-Skylinx app configurations
+EMPLINX app configurations
 """
 
 import importlib
@@ -10,8 +10,21 @@ import logging
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.context_processors import PermWrapper
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
+
+
+def bump_sidebar_gen(user_id):
+    """Invalidate every cached sidebar variant for a user (any feature-hash)."""
+    try:
+        cache.set(
+            f"sidebar_gen_{user_id}",
+            (cache.get(f"sidebar_gen_{user_id}", 0) or 0) + 1,
+            timeout=None,
+        )
+    except Exception:
+        pass
 
 
 def get_apps_in_base_dir():
@@ -25,19 +38,23 @@ def import_method(accessibility):
     return accessibility_method
 
 
-ALL_MENUS = {}
-
-
-def sidebar(request):
-
+def generate_sidebar(request):
     base_dir_apps = get_apps_in_base_dir()
+    MENUS = []
 
     if not request.user.is_anonymous:
-        request.MENUS = []
-        MENUS = request.MENUS
-
         for app in base_dir_apps:
             if apps.is_installed(app):
+                # Per-company subscription: hide modules the client's plan doesn't
+                # include (superuser sees everything). Keeps the sidebar in sync
+                # with what the owner set on /manage.
+                if not request.user.is_superuser:
+                    from subscriptions.features import APP_TO_FEATURE as _SUB_FEAT
+                    sub_key = _SUB_FEAT.get(app)
+                    if sub_key and sub_key not in getattr(
+                        request, "company_features", []
+                    ):
+                        continue
                 try:
                     sidebar = importlib.import_module(app + ".sidebar")
 
@@ -62,6 +79,7 @@ def sidebar(request):
                         MENU["menu"] = sidebar.MENU
                         MENU["app"] = app
                         MENU["img_src"] = sidebar.IMG_SRC
+                        MENU["locked"] = getattr(sidebar, "LOCKED", False)
                         MENU["submenu"] = []
                         MENUS.append(MENU)
                         for submenu in sidebar.SUBMENUS:
@@ -81,22 +99,55 @@ def sidebar(request):
                             ):
                                 MENU["submenu"].append(submenu)
 
-        # Skylinx: explicit module ordering for the main navigation
+        # EMPLINX: explicit module ordering for the main navigation
         SIDEBAR_ORDER = [
             "employee", "recruitment", "onboarding", "attendance", "leave",
-            "payroll", "pms", "project", "asset", "helpdesk", "offboarding",
-            "report",
+            "payroll", "project", "asset", "helpdesk", "offboarding",
+            "report", "pms",
         ]
         order_index = {app: i for i, app in enumerate(SIDEBAR_ORDER)}
         MENUS.sort(key=lambda m: order_index.get(m.get("app"), len(SIDEBAR_ORDER)))
 
-        ALL_MENUS[request.session.session_key] = MENUS
+        # Append Holiday Calendar main module (evaluate reverse dynamically to be safe for cache)
+        from django.urls import reverse
+        from django.utils.translation import gettext_lazy as _
+        holiday_menu = {
+            "menu": _("Holiday Calendar"),
+            "app": "holiday_calendar",
+            "img_src": "images/ui/dashboard.svg",
+            "locked": False,
+            "submenu": [
+                {
+                    "menu": _("View Calendar"),
+                    "redirect": reverse("holiday-calendar-view"),
+                }
+            ]
+        }
+        MENUS.append(holiday_menu)
+
+    return MENUS
 
 
 def get_MENUS(request):
-    ALL_MENUS[request.session.session_key] = []
-    sidebar(request)
-    return {"sidebar": ALL_MENUS.get(request.session.session_key)}
+    if not request.user.is_authenticated:
+        return {"sidebar": []}
+
+    # Cache key includes the company's feature set, so changing a plan on /manage
+    # busts the menu immediately instead of waiting out the TTL.
+    feats = "".join(sorted(getattr(request, "company_features", []) or []))
+    # ponytail: generation counter makes invalidation work despite the feats-hash
+    # suffix — bump_sidebar_gen() orphans every variant key for a user at once.
+    gen = cache.get(f"sidebar_gen_{request.user.id}", 0)
+    cache_key = f"sidebar_menus_user_{request.user.id}_{gen}_{hash(feats)}"
+    sidebar_menus = cache.get(cache_key)
+
+    if sidebar_menus is None:
+        sidebar_menus = generate_sidebar(request)
+        # 120s meant a full sidebar rebuild every 2 min; invalidation now works
+        # (generation bump on perm/feature change), so 1h is safe.
+        cache.set(cache_key, sidebar_menus, timeout=3600)
+
+    return {"sidebar": sidebar_menus}
 
 
 def load_ldap_settings():
@@ -110,7 +161,7 @@ def load_ldap_settings():
 
         # Ensure DB is ready before querying
         if not connection.introspection.table_names():
-            print("⚠️ Database is empty. Using default LDAP settings.")
+            print("Database is empty. Using default LDAP settings.")
             return settings.DEFAULT_LDAP_CONFIG
 
         ldap_config = LDAPSettings.objects.first()
@@ -122,7 +173,7 @@ def load_ldap_settings():
                 "BASE_DN": ldap_config.base_dn,
             }
     except Exception as e:
-        print(f"⚠️ Warning: Could not load LDAP settings ({e})")
+        print(f"Warning: Could not load LDAP settings ({e})")
         return settings.DEFAULT_LDAP_CONFIG  # Return default on error
 
     return settings.DEFAULT_LDAP_CONFIG  # Fallback in case of an issue

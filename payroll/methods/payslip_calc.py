@@ -458,23 +458,29 @@ def calculate_tax_deduction(*_args, **kwargs):
     deductions_amt = []
     serialized_deductions = []
     for deduction in deductions:
-        calculation_function = calculation_mapping.get(deduction.based_on)
-        amount = calculation_function(
-            **{
-                "employee": employee,
-                "start_date": start_date,
-                "end_date": end_date,
-                "component": deduction,
-                "allowances": kwargs["allowances"],
-                "total_allowance": kwargs["total_allowance"],
-                "basic_pay": kwargs["basic_pay"],
-                "day_dict": kwargs["day_dict"],
-            }
-        )
-        kwargs["amount"] = amount
-        kwargs["component"] = deduction
-        amount = if_condition_on(**kwargs)
-        deductions_amt.append(amount)
+        if deduction.is_fixed:
+            kwargs["amount"] = deduction.amount
+            kwargs["component"] = deduction
+            amount = if_condition_on(**kwargs)
+            deductions_amt.append(amount)
+        else:
+            calculation_function = calculation_mapping.get(deduction.based_on)
+            amount = calculation_function(
+                **{
+                    "employee": employee,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "component": deduction,
+                    "allowances": kwargs["allowances"],
+                    "total_allowance": kwargs["total_allowance"],
+                    "basic_pay": kwargs["basic_pay"],
+                    "day_dict": kwargs["day_dict"],
+                }
+            )
+            kwargs["amount"] = amount
+            kwargs["component"] = deduction
+            amount = if_condition_on(**kwargs)
+            deductions_amt.append(amount)
     for deduction, amount in zip(deductions, deductions_amt):
         serialized_deduction = {
             "deduction_id": deduction.id,

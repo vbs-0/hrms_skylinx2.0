@@ -1635,7 +1635,7 @@
                         + ' download="' + exportFilename + '.png"></a>');
                 }
 
-                $chartContainer.find(selector).attr('href', canvas.toDataURL())[0].click();
+                $chartContainer.find(selector).attr('href', canvas.toDataURL()).first().click();
             }
         },
         //

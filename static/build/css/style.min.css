@@ -7543,6 +7543,7 @@ body {
 .oh-navbar__breadcrumb-link.active {
   color: hsl(0, 0%, 11%);
 }
+.oh-navbar__breadcrumb-brand{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:4px 10px;border-radius:12px}.oh-navbar__breadcrumb-brand-logo{display:block;width:auto;height:28px;max-width:240px;object-fit:contain}.dark .oh-navbar__breadcrumb-brand{background:#f5eddf}
 
 #main {
   overflow-x: hidden;
@@ -12742,8 +12743,8 @@ div.ui-tooltip {
   transition: 0s;
 }
 .oh-modal__dialog--custom .oh-general__tab .oh-general__tab-link--active {
-  background-color: #2d7ff9;
-  border: 1px solid #2d7ff9;
+  background-color: #1c75bc;
+  border: 1px solid #1c75bc;
   color: #fff;
   padding: 5px 12px;
   border-radius: 23px;
@@ -12842,7 +12843,7 @@ div.ui-tooltip {
   background: #eaf3ff;
 }
 .oh-kanban-card-action .oh-kanban-card-action__checkbox:checked + .oh-kanban-card-action__checkbox-label::before {
-  background: #2d7ff9;
+  background: #1c75bc;
   border-radius: 12px;
 }
 
@@ -13757,7 +13758,7 @@ div.ui-tooltip {
 }
 
 .members-container ul .active {
-  border: 2px solid #2d7ff9;
+  border: 2px solid #1c75bc;
   border-radius: 50%;
 }
 

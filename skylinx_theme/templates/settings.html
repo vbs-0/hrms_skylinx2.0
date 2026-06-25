@@ -119,6 +119,7 @@
 		if (!settingsContainer) return;
 		settingsContainer.querySelectorAll("form").forEach(function (form) {
 			if (form.getAttribute("data-settings-native") === "true") return;
+			if (form.closest(".oh-modal")) return;
 			var method = (form.getAttribute("method") || "GET").toUpperCase();
 			if (method !== "POST") return;
 			if (form.hasAttribute("hx-get") || form.hasAttribute("hx-put") || form.hasAttribute("hx-patch") || form.hasAttribute("hx-delete")) return;
@@ -178,6 +179,7 @@
 			var settingsContainer = document.getElementById("settingsContainer");
 			if (!form || !settingsContainer || !settingsContainer.contains(form)) return;
 			if (form.getAttribute("data-settings-native") === "true") return;
+			if (form.closest(".oh-modal")) return;
 			if (typeof htmx === "undefined") return;
 			var method = (form.getAttribute("method") || "GET").toUpperCase();
 			if (method !== "POST") return;

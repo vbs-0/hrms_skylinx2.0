@@ -77,10 +77,29 @@ def stage_manages(user, stage):
         employee = user.employee_get
         if not isinstance(stage, OnboardingStage):
             stage = stage["grouper"]
-        return (
-            stage.employee_id.filter(id=employee.id).exists()
-            or stage.recruitment_id.filter(recruitment_managers=employee).exists()
-        )
+            
+        if hasattr(stage, "_prefetched_objects_cache"):
+            if "employee_id" in stage._prefetched_objects_cache:
+                if employee in stage.employee_id.all():
+                    return True
+            else:
+                if stage.employee_id.filter(id=employee.id).exists():
+                    return True
+            
+            rec = stage.recruitment_id
+            if rec and hasattr(rec, "_prefetched_objects_cache") and "recruitment_managers" in rec._prefetched_objects_cache:
+                if employee in rec.recruitment_managers.all():
+                    return True
+            elif rec:
+                if rec.recruitment_managers.filter(id=employee.id).exists():
+                    return True
+        else:
+            if stage.employee_id.filter(id=employee.id).exists():
+                return True
+            rec = stage.recruitment_id
+            if rec and rec.recruitment_managers.filter(id=employee.id).exists():
+                return True
+        return False
     except Exception:
         return False
 

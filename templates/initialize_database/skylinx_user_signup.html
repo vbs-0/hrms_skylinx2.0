@@ -1,6 +1,6 @@
 {% load i18n %}
 <div class="oh-onboarding-card__header">
-    <span class="oh-onboarding-card__company-name">Skylinx HRMS</span>
+    <span class="oh-onboarding-card__company-name">EMPLINX</span>
     <ul class="oh-onboarding-card__step">
         <li class="oh-onboarding-card__step">
             <div class="oh-onboarding-card__count">1</div>
@@ -28,7 +28,7 @@
     {% trans "Sign Up" %}
 </h1>
 <p class="text-muted text-center">
-    {% trans "Please sign up to access the Skylinx HRMS." %}
+    {% trans "Please sign up to access the EMPLINX." %}
 </p>
 <form hx-post="{% url 'initialize-database-user' %}" hx-target="#ohAuthCard" class="oh-form-group">
     {% csrf_token %}
@@ -52,7 +52,7 @@
         <div class="col-12 col-sm-12 col-md-6 col-lg-6">
             <div class="oh-input-group">
                 <label class="oh-label" for="email">{% trans "Email" %}</label>
-                <input type="text" id="email" name="email" class="oh-input w-100" placeholder="e.g. adam.luis@skylinx.com"
+                <input type="text" id="email" name="email" class="oh-input w-100" placeholder="e.g. adam.luis@emplinx.com"
                     required />
             </div>
         </div>
@@ -67,7 +67,7 @@
     <div class="row">
         <div class="col-12 col-sm-12 col-md-6 col-lg-6">
             <div class="oh-input-group">
-                <label class="oh-label" for="badge_id">{% trans "Badge ID" %}</label>
+                <label class="oh-label" for="badge_id">{% trans "Employee ID" %}</label>
                 <input type="text" id="badge_id" name="badge_id" class="oh-input w-100" placeholder="e.g. PEP001"
                     required />
             </div>
@@ -76,11 +76,11 @@
             <div class="oh-input-group">
                 <label class="oh-label" for="username">{% trans "Username" %}</label>
                 <input type="text" id="username" name="username" class="oh-input w-100"
-                    placeholder="e.g. adam.luis@skylinx.com" required />
+                    placeholder="e.g. adam.luis@emplinx.com" required />
             </div>
         </div>
     </div>
-    <div id="passwordError" class="mt-2" style="background-color: rgba(229, 79, 56, 0.17); border: 2px solid hsl(8, 77%, 56%); border-radius: 18px; padding: 10px; font-weight: bold; width: 35%; display: none;"></div>
+    <div id="passwordError" class="mt-2" style="background-color: rgba(229, 79, 56, 0.17); border: 2px solid hsl(204, 73%, 43%); border-radius: 18px; padding: 10px; font-weight: bold; width: 35%; display: none;"></div>
     <div class="row">
         <div class="col-12 col-sm-12 col-md-6 col-lg-6">
             <div class="oh-input-group">

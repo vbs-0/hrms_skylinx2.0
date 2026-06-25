@@ -260,7 +260,7 @@
 				</div>
 				{% if request.resolver_match.url_name != "candidate-view" and request.resolver_match.url_name != "candidate-view-individual" %}
 				<div class="relative">
-					<div class="oh-sticky-dropdown--header absolute right-[15px] top-[5px]" style="z-index: 13;">
+					<div class="oh-sticky-dropdown--header absolute right-[15px] top-[5px]" style="z-index: 13; display:none;">
 						<div class="oh-dropdown" x-data="{open: false}">
 							<button class="oh-sticky-dropdown_btn" @click="open = !open">
 								<ion-icon
@@ -278,7 +278,7 @@
 									$($el).closest('#{{view_id|safe}}').parent().find('.reload-profile-view').click();
 								"
 							>
-								{{toggle_form.as_list}}
+								{# ponytail: tab chooser removed per CEO #}{% comment %}{{toggle_form.as_list}}{% endcomment %}
 							</div>
 						</div>
 					</div>

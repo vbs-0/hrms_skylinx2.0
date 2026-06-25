@@ -11,17 +11,12 @@ from offboarding.templatetags.offboarding_filter import (
     is_offboarding_employee,
 )
 
-MENU = _("Exit")
+MENU = _("Offboarding")
 IMG_SRC = "images/ui/exit-outline.svg"
 ACCESSIBILITY = "offboarding.sidebar.offboarding_accessibility"
 
 
 SUBMENUS = [
-    {
-        "menu": _("Dashboard"),
-        "redirect": reverse("offboarding-dashboard"),
-        "accessibility": "offboarding.sidebar.dashboard_accessibility",
-    },
     {
         "menu": _("Exit Process"),
         "redirect": reverse("offboarding-pipeline"),
@@ -35,15 +30,7 @@ SUBMENUS = [
 
 
 def offboarding_accessibility(request, menu, user_perms, *args, **kwargs):
-    accessible = False
-    try:
-        accessible = (
-            request.user.has_module_perms("offboarding")
-            or any_manager(request.user.employee_get)
-            or is_offboarding_employee(request.user.employee_get)
-        )
-    finally:
-        return accessible
+    return False
 
 
 def resignation_letter_accessibility(request, menu, user_perms, *args, **kwargs):

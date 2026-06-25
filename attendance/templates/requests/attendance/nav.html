@@ -61,7 +61,7 @@
                 :class="searchShow ? 'oh-input__search-group--show' : ''">
                 <ion-icon name="search-outline" class="oh-input-group__icon oh-input-group__icon--left"></ion-icon>
                 <input type="text" class="oh-input oh-input__icon" aria-label="Search Input"
-                    placeholder="{% trans 'Search' %}" name="search" onkeyup="$('.filterButton')[0].click()" />
+                    placeholder="{% trans 'Search' %}" name="search" onkeyup="$('.filterButton').first().click()" />
             </div>
             <div class="oh-main__titlebar-button-container">
                 <div class="oh-dropdown" x-data="{open: false}">
@@ -102,6 +102,7 @@
                         </div>
                     </div>
                 </div>
+                    {% if perms.attendance.change_attendance or request.user|is_reportingmanager %}
                     <div class="oh-dropdown" x-data="{open: false}">
                         <button class="oh-btn oh-btn--dropdown ml-2" @click="open = !open" @click.outside="open = false"
                             onclick="event.preventDefault()">
@@ -121,29 +122,15 @@
                                         data-target="#objectDetailsModal" hx-get="{% url 'get-batches' %}"
                                         hx-target="#objectDetailsModalTarget">{% trans "Batches" %}</a>
                                 </li>
-                                {% if perms.attendance.add_attendanceovertime or request.user|is_reportingmanager %}
-                                    <li class="oh-dropdown__item">
-                                        <a href="#" class="oh-dropdown__link" id="reqAttendanceBulkApprove"
-                                            data-toggle="oh-modal-toggle">{% trans "Bulk Approve" %}</a>
-                                    </li>
-                                {% endif %}
-                                {% if perms.attendance.delete_attendanceovertime %}
-                                    <li class="oh-dropdown__item">
-                                        <a href="#" id="reqAttendanceBulkReject"
-                                            class="oh-dropdown__link oh-dropdown__link--danger">{% trans "Bulk Reject" %}</a>
-                                    </li>
-                                {% endif %}
+                                {# ponytail: bulk approve/reject removed from attendance requests per spec #}
                             </ul>
                         </div>
                     </div>
+                    {% endif %}
             </div>
 
 
-            <button class="oh-btn oh-btn--secondary ml-2" data-toggle="oh-modal-toggle" data-target="#objectCreateModal"
-                hx-get="{% url 'request-new-attendance' %}" hx-target="#objectCreateModalTarget"
-                onclick="event.preventDefault()">
-                <ion-icon name="add-sharp" class="mr-1"></ion-icon>{% trans "Create" %}
-            </button>
+
         </form>
     </div>
 </section>
@@ -151,7 +138,7 @@
 <script>
     $(document).ready(function () {
         $("#id_field").on("change", function () {
-            $(".filterButton")[0].click();
+            $(".filterButton").first().click();
         });
     });
 </script>

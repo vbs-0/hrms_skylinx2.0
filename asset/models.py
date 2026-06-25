@@ -236,7 +236,7 @@ class Asset(SkylinxModel):
 
         if self.asset_status == "Available":
             label = self.get_asset_status_display()
-            label = f"{label}<span class='inline-block border-2 border-solid rounded font-bold text-[0.8rem] px-2 py-1 text-[hsl(8,77%,56%)] border-[hsl(8,77%,56%)] ms-5' title='{self.available_count} {self.get_asset_status_display()}'>{self.available_count}/{self.quantity}</span>"
+            label = f"{label}<span class='inline-block border-2 border-solid rounded font-bold text-[0.8rem] px-2 py-1 text-[hsl(204,73%,43%)] border-[hsl(204,73%,43%)] ms-5' title='{self.available_count} {self.get_asset_status_display()}'>{self.available_count}/{self.quantity}</span>"
             return label
         return self.get_asset_status_display()
 

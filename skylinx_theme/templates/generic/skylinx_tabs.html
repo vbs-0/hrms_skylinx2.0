@@ -18,8 +18,8 @@
 	/* Active tab */
 	.oh-tabs__tab--active {
 		background-color: #fcedeb; /* bg-primary-300 */
-		color: {{ theme_obj.primary_600|default:"#E54F38" }}; /* text-primary-600 */
-		border: 1px solid color: {{ theme_obj.primary_600|default:"#E54F38" }}; /* border-primary-600 */
+		color: {{ theme_obj.primary_600|default:"#1C75BC" }}; /* text-primary-600 */
+		border: 1px solid color: {{ theme_obj.primary_600|default:"#1C75BC" }}; /* border-primary-600 */
 	}
 	.oh-tabs__content {
 		display: none;
@@ -38,6 +38,7 @@
 		<div class="flex flex-wrap gap-2 justify-between mb-3">
 			<div class="flex gap-1 flex-wrap">
 				{% for tab in tabs %}
+				{% if not tab.hide_if_zero or tab.badge|default:"0"|stringformat:"s" != "0" %}
 				<div class="relative inline-block dropdown-wrapper-tab">
 					<button
 						class="oh-tabs__tab flex {% if forloop.counter == 1 and not active_target %} oh-tabs__tab--active {% endif %}"
@@ -111,16 +112,19 @@
 					</div>
 					{% endif %}
 				</div>
+				{% endif %}
 				{% endfor %}
 			</div>
 		</div>
 
 		<div class="oh-tabs__contents">
 			{% for tab in tabs %}
+			{% if not tab.hide_if_zero or tab.badge|default:"0"|stringformat:"s" != "0" %}
 			<div
 				class="oh-tabs__content {% if forloop.counter == 1 and not active_target %} oh-tabs__content--active {% endif %}"
 				id="{{view_id}}{{forloop.counter}}"
 			></div>
+			{% endif %}
 			{% endfor %}
 		</div>
 	</div>
@@ -169,7 +173,7 @@
 				var $preferred = $scope.find(`{{active_target|safe}}`).first();
 				if ($preferred.length) {
 					setTimeout(function () {
-						$preferred[0].click();
+						$preferred.first().click();
 					}, 25);
 				}
 			{% endif %}
@@ -177,11 +181,11 @@
 			setTimeout(function () {
 				var $activeTab = $scope.find(".oh-tabs__tab--active").first();
 				if ($activeTab.length) {
-					$activeTab[0].click();
+					$activeTab.first().click();
 				} else {
 					var $firstTab = $scope.find(".oh-tabs__tab").first();
 					if ($firstTab.length) {
-						$firstTab[0].click();
+						$firstTab.first().click();
 					}
 				}
 			}, 100);

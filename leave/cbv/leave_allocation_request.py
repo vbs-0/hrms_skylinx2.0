@@ -217,6 +217,7 @@ class LeaveAllocationRequestNav(SkylinxNavView):
                             hx-target="#objectCreateModalTarget"
                             hx-get="{reverse_lazy('leave-allocation-request-create')}"
                             """
+        self.create_label = _("Request")
 
     nav_title = _("Leave Allocation Requests")
     filter_instance = LeaveAllocationRequestFilter()

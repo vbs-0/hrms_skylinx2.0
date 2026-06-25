@@ -71,3 +71,37 @@ class TaxBracketForm(ModelForm):
         widgets = {
             "filing_status_id": forms.HiddenInput(),
         }
+
+from payroll.models.tax_models import Form16Document
+from django.core.validators import FileExtensionValidator
+
+class Form16DocumentForm(ModelForm):
+    """Form for manually uploading a Form 16 document for an employee."""
+
+    cols = {"employee": 12, "financial_year": 12, "document": 12}
+
+    class Meta:
+        model = Form16Document
+        fields = ["employee", "financial_year", "document"]
+        widgets = {
+            "employee": forms.Select(attrs={"class": "form-control select2"}),
+        }
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["document"].validators = [FileExtensionValidator(allowed_extensions=['pdf'])]
+
+class Form16BulkUploadForm(forms.Form):
+    """Form for bulk uploading Form 16 documents via a ZIP file."""
+    
+    financial_year = forms.CharField(
+        max_length=9, 
+        help_text="e.g., 2023-2024",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "2023-2024"})
+    )
+    zip_file = forms.FileField(
+        validators=[FileExtensionValidator(allowed_extensions=['zip'])],
+        help_text="Upload a ZIP file containing Form 16 PDFs. The PDFs must be named with the employee's Employee ID (e.g., EMP001.pdf).",
+        widget=forms.ClearableFileInput(attrs={"class": "form-control"})
+    )
+

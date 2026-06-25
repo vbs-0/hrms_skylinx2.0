@@ -16,7 +16,7 @@
               </span>
           </div>
           <span onclick="event.stopPropagation()">
-            <input type="text" class="oh-tabs__movable-title  oh-table__editable-input--batch" value="{{payslip.grouper}}" name="" id="{{payslip.grouper}}Grouper" data-previous-name="{{payslip.grouper}}">
+            <span class="oh-tabs__movable-title">{{payslip.grouper|default:"Payslips"}}</span>
           </span>
         </span>
         <div class="oh-accordion-meta__actions" onclick="event.stopPropagation()" style="width:12%">
@@ -48,7 +48,10 @@
                 <div class="oh-sticky-table__th">{% trans "Start Date" %}</div>
                 <div class="oh-sticky-table__th">{% trans "End Date" %}</div>
                 <div class="oh-sticky-table__th">{% trans "Gross Pay" %}</div>
+                <div class="oh-sticky-table__th">{% trans "Basic Pay" %}</div>
+                <div class="oh-sticky-table__th">{% trans "Allowances" %}</div>
                 <div class="oh-sticky-table__th">{% trans "Deduction" %}</div>
+                <div class="oh-sticky-table__th">{% trans "LOP" %}</div>
                 <div class="oh-sticky-table__th">{% trans "Net Pay" %}</div>
                 <div class="oh-sticky-table__th">{% trans "Status" %}</div>
                 <div class="oh-sticky-table__th" style="width: 251px !important;">{% trans "Actions" %}</div>
@@ -94,7 +97,16 @@
                   {{payslip.gross_pay|floatformat:2|currency_symbol_position}}
                 </div>
                 <div class="oh-sticky-table__td">
+                  {{payslip.basic_pay|floatformat:2|currency_symbol_position}}
+                </div>
+                <div class="oh-sticky-table__td">
+                  {{payslip.total_allowance|floatformat:2|currency_symbol_position}}
+                </div>
+                <div class="oh-sticky-table__td">
                   {{payslip.deduction|floatformat:2|currency_symbol_position}}
+                </div>
+                <div class="oh-sticky-table__td">
+                  {{payslip.total_lop|floatformat:2|currency_symbol_position}}
                 </div>
                 <div class="oh-sticky-table__td">
                   {{payslip.net_pay|floatformat:2|currency_symbol_position}}
@@ -207,40 +219,7 @@
     e.preventDefault();
     updateBulkStatus($(this))
   });
-  $(".oh-table__editable-input--batch").focusout(function (e) {
-    e.preventDefault();
-    var grouper = $(this)
-    var previousName = grouper.attr("data-previous-name");
-    var newName = grouper.val();
-    $.ajax({
-      type: "post",
-      url: "{% url 'update-batch-group-name' %}",
-      data: {
-        csrfmiddlewaretoken: getCookie("csrftoken"),
-        newName: newName,
-        previousName:previousName
-      },
-      success: function (response) {
-        grouper.attr("data-previous-name", response.new_name);
-        $("#messageContainer").html($($(`
-            <div class="oh-alert-container">
-              <div class="oh-alert oh-alert--animated  oh-alert--${response.type}">
-                ${response.message}
-              </div>
-            </div>`)
-            ))
-      },error:()=>{
-        $("#messageContainer").html($($(`
-          <div class="oh-alert-container">
-            <div class="oh-alert oh-alert--animated  oh-alert--danger">
-              Status not updated.
-            </div>
-          </div>`
-          )
-        ))
-        }
-    });
-  });
+
   $(".payslip-row.all-payslip-row").change(function (e) {
     e.preventDefault();
     // var id

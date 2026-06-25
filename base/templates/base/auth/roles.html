@@ -1,0 +1,152 @@
+{% extends 'settings.html' %}
+{% load i18n static %}
+{% block settings %}
+<style>
+  .role-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: box-shadow 0.15s ease;
+  }
+  .role-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+  .role-card__name { font-size: 1rem; font-weight: 700; color: #1e293b; }
+  .role-card__meta { font-size: 0.8rem; color: #64748b; }
+  .role-card__actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .roles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+    padding: 8px 0 24px;
+  }
+  .role-empty {
+    text-align: center;
+    padding: 48px 0;
+    color: #94a3b8;
+    grid-column: 1 / -1;
+  }
+</style>
+
+<div id="messages" class="oh-alert-container"></div>
+
+<div class="oh-inner-sidebar-content">
+  <div class="oh-inner-sidebar-content__header d-flex justify-content-between align-items-center">
+    <h2 class="oh-inner-sidebar-content__title">{% trans "Roles & Permissions" %}</h2>
+    {% if perms.auth.add_group %}
+    <button class="oh-btn oh-btn--secondary oh-btn--shadow"
+            data-toggle="oh-modal-toggle" data-target="#roleCreateModal">
+      <ion-icon name="add-outline"></ion-icon> {% trans "Create Role" %}
+    </button>
+    {% endif %}
+  </div>
+</div>
+
+<div class="roles-grid">
+  {% if roles %}
+    {% for role in roles %}
+    <div class="role-card">
+      <div class="role-card__name">{{ role.name }}</div>
+      <div class="role-card__meta">
+        <ion-icon name="people-outline" style="vertical-align:-2px"></ion-icon>
+        {{ role.user_count }} {% trans "member" %}{{ role.user_count|pluralize }}
+        &nbsp;·&nbsp;
+        <ion-icon name="shield-checkmark-outline" style="vertical-align:-2px"></ion-icon>
+        {{ role.perm_count }} {% trans "permission" %}{{ role.perm_count|pluralize }}
+      </div>
+      <div class="role-card__actions">
+        {% if perms.auth.change_group %}
+        <a href="{% url 'user-group-view' %}?group={{ role.id }}"
+           class="oh-btn oh-btn--secondary oh-btn--small"
+           hx-get="{% url 'user-group-view' %}?group={{ role.id }}"
+           hx-target="#settingsContainer"
+           hx-select="#settingsContainer"
+           hx-swap="outerHTML show:none"
+           hx-push-url="true">
+          <ion-icon name="key-outline"></ion-icon> {% trans "Edit Permissions" %}
+        </a>
+        <button class="oh-btn oh-btn--light oh-btn--small"
+                hx-get="{% url 'user-group-assign' %}?group={{ role.id }}"
+                hx-target="#roleAssignBody"
+                data-toggle="oh-modal-toggle" data-target="#roleAssignModal">
+          <ion-icon name="person-add-outline"></ion-icon> {% trans "Assign" %}
+        </button>
+        {% endif %}
+        {% if perms.auth.delete_group %}
+        <form action="{% url 'user-group-delete' role.id %}" method="post"
+              onsubmit="return confirm('{% trans "Delete this role?" %}')">
+          {% csrf_token %}
+          <button type="submit" class="oh-btn oh-btn--light oh-btn--small">
+            <ion-icon name="trash-outline" class="text-danger"></ion-icon>
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="role-empty">
+      <ion-icon name="shield-outline" style="font-size:3rem;display:block;margin:0 auto 12px;"></ion-icon>
+      {% trans "No roles yet. Create one to start assigning permissions." %}
+    </div>
+  {% endif %}
+</div>
+
+<!-- Create Role Modal -->
+<div class="oh-modal" id="roleCreateModal" role="dialog" aria-hidden="true">
+  <div class="oh-modal__dialog" style="max-width:880px">
+    <div class="oh-modal__dialog-header">
+      <h2 class="oh-modal__dialog-title">{% trans "Create Role" %}</h2>
+      <button class="oh-modal__close" aria-label="Close">
+        <ion-icon name="close-outline"></ion-icon>
+      </button>
+    </div>
+    <div class="oh-modal__dialog-body">
+      <form hx-post="{% url 'user-group-create' %}" class="oh-profile-section perm-form" id="roleCreateForm">
+        {% include "base/auth/group_assign.html" %}
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Assign Users Modal -->
+<div class="oh-modal" id="roleAssignModal" role="dialog" aria-hidden="true">
+  <div class="oh-modal__dialog">
+    <div class="oh-modal__dialog-header">
+      <h2 class="oh-modal__dialog-title">{% trans "Assign Users" %}</h2>
+      <button class="oh-modal__close" aria-label="Close">
+        <ion-icon name="close-outline"></ion-icon>
+      </button>
+    </div>
+    <div class="oh-modal__dialog-body" id="roleAssignBody"></div>
+  </div>
+</div>
+
+<script>
+function checkSelected(names, target, initial=false) {
+  names = JSON.parse(`${names}`);
+  $.each(names, function(i, v) {
+    if (!initial) { $(target).find(`[value=${v}]`).prop("checked", true).change(); }
+    else          { $(target).find(`[value=${v}]`).prop("checked", true); }
+  });
+}
+function selectAllPermissions(source) {
+  // themed permission_table.html renders a real <table>, so target tbody rows
+  var isChecked = $(source).is(":checked");
+  $(source).closest("table").find("tbody input.row-permission")
+           .prop("checked", isChecked).trigger("change");
+}
+function updateBadge() {
+  $(".panel").each(function() {
+    var n = $(this).find("[name=permissions]:checked").length;
+    $(this).prev().find(".oh-badge.permission-badge").html(n);
+  });
+}
+$(document).ready(function() {
+  updateBadge();
+  $("#roleCreateForm [name=permissions]").on("change", function() { updateBadge(); });
+});
+</script>
+{% endblock settings %}

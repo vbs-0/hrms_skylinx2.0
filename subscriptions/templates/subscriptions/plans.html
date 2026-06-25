@@ -1,0 +1,88 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% block content %}
+<div class="oh-wrapper">
+  <div class="mb-4">
+    <h1 class="text-lg font-semibold">{% trans "Subscription & Plans" %}</h1>
+    <p class="text-sm text-gray-500">{% trans "Manage your company's plan." %}</p>
+  </div>
+
+  {% if messages %}{% for m in messages %}
+  <div class="mb-3 p-3 rounded-md text-sm {% if m.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-blue-50 text-blue-700{% endif %}">{{ m }}</div>
+  {% endfor %}{% endif %}
+
+  <!-- account / support -->
+  <div class="bg-white rounded-md shadow-card p-5 mb-5 flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <div class="text-xs uppercase text-gray-400">{% trans "Client ID" %}</div>
+      <div class="text-lg font-bold tracking-wide">{{ client_id|default:"—" }}</div>
+      <div class="text-sm text-gray-500">{{ company.company }}</div>
+    </div>
+    {% if support_email %}
+    <div class="text-right">
+      <div class="text-xs uppercase text-gray-400">{% trans "Need help?" %}</div>
+      <a href="mailto:{{ support_email }}?subject=Support%20request%20({{ client_id }})"
+         class="text-sm text-primary-600 font-medium">{{ support_email }}</a>
+      <div class="text-xs text-gray-400">{% trans "Quote your Client ID when contacting support." %}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- current subscription -->
+  <div class="bg-white rounded-md shadow-card p-5 mb-5">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <div class="text-xs uppercase text-gray-400">{% trans "Current plan" %}</div>
+        <div class="text-xl font-bold">{{ sub.plan.name|default:"—" }}</div>
+        <div class="text-sm text-gray-500">
+          {% trans "Status" %}:
+          <span class="font-semibold">{{ sub.get_status_display|default:"—" }}</span>
+          {% if sub.expires_on %} · {% trans "Renews/expires" %} {{ sub.expires_on }}{% endif %}
+          {% if sub.trial_ends_on and sub.status == 'trial' %} · {% trans "Trial ends" %} {{ sub.trial_ends_on }}{% endif %}
+        </div>
+      </div>
+      <div class="text-right">
+        <div class="text-xs uppercase text-gray-400">{% trans "Seats" %}</div>
+        <div class="text-lg font-semibold">
+          {{ sub.seats_used }}{% if sub.seat_limit %} / {{ sub.seat_limit }}{% else %} / ∞{% endif %}
+        </div>
+      </div>
+    </div>
+    {% if not billing_on %}
+    <p class="text-xs text-amber-600 mt-3">{% trans "Online payment is not enabled yet — paid upgrades are activated manually after you request them." %}</p>
+    {% endif %}
+  </div>
+
+  <!-- available plans -->
+  <div class="grid gap-4" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">
+    {% for p in plans %}
+    <div class="bg-white rounded-md shadow-card p-5 flex flex-col {% if sub.plan_id == p.id %}ring-2 ring-primary-500{% endif %}">
+      <div class="font-bold text-lg">{{ p.name }}</div>
+      <div class="text-2xl font-extrabold mt-1">
+        {% if p.price > 0 %}₹{{ p.price }}<span class="text-sm font-normal text-gray-400">/{{ p.get_billing_cycle_display|lower }}</span>{% else %}{% trans "Free" %}{% endif %}
+      </div>
+      <div class="text-xs text-gray-500 mt-1">
+        {% if p.seat_limit %}{% blocktrans %}Up to {{ p.seat_limit }} employees{% endblocktrans %}{% else %}{% trans "Unlimited employees" %}{% endif %}
+      </div>
+      <ul class="text-sm text-gray-600 mt-3 space-y-1 flex-1">
+        {% for key, meta in all_features.items %}
+          {% if key in p.features %}<li>✓ {{ meta.label }}</li>{% endif %}
+        {% endfor %}
+        {% if not p.features %}<li class="text-gray-400">{% trans "Core HR only" %}</li>{% endif %}
+      </ul>
+      {% if sub.plan_id == p.id %}
+        <button class="mt-4 px-4 py-2 rounded-md text-sm bg-gray-100 text-gray-500" disabled>{% trans "Current plan" %}</button>
+      {% else %}
+        <form method="post" action="{% url 'subscription-choose' %}" class="mt-4">
+          {% csrf_token %}
+          <input type="hidden" name="plan" value="{{ p.id }}" />
+          <button class="w-full px-4 py-2 rounded-md text-sm bg-primary-600 text-white">
+            {% if p.price > 0 %}{% trans "Upgrade" %}{% else %}{% trans "Switch" %}{% endif %}
+          </button>
+        </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

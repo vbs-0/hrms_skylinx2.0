@@ -19,7 +19,7 @@ from django.utils.translation import gettext_lazy as _
 from accessibility.cbv_decorators import enter_if_accessible
 from accessibility.models import DefaultAccessibility
 from base.context_processors import enable_profile_edit
-from base.methods import is_reportingmanager
+from base.methods import filtersubordinatesemployeemodel, is_reportingmanager
 from employee.filters import EmployeeFilter
 from employee.forms import BulkUpdateFieldForm, EmployeeExportExcelForm
 from employee.models import Employee, EmployeeBankDetails, EmployeeWorkInformation
@@ -64,6 +64,23 @@ def toggle_profile_edit_access_url(self):
 
 Employee.profile_edit_accessibility_display = profile_edit_accessibility_display
 Employee.toggle_profile_edit_access_url = toggle_profile_edit_access_url
+
+
+def scope_employee_queryset_to_client(request, queryset):
+    """
+    Client users must only see their own company's employees.
+    Platform-owner superusers keep the existing all-company view.
+    """
+    if not request or request.user.is_superuser:
+        return queryset
+
+    selected_company = request.session.get("selected_company")
+    if not selected_company or selected_company == "all":
+        return queryset.none()
+
+    return queryset.filter(
+        employee_work_info__company_id=selected_company
+    ).exclude(employee_user_id__is_superuser=True)
 
 
 @method_decorator(login_required, name="dispatch")
@@ -169,8 +186,8 @@ class EmployeesList(SkylinxListView):
         "employee_work_info__mobile",
         "employee_work_info__date_joining",
         "employee_work_info__contract_end_date",
-        "employee_work_info__basic_salary",
-        "employee_work_info__salary_hour",
+        "employee_work_info__ctc",
+        "employee_work_info__salary_components",
         "employee_bank_details__bank_name",
         "employee_bank_details__account_number",
         "employee_bank_details__branch",
@@ -186,8 +203,8 @@ class EmployeesList(SkylinxListView):
 
     import_help = {
         "Id | Reference": ["Dont Alter this column"],
-        "Badge ID": ["Ensure no Duplicate Codes"],
-        "Reporting Manager": ["Ensure Badge ID with employee exists"],
+        "Employee ID": ["Ensure no Duplicate Codes"],
+        "Reporting Manager": ["Ensure Employee ID with employee exists"],
         "Gender": ["male", "female", "other"],
         "Marital Status": ["single", "married", "divorced"],
         "Date Formats": ["yyyy-mm-dd"],
@@ -284,7 +301,7 @@ class EmployeesList(SkylinxListView):
         (_("Employee"), "employee_name_with_badge_id", "get_avatar"),
         (_("Email"), "email"),
         (_("Phone"), "phone"),
-        (_("Badge Id"), "badge_id"),
+        (_("Employee ID"), "badge_id"),
         (_("Job Position"), "employee_work_info__job_position_id"),
         (_("Department"), "employee_work_info__department_id"),
         (_("Shift"), "employee_work_info__shift_id"),
@@ -316,7 +333,7 @@ class EmployeesList(SkylinxListView):
                 """
     sortby_mapping = [
         (_("Employee"), "get_full_name", "get_avatar"),
-        (_("Badge Id"), "badge_id"),
+        (_("Employee ID"), "badge_id"),
         (
             _("Reporting Manager"),
             "employee_work_info__reporting_manager_id__get_full_name",
@@ -331,6 +348,32 @@ class EmployeesList(SkylinxListView):
         ),
         (_("Date of Joining"), "employee_work_info__date_joining"),
     ]
+
+    def get_queryset(self):
+        """
+        Scope the directory to what the user is allowed to see: holders of
+        ``employee.view_employee`` (HR/admin) see everyone, reporting managers
+        see their reporting chain, and ordinary employees do not see other
+        employees' records.
+        """
+        queryset = super().get_queryset()
+        queryset = filtersubordinatesemployeemodel(
+            self.request, queryset, "employee.view_employee"
+        )
+        queryset = scope_employee_queryset_to_client(self.request, queryset)
+        # ponytail: kill the N+1 — every row reads work_info + its FKs + user.
+        return queryset.select_related(
+            "employee_user_id",
+            "employee_work_info",
+            "employee_work_info__department_id",
+            "employee_work_info__job_position_id",
+            "employee_work_info__job_role_id",
+            "employee_work_info__shift_id",
+            "employee_work_info__work_type_id",
+            "employee_work_info__employee_type_id",
+            "employee_work_info__company_id",
+            "employee_work_info__reporting_manager_id",
+        )
 
 
 def get_detailed_work_url(self):
@@ -356,7 +399,7 @@ class TabEmployeeWorkList(SkylinxListView):
     show_filter_tags = False
 
     columns = [
-        (_("Badge Id"), "badge_id"),
+        (_("Employee ID"), "badge_id"),
         (_("Work Email"), "employee_work_info__email"),
         (
             _("Reporting Manager"),
@@ -401,7 +444,7 @@ class EmployeeWorkDetails(SkylinxDetailedView):
     model = Employee
 
     body = [
-        (_("Badge Id"), "badge_id"),
+        (_("Employee ID"), "badge_id"),
         (_("Work Email"), "employee_work_info__email"),
         (
             _("Reporting Manager"),
@@ -756,6 +799,30 @@ class EmployeeCard(SkylinxCardView):
                 hx-swap="innerHTML"
                 hx-push-url="{get_individual_url}"
                 """
+
+    def get_queryset(self):
+        """
+        Scope the card view to what the user is allowed to see (see
+        ``EmployeesList.get_queryset``).
+        """
+        queryset = super().get_queryset()
+        queryset = filtersubordinatesemployeemodel(
+            self.request, queryset, "employee.view_employee"
+        )
+        queryset = scope_employee_queryset_to_client(self.request, queryset)
+        # ponytail: kill the N+1 — every row reads work_info + its FKs + user.
+        return queryset.select_related(
+            "employee_user_id",
+            "employee_work_info",
+            "employee_work_info__department_id",
+            "employee_work_info__job_position_id",
+            "employee_work_info__job_role_id",
+            "employee_work_info__shift_id",
+            "employee_work_info__work_type_id",
+            "employee_work_info__employee_type_id",
+            "employee_work_info__company_id",
+            "employee_work_info__reporting_manager_id",
+        )
 
 
 @receiver(post_generic_delete, sender=Employee)

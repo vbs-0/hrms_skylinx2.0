@@ -123,7 +123,8 @@ TIME_PERIOD = [("day", _("Day")), ("month", _("Month")), ("year", _("Year"))]
 PAYMENT = [("paid", _("Paid")), ("unpaid", _("Unpaid"))]
 
 PAYMENT_TYPE = [
-    ("paid", _("Paid")),
+    ("fully_paid", _("Fully Paid")),
+    ("half_paid", _("Half Paid")),
     ("unpaid", _("Unpaid")),
     ("custom", _("Custom")),
 ]
@@ -245,6 +246,12 @@ class LeaveType(SkylinxModel):
     total_days = models.FloatField(null=True, default=1)
     reset = models.BooleanField(default=False, verbose_name=_("Reset"))
     is_encashable = models.BooleanField(default=False, verbose_name=_("Is Encashable"))
+    # When True, employees still within their probation period cannot apply for
+    # this leave type. Editable per leave type (enable on "Casual" to block it
+    # during probation).
+    exclude_during_probation = models.BooleanField(
+        default=False, verbose_name=_("Block During Probation")
+    )
     reset_based = models.CharField(
         max_length=30,
         choices=RESET_BASED,
@@ -419,7 +426,8 @@ class LeaveType(SkylinxModel):
 
     def save(self, *args, **kwargs):
         request = getattr(skylinx_middlewares._thread_locals, "request", None)
-        selected_company = request.session.get("selected_company")
+        session = getattr(request, "session", None)
+        selected_company = session.get("selected_company") if session else None
         if (
             not self.id
             and not self.company_id
@@ -554,7 +562,12 @@ class LeaveType(SkylinxModel):
         Falls back to legacy payment field for backward compatibility.
         """
         if self.payment_type:
-            mapping = {"paid": 100.0, "unpaid": 0.0}
+            mapping = {
+                "fully_paid": 100.0,
+                "half_paid": 50.0,
+                "unpaid": 0.0,
+                "paid": 100.0,
+            }
             if self.payment_type == "custom":
                 return float(self.payment_percentage or 0)
             return mapping.get(self.payment_type, 0.0)
@@ -581,7 +594,7 @@ class LeaveType(SkylinxModel):
         )
 
     def clean(self, *args, **kwargs):
-        super().clean(self)
+        super().clean()
         if self.is_compensatory_leave:
             if (
                 LeaveType.objects.filter(is_compensatory_leave=True)
@@ -927,6 +940,22 @@ class AvailableLeave(SkylinxModel):
         return reset_date
 
     def leave_taken(self):
+        emp = self.employee_id
+        is_prefetched = False
+        if emp and hasattr(emp, '_prefetched_objects_cache'):
+            is_prefetched = 'leaverequest_set' in emp._prefetched_objects_cache
+            
+        if is_prefetched:
+            requests = emp.leaverequest_set.all()
+            total = sum(
+                r.requested_days
+                for r in requests
+                if r.leave_type_id_id == self.leave_type_id_id
+                and r.start_date >= self.assigned_date
+                and r.status == "approved"
+            )
+            return total
+
         leave_taken = LeaveRequest.objects.filter(
             leave_type_id=self.leave_type_id,
             employee_id=self.employee_id,
@@ -1007,7 +1036,9 @@ def cal_effective_requested_days(start_date, end_date, leave_type_id, requested_
     holidays and company leave days.
     """
     requested_dates = leave_requested_dates(start_date, end_date)
-    holidays = set(holiday_dates_list(Holidays.objects.all()))
+    # ponytail: optional holidays are working days for leave — only mandatory
+    # holidays are excluded from the leave-day count.
+    holidays = set(holiday_dates_list(Holidays.objects.filter(is_optional=False)))
     company_leave_dates = set(
         company_leave_dates_list(CompanyLeaves.objects.all(), start_date)
     )
@@ -1437,6 +1468,9 @@ class LeaveRequest(SkylinxModel):
         """
         This method is used to return the total penalties in the late early instance
         """
+        is_prefetched = 'penaltyaccounts_set' in self._prefetched_objects_cache if hasattr(self, '_prefetched_objects_cache') else False
+        if is_prefetched:
+            return len(self.penaltyaccounts_set.all())
         return self.penaltyaccounts_set.count()
 
     def requested_dates(self):
@@ -1459,7 +1493,8 @@ class LeaveRequest(SkylinxModel):
         :return: this functions returns a list of all holiday dates.
         """
         holiday_dates = []
-        holidays = Holidays.objects.all()
+        # ponytail: optional holidays count as working days, exclude only mandatory
+        holidays = Holidays.objects.filter(is_optional=False)
         for holiday in holidays:
             holiday_start_date = holiday.start_date
             holiday_end_date = holiday.end_date
@@ -1619,9 +1654,17 @@ class LeaveRequest(SkylinxModel):
         restricted_leaves = RestrictLeave.objects.all()
         request = getattr(skylinx_middlewares._thread_locals, "request", None)
 
+        try:
+            employee = self.employee_id
+        except Exception:
+            return cleaned_data
+
+        if not employee:
+            return cleaned_data
+
         # Check if leave type is assigned to employee
         if not AvailableLeave.objects.filter(
-            employee_id=self.employee_id, leave_type_id=leave_type
+            employee_id=employee, leave_type_id=leave_type
         ).exists():
             raise ValidationError(
                 {
@@ -1630,6 +1673,20 @@ class LeaveRequest(SkylinxModel):
                     )
                 }
             )
+
+        # Probation block: leave types flagged exclude_during_probation can't be
+        # applied while the employee is still within their probation period.
+        if getattr(leave_type, "exclude_during_probation", False):
+            work_info = getattr(employee, "employee_work_info", None)
+            probation_end = getattr(work_info, "probation_end", None)
+            if probation_end and self.start_date and self.start_date <= probation_end:
+                raise ValidationError(
+                    _(
+                        "%(leave)s cannot be applied during the probation period "
+                        "(ends %(date)s)."
+                    )
+                    % {"leave": leave_type.name, "date": probation_end}
+                )
 
         # Date validations
         if self.start_date > self.end_date:
@@ -1670,7 +1727,7 @@ class LeaveRequest(SkylinxModel):
 
         # Avaialable leave days and requested leave days checking
         available_leave = AvailableLeave.objects.get(
-            employee_id=self.employee_id, leave_type_id=leave_type
+            employee_id=employee, leave_type_id=leave_type
         )
 
         requested_days = calculate_requested_days(
@@ -1713,7 +1770,7 @@ class LeaveRequest(SkylinxModel):
 
         # Get employee department and job if available
         work_info = EmployeeWorkInformation.objects.filter(
-            employee_id=self.employee_id
+            employee_id=employee
         ).first()
         emp_dep = work_info.department_id if work_info else None
         emp_job = work_info.job_position_id if work_info else None
@@ -1747,9 +1804,9 @@ class LeaveRequest(SkylinxModel):
             # Check if requested days intersect with restricted days
             if requ_days & restri_days:
                 if (
-                    restrict.department == emp_dep
+                    restrict.department_id == emp_dep
                     and not restrict.job_position.exists()
-                ) or (emp_job and emp_job in restrict.job_position.all()):
+                ) or (emp_job and restrict.job_position.filter(id=emp_job).exists()):
                     raise ValidationError(
                         "You cannot request leave for this date range. The requested dates are restricted. Please contact admin."
                     )
@@ -1814,13 +1871,22 @@ class LeaveRequest(SkylinxModel):
         available_leave.save()
 
     def multiple_approvals(self, *args, **kwargs):
-        approvals = LeaveRequestConditionApproval.objects.filter(leave_request_id=self)
-        requested_query = approvals.filter(is_approved=False).order_by("sequence")
-        approved_query = approvals.filter(is_approved=True).order_by("sequence")
+        is_prefetched = 'leaverequestconditionapproval_set' in self._prefetched_objects_cache if hasattr(self, '_prefetched_objects_cache') else False
+        
+        if is_prefetched:
+            approvals = list(self.leaverequestconditionapproval_set.all())
+            requested_query = sorted([a for a in approvals if not a.is_approved], key=lambda x: x.sequence)
+            approved_query = sorted([a for a in approvals if a.is_approved], key=lambda x: x.sequence)
+        else:
+            approvals = LeaveRequestConditionApproval.objects.filter(leave_request_id=self)
+            requested_query = approvals.filter(is_approved=False).order_by("sequence")
+            approved_query = approvals.filter(is_approved=True).order_by("sequence")
+            
         managers = []
         for manager in approvals:
             managers.append(manager.manager_id)
-        if approvals.exists():
+            
+        if approvals:
             result = {
                 "managers": managers,
                 "approved": approved_query,
@@ -1834,14 +1900,19 @@ class LeaveRequest(SkylinxModel):
     def is_approved(self):
         request = getattr(skylinx_middlewares._thread_locals, "request", None)
         if request:
-            employee = Employee.objects.filter(employee_user_id=request.user).first()
-            condition_approval = LeaveRequestConditionApproval.objects.filter(
-                leave_request_id=self, manager_id=employee.id
-            ).first()
-            if condition_approval:
-                return not condition_approval.is_approved
-            else:
-                return True
+            employee = getattr(request.user, "employee_get", None)
+            if employee:
+                is_prefetched = 'leaverequestconditionapproval_set' in self._prefetched_objects_cache if hasattr(self, '_prefetched_objects_cache') else False
+                if is_prefetched:
+                    condition_approval = next((a for a in self.leaverequestconditionapproval_set.all() if a.manager_id_id == employee.id), None)
+                else:
+                    condition_approval = LeaveRequestConditionApproval.objects.filter(
+                        leave_request_id=self, manager_id=employee.id
+                    ).first()
+                if condition_approval:
+                    return not condition_approval.is_approved
+                else:
+                    return True
 
     def delete(self, *args, **kwargs):
         if self.status == "requested":

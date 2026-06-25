@@ -312,7 +312,7 @@ class PayslipFilter(SkylinxFilterSet):
             "employee_id",
             "start_date",
             "end_date",
-            "group_name",
+            # "group_name", removed
             "status",
             "gross_pay__lte",
             "gross_pay__gte",
@@ -550,7 +550,7 @@ class PayslipReGroup:
     fields = [
         ("", _("Select")),
         ("employee_id", _("Employee")),
-        ("group_name", _("Payslip Batch")),
+        # ("group_name", _("Payslip Batch")), removed
         ("start_date", _("Start Date")),
         ("end_date", _("End Date")),
         ("basic_pay", _("Basic Pay")),

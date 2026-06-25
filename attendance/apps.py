@@ -1,5 +1,5 @@
 """
-This module defines the configuration for the 'attendance' app within the Skylinx HRMS project.
+This module defines the configuration for the 'attendance' app within the EMPLINX project.
 """
 
 from django.apps import AppConfig

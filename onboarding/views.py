@@ -19,6 +19,7 @@ import random
 import secrets
 from urllib.parse import parse_qs
 
+from django import forms
 from django import template
 from django.contrib import messages
 from django.contrib.auth import login
@@ -45,6 +46,7 @@ from base.methods import (
 )
 from base.models import SkylinxMailTemplate, JobPosition
 from employee.models import Employee, EmployeeBankDetails, EmployeeWorkInformation
+from onboarding.constants import DIRECT_HIRE_TITLE
 from skylinx import settings
 from skylinx.decorators import (
     hx_request_required,
@@ -435,15 +437,36 @@ def candidate_creation(request):
     GET : return candidate creation form template
     POST : return candidate view
     """
-    form = OnboardingCandidateForm()
+    is_direct_hire = request.GET.get("direct_hire") == "true"
+    initial = {}
+    if is_direct_hire:
+        direct_hire_rec, _created = Recruitment.objects.get_or_create(
+            title=DIRECT_HIRE_TITLE, 
+            company_id=request.user.employee_get.get_company(),
+            defaults={
+                "description": "System-managed: Direct Hire / Walk-in path",
+                "is_active": False,
+                "closed": True,
+                "is_published": False,
+            }
+        )
+        initial["recruitment_id"] = direct_hire_rec.id
+
+    form = OnboardingCandidateForm(initial=initial)
     if request.method == "POST":
         form = OnboardingCandidateForm(request.POST, request.FILES)
         if form.is_valid():
-            candidate = form.save()
+            candidate = form.save(commit=False)
             candidate.hired = True
             candidate.save()
+            # Django ModelForm save_m2m is needed when commit=False
+            form.save_m2m()
             messages.success(request, _("New candidate created successfully.."))
             return redirect(candidates_view)
+            
+    if is_direct_hire and "recruitment_id" in form.fields:
+        form.fields["recruitment_id"].widget = forms.HiddenInput()
+        
     return render(request, "onboarding/candidate_creation.html", {"form": form})
 
 
@@ -587,7 +610,15 @@ def candidates_view(request):
     Returns:
     GET : return candidate view  template
     """
-    queryset = Candidate.objects.filter(
+    queryset = Candidate.objects.select_related(
+        "recruitment_id",
+        "job_position_id",
+        "job_position_id__department_id",
+        "stage_id",
+        "rejected_candidate"
+    ).prefetch_related(
+        "rejected_candidate__reject_reason_id"
+    ).filter(
         is_active=True,
         hired=True,
         recruitment_id__closed=False,
@@ -596,6 +627,19 @@ def candidates_view(request):
     previous_data = request.GET.urlencode()
     page_number = request.GET.get("page")
     page_obj = paginator_qry(candidate_filter_obj.qs, page_number)
+    
+    # Batch prefetch email logs to avoid N+1 queries in template
+    emails = [c.email for c in page_obj.object_list if c.email]
+    if emails:
+        from base.models import EmailLog
+        from django.db.models import Q
+        q_objs = Q()
+        for email in emails:
+            q_objs |= Q(to__icontains=email)
+        logs = list(EmailLog.objects.filter(q_objs).order_by("-created_at"))
+        for c in page_obj.object_list:
+            c._cached_last_sent_mail = next((log for log in logs if c.email and c.email in log.to), None)
+
     mail_templates = SkylinxMailTemplate.objects.all()
     data_dict = parse_qs(previous_data)
     get_key_instances(Candidate, data_dict)
@@ -957,19 +1001,30 @@ def onboarding_query_grouper(request, queryset):
                 stage.candidate.filter(
                     candidate_id__is_active=True,
                 ),
-            ).qs.order_by("sequence")
+            ).qs.select_related(
+                "candidate_id",
+                "candidate_id__job_position_id",
+            ).prefetch_related(
+                "candidate_id__onboarding_portal",
+                "candidate_id__candidate_task",
+            ).order_by("sequence")
 
             page_name = "page" + stage.stage_title + str(rec.id)
-            grouper = group_by_queryset(
-                stage_candidates,
-                "onboarding_stage_id",
-                request.GET.get(page_name),
-                page_name,
-            ).object_list
+            page_name_dynamic = f"dynamic_page_{page_name}{stage.id}"
+            from skylinx.group_by import record_queryset_paginator
+            grouper = []
+            if stage_candidates.exists():
+                grouper = [{
+                    "grouper": stage,
+                    "list": record_queryset_paginator(
+                        request,
+                        stage_candidates,
+                        page_name_dynamic,
+                    ),
+                    "dynamic_name": page_name_dynamic,
+                }]
             data["stages"] = data["stages"] + grouper
-            employees = employees + [
-                employee.candidate_id.id for employee in stage.candidate.all()
-            ]
+            employees = employees + list(stage.candidate.values_list("candidate_id_id", flat=True))
         ordered_data = []
         # combining un used groups in to the grouper
         groupers = data["stages"]
@@ -1029,6 +1084,11 @@ def onboarding_view(request):
     paginator = Paginator(recruitments.order_by("id"), 4)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
+    page_obj.object_list = page_obj.object_list.prefetch_related(
+        "onboarding_stage",
+        "onboarding_stage__employee_id",
+        "onboarding_stage__recruitment_id__recruitment_managers",
+    )
     groups = onboarding_query_grouper(request, page_obj)
     for item in groups:
         setattr(item["recruitment"], "stages", item["stages"])
@@ -1156,7 +1216,8 @@ def user_creation(request, token):
             },
         )
     except Exception as error:
-        return HttpResponse(error)
+        logger.error(f"Error in user_creation: {error}")
+        return render(request, "404.html")
 
 
 def user_save(form, onboarding_portal, request, token):
@@ -1293,7 +1354,7 @@ def employee_creation(request, token):
                 return redirect("user-creation", token)
             if not getattr(user, "pk", None):
                 user.save()
-            login(request, user)
+            login(request, user, backend="django.contrib.auth.backends.ModelBackend")
             employee_personal_info = form.save(commit=False)
             employee_personal_info.employee_user_id = user
             employee_personal_info.email = candidate.email
@@ -1473,6 +1534,7 @@ def candidate_task_update(request, taskId):
 
 
 @login_required
+@all_manager_can_enter("onboarding.view_candidatetask")
 def get_status(request, task_id):
     """
     htmx function that return the status of candidate task
@@ -1868,6 +1930,7 @@ def stage_sequence_update(request):
 @login_required
 @require_http_methods(["POST"])
 @hx_request_required
+@all_manager_can_enter("onboarding.change_onboardingstage")
 def stage_name_update(request, stage_id):
     """
     This method is used to update the name of recruitment stage

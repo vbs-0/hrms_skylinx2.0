@@ -13,8 +13,10 @@ from ...api_serializers.auth.serializers import (
     PasswordResetSerializer,
 )
 
+from rest_framework.permissions import IsAuthenticated, AllowAny
 
 class LoginAPIView(APIView):
+    permission_classes = [AllowAny]
     @document_api(
         operation_description="Authenticate user and return JWT access token with employee info",
         request_body=LoginRequestSerializer,
@@ -52,40 +54,60 @@ class LoginAPIView(APIView):
         tags=["auth"],
     )
     def post(self, request):
-        if "username" and "password" in request.data.keys():
-            username = request.data.get("username")
-            password = request.data.get("password")
+        username = request.data.get("username") or request.data.get("email")
+        password = request.data.get("password")
+        if username and password:
+            username = username.strip() # Strip trailing spaces just in case
             user = authenticate(username=username, password=password)
             if user:
                 refresh = RefreshToken.for_user(user)
-                employee = user.employee_get
+                try:
+                    employee = user.employee_get
+                except Exception:
+                    employee = None
                 face_detection = False
                 face_detection_image = None
                 geo_fencing = False
                 company_id = None
-                try:
-                    face_detection = employee.get_company().face_detection.start
-                except:
-                    pass
-                try:
-                    geo_fencing = employee.get_company().geo_fencing.start
-                except:
-                    pass
-                try:
-                    face_detection_image = employee.face_detection.image.url
-                except:
-                    pass
-                try:
-                    company_id = employee.get_company().id
-                except:
-                    pass
+                if employee:
+                    try:
+                        face_detection = employee.get_company().face_detection.start
+                    except:
+                        pass
+                    try:
+                        geo_fencing = employee.get_company().geo_fencing.start
+                    except:
+                        pass
+                    try:
+                        face_detection_image = employee.face_detection.image.url
+                    except:
+                        pass
+                    try:
+                        company_id = employee.get_company().id
+                    except:
+                        pass
+                is_manager = False
+                if employee:
+                    try:
+                        from employee.models import EmployeeWorkInformation
+
+                        is_manager = EmployeeWorkInformation.objects.filter(
+                            reporting_manager_id=employee
+                        ).exists()
+                    except:
+                        pass
+                is_admin = bool(
+                    user.is_superuser or user.has_perm("employee.add_employee")
+                )
                 result = {
-                    "employee": GetEmployeeSerializer(employee).data,
+                    "employee": GetEmployeeSerializer(employee).data if employee else None,
                     "access": str(refresh.access_token),
                     "face_detection": face_detection,
                     "face_detection_image": face_detection_image,
                     "geo_fencing": geo_fencing,
                     "company_id": company_id,
+                    "is_admin": is_admin,
+                    "is_manager": is_manager,
                 }
                 return Response(result, status=200)
             else:

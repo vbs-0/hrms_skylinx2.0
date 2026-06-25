@@ -126,7 +126,22 @@ class SkylinxCompanyManager(models.Manager):
         company = get_selected_company()
         filter_path = self.get_company_filter_path()
 
-        if not filter_path or not company or company == "all":
+        if not filter_path or company == "all":
+            return qs
+
+        if not company:
+            # No company resolved. Inside a request from a scoped (non-superuser)
+            # user this means "no company assigned" -> they must see NOTHING, not
+            # every tenant's data. Outside a request (startup, shell, scheduler,
+            # migrations) keep the queryset unfiltered so those tasks still work.
+            request = getattr(_thread_locals, "request", None)
+            user = getattr(request, "user", None)
+            if (
+                user is not None
+                and getattr(user, "is_authenticated", False)
+                and not user.is_superuser
+            ):
+                return qs.none()
             return qs
 
         try:

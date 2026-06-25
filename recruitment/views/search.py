@@ -126,16 +126,14 @@ def candidate_search(request):
         template = "candidate/group_by.html"
     else:
         # Store the Candidates in the session
-        request.session["filtered_candidates"] = [
-            candidate.id for candidate in candidates
-        ]
+        request.session["filtered_candidates"] = list(candidates.values_list("id", flat=True))
 
     candidates = paginator_qry(candidates, request.GET.get("page"))
 
-    mails = list(Candidate.objects.values_list("email", flat=True))
+    page_emails = [c.email for c in candidates.object_list if c.email]
     # Query the SkylinxUser model to check if any email is present
     existing_emails = list(
-        SkylinxUser.objects.filter(username__in=mails).values_list("email", flat=True)
+        SkylinxUser.objects.filter(username__in=page_emails).values_list("email", flat=True)
     )
 
     return render(
@@ -168,10 +166,14 @@ def candidate_filter_view(request):
     paginator = Paginator(filter_obj.qs, 24)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
+    page_emails = [c.email for c in page_obj.object_list if c.email]
+    existing_emails = list(
+        SkylinxUser.objects.filter(username__in=page_emails).values_list("email", flat=True)
+    )
     return render(
         request,
         template,
-        {"data": page_obj, "pd": previous_data},
+        {"data": page_obj, "pd": previous_data, "emp_list": existing_emails},
     )
 
 

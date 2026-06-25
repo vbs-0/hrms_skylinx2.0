@@ -130,40 +130,54 @@ def is_any_stage_manager(employee):
     """
     This method is used to to check any stage manager
     """
-    return (
-        OffboardingStage.objects.filter(managers=employee).exists()
-        | Offboarding.objects.filter(managers=employee).exists()
-    )
+    if not employee:
+        return False
+    if not hasattr(employee, "_is_any_stage_manager_cached"):
+        employee._is_any_stage_manager_cached = (
+            OffboardingStage.objects.filter(managers=employee).exists()
+            or Offboarding.objects.filter(managers=employee).exists()
+        )
+    return employee._is_any_stage_manager_cached
 
 
 @register.filter("is_stage_manager")
-def is_stage_manager(employee, stage: OffboardingStage):
+def is_stage_manager(employee, stage):
     """
     This method is used to check if an employee is a stage manager
     """
-    current_stage = OffboardingStage.objects.filter(title=stage)
-    for stag in current_stage:
-        if employee in stag.managers.all():
-            is_manager = True
-        else:
-            is_manager = False
-
-    return is_manager
+    if not employee or not stage:
+        return False
+    if hasattr(stage, "_prefetched_objects_cache") and "managers" in stage._prefetched_objects_cache:
+        return employee in stage.managers.all()
+    if isinstance(stage, str):
+        stages = OffboardingStage.objects.filter(title=stage)
+        for s in stages:
+            if employee in s.managers.all():
+                return True
+        return False
+    if hasattr(stage, "managers"):
+        return stage.managers.filter(id=employee.id).exists()
+    return False
 
 
 @register.filter("is_task_manager")
-def is_task_manager(employee, task: OffboardingTask):
+def is_task_manager(employee, task):
     """
     This method is used to check if an employee is a stage manager
     """
-    current_task = OffboardingTask.objects.filter(title=task)
-    for tas in current_task:
-        if employee in tas.managers.all():
-            is_manager = True
-        else:
-            is_manager = False
-
-    return is_manager
+    if not employee or not task:
+        return False
+    if hasattr(task, "_prefetched_objects_cache") and "managers" in task._prefetched_objects_cache:
+        return employee in task.managers.all()
+    if isinstance(task, str):
+        tasks = OffboardingTask.objects.filter(title=task)
+        for t in tasks:
+            if employee in t.managers.all():
+                return True
+        return False
+    if hasattr(task, "managers"):
+        return task.managers.filter(id=employee.id).exists()
+    return False
 
 
 @register.filter("completed_tasks")

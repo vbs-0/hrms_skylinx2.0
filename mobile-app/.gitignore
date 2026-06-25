@@ -1,0 +1,25 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.lock.bak
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Generated platform secrets / artifacts
+**/google-services.json
+**/GoogleService-Info.plist
+ios/Flutter/Flutter.framework
+ios/Pods/
+android/.gradle/
+android/local.properties
+android/key.properties
+*.keystore
+*.jks

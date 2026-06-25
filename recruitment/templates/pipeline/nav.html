@@ -274,7 +274,7 @@
     >
         <span
             class="oh-dot oh-dot--small me-1"
-            style="background-color: orangered"
+            style="background-color: #1a5f9e"
         ></span>
         {% trans "Closed" %}
     </span>
@@ -513,7 +513,7 @@
         }
     });
 
-    $(document).on("htmx:beforeRequest", function (event) {
+    $(document).off("htmx:beforeRequest.template_pipeline_nav").on("htmx:beforeRequest.template_pipeline_nav", function (event) {
         var target = event.target;
 
         isDrag = $(event.target).attr("data-drag-htmx");

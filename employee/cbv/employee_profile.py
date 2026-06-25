@@ -11,7 +11,6 @@ from django.utils.translation import gettext_lazy as _
 from django.views import View
 
 from base import views as base_views
-from base.cbv.mail_log_tab import MailLogTabList
 from base.cbv.work_shift_tab import WorkAndShiftTabView
 from base.context_processors import enable_profile_edit
 from base.forms import AddToUserGroupForm
@@ -39,6 +38,17 @@ class EmployeeProfileView(SkylinxProfileView):
     push_url = "employee-view-individual"
     key_name = "obj_id"
 
+    # ponytail: only profile-intrinsic tabs; module tabs (Leave, Payroll,
+    # Attendance, Projects, Key Results, Scheduled Interviews, Penalty Account,
+    # Bonus Points, etc.) live in their own menus, so they're dropped here.
+    KEEP_TABS = {
+        "About",
+        # ponytail: Work Type & Shift dropped — it's already in the sub-module menu
+        "Groups & Permissions",
+        "Note",
+        "Documents",
+    }
+
     def get_queryset(self):
         return Employee.objects.entire()
 
@@ -46,6 +56,12 @@ class EmployeeProfileView(SkylinxProfileView):
 
         if not request.user.is_authenticated:
             return redirect("login")
+
+        # ponytail: hard-filter tabs at the source so every render path (page +
+        # any tab-list partial) only ever sees the profile-intrinsic tabs. Drops
+        # Penalty Account, Key Results, Scheduled Interviews, Bonus Points, Leave,
+        # Payroll, Attendance, Projects, etc. — they live in their own menus.
+        self.tabs = [t for t in type(self).tabs if str(t.get("title")) in self.KEEP_TABS]
 
         obj_id = kwargs.get("pk")
         if not Employee.objects.entire().filter(id=obj_id).exists():
@@ -115,6 +131,10 @@ class UserProfileView(EmployeeProfileView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["instance_ids"] = None
+        if "visible_tabs" in context:
+            context["visible_tabs"] = [
+                t for t in context["visible_tabs"] if str(t["title"]) in self.KEEP_TABS
+            ]
         return context
 
 
@@ -145,16 +165,7 @@ EmployeeProfileView.add_tab(
             "view": views.document_tab,
             "accessibility": "employee.cbv.accessibility.document_accessibility",
         },
-        {
-            "title": _("Mail Log"),
-            "view": MailLogTabList.as_view(),
-            "accessibility": "employee.cbv.accessibility.mail_log_accessibility",
-        },
-        {
-            "title": _("History"),
-            "view": views.history_tab,
-            "accessibility": "employee.cbv.accessibility.history_accessibility",
-        },
+        # ponytail: Mail Log & History tabs removed from profile UI; backend/urls intact
     ]
 )
 

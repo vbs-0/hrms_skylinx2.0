@@ -207,9 +207,15 @@ def attendance_view(request):
     minot = strtime_seconds("00:30")
     if condition is not None:
         minot = strtime_seconds(condition.minimum_overtime_to_approve)
-    validate_attendances = Attendance.objects.filter(attendance_validated=False)
-    attendances = Attendance.objects.filter(attendance_validated=True)
-    ot_attendances = Attendance.objects.filter(
+    base_qs = Attendance.objects.select_related(
+        "employee_id__employee_work_info__department_id",
+        "employee_id__employee_work_info__job_position_id",
+        "shift_id",
+        "work_type_id"
+    )
+    validate_attendances = base_qs.filter(attendance_validated=False)
+    attendances = base_qs.filter(attendance_validated=True)
+    ot_attendances = base_qs.filter(
         attendance_overtime_approve=False,
         overtime_second__gte=minot,
         attendance_validated=True,
@@ -255,9 +261,15 @@ def attendance_search(request):
     if condition is not None:
         minot = strtime_seconds(condition.minimum_overtime_to_approve)
 
-    validate_attendances = Attendance.objects.filter(attendance_validated=False)
-    attendances = Attendance.objects.filter(attendance_validated=True)
-    ot_attendances = Attendance.objects.filter(
+    base_qs = Attendance.objects.select_related(
+        "employee_id__employee_work_info__department_id",
+        "employee_id__employee_work_info__job_position_id",
+        "shift_id",
+        "work_type_id"
+    )
+    validate_attendances = base_qs.filter(attendance_validated=False)
+    attendances = base_qs.filter(attendance_validated=True)
+    ot_attendances = base_qs.filter(
         attendance_overtime_approve=False,
         overtime_second__gte=minot,
         attendance_validated=True,
@@ -744,7 +756,7 @@ def clock_in(request):
         if start_time_sec > end_time_sec:
             # night shift
             # ------------------
-            # Night shift in Skylinx consider a 24 hours from noon to next day noon,
+            # Night shift in EMPLINX consider a 24 hours from noon to next day noon,
             # the shift day taken today if the attendance clocked in after 12 O clock.
 
             if mid_day_sec > now_sec:

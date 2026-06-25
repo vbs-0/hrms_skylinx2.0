@@ -323,7 +323,7 @@ def contract_view(request):
     Contract view method
     """
 
-    contracts = Contract.objects.all()
+    contracts = Contract.objects.select_related("employee_id", "filing_status").order_by("-id")
     if contracts.exists():
         template = "payroll/contract/contract_view.html"
     else:
@@ -399,7 +399,7 @@ def contract_filter(request):
 
     """
     query_string = request.GET.urlencode()
-    contracts_filter = ContractFilter(request.GET)
+    contracts_filter = ContractFilter(request.GET, queryset=Contract.objects.select_related("employee_id", "filing_status").order_by("-id"))
     template = "payroll/contract/contract_list.html"
     contracts = contracts_filter.qs
     field = request.GET.get("field")
@@ -510,6 +510,7 @@ def update_payslip_status(request, payslip_id):
 
 
 @login_required
+@permission_required("payroll.change_payslip")
 @hx_request_required
 def update_payslip_status_no_id(request):
     """
@@ -727,6 +728,7 @@ def view_payroll_dashboard(request):
 
 
 @login_required
+@permission_required("payroll.view_payslip")
 def dashboard_employee_chart(request):
     """
     payroll dashboard employee chart data
@@ -811,6 +813,7 @@ def dashboard_employee_chart(request):
 
 
 @login_required
+@permission_required("payroll.view_payslip")
 def payslip_details(request):
     """
     payroll dashboard payslip details data
@@ -834,6 +837,7 @@ def payslip_details(request):
 
 
 @login_required
+@permission_required("payroll.view_payslip")
 def dashboard_department_chart(request):
     """
     payroll dashboard department chart data
@@ -897,6 +901,8 @@ def dashboard_department_chart(request):
     return JsonResponse(response)
 
 
+@login_required
+@permission_required("payroll.view_contract")
 def contract_ending(request):
     """
     payroll dashboard contract ending details data
@@ -933,6 +939,7 @@ def contract_ending(request):
 
 
 @login_required
+@permission_required("payroll.view_payslip")
 def payslip_export(request):
     """
     payroll dashboard exporting to excell data
@@ -1508,6 +1515,11 @@ def generate_payslip_pdf(template_path, context, html=False):
         response = HttpResponse(pdf, content_type="application/pdf")
         response["Content-Disposition"] = "inline; filename=payslip.pdf"
         return response
+    except OSError as e:
+        if "wkhtmltopdf" in str(e):
+            # Fallback to HTML if wkhtmltopdf is not installed
+            return HttpResponse(html_content, content_type="text/html")
+        return HttpResponse(f"Error generating PDF: {str(e)}", status=500)
     except Exception as e:
         # Handle errors gracefully
         return HttpResponse(f"Error generating PDF: {str(e)}", status=500)
@@ -1848,6 +1860,16 @@ def delete_payrollrequest_comment(request, comment_id):
     if not comment.exists():
         messages.error(request, _("Comment not found."))
         return SkylinxRedirect(request)
+    
+    comment_obj = comment.first()
+    if not (
+        request.user.is_superuser
+        or request.user.has_perm("payroll.change_reimbursement")
+        or comment_obj.employee_id == request.user.employee_get
+    ):
+        messages.error(request, _("You don't have permission to delete this comment."))
+        return SkylinxRedirect(request)
+
     comment.delete()
     return SkylinxRedirect(request, message=_("Comment deleted successfully!"))
 

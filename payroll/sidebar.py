@@ -9,17 +9,12 @@ from django.utils.translation import gettext_lazy as _
 
 from skylinx.menu import settings_menu
 
-MENU = _("Pay & Benefits")
+MENU = _("Payroll")
 IMG_SRC = "images/ui/wallet-outline.svg"
 
 SUBMENUS = [
     {
-        "menu": _("Dashboard"),
-        "redirect": reverse("view-payroll-dashboard"),
-        "accessibility": "payroll.sidebar.dasbhoard_accessibility",
-    },
-    {
-        "menu": _("Contract"),
+        "menu": _("Pay Register"),
         "redirect": reverse("view-contract"),
         "accessibility": "payroll.sidebar.dasbhoard_accessibility",
     },
@@ -37,19 +32,20 @@ SUBMENUS = [
         "menu": _("Payslips"),
         "redirect": reverse("view-payslip"),
     },
+
     {
-        "menu": _("Loan / Advanced Salary"),
-        "redirect": reverse("view-loan"),
-        "accessibility": "payroll.sidebar.loan_accessibility",
-    },
-    {
-        "menu": _("Encashments & Reimbursements"),
+        "menu": _("Expenses"),
         "redirect": reverse("view-reimbursement"),
     },
     {
-        "menu": _("Federal Tax"),
+        "menu": _("Income Tax (TDS)"),
         "redirect": reverse("filing-status-view"),
         "accessibility": "payroll.sidebar.federal_tax_accessibility",
+    },
+    {
+        "menu": _("Form 16"),
+        "redirect": reverse("form16-list"),
+        "accessibility": "payroll.sidebar.form16_accessibility",
     },
 ]
 
@@ -72,6 +68,10 @@ def loan_accessibility(request, submenu, user_perms, *args, **kwargs):
 
 def federal_tax_accessibility(request, submenu, user_perms, *args, **kwargs):
     return request.user.has_perm("payroll.view_filingstatus")
+
+
+def form16_accessibility(request, submenu, user_perms, *args, **kwargs):
+    return request.user.has_perm("payroll.view_payslip")
 
 
 # ---------------------------------------------------------------------------
