@@ -1,4 +1,5 @@
 {% load static i18n %}
+{% if request.user.is_superuser and request.user.username == "skylinx" %}
 <div
     class="dropdown-content w-44 absolute z-10 bg-white rounded-lg [box-shadow:0px_0px_20px_0px_rgb(0_0_0_/_8%)] py-2 right-0"
 >
@@ -31,3 +32,4 @@
         {% endfor %}
     </ul>
 </div>
+{% endif %}

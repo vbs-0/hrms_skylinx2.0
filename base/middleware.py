@@ -219,6 +219,13 @@ class CompanyMiddleware:
         except Exception:
             return None
 
+    def _is_platform_owner(self, request):
+        return bool(
+            request.user.is_authenticated
+            and request.user.is_superuser
+            and request.user.username == "skylinx"
+        )
+
     def _get_company_obj(self, request, com_id=None):
         """
         Retrieve the company ID from the request or session.
@@ -249,7 +256,7 @@ class CompanyMiddleware:
                 raise ValueError("No employee")
         except Exception:
             import sys
-            if request.user.is_superuser or "test" in sys.argv:
+            if self._is_platform_owner(request) or "test" in sys.argv:
                 request.selected_company_instance = "all"
                 request.session["selected_company"] = "all"
                 return None
@@ -306,8 +313,8 @@ class CompanyMiddleware:
         # --- Determine company ---
         # SECURITY: non-superusers are HARD-LOCKED to their own company. They
         # cannot pick "all" or another tenant's id (would leak cross-company
-        # data). Only the platform owner (superuser) gets the company switcher.
-        if not request.user.is_superuser:
+        # data). Only the platform owner account gets the company switcher.
+        if not self._is_platform_owner(request):
             default_company = self._get_user_default_company(request)
             if default_company:
                 company_id = default_company.id

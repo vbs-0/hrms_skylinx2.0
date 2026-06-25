@@ -29,6 +29,15 @@ from skylinx.methods import get_skylinx_model_class
 CACHE_TIMEOUT = getattr(settings, "CACHE_TIMEOUT", 3600)
 
 
+def is_platform_owner(user):
+    return bool(
+        user
+        and user.is_authenticated
+        and user.is_superuser
+        and user.username == "skylinx"
+    )
+
+
 class AllCompany:
     """
     Dummy class
@@ -56,14 +65,11 @@ def get_companies(request):
     """
     Build the company switcher options.
 
-    Only superusers (or users holding ``base.view_company``) may see every
-    company and the "All Company" option. Every other user is limited to their
-    own company so they cannot view or switch into other companies' data.
+    Only the platform owner may see every company and the "All Company" option.
+    Every other user is limited to their own company.
     """
     user = getattr(request, "user", None)
-    # Only the superuser (admin) may view every company and switch to
-    # "All Company"; everyone else is limited to their own company.
-    is_privileged = bool(user and user.is_authenticated and user.is_superuser)
+    is_privileged = is_platform_owner(user)
 
     if is_privileged:
         company_qs = Company.objects.all()
@@ -130,16 +136,13 @@ def update_selected_company(request):
     This method is used to update the selected company on the session
     """
     company_id = request.GET.get("company_id")
+    if not is_platform_owner(request.user):
+        return HttpResponse(status=403)
+
     user = request.user.employee_get
     user_company = getattr(
         getattr(user, "employee_work_info", None), "company_id", None
     )
-    # Only the superuser may switch to "All Company" or into a company other
-    # than their own. Everyone else is pinned to their own company.
-    if not request.user.is_superuser:
-        own_id = getattr(user_company, "id", None)
-        if company_id == "all" or (own_id is not None and str(company_id) != str(own_id)):
-            return HttpResponse(status=403)
     request.session["selected_company"] = company_id
     company = (
         AllCompany()
