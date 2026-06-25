@@ -6,7 +6,7 @@
     {# 1. IFSC Code #}
     <div class="col-lg-6">
         <div class="oh-input__group">
-            <label class="oh-label {% if form.any_other_code1.field.required %}required-star{% endif %}" for="{{ form.any_other_code1.id_for_label }}">
+            <label class="oh-label {% if form.any_other_code1.field.required %}required-star{% endif %}" for="id_any_other_code1">
                 {% trans "IFSC Code" %}
             </label>
             {{ form.any_other_code1|add_class:"oh-input w-100" }}
@@ -17,7 +17,7 @@
     {# 2. Account Name #}
     <div class="col-lg-6">
         <div class="oh-input__group">
-            <label class="oh-label {% if form.bank_name.field.required %}required-star{% endif %}" for="{{ form.bank_name.id_for_label }}">
+            <label class="oh-label {% if form.bank_name.field.required %}required-star{% endif %}" for="id_bank_name">
                 {% trans "Account Name" %}
             </label>
             {{ form.bank_name|add_class:"oh-input w-100" }}
@@ -28,7 +28,7 @@
     {# 3. Branch #}
     <div class="col-lg-6">
         <div class="oh-input__group">
-            <label class="oh-label {% if form.branch.field.required %}required-star{% endif %}" for="{{ form.branch.id_for_label }}">
+            <label class="oh-label {% if form.branch.field.required %}required-star{% endif %}" for="id_branch">
                 {% trans "Branch" %}
             </label>
             {{ form.branch|add_class:"oh-input w-100" }}
@@ -39,7 +39,7 @@
     {# 4. Account Type #}
     <div class="col-lg-6">
         <div class="oh-input__group">
-            <label class="oh-label {% if form.account_type.field.required %}required-star{% endif %}" for="{{ form.account_type.id_for_label }}">
+            <label class="oh-label {% if form.account_type.field.required %}required-star{% endif %}" for="id_account_type">
                 {% trans "Account Type" %}
             </label>
             {{ form.account_type|add_class:"oh-input w-100" }}
@@ -50,7 +50,7 @@
     {# 5. Account Number #}
     <div class="col-lg-6">
         <div class="oh-input__group">
-            <label class="oh-label {% if form.account_number.field.required %}required-star{% endif %}" for="{{ form.account_number.id_for_label }}">
+            <label class="oh-label {% if form.account_number.field.required %}required-star{% endif %}" for="id_account_number">
                 {% trans "Account Number" %}
             </label>
             {{ form.account_number|add_class:"oh-input w-100" }}
@@ -61,7 +61,7 @@
     {# 6. City #}
     <div class="col-lg-6">
         <div class="oh-input__group">
-            <label class="oh-label" for="{{ form.city.id_for_label }}">
+            <label class="oh-label" for="id_city">
                 {% trans "City" %}
             </label>
             {{ form.city|add_class:"oh-input w-100" }}
