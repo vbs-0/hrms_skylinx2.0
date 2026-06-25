@@ -80,7 +80,7 @@ class PayslipList(SkylinxListView):
         """
         Return the queryset of Payslip objects based on user permissions.
         """
-        return _payslip_queryset_for_request(self.request)
+        return super().get_queryset(queryset=_payslip_queryset_for_request(self.request))
 
     model = Payslip
     filter_class = PayslipFilter
