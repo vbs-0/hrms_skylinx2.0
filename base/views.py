@@ -130,6 +130,7 @@ from base.methods import (
     generate_colors,
     generate_otp,
     get_key_instances,
+    get_subordinate_employee_ids,
     is_reportingmanager,
     paginator_qry,
     sortby,
@@ -771,13 +772,20 @@ def include_employee_instance(request, form):
     employee = Employee.objects.filter(employee_user_id=request.user).exclude(
         employee_user_id__is_superuser=True
     ).first()
-    if employee:
-        # Check if employee is already in queryset
-        if not queryset.filter(id=employee.id).exists():
-            # Combine querysets
-            queryset = queryset | Employee.objects.filter(id=employee.id)
-        # Deduplicate
-        queryset = queryset.distinct()
+
+    if employee and not request.user.has_perm("employee.view_employee"):
+        # Restrict to subordinates + themselves for non-admin users
+        sub_ids = get_subordinate_employee_ids(request)
+        visible_ids = [employee.id]
+        if sub_ids:
+            visible_ids.extend(sub_ids)
+        queryset = queryset.filter(id__in=visible_ids)
+    else:
+        # For users with permission, ensure their own record is always included
+        if employee:
+            if not queryset.filter(id=employee.id).exists():
+                queryset = queryset | Employee.objects.filter(id=employee.id)
+            queryset = queryset.distinct()
 
     form.fields["employee_id"].queryset = queryset
     return form

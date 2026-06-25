@@ -4014,12 +4014,17 @@ $(document).ready(function () {
 
 
 $(document).on("htmx:afterSettle", function (event) {
-    var target = $(event.target);
-    target.find(".oh-select").select2({ width: '100%' });
-
-    target.find("select").off("select2:select").on("select2:select", function (e) {
-        this.dispatchEvent(new Event("change"));
-    });
+    try {
+        var target = $(event.target);
+        if (target && target.find) {
+            target.find(".oh-select").select2({ width: '100%' });
+            target.find("select").off("select2:select").on("select2:select", function (e) {
+                this.dispatchEvent(new Event("change"));
+            });
+        }
+    } catch (error) {
+        console.warn("htmxSelect2: afterSettle select2 error:", error);
+    }
 });
 
 
@@ -4065,28 +4070,32 @@ async function loadFromLocalStorage() {
 }
 
 $(document).on("htmx:afterSwap", async function (evt) {
-    if ($('[role="tooltip"]:visible').length) {
-        $('[role="tooltip"]').hide();
-    }
-    cachedInstalledApps = await loadFromLocalStorage();
-    // Try loading cached data from localStorage first
-    if (cachedInstalledApps) {
-        // Use the cached data
-        loadScripts(cachedInstalledApps);
-    } else {
-        // Fetch the data via AJAX if not cached or cache is invalid
-        $.ajax({
-            url: '/get-skylinx-installed-apps/',
-            method: 'GET',
-            success: async function (response) {
-                cachedInstalledApps = response.installed_apps;
-                await saveToLocalStorage(cachedInstalledApps);
-                loadScripts(cachedInstalledApps);
-            },
-            error: function (error) {
-                console.error("Error fetching installed apps:", error);
-            }
-        });
+    try {
+        if ($('[role="tooltip"]:visible').length) {
+            $('[role="tooltip"]').hide();
+        }
+        cachedInstalledApps = await loadFromLocalStorage();
+        // Try loading cached data from localStorage first
+        if (cachedInstalledApps) {
+            // Use the cached data
+            loadScripts(cachedInstalledApps);
+        } else {
+            // Fetch the data via AJAX if not cached or cache is invalid
+            $.ajax({
+                url: '/get-skylinx-installed-apps/',
+                method: 'GET',
+                success: async function (response) {
+                    cachedInstalledApps = response.installed_apps;
+                    await saveToLocalStorage(cachedInstalledApps);
+                    loadScripts(cachedInstalledApps);
+                },
+                error: function (error) {
+                    console.error("Error fetching installed apps:", error);
+                }
+            });
+        }
+    } catch (error) {
+        console.warn("htmxSelect2: afterSwap error:", error);
     }
 });
 
@@ -4126,6 +4135,7 @@ function loadScripts(installedApps) {
 
 
 $(document).on("htmx:afterSettle", function (e) {
+    try {
     var targetId = e.detail.target.id;
     if (targetId == "") {
         targetId = "someDemoId"
@@ -4230,4 +4240,7 @@ $(document).on("htmx:afterSettle", function (e) {
         span = $(this).parent().find(".count-span").toggle()
     });
 
+    } catch (error) {
+        console.warn("htmxSelect2: afterSettle UI error:", error);
+    }
 });
