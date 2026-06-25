@@ -798,7 +798,8 @@ def create_task(request, stage_id):
     """
     project_stage = ProjectStage.objects.get(id=stage_id)
     project = project_stage.project
-    if request.user.employee_get in project.managers.all() or request.user.has_perm(
+    employee = getattr(request.user, "employee_get", None)
+    if employee and employee in project.managers.all() or request.user.has_perm(
         "project.delete_project"
     ):
         form = TaskForm(initial={"project": project})
@@ -838,7 +839,8 @@ def create_task_in_project(request, project_id):
     # Serialize the queryset to JSON
 
     serialized_data = serializers.serialize("json", stages)
-    if request.user.employee_get in project.managers.all() or request.user.has_perm(
+    employee = getattr(request.user, "employee_get", None)
+    if employee and employee in project.managers.all() or request.user.has_perm(
         "project.delete_project"
     ):
         form = TaskFormCreate(initial={"project": project})

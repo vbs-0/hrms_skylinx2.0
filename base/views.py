@@ -2336,6 +2336,9 @@ def company_create(request):
     This method render template and form to create company and save if the form is valid
     """
 
+    if not request.user.is_superuser:
+        return HttpResponse(status=403)
+
     form = CompanyForm()
     companies = Company.objects.all()
     if request.method == "POST":
@@ -2360,7 +2363,12 @@ def company_view(request):
     """
     This method used to view created companies
     """
-    companies = Company.objects.all()
+    if request.user.is_superuser:
+        companies = Company.objects.all()
+    else:
+        employee = getattr(request.user, "employee_get", None)
+        company = getattr(getattr(employee, "employee_work_info", None), "company_id", None)
+        companies = Company.objects.filter(id=company.id) if company else Company.objects.none()
     return render(
         request,
         "base/company/company.html",
@@ -2379,6 +2387,11 @@ def company_update(request, id, **kwargs):
 
     """
     company = Company.objects.get(id=id)
+    if not request.user.is_superuser:
+        employee = getattr(request.user, "employee_get", None)
+        own_company = getattr(getattr(employee, "employee_work_info", None), "company_id", None)
+        if not own_company or own_company.id != company.id:
+            return HttpResponse(status=403)
     form = CompanyForm(instance=company)
     if request.method == "POST":
         form = CompanyForm(request.POST, request.FILES, instance=company)

@@ -72,10 +72,13 @@ def is_leave_approval_manager(user):
 @register.filter(name="check_manager")
 def check_manager(user, instance):
     try:
+        employee = getattr(user, "employee_get", None)
+        if not employee:
+            return False
         if isinstance(instance, Employee):
-            return instance.employee_work_info.reporting_manager_id == user.employee_get
+            return instance.employee_work_info.reporting_manager_id == employee
         return (
-            user.employee_get
+            employee
             == instance.employee_id.employee_work_info.reporting_manager_id
         )
     except:

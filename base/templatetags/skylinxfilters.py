@@ -63,7 +63,9 @@ def checkmanager(user, employee):
 
     """
 
-    employee_user = user.employee_get
+    employee_user = getattr(user, "employee_get", None)
+    if not employee_user:
+        return False
     employee_manager = employee.employee_work_info.reporting_manager_id
     return bool(
         employee_user == employee_manager
@@ -81,7 +83,9 @@ def is_clocked_in(user):
     """
 
     try:
-        employee = user.employee_get
+        employee = getattr(user, "employee_get", None)
+        if not employee:
+            return False
     except:
         return False
     if apps.is_installed("attendance"):
@@ -283,7 +287,9 @@ def is_stagemanager(user):
     This method is used to check the employee is stage or recruitment manager
     """
     try:
-        employee_obj = user.employee_get
+        employee_obj = getattr(user, "employee_get", None)
+        if not employee_obj:
+            return False
         return (
             employee_obj.stage_set.all().exists()
             or employee_obj.recruitment_set.exists()
