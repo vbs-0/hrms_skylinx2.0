@@ -170,6 +170,7 @@ class SkylinxListView(ListView):
         self.ordered_ids_key = f"ordered_ids_{self.model.__name__.lower()}"
         request = getattr(_thread_locals, "request", None)
         self.request = request
+        self._saved_filters = QueryDict("", mutable=True)
 
     def post(self, *args, **kwargs):
         """
