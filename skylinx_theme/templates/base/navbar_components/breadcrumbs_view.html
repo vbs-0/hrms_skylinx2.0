@@ -3,7 +3,20 @@
     {% for breadcrumb in breadcrumbs %}
         {% if forloop.first or forloop.last %}
             <li>
-                <a href="{% if breadcrumb.found %}{{ breadcrumb.url }}{% else %}#{% endif %}">{% trans breadcrumb.name %}</a>
+                {% if forloop.first and breadcrumb.name|lower == "emplinx" %}
+                    <a
+                        href="{% if breadcrumb.found %}{{ breadcrumb.url }}{% else %}#{% endif %}"
+                        class="breadcrumb-brand"
+                    >
+                        <img
+                            src="{% static 'skylinx_theme/assets/img/skylinx-logo.png' %}"
+                            alt="EMPLINX"
+                            class="breadcrumb-brand__logo"
+                        >
+                    </a>
+                {% else %}
+                    <a href="{% if breadcrumb.found %}{{ breadcrumb.url }}{% else %}#{% endif %}">{% trans breadcrumb.name %}</a>
+                {% endif %}
             </li>
         {% else %}
             {% if forloop.counter == 2 and breadcrumbs|length > 2 %}
@@ -19,6 +32,24 @@
     {% endfor %}
 </ul>
 <style>
+    .breadcrumb .breadcrumb-brand {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 34px;
+        padding: 4px 10px;
+        border-radius: 12px;
+    }
+    .breadcrumb .breadcrumb-brand__logo {
+        display: block;
+        width: auto;
+        height: 30px;
+        max-width: 220px;
+        object-fit: contain;
+    }
+    .dark .breadcrumb .breadcrumb-brand {
+        background: #f5eddf;
+    }
     .breadcrumb .breadcrumb-collapsed { display: none; }
     .breadcrumb--expanded .breadcrumb-collapsed { display: inline-flex; }
 </style>
