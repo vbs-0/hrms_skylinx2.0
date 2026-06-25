@@ -2,7 +2,7 @@
 
 Everything you need to run the platform, onboard your own company, onboard
 clients, and walk an HR admin through daily work. Written for the live server
-at **http://129.159.226.101**.
+at **https://app.emplinx.com**.
 
 ---
 
@@ -10,7 +10,7 @@ at **http://129.159.226.101**.
 
 | Role | Who | URL | Login |
 |------|-----|-----|-------|
-| **Platform Owner** (you) | Skylinx operator — sees ALL companies | http://129.159.226.101/login/ | `skylinx` / *(password sent separately — change on first login)* |
+| **Platform Owner** (you) | Skylinx operator — sees ALL companies | https://app.emplinx.com/login/ | `skylinx` / *(password sent separately — change on first login)* |
 | **Client Admin** | One per client company — locked to their own company | same login page | created per company (you set it during onboarding) |
 | **HR / Manager / Employee** | Created by the Client Admin inside each company | same login page | created in-app |
 
@@ -41,7 +41,7 @@ design — that's not a bug, it's the operator view.
 ## 2. First-time platform setup (do once, in order)
 
 ### 2.1 Log in as owner
-Go to http://129.159.226.101/login/ → username `skylinx` (password sent separately).
+Go to https://app.emplinx.com/login/ → username `skylinx` (password sent separately).
 
 ### 2.2 Configure a mail server (REQUIRED for welcome emails to actually send)
 No SMTP is configured yet, so onboarding emails are created but **not delivered**
@@ -179,7 +179,7 @@ Create these first — everything else references them:
 2. **Assign Leave Type** — assign a leave type to employees/departments so they
    have a balance to apply against.
 3. **Company Leaves** — define weekend days (which weekdays are non-working).
-4. **Restrict Leaves** — block leave on specific dates if needed.
+4. **Restricted Leaves** — block leave on specific dates if needed.
 5. Employees then **Apply Leave**; Managers/HR **approve** under Leave Approval.
    - Note: employees on **probation** are blocked from casual leave (by design).
 
@@ -229,19 +229,15 @@ Set up in order:
 
 ---
 
-## 7. Post-demo hardening (do soon, NOT mid-demo)
+## 7. Hardening status
 
-These improve security but can break a live site if done carelessly — do them
-in a quiet window, not minutes before a demo.
-
-1. **Turn off debug.** In `/home/ubuntu/hrms/hrms_skylinx2.0/.env` set
-   `DEBUG=False`. Before restarting, confirm:
-   - `ALLOWED_HOSTS` includes `skylinxhrms.qzz.io` (already added), and
-   - nginx serves `/static/` (with DEBUG off Django won't serve static itself).
-   Then `sudo systemctl restart hrms-client`. If CSS disappears, nginx isn't
-   serving static — revert `DEBUG=True` and fix nginx static first.
-2. **HTTPS.** Add a TLS cert (Let's Encrypt) and an nginx `server_name` for the
-   domain (currently only the IP). Then everything is `https://`.
+1. **Debug off — DONE.** `.env` has `DEBUG=False`; static served by WhiteNoise
+   (run `collectstatic` after deploys).
+2. **HTTPS — DONE.** Live at **https://app.emplinx.com** with a Let's Encrypt
+   cert (auto-renew), HTTP→HTTPS redirect, nginx `server_name app.emplinx.com`.
+   DNS: `app.emplinx.com` A-record → 129.159.226.101 in the emplinx.com cPanel
+   zone (main site/email stay on cPanel). Port 443 is open in the Oracle VCN
+   Security List. Cert covers `app.emplinx.com` only.
 3. **Per-tenant config isolation** (optional): currently default leave types /
    payroll components are shared across tenants as starters. If a client must
    have *fully* separate config, that's a follow-up data migration.
@@ -256,18 +252,24 @@ in a quiet window, not minutes before a demo.
 # SSH
 ssh skylinx        # ubuntu@129.159.226.101
 
-# App: /home/ubuntu/hrms/hrms_skylinx2.0  (branch tag: 1.0.2.beta.prod)
+# App: /home/ubuntu/hrms/hrms_skylinx2.0  (branch: 1.0.4.beta)
 # DB:  Postgres 16 in docker container "skylinx-pg", db "skylinx"
+# Web: gunicorn via hrms-client.service (NOT runserver)
 
-# restart
+# update to latest code
+cd /home/ubuntu/hrms/hrms_skylinx2.0
+sudo git fetch origin 1.0.4.beta && sudo git reset --hard origin/1.0.4.beta
+sudo venv/bin/python3 manage.py migrate --noinput
+sudo venv/bin/python3 manage.py collectstatic --noinput
+sudo systemctl restart hrms-client
+
+# restart / logs
 sudo systemctl restart hrms-client hrms-scheduler
-
-# logs
 sudo journalctl -u hrms-client -n 100 --no-pager
 
 # run a management command
-cd /home/ubuntu/hrms/hrms_skylinx2.0
-sudo venv/bin/python manage.py <command>
+sudo venv/bin/python3 manage.py <command>
 ```
 
-Deployed code: tag **`1.0.2.beta.prod`** (branch `v1.0.2.beta`).
+Deployed code: branch **`1.0.4.beta`** (deploy from the branch with
+`git reset --hard origin/1.0.4.beta`, never a tag).
