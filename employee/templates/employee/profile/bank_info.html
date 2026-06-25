@@ -104,7 +104,7 @@
                 var $branch = $('#id_branch');
                 var $address = $('#id_address');
                 
-                if ($bankName.length || $branch.length || $address.length) {
+                if (true) {
                     console.log("Fetching bank details for IFSC:", ifsc);
                     fetch('/api/ifsc-lookup/?code=' + encodeURIComponent(ifsc))
                         .then(function(response) {
