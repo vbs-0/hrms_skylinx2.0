@@ -64,10 +64,10 @@
                     class="col-12 col-md-{{field|col}}"
                     id="id_{{ field.name }}_parent_div"
                 >
-                    <div class="flex oh-label" for="id_{{ field.name }}">
+                    <div class="flex oh-label" for="{{ field.id_for_label }}">
                         <label
                             class="{% if field.field.required %}required-star{% endif %}"
-                            for="id_{{ field.name }}"
+                            for="{{ field.id_for_label }}"
                             >{% trans field.label %}</label
                         >
                         {% if field.help_text != '' %}

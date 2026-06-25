@@ -666,6 +666,7 @@ class EmployeeBankDetailsForm(ModelForm):
         self.initial["country"] = "India"
         for visible in self.visible_fields():
             visible.field.widget.attrs["class"] = "oh-input w-100"
+            visible.field.widget.attrs["autocomplete"] = "off"
         if self.instance and hasattr(self.instance, "employee_id") and self.instance.employee_id:
             self.initial["account_type"] = self.instance.employee_id.account_type or "savings"
         if self.instance and self.instance.country:
@@ -737,6 +738,7 @@ class EmployeeBankDetailsUpdateForm(ModelForm):
         self.initial["country"] = "India"
         for visible in self.visible_fields():
             visible.field.widget.attrs["class"] = "oh-input w-100"
+            visible.field.widget.attrs["autocomplete"] = "off"
         for field in self.fields:
             self.fields[field].widget.attrs["placeholder"] = self.fields[field].label
         if self.instance and hasattr(self.instance, "employee_id") and self.instance.employee_id:
