@@ -178,7 +178,7 @@
                         
                         if ($bankName.length || $branch.length || $address.length) {
                             console.log("Fetching bank details for IFSC:", ifsc);
-                            fetch('https://ifsc.razorpay.com/' + ifsc)
+                            fetch('/api/ifsc-lookup/?code=' + encodeURIComponent(ifsc))
                                 .then(function(response) {
                                     if (response.ok) {
                                         return response.json();
@@ -257,3 +257,5 @@
 </body>
 
 </html>
+
+

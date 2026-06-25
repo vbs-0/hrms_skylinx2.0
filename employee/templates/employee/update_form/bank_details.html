@@ -111,7 +111,7 @@
             $(this).val(ifsc);
             var ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
             if (ifscRegex.test(ifsc)) {
-                fetch('https://ifsc.razorpay.com/' + ifsc)
+                fetch('/api/ifsc-lookup/?code=' + encodeURIComponent(ifsc))
                     .then(function(r) { if (r.ok) return r.json(); throw new Error('IFSC not found'); })
                     .then(function(data) {
                         if (data) {
@@ -140,3 +140,5 @@
         });
     }
 </script>
+
+

@@ -8,11 +8,14 @@ import csv
 import json
 import logging
 import os
+import re
 import threading
 import uuid
 from datetime import datetime, timedelta
 from email.mime.image import MIMEImage
 from os import path
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 from urllib.parse import parse_qs, unquote, urlencode, urlparse
 
 import pandas as pd
@@ -167,6 +170,20 @@ from base.models import (
     WorkTypeRequest,
     WorkTypeRequestComment,
 )
+
+
+def ifsc_lookup(request):
+    code = (request.GET.get("code") or "").strip().upper()
+    if not code or not re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", code):
+        return JsonResponse({"error": "invalid_ifsc"}, status=400)
+    try:
+        with urllib_request.urlopen(
+            f"https://ifsc.razorpay.com/{code}", timeout=8
+        ) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (urllib_error.HTTPError, urllib_error.URLError, TimeoutError, ValueError):
+        return JsonResponse({"error": "lookup_failed"}, status=502)
+    return JsonResponse(payload)
 from employee.filters import EmployeeFilter
 from employee.forms import ActiontypeForm, EmployeeGeneralSettingPrefixForm
 from employee.models import (

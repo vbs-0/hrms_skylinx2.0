@@ -97,6 +97,7 @@ urlpatterns = [
         name="edit-home-announcement",
     ),
     path("global-search/", views.global_search, name="global-search"),
+    path("api/ifsc-lookup/", views.ifsc_lookup, name="ifsc-lookup"),
     path("dashboard/", dashboard_module.main_dashboard_view, name="dashboard"),
     path(
         "dashboard/api/projects/",
