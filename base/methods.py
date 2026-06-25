@@ -515,6 +515,10 @@ def choosesubordinatesemployeemodel(request, form, perm):
         return form
     manager = Employee.objects.filter(employee_user_id=user).first()
     queryset = Employee.objects.filter(employee_work_info__reporting_manager_id=manager)
+    selected_company = request.session.get("selected_company") if hasattr(request, "session") else None
+    if selected_company and selected_company != "all":
+        queryset = queryset.filter(employee_work_info__company_id=selected_company)
+    queryset = queryset.exclude(employee_user_id__is_superuser=True)
 
     form.fields["employee_id"].queryset = queryset
     return form

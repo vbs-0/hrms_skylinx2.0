@@ -33,6 +33,7 @@ from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
 
 from base.methods import eval_validate, reload_queryset
+from skylinx.skylinx_middlewares import _thread_locals
 from employee.models import (
     Actiontype,
     BonusPoint,
@@ -409,6 +410,19 @@ class EmployeeWorkInformationForm(ModelForm):
     def __init__(self, *args, disable=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["email"].widget.attrs["autocomplete"] = "email"
+        request = getattr(_thread_locals, "request", None)
+        selected_company = None
+        if request and getattr(request, "session", None):
+            selected_company = request.session.get("selected_company")
+        if selected_company and selected_company != "all":
+            manager_qs = Employee.objects.filter(
+                employee_work_info__company_id=selected_company,
+                is_active=True,
+            ).exclude(employee_user_id__is_superuser=True)
+            if "reporting_manager_id" in self.fields:
+                self.fields["reporting_manager_id"].queryset = manager_qs
+            if "employee_work_info__reporting_manager_id" in self.fields:
+                self.fields["employee_work_info__reporting_manager_id"].queryset = manager_qs
 
         # Seed the basic % from the stored JSON (default 50).
         components = (self.instance.salary_components or {}) if self.instance else {}
@@ -463,9 +477,23 @@ class EmployeeWorkInformationForm(ModelForm):
                                 }
                             ),
                         )
-                        self.fields[label].choices += [
-                            ("create", _("Create New {} ").format(translated_label))
-                        ]
+                        request = getattr(_thread_locals, "request", None)
+                        perm_map = {
+                            "Department": "base.add_department",
+                            "Designation": "base.add_jobposition",
+                            "Job Title": "base.add_jobrole",
+                            "Work Type": "base.add_worktype",
+                            "Employee Type": "base.add_employeetype",
+                            "Shift": "base.add_employee_shift",
+                        }
+                        can_create = True
+                        perm = perm_map.get(field.label)
+                        if request and getattr(request, "user", None) and perm:
+                            can_create = request.user.is_superuser or request.user.has_perm(perm)
+                        if can_create:
+                            self.fields[label].choices += [
+                                ("create", _("Create New {} ").format(translated_label))
+                            ]
 
     def clean(self):
         cleaned_data = super().clean()
@@ -551,6 +579,19 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        request = getattr(_thread_locals, "request", None)
+        selected_company = None
+        if request and getattr(request, "session", None):
+            selected_company = request.session.get("selected_company")
+        if selected_company and selected_company != "all":
+            manager_qs = Employee.objects.filter(
+                employee_work_info__company_id=selected_company,
+                is_active=True,
+            ).exclude(employee_user_id__is_superuser=True)
+            if "reporting_manager_id" in self.fields:
+                self.fields["reporting_manager_id"].queryset = manager_qs
+            if "employee_work_info__reporting_manager_id" in self.fields:
+                self.fields["employee_work_info__reporting_manager_id"].queryset = manager_qs
         self.fields["department_id"].widget.attrs.update(
             {
                 "hx-target": "#id_job_position_id_parent_div",
