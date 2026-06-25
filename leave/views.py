@@ -774,6 +774,13 @@ def create_leave_report(request):
         leave_request_map[lreq.employee_id.id].append(lreq)
 
     employees = Employee.objects.all()
+    company_obj = (
+        Company.objects.filter(id=company_id).first()
+        if company_id and company_id != "all"
+        else None
+    )
+    if company_obj:
+        employees = employees.filter(employee_work_info__company_id=company_obj)
 
     for employee in employees:
         employee_id = employee.id

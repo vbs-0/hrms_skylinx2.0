@@ -11,6 +11,7 @@ from attendance.methods.utils import strtime_seconds
 from attendance.models import Attendance, AttendanceGeneralSetting, WorkRecords
 from base.models import Company, PenaltyAccounts
 from employee.models import Employee
+from skylinx.skylinx_middlewares import _thread_locals
 from skylinx.methods import get_skylinx_model_class
 
 
@@ -180,7 +181,11 @@ def create_missing_work_records(sender, **kwargs):
     if sender.label not in ["attendance"]:
         return
 
+    request = getattr(_thread_locals, "request", None)
+    selected_company = request.session.get("selected_company") if request else None
     employees = Employee.objects.all()
+    if selected_company and selected_company != "all":
+        employees = employees.filter(employee_work_info__company_id=selected_company)
     work_records = WorkRecords.objects.all()
 
     if work_records.exists():
