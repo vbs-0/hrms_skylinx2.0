@@ -773,7 +773,7 @@ def include_employee_instance(request, form):
         employee_user_id__is_superuser=True
     ).first()
 
-    if employee and not request.user.has_perm("employee.view_employee"):
+    if employee and not request.user.has_perm("employee.change_employee"):
         # Restrict to subordinates + themselves for non-admin users
         sub_ids = get_subordinate_employee_ids(request)
         visible_ids = [employee.id]
