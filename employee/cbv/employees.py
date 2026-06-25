@@ -66,6 +66,23 @@ Employee.profile_edit_accessibility_display = profile_edit_accessibility_display
 Employee.toggle_profile_edit_access_url = toggle_profile_edit_access_url
 
 
+def scope_employee_queryset_to_client(request, queryset):
+    """
+    Client users must only see their own company's employees.
+    Platform-owner superusers keep the existing all-company view.
+    """
+    if not request or request.user.is_superuser:
+        return queryset
+
+    selected_company = request.session.get("selected_company")
+    if not selected_company or selected_company == "all":
+        return queryset.none()
+
+    return queryset.filter(
+        employee_work_info__company_id=selected_company
+    ).exclude(employee_user_id__is_superuser=True)
+
+
 @method_decorator(login_required, name="dispatch")
 @method_decorator(
     enter_if_accessible(
@@ -343,6 +360,7 @@ class EmployeesList(SkylinxListView):
         queryset = filtersubordinatesemployeemodel(
             self.request, queryset, "employee.view_employee"
         )
+        queryset = scope_employee_queryset_to_client(self.request, queryset)
         # ponytail: kill the N+1 — every row reads work_info + its FKs + user.
         return queryset.select_related(
             "employee_user_id",
@@ -791,6 +809,7 @@ class EmployeeCard(SkylinxCardView):
         queryset = filtersubordinatesemployeemodel(
             self.request, queryset, "employee.view_employee"
         )
+        queryset = scope_employee_queryset_to_client(self.request, queryset)
         # ponytail: kill the N+1 — every row reads work_info + its FKs + user.
         return queryset.select_related(
             "employee_user_id",
