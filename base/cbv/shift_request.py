@@ -501,7 +501,8 @@ class ShiftRequestFormView(SkylinxFormView):
             self.form.fields["employee_id"].queryset = Employee.objects.filter(
                 id=employee
             )
-        self.form.fields["employee_id"].initial = employee
+        if self.form.fields["employee_id"].queryset.filter(id=employee).exists():
+            self.form.fields["employee_id"].initial = employee
         context["form"] = self.form
         return context
 

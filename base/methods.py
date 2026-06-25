@@ -27,6 +27,34 @@ from base.models import Company, CompanyLeaves, DynamicPagination, Holidays
 from employee.models import Employee, EmployeeWorkInformation
 from skylinx.skylinx_middlewares import _thread_locals
 
+
+def _request_company_id(request):
+    selected_company = request.session.get("selected_company") if hasattr(request, "session") else None
+    if selected_company and selected_company != "all":
+        return selected_company
+
+    if getattr(request.user, "is_superuser", False):
+        return None
+
+    try:
+        return request.user.employee_get.employee_work_info.company_id_id
+    except (AttributeError, ObjectDoesNotExist):
+        return None
+
+
+def _scope_employee_choices(request, queryset):
+    queryset = queryset.exclude(employee_user_id__is_superuser=True)
+    company_id = _request_company_id(request)
+
+    if company_id:
+        return queryset.filter(employee_work_info__company_id=company_id)
+
+    if not getattr(request.user, "is_superuser", False):
+        return queryset.none()
+
+    return queryset
+
+
 CHART_CONFIG = {
     "offline_employees": {
         "app": "attendance",
@@ -433,10 +461,20 @@ def choosesubordinates(request, form, perm):
     and nested subordinate visibility.
     """
     user = request.user
+    if "employee_id" not in form.fields:
+        return form
+
+    queryset = form.fields["employee_id"].queryset
     if user.has_perm(perm):
+        form.fields["employee_id"].queryset = _scope_employee_choices(
+            request, queryset
+        ).distinct()
         return form
     manager = Employee.objects.filter(employee_user_id=user).first()
     if not manager:
+        form.fields["employee_id"].queryset = _scope_employee_choices(
+            request, queryset
+        ).distinct()
         return form
 
     # Start with direct subordinates
@@ -458,9 +496,9 @@ def choosesubordinates(request, form, perm):
                 employee_work_info__reporting_manager_id__in=sub_managers
             )
 
-    # Assign to form field
-    if "employee_id" in form.fields:
-        form.fields["employee_id"].queryset = form.fields["employee_id"].queryset.filter(all_subordinates).distinct()
+    form.fields["employee_id"].queryset = _scope_employee_choices(
+        request, queryset.filter(all_subordinates)
+    ).distinct()
 
     return form
 

@@ -29,7 +29,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import Group, Permission
 from django.contrib.auth.views import PasswordResetConfirmView, PasswordResetView
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.files.base import ContentFile
 from django.core.mail import EmailMessage, EmailMultiAlternatives
 from django.core.management import call_command
@@ -755,8 +755,27 @@ def include_employee_instance(request, form):
     Args:
         form: django forms instance
     """
-    queryset = form.fields["employee_id"].queryset
-    employee = Employee.objects.filter(employee_user_id=request.user)
+    queryset = form.fields["employee_id"].queryset.exclude(
+        employee_user_id__is_superuser=True
+    )
+    selected_company = request.session.get("selected_company")
+    if selected_company and selected_company != "all":
+        queryset = queryset.filter(employee_work_info__company_id=selected_company)
+    elif not request.user.is_superuser:
+        try:
+            queryset = queryset.filter(
+                employee_work_info__company_id=request.user.employee_get.employee_work_info.company_id_id
+            )
+        except (AttributeError, ObjectDoesNotExist):
+            queryset = queryset.none()
+
+    form.fields["employee_id"].queryset = queryset
+
+    employee = Employee.objects.filter(employee_user_id=request.user).exclude(
+        employee_user_id__is_superuser=True
+    )
+    if selected_company and selected_company != "all":
+        employee = employee.filter(employee_work_info__company_id=selected_company)
     if employee.first() is not None:
         if queryset.filter(id=employee.first().id).first() is None:
             # queryset = queryset | employee

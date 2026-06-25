@@ -965,7 +965,9 @@ function removeId(element, storeKey = "selectedInstances") {
     document.addEventListener("htmx:beforeRequest", function (evt) {
       try {
         var trigger = evt && evt.detail && evt.detail.elt;
-        if (!(sidebarEl && trigger && sidebarEl.contains(trigger))) return;
+        var etc = evt && evt.detail && evt.detail.etc;
+        var isShellNav = !!(etc && etc.headers && etc.headers["HX-Sidebar-Nav"] === "true");
+        if (!isShellNav && !(sidebarEl && trigger && sidebarEl.contains(trigger))) return;
 
         var requestPath =
           (evt.detail.pathInfo && evt.detail.pathInfo.requestPath) ||
@@ -1055,7 +1057,9 @@ function removeId(element, storeKey = "selectedInstances") {
     document.addEventListener("htmx:beforeSwap", function (evt) {
       try {
         var trigger = evt && evt.detail && evt.detail.elt;
-        if (!(sidebarEl && trigger && sidebarEl.contains(trigger))) return;
+        var etc = evt && evt.detail && evt.detail.etc;
+        var isShellNav = !!(etc && etc.headers && etc.headers["HX-Sidebar-Nav"] === "true");
+        if (!isShellNav && !(sidebarEl && trigger && sidebarEl.contains(trigger))) return;
         var xhr = evt.detail.xhr;
         if (!xhr || xhr.status < 200 || xhr.status >= 400) return;
         if (!shouldFallbackToFullNav(xhr.responseText)) return;
