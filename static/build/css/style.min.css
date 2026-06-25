@@ -7543,6 +7543,7 @@ body {
 .oh-navbar__breadcrumb-link.active {
   color: hsl(0, 0%, 11%);
 }
+.oh-navbar__breadcrumb-brand{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:4px 10px;border-radius:12px}.oh-navbar__breadcrumb-brand-logo{display:block;width:auto;height:28px;max-width:240px;object-fit:contain}.dark .oh-navbar__breadcrumb-brand{background:#f5eddf}
 
 #main {
   overflow-x: hidden;
