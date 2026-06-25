@@ -4017,7 +4017,12 @@ $(document).ready(function () {
 
 $(document).on("htmx:afterSettle", function (event) {
     var target = $(event.target);
-    target.find(".oh-select").select2({ width: '100%' });
+    target.find(".oh-select").each(function () {
+        if ($(this).data('select2')) {
+            $(this).select2("destroy");
+        }
+        $(this).select2({ width: '100%' });
+    });
 
     target.find("select").off("select2:select").on("select2:select", function (e) {
         this.dispatchEvent(new Event("change"));
