@@ -80,15 +80,15 @@
                         .then(function(data) {
                             if (data) {
                                 if ($bankName.length) {
-                                    $bankName.val(data.BANK || '');
+                                    $bankName.val(data.BANK || data.BANK_NAME || data.bank_name || data.BANKNAME || '');
                                     $bankName.trigger('change');
                                 }
                                 if ($branch.length) {
-                                    $branch.val(data.BRANCH || '');
+                                    $branch.val(data.BRANCH || data.BRANCH_NAME || data.branch || '');
                                     $branch.trigger('change');
                                 }
                                 if ($address.length) {
-                                    $address.val((data.ADDRESS || '') + ', ' + (data.CITY || '') + ', ' + (data.STATE || ''));
+                                    $address.val((data.ADDRESS || data.address || '') + ', ' + (data.CITY || data.city || '') + ', ' + (data.STATE || data.state || ''));
                                     $address.trigger('change');
                                 }
                                 
@@ -133,7 +133,7 @@
                                 // Update City input field
                                 var $city = $('#id_city').length ? $('#id_city') : $('#city');
                                 if ($city.length) {
-                                    $city.val(data.CITY || '').trigger('change');
+                                    $city.val(data.CITY || data.city || '').trigger('change');
                                 }
                             }
                         })
@@ -145,5 +145,6 @@
         });
     }
 </script>
+
 
 
