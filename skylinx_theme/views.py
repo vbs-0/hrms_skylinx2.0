@@ -38,11 +38,9 @@ class ThemeView(LoginRequiredMixin, TemplateView):
     def _get_active_theme(self):
         """Get the active theme for the current company"""
         selected_company = self.request.session.get("selected_company")
-        active_company = (
-            Company.objects.get(id=selected_company)
-            if selected_company != "all"
-            else None
-        )
+        active_company = None
+        if selected_company != "all":
+            active_company = Company.objects.filter(id=selected_company).first()
         return CompanyTheme.get_theme_for_company(active_company)
 
 
@@ -63,11 +61,9 @@ class ChangeThemeView(LoginRequiredMixin, View):
             return self._error_response(request, _("Theme ID is required"), 400)
 
         selected_company = self.request.session.get("selected_company")
-        active_company = (
-            Company.objects.get(id=selected_company)
-            if selected_company != "all"
-            else None
-        )
+        active_company = None
+        if selected_company != "all":
+            active_company = Company.objects.filter(id=selected_company).first()
         if selected_company == "all":
             messages.error(request, _("No active company found"))
             return self._render_themes(request)

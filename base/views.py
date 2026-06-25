@@ -6096,7 +6096,10 @@ def save_date_format(request):
                         cmp.save()
                     messages.success(request, _("Date format saved successfully."))
                 else:
-                    company = Company.objects.get(id=selected_company)
+                    company = Company.objects.filter(id=selected_company).first()
+                    if not company:
+                        messages.warning(request, _("Selected company no longer exists."))
+                        return JsonResponse({"success": False}, status=404)
                     company.date_format = selected_format
                     company.save()
                     messages.success(request, _("Date format saved successfully."))
@@ -6142,7 +6145,9 @@ def get_date_format(request):
 
     selected_company = request.session.get("selected_company")
     if selected_company != "all" and request.user.is_superuser:
-        company = Company.objects.get(id=selected_company)
+        company = Company.objects.filter(id=selected_company).first()
+        if not company:
+            return JsonResponse({"selected_format": "MMM. D, YYYY"})
         date_format = company.date_format
         if date_format:
             date_format = date_format
@@ -6189,7 +6194,10 @@ def save_time_format(request):
                         cmp.save()
                     messages.success(request, _("Date format saved successfully."))
                 else:
-                    company = Company.objects.get(id=selected_company)
+                    company = Company.objects.filter(id=selected_company).first()
+                    if not company:
+                        messages.warning(request, _("Selected company no longer exists."))
+                        return JsonResponse({"success": False}, status=404)
                     company.time_format = selected_format
                     company.save()
                     messages.success(request, _("Date format saved successfully."))
@@ -6236,7 +6244,9 @@ def get_time_format(request):
 
     selected_company = request.session.get("selected_company")
     if selected_company != "all" and request.user.is_superuser:
-        company = Company.objects.get(id=selected_company)
+        company = Company.objects.filter(id=selected_company).first()
+        if not company:
+            return JsonResponse({"selected_format": "hh:mm A"})
         time_format = company.time_format
         if time_format:
             time_format = time_format

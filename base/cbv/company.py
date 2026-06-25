@@ -11,6 +11,7 @@ from django.shortcuts import render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
+from django.contrib.auth.decorators import user_passes_test
 
 from base.filters import CompanyFilter
 from base.forms import CompanyForm
@@ -35,7 +36,7 @@ class CompanyListView(SkylinxListView):
         super().__init__(**kwargs)
         self.search_url = reverse("company-list")
         self.actions = []
-        if self.request.user.has_perm("base.change_company"):
+        if self.request.user.is_superuser:
             self.actions.append(
                 {
                     "action": _("Edit"),
@@ -49,7 +50,7 @@ class CompanyListView(SkylinxListView):
                       """,
                 }
             )
-        if self.request.user.has_perm("base.delete_company"):
+        if self.request.user.is_superuser:
             self.actions.append(
                 {
                     "action": _("Delete"),
@@ -68,6 +69,16 @@ class CompanyListView(SkylinxListView):
     filter_class = CompanyFilter
     selected_instances_key_id = "selectedInstance"
     bulk_update_fields = ["country", "state", "city", "zip"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.request.user.is_superuser:
+            return queryset
+        employee = getattr(self.request.user, "employee_get", None)
+        company = getattr(getattr(employee, "employee_work_info", None), "company_id", None)
+        if not company:
+            return queryset.none()
+        return queryset.filter(id=company.id)
 
     def get_bulk_form(self):
         """
@@ -137,7 +148,7 @@ class CompanyNavView(SkylinxNavView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.search_url = reverse("company-list")
-        if self.request.user.has_perm("base.add_company"):
+        if self.request.user.is_superuser:
             self.create_attrs = f"""
                                 onclick = "event.stopPropagation();"
                                 data-toggle="oh-modal-toggle"
@@ -152,7 +163,7 @@ class CompanyNavView(SkylinxNavView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(permission_required(perm="base.add_company"), name="dispatch")
+@method_decorator(user_passes_test(lambda u: u.is_superuser), name="dispatch")
 class CompanyCreateForm(SkylinxFormView):
     """
     form view for creating and editing company in settings

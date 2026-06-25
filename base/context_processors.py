@@ -78,7 +78,12 @@ def get_companies(request):
             company_qs = Company.objects.none()
 
     companies = list(
-        [company.id, company.company if (company.company and "skylinx" not in company.company.lower()) else "EMPLINX", company.icon.url, False]
+        [
+            company.id,
+            company.company if (company.company and "skylinx" not in company.company.lower()) else "EMPLINX",
+            getattr(getattr(company, "icon", None), "url", "/static/skylinx_theme/assets/img/skylinx-logo.png"),
+            False,
+        ]
         for company in company_qs
     )
 
@@ -185,7 +190,7 @@ def update_selected_company(request):
 
     company = {
         "company": company.company if (company.company and "skylinx" not in company.company.lower()) else "EMPLINX",
-        "icon": company.icon.url,
+        "icon": getattr(getattr(company, "icon", None), "url", "/static/skylinx_theme/assets/img/skylinx-logo.png"),
         "text": text,
         "id": company.id,
     }
