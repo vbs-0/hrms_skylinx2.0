@@ -106,7 +106,7 @@
 
         if (window.ifscFetchListenerInitialized === undefined) {
         window.ifscFetchListenerInitialized = true;
-        $(document).on('input change', 'input[name$="any_other_code1"]', function() {
+                $(document).on('input change', 'input[name$="any_other_code1"]', function() {
             var $ifscInput = $(this);
             var ifsc = $ifscInput.val().trim().toUpperCase();
             $ifscInput.val(ifsc);

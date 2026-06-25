@@ -166,76 +166,84 @@
             // IFSC Auto-fetching logic
             if (window.ifscFetchListenerInitialized === undefined) {
                 window.ifscFetchListenerInitialized = true;
-                $(document).on('input change', '#id_any_other_code1', function() {
-                    var ifsc = $(this).val().trim().toUpperCase();
-                    $(this).val(ifsc);
-                    
-                    var ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
-                    if (ifscRegex.test(ifsc)) {
-                        var $bankName = $('#id_bank_name');
-                        var $branch = $('#id_branch');
-                        var $address = $('#id_address');
-                        
-                        if (true) {
-                            console.log("Fetching bank details for IFSC:", ifsc);
-                            fetch('/api/ifsc-lookup/?code=' + encodeURIComponent(ifsc))
-                                .then(function(response) {
-                                    if (response.ok) {
-                                        return response.json();
-                                    }
-                                    throw new Error('IFSC not found');
-                                })
-                                .then(function(data) {
-                                    if (data) {
-                                var bn = $('#id_bank_name').length ? $('#id_bank_name') : $('#bank_name');
-                                if (bn.length) {
-                                    bn.val(data.BANK || data.BANK_NAME || data.bank_name || data.BANKNAME || '').trigger('change');
-                                }
-                                var br = $('#id_branch').length ? $('#id_branch') : $('#branch');
-                                if (br.length) {
-                                    br.val(data.BRANCH || data.BRANCH_NAME || data.branch || '').trigger('change');
-                                }
-                                var ci = $('#id_city').length ? $('#id_city') : $('#city');
-                                if (ci.length) {
-                                    ci.val(data.CITY || data.city || '').trigger('change');
-                                }
-                                
-                                var country = $('#id_country').length ? $('#id_country') : $('#country');
-                                var state = $('#id_state').length ? $('#id_state') : $('#state');
-                                if (country.length) {
-                                    country.val('India').trigger('change');
-                                    if (state.length && typeof populateStates === 'function') {
-                                        populateStates(country.attr('id'), state.attr('id'));
-                                    }
-                                }
-                                
-                                if (state.length && data.STATE) {
-                                    setTimeout(function() {
-                                        var stateToFind = data.STATE.trim().toUpperCase();
-                                        var foundValue = null;
-                                        state.find('option').each(function() {
-                                            var optText = $(this).text().trim().toUpperCase();
-                                            if (optText === stateToFind || optText.includes(stateToFind) || stateToFind.includes(optText)) {
-                                                foundValue = $(this).val();
-                                                return false;
-                                            }
-                                        });
-                                        if (foundValue) {
-                                            state.val(foundValue).trigger('change');
-                                        }
-                                    }, 600);
+                        $(document).on('input change', 'input[name$="any_other_code1"]', function() {
+            var $ifscInput = $(this);
+            var ifsc = $ifscInput.val().trim().toUpperCase();
+            $ifscInput.val(ifsc);
+            
+            var ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+            if (ifscRegex.test(ifsc)) {
+                console.log("Fetching bank details for IFSC:", ifsc);
+                fetch('/api/ifsc-lookup/?code=' + encodeURIComponent(ifsc))
+                    .then(function(response) {
+                        if (response.ok) {
+                            return response.json();
+                        }
+                        throw new Error('IFSC not found');
+                    })
+                    .then(function(data) {
+                        if (data) {
+                            var $form = $ifscInput.closest('form');
+                            if (!$form.length) {
+                                $form = $(document);
+                            }
+                            
+                            var $bankName = $form.find('input[name$="bank_name"]');
+                            if (!$bankName.length) $bankName = $('#id_bank_name');
+                            if ($bankName.length) {
+                                $bankName.val(data.BANK || data.BANK_NAME || data.bank_name || data.BANKNAME || '').trigger('change');
+                            }
+                            
+                            var $branch = $form.find('input[name$="branch"]');
+                            if (!$branch.length) $branch = $('#id_branch');
+                            if ($branch.length) {
+                                $branch.val(data.BRANCH || data.BRANCH_NAME || data.branch || '').trigger('change');
+                            }
+                            
+                            var $city = $form.find('input[name$="city"]');
+                            if (!$city.length) $city = $('#id_city');
+                            if ($city.length) {
+                                $city.val(data.CITY || data.city || '').trigger('change');
+                            }
+                            
+                            var $country = $form.find('select[name$="country"]');
+                            if (!$country.length) $country = $('#id_country');
+                            
+                            var $state = $form.find('select[name$="state"]');
+                            if (!$state.length) $state = $('#id_state');
+                            
+                            if ($country.length) {
+                                $country.val('India').trigger('change');
+                                if ($state.length && typeof populateStates === 'function') {
+                                    populateStates($country.attr('id'), $state.attr('id'));
                                 }
                             }
-                        })
-                                .catch(function(error) {
-                                    console.error("Error fetching IFSC details:", error);
-                                });
+                            
+                            if ($state.length && data.STATE) {
+                                setTimeout(function() {
+                                    var stateToFind = data.STATE.trim().toUpperCase();
+                                    var foundValue = null;
+                                    $state.find('option').each(function() {
+                                        var optText = $(this).text().trim().toUpperCase();
+                                        if (optText === stateToFind || optText.includes(stateToFind) || stateToFind.includes(optText)) {
+                                            foundValue = $(this).val();
+                                            return false;
+                                        }
+                                    });
+                                    if (foundValue) {
+                                        $state.val(foundValue).trigger('change');
+                                    }
+                                }, 600);
+                            }
                         }
-                    }
-                });
+                    })
+                    .catch(function(error) {
+                        console.error("Error fetching IFSC details:", error);
+                    });
             }
         });
-    </script>
+    }
+</script>
 </body>
 
 </html>
