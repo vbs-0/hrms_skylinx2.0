@@ -223,61 +223,43 @@
                         })
                         .then(function(data) {
                             if (data) {
-                                if ($bankName.length) {
-                                    $bankName.val(data.BANK || data.BANK_NAME || data.bank_name || data.BANKNAME || '');
-                                    $bankName.trigger('change');
+                                var bn = $('#id_bank_name').length ? $('#id_bank_name') : $('#bank_name');
+                                if (bn.length) {
+                                    bn.val(data.BANK || data.BANK_NAME || data.bank_name || data.BANKNAME || '').trigger('change');
                                 }
-                                if ($branch.length) {
-                                    $branch.val(data.BRANCH || data.BRANCH_NAME || data.branch || '');
-                                    $branch.trigger('change');
+                                var br = $('#id_branch').length ? $('#id_branch') : $('#branch');
+                                if (br.length) {
+                                    br.val(data.BRANCH || data.BRANCH_NAME || data.branch || '').trigger('change');
                                 }
-                                if ($address.length) {
-                                    $address.val((data.ADDRESS || data.address || '') + ', ' + (data.CITY || data.city || '') + ', ' + (data.STATE || data.state || ''));
-                                    $address.trigger('change');
+                                var ci = $('#id_city').length ? $('#id_city') : $('#city');
+                                if (ci.length) {
+                                    ci.val(data.CITY || data.city || '').trigger('change');
                                 }
-
-                                // Update Country to India
-                                var $country = $('#id_country').length ? $('#id_country') : $('#country');
-                                var $state = $('#id_state').length ? $('#id_state') : $('#state');
-                                if ($country.length) {
-                                    $country.val("India").trigger('change');
-                                    if ($state.length) {
-                                        populateStates($country.attr('id'), $state.attr('id'));
+                                
+                                var country = $('#id_country').length ? $('#id_country') : $('#country');
+                                var state = $('#id_state').length ? $('#id_state') : $('#state');
+                                if (country.length) {
+                                    country.val('India').trigger('change');
+                                    if (state.length && typeof populateStates === 'function') {
+                                        populateStates(country.attr('id'), state.attr('id'));
                                     }
                                 }
                                 
-                                // Update State dropdown matching data.STATE
-                                var $state = $('#id_state').length ? $('#id_state') : $('#state');
-                                if ($state.length && data.STATE) {
-                                    var stateToFind = data.STATE.trim().toUpperCase();
-                                    var foundValue = null;
-                                    $state.find('option').each(function() {
-                                        var optText = $(this).text().trim().toUpperCase();
-                                        if (optText === stateToFind) {
-                                            foundValue = $(this).val();
-                                            return false;
-                                        }
-                                    });
-                                    if (foundValue) {
-                                        $state.val(foundValue).trigger('change');
-                                    } else {
-                                        $state.find('option').each(function() {
+                                if (state.length && data.STATE) {
+                                    setTimeout(function() {
+                                        var stateToFind = data.STATE.trim().toUpperCase();
+                                        var foundValue = null;
+                                        state.find('option').each(function() {
                                             var optText = $(this).text().trim().toUpperCase();
-                                            if (optText.indexOf(stateToFind) !== -1 || stateToFind.indexOf(optText) !== -1) {
+                                            if (optText === stateToFind || optText.includes(stateToFind) || stateToFind.includes(optText)) {
                                                 foundValue = $(this).val();
                                                 return false;
                                             }
                                         });
                                         if (foundValue) {
-                                            $state.val(foundValue).trigger('change');
+                                            state.val(foundValue).trigger('change');
                                         }
-                                    }
-                                }
-                                
-                                // Update City input field
-                                var $city = $('#id_city').length ? $('#id_city') : $('#city');
-                                if ($city.length) {
-                                    $city.val(data.CITY || data.city || '').trigger('change');
+                                    }, 600);
                                 }
                             }
                         })
