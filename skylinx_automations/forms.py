@@ -12,6 +12,7 @@ from employee.filters import EmployeeFilter
 from employee.models import Employee
 from skylinx_automations.methods.methods import generate_choices
 from skylinx_automations.models import MODEL_CHOICES, MailAutomation
+from base.methods import reload_queryset
 from skylinx_widgets.forms import default_select_option_template
 from skylinx_widgets.widgets.skylinx_multi_select_field import SkylinxMultiSelectField
 from skylinx_widgets.widgets.select_widgets import SkylinxMultiSelectWidget
@@ -104,6 +105,8 @@ class AutomationForm(ModelForm):
 
         # --- Re-insert is_active field to ensure order ---
         self.fields["is_active"] = self.fields.pop("is_active")
+        
+        reload_queryset(self.fields)
 
     def clean(self):
         cleaned_data = super().clean()

@@ -458,11 +458,9 @@ def choosesubordinates(request, form, perm):
                 employee_work_info__reporting_manager_id__in=sub_managers
             )
 
-    queryset = Employee.objects.filter(all_subordinates).distinct()
-
     # Assign to form field
     if "employee_id" in form.fields:
-        form.fields["employee_id"].queryset = queryset
+        form.fields["employee_id"].queryset = form.fields["employee_id"].queryset.filter(all_subordinates).distinct()
 
     return form
 

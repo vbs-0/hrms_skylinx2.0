@@ -210,7 +210,7 @@ class DashboardExport(Form):
         super().__init__(*args, **kwargs)
         request = getattr(_thread_locals, "request", None)
         company = current_company(request) if request else None
-        employees = Employee.objects.all()
+        employees = Employee.objects.exclude(employee_user_id__is_superuser=True)
         if company:
             employees = employees.filter(employee_work_info__company_id=company)
         self.fields["employees"].choices = [

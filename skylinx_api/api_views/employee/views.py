@@ -121,6 +121,12 @@ class EmployeeAPIView(APIView):
 
         # If user has global view permission
         if user.has_perm("employee.view_employee"):
+            company = request.META.get("HTTP_COMPANY", None) or request.session.get("selected_company", None)
+            if company and company != "all":
+                if not getattr(employee, "employee_work_info", None) or employee.employee_work_info.company_id.id != int(company):
+                    return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+            if employee.employee_user_id.is_superuser:
+                return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
             serializer = EmployeeSerializer(employee)
             return Response(serializer.data)
 
@@ -210,7 +216,10 @@ class EmployeeListAPIView(APIView):
 
         # Permission-based filtering
         if user.has_perm("employee.view_employee"):
-            pass  # employees_queryset is already all employees
+            company = request.META.get("HTTP_COMPANY", None) or request.session.get("selected_company", None)
+            if company and company != "all":
+                employees_queryset = employees_queryset.filter(employee_work_info__company_id=company)
+            employees_queryset = employees_queryset.exclude(employee_user_id__is_superuser=True)
         else:
             subordinate_qs = user.employee_get.get_subordinate_employees()
             if subordinate_qs.exists():
