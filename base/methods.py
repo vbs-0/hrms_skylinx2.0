@@ -973,11 +973,14 @@ def reload_queryset(fields):
         model_name = model.__name__
 
         if model_name == "Company" and selected_company and selected_company != "all":
-            field.queryset = model.objects.filter(id=selected_company)
+            field.queryset = field.queryset.filter(id=selected_company)
         elif (filters := model_filters.get(model_name)) is not None:
-            field.queryset = model.objects.filter(**filters)
-        else:
-            field.queryset = model.objects.all()
+            field.queryset = field.queryset.filter(**filters)
+            
+        if model_name == "Employee":
+            field.queryset = field.queryset.exclude(employee_user_id__is_superuser=True)
+            if selected_company and selected_company != "all":
+                field.queryset = field.queryset.filter(employee_work_info__company_id=selected_company)
 
     return fields
 
