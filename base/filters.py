@@ -96,6 +96,7 @@ class ShiftRequestFilter(SkylinxFilterSet):
         super().__init__(data=data, queryset=queryset, request=request, prefix=prefix)
         for field in self.form.fields.keys():
             self.form.fields[field].widget.attrs["id"] = f"{uuid.uuid4()}"
+            self.form.fields[field].widget.attrs.setdefault("autocomplete", "off")
 
     def filter_requested(self, queryset, name, value):
         """

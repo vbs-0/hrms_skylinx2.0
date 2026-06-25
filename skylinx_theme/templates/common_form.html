@@ -37,7 +37,7 @@
                     {# advanced — skip here, rendered below #}
                 {% else %}
                     <div class="col-12 {% if form.cols.employee_id %} col-md-12 {% endif %} col-md-6" id="id_{{field.name}}_parent_div">
-                        <div class="oh-label__info" style="display:ruby;" for="{{ field.id_for_label }}">
+                        <div class="oh-label__info" style="display:ruby;">
                             <label class="oh-label {% if field.field.required %} required-star{% endif %}"
                                 for="{{ field.id_for_label }}">{% trans field.label %} </label>
                             {% if field.help_text != '' %}
@@ -62,7 +62,7 @@
             {% for field in form.visible_fields %}
                 {% if field.field.widget.attrs.data_advanced %}
                     <div class="col-12 col-md-6" id="id_{{field.name}}_parent_div">
-                        <div class="oh-label__info" style="display:ruby;" for="{{ field.id_for_label }}">
+                        <div class="oh-label__info" style="display:ruby;">
                             <label class="oh-label {% if field.field.required %} required-star{% endif %}"
                                 for="{{ field.id_for_label }}">{% trans field.label %} </label>
                             {% if field.help_text != '' %}
