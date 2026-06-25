@@ -4032,7 +4032,7 @@ $(document).on("htmx:afterSettle", function (event) {
     } catch (error) {
         console.warn("htmxSelect2: afterSettle select2 error:", error);
     }
-}););
+});
 
 
 // Helper function to hash data using SHA-256
