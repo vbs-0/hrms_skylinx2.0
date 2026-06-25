@@ -66,6 +66,28 @@ class MethodNotAllowedMiddleware:
         return response
 
 
+class HtmxRedirectMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        is_htmx = (
+            request.headers.get("HX-Request") == "true"
+            or request.META.get("HTTP_HX_REQUEST") == "true"
+        )
+        if is_htmx and 300 <= getattr(response, "status_code", 0) < 400:
+            redirect_to = response.headers.get("Location") or response.get("Location")
+            if redirect_to:
+                response.status_code = 200
+                try:
+                    del response["Location"]
+                except Exception:
+                    pass
+                response["HX-Redirect"] = redirect_to
+        return response
+
+
 class SVGSecurityMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response

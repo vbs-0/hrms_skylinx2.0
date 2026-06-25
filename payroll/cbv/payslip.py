@@ -32,6 +32,7 @@ from payroll.forms import component_forms as forms
 from payroll.methods.methods import calculate_employer_contribution, save_payslip
 from payroll.models.models import Contract, Payslip
 from payroll.views.component_views import payroll_calculation
+from payroll.views.views import _payslip_queryset_for_request
 
 
 @method_decorator(login_required, name="dispatch")
@@ -79,10 +80,7 @@ class PayslipList(SkylinxListView):
         """
         Return the queryset of Payslip objects based on user permissions.
         """
-        queryset = super().get_queryset()
-        if not self.request.user.has_perm("payroll.view_payslip"):
-            queryset = queryset.filter(employee_id__employee_user_id=self.request.user)
-        return queryset
+        return _payslip_queryset_for_request(self.request)
 
     model = Payslip
     filter_class = PayslipFilter
@@ -291,7 +289,7 @@ class PayslipBulkExport(TemplateView):
         Returns:
             Dict[str, Any]: Updated context dictionary containing export form and filter.
         """
-        payslip = Payslip.objects.all()
+        payslip = _payslip_queryset_for_request(self.request)
         export_column = forms.PayslipExportColumnForm()
         export_filter = PayslipFilter(queryset=payslip)
         context = super().get_context_data(**kwargs)

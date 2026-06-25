@@ -145,9 +145,7 @@ class SkylinxCompanyManager(models.Manager):
             return qs
 
         try:
-            return qs.filter(
-                Q(**{filter_path: company}) | Q(**{f"{filter_path}__isnull": True})
-            ).distinct()
+            return qs.filter(**{filter_path: company}).distinct()
         except Exception as e:
             logger.exception(
                 f"Company filter failed for model {self.model.__name__} "

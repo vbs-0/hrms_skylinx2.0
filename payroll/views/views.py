@@ -33,6 +33,7 @@ from base.methods import (
     sortby,
 )
 from base.models import Company
+from base.rbac import current_company
 from employee.models import Employee, EmployeeWorkInformation
 from skylinx.decorators import (
     hx_request_required,
@@ -62,6 +63,19 @@ from payroll.models.models import (
     ReimbursementrequestComment,
 )
 from payroll.models.tax_models import PayrollSettings
+
+
+def _payslip_queryset_for_request(request):
+    qs = Payslip.objects.all()
+    if request.user.is_superuser or request.user.username == "skylinx":
+        return qs
+    company = current_company(request)
+    if company:
+        qs = qs.filter(employee_id__employee_work_info__company_id=company)
+    if request.user.has_perm("payroll.add_payslip") or request.user.has_perm("payroll.change_payslip"):
+        return qs
+    employee = getattr(request.user, "employee_get", None)
+    return qs.filter(employee_id=employee) if employee else qs.none()
 
 # Create your views here.
 
@@ -535,81 +549,77 @@ def view_payslip_pdf(request, payslip_id):
 
     from .component_views import filter_payslip
 
-    if Payslip.objects.filter(id=payslip_id).exists():
-        payslip = Payslip.objects.get(id=payslip_id)
+    payslip = _payslip_queryset_for_request(request).filter(id=payslip_id).first()
+    if payslip is not None:
         company = Company.objects.filter(hq=True).first()
-        if (
-            request.user.has_perm("payroll.view_payslip")
-            or payslip.employee_id.employee_user_id == request.user
-        ):
-            user = request.user
-            employee = user.employee_get
+        user = request.user
+        employee = user.employee_get
 
-            # Taking the company_name of the user
-            info = EmployeeWorkInformation.objects.filter(employee_id=employee)
-            if info.exists():
-                for data in info:
-                    employee_company = data.company_id
-                company_name = Company.objects.filter(company=employee_company)
-                emp_company = company_name.first()
+        # Taking the company_name of the user
+        info = EmployeeWorkInformation.objects.filter(employee_id=employee)
+        if info.exists():
+            for data in info:
+                employee_company = data.company_id
+            company_name = Company.objects.filter(company=employee_company)
+            emp_company = company_name.first()
 
-                # Access the date_format attribute directly
-                date_format = (
-                    emp_company.date_format
-                    if emp_company and emp_company.date_format
-                    else "MMM. D, YYYY"
-                )
-            else:
-                date_format = "MMM. D, YYYY"
+            # Access the date_format attribute directly
+            date_format = (
+                emp_company.date_format
+                if emp_company and emp_company.date_format
+                else "MMM. D, YYYY"
+            )
+        else:
+            date_format = "MMM. D, YYYY"
 
-            data = payslip.pay_head_data
-            start_date_str = data["start_date"]
-            end_date_str = data["end_date"]
+        data = payslip.pay_head_data
+        start_date_str = data["start_date"]
+        end_date_str = data["end_date"]
 
-            # Convert the string to a datetime.date object
-            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
-            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+        # Convert the string to a datetime.date object
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
 
-            month_start_name = start_date.strftime("%B %d, %Y")
-            month_end_name = end_date.strftime("%B %d, %Y")
-            # Formatted date for each format
-            for format_name, format_string in pay_settings.SKYLINX_DATE_FORMATS.items():
-                if format_name == date_format:
-                    formatted_start_date = start_date.strftime(format_string)
+        month_start_name = start_date.strftime("%B %d, %Y")
+        month_end_name = end_date.strftime("%B %d, %Y")
+        # Formatted date for each format
+        for format_name, format_string in pay_settings.SKYLINX_DATE_FORMATS.items():
+            if format_name == date_format:
+                formatted_start_date = start_date.strftime(format_string)
 
-            for format_name, format_string in pay_settings.SKYLINX_DATE_FORMATS.items():
-                if format_name == date_format:
-                    formatted_end_date = end_date.strftime(format_string)
-            data["month_start_name"] = month_start_name
-            data["month_end_name"] = month_end_name
-            data["formatted_start_date"] = formatted_start_date
-            data["formatted_end_date"] = formatted_end_date
-            data["employee"] = payslip.employee_id
-            data["payslip"] = payslip
-            data["json_data"] = data.copy()
-            data["json_data"]["employee"] = payslip.employee_id.id
-            data["json_data"]["payslip"] = payslip.id
-            data["instance"] = payslip
-            data["currency"] = PayrollSettings.objects.first().currency_symbol
-            data["all_deductions"] = []
-            for deduction_list in [
-                data["basic_pay_deductions"],
-                data["gross_pay_deductions"],
-                data["pretax_deductions"],
-                data["post_tax_deductions"],
-                data["tax_deductions"],
-                data["net_deductions"],
-            ]:
-                data["all_deductions"].extend(deduction_list)
+        for format_name, format_string in pay_settings.SKYLINX_DATE_FORMATS.items():
+            if format_name == date_format:
+                formatted_end_date = end_date.strftime(format_string)
+        data["month_start_name"] = month_start_name
+        data["month_end_name"] = month_end_name
+        data["formatted_start_date"] = formatted_start_date
+        data["formatted_end_date"] = formatted_end_date
+        data["employee"] = payslip.employee_id
+        data["payslip"] = payslip
+        data["json_data"] = data.copy()
+        data["json_data"]["employee"] = payslip.employee_id.id
+        data["json_data"]["payslip"] = payslip.id
+        data["instance"] = payslip
+        data["currency"] = PayrollSettings.objects.first().currency_symbol
+        data["all_deductions"] = []
+        for deduction_list in [
+            data["basic_pay_deductions"],
+            data["gross_pay_deductions"],
+            data["pretax_deductions"],
+            data["post_tax_deductions"],
+            data["tax_deductions"],
+            data["net_deductions"],
+        ]:
+            data["all_deductions"].extend(deduction_list)
 
-            data["all_allowances"] = data["allowances"].copy()
-            equalize_lists_length(data["allowances"], data["all_deductions"])
-            data["zipped_data"] = zip(data["allowances"], data["all_deductions"])
-            data["host"] = request.get_host()
-            data["protocol"] = "https" if request.is_secure() else "http"
-            data["company"] = company
+        data["all_allowances"] = data["allowances"].copy()
+        equalize_lists_length(data["allowances"], data["all_deductions"])
+        data["zipped_data"] = zip(data["allowances"], data["all_deductions"])
+        data["host"] = request.get_host()
+        data["protocol"] = "https" if request.is_secure() else "http"
+        data["company"] = company
 
-            return render(request, "payroll/payslip/payslip_pdf.html", context=data)
+        return render(request, "payroll/payslip/payslip_pdf.html", context=data)
         return redirect(filter_payslip)
     return render(request, "405.html")
 
@@ -620,11 +630,8 @@ def view_created_payslip(request, payslip_id, **kwargs):
     """
     This method is used to view the saved payslips
     """
-    payslip = Payslip.objects.filter(id=payslip_id).first()
-    if payslip is not None and (
-        request.user.has_perm("payroll.view_payslip")
-        or payslip.employee_id.employee_user_id == request.user
-    ):
+    payslip = _payslip_queryset_for_request(request).filter(id=payslip_id).first()
+    if payslip is not None:
         # the data must be dictionary in the payslip model for the json field
         data = payslip.pay_head_data
         data["employee"] = payslip.employee_id
@@ -970,7 +977,7 @@ def payslip_export(request):
     table4_data = []
     table5_data = []
 
-    employee_payslip_list = Payslip.objects.all()
+    employee_payslip_list = _payslip_queryset_for_request(request)
 
     if start_date:
         employee_payslip_list = employee_payslip_list.filter(start_date__gte=start_date)
@@ -985,13 +992,13 @@ def payslip_export(request):
         employee_payslip_list = employee_payslip_list.filter(status=status)
 
     for employ in contributions:
-        payslips = Payslip.objects.filter(employee_id__id=employ)
+        payslips = _payslip_queryset_for_request(request).filter(employee_id__id=employ)
         if end_date:
-            payslips = Payslip.objects.filter(
+            payslips = _payslip_queryset_for_request(request).filter(
                 employee_id__id=employ, end_date__lte=end_date
             )
         if start_date:
-            payslips = Payslip.objects.filter(
+            payslips = _payslip_queryset_for_request(request).filter(
                 employee_id__id=employ, start_date__gte=start_date
             )
             if end_date:
@@ -1338,7 +1345,7 @@ def payslip_bulk_delete(request):
     ids = json.loads(ids)
     for id in ids:
         try:
-            payslip = Payslip.objects.get(id=id)
+            payslip = _payslip_queryset_for_request(request).get(id=id)
             period = f"{payslip.start_date} to {payslip.end_date}"
             payslip.delete()
             messages.success(
@@ -1540,8 +1547,8 @@ def payslip_pdf(request, id):
 
     from .component_views import filter_payslip
 
-    if Payslip.objects.filter(id=id).exists():
-        payslip = Payslip.objects.get(id=id)
+    payslip = _payslip_queryset_for_request(request).filter(id=id).first()
+    if payslip is not None:
         company = Company.objects.filter(hq=True).first()
         if (
             request.user.has_perm("payroll.view_payslip")
@@ -1664,13 +1671,10 @@ def contract_select_filter(request):
 @hx_request_required
 def payslip_select(request):
     page_number = request.GET.get("page")
-    payslip = Payslip.objects.none()
+    payslip = _payslip_queryset_for_request(request).none()
 
     if page_number == "all":
-        if request.user.has_perm("payroll.view_payslip"):
-            payslip = Payslip.objects.all()
-        else:
-            payslip = Payslip.objects.filter(employee_id__employee_user_id=request.user)
+        payslip = _payslip_queryset_for_request(request)
 
     payslip_ids = [str(emp.id) for emp in payslip]
     total_count = payslip.count()
@@ -1689,7 +1693,7 @@ def payslip_select_filter(request):
     context = {}
 
     if page_number == "all":
-        payslip_filter = PayslipFilter(filters, queryset=Payslip.objects.all())
+        payslip_filter = PayslipFilter(filters, queryset=_payslip_queryset_for_request(request))
 
         # Get the filtered queryset
         filtered_employees = payslip_filter.qs

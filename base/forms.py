@@ -582,7 +582,13 @@ class AssignPermission(Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        request = getattr(_thread_locals, "request", None)
+        company = current_company(request) if request else None
+        employee_qs = Employee.objects.all()
+        if company:
+            employee_qs = employee_qs.filter(employee_work_info__company_id=company)
         reload_queryset(self.fields)
+        self.fields["employee"].queryset = employee_qs
 
         # Dynamically load permission choices only when DB is ready
         try:

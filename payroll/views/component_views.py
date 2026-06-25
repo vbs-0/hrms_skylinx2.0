@@ -38,6 +38,7 @@ from base.methods import (
     sortby,
 )
 from base.models import Company
+from base.rbac import current_company
 from employee.models import Employee, EmployeeWorkInformation
 from skylinx.decorators import (
     handle_no_permission,
@@ -88,6 +89,22 @@ from payroll.models.models import (
     Reimbursement,
     ReimbursementMultipleAttachment,
 )
+
+
+def _payslip_queryset_for_request(request):
+    """Limit payslip visibility to the employee's own slips unless the user is a payroll admin."""
+    qs = Payslip.objects.all()
+    if request.user.is_superuser or request.user.username == "skylinx":
+        return qs
+    company = current_company(request)
+    if company:
+        qs = qs.filter(employee_id__employee_work_info__company_id=company)
+    if request.user.has_perm("payroll.add_payslip") or request.user.has_perm("payroll.change_payslip"):
+        return qs
+    employee = getattr(request.user, "employee_get", None)
+    if employee:
+        return qs.filter(employee_id=employee)
+    return qs.none()
 from payroll.threadings.mail import MailSendThread
 
 # from asset.models import Asset
@@ -1197,10 +1214,7 @@ def view_payslip(request):
     """
     This method is used to render the template for viewing a payslip.
     """
-    if request.user.has_perm("payroll.view_payslip"):
-        payslips = Payslip.objects.all()
-    else:
-        payslips = Payslip.objects.filter(employee_id__employee_user_id=request.user)
+    payslips = _payslip_queryset_for_request(request)
     export_column = forms.PayslipExportColumnForm()
     filter_form = PayslipFilter(request.GET, payslips)
     payslips = filter_form.qs
@@ -1234,14 +1248,7 @@ def filter_payslip(request):
     Filter and retrieve a list of payslips based on the provided query parameters.
     """
     query_string = request.GET.urlencode()
-    if request.user.has_perm("payroll.view_payslip"):
-        payslips = PayslipFilter(request.GET).qs
-    else:
-        emp_request = request.GET.copy()
-        employee = Employee.objects.filter(employee_user_id=request.user.id).first()
-        employee_id = employee.id
-        emp_request["employee_id"] = str(employee_id)
-        payslips = PayslipFilter(emp_request).qs
+    payslips = PayslipFilter(request.GET, queryset=_payslip_queryset_for_request(request)).qs
     template = "payroll/payslip/payslip_table.html"
     view = request.GET.get("view")
     if view == "card":
@@ -1304,7 +1311,7 @@ def payslip_export(request):
     }
     selected_columns = []
     payslips_data = {}
-    payslips = PayslipFilter(request.GET).qs
+    payslips = PayslipFilter(request.GET, queryset=_payslip_queryset_for_request(request)).qs
     today_date = date.today().strftime("%Y-%m-%d")
     file_name = f"Payslip_excel_{today_date}.xlsx"
     selected_fields = request.GET.getlist("selected_fields")
@@ -1314,7 +1321,7 @@ def payslip_export(request):
         selected_fields = form.fields["selected_fields"].initial
         ids = request.GET.get("ids", "[]")
         id_list = json.loads(ids)
-        payslips = Payslip.objects.filter(id__in=id_list)
+        payslips = _payslip_queryset_for_request(request).filter(id__in=id_list)
 
     for field in forms.excel_columns:
         value = field[0]
@@ -2217,7 +2224,7 @@ def payslip_detailed_export_data(request):
     selected_columns = []
     payslips_data = []
     totals = {}
-    payslips = PayslipFilter(request.GET).qs
+    payslips = PayslipFilter(request.GET, queryset=_payslip_queryset_for_request(request)).qs
     selected_fields = request.GET.getlist("selected_fields")
     form = forms.PayslipExportColumnForm()
 
@@ -2225,7 +2232,7 @@ def payslip_detailed_export_data(request):
     try:
         id_list = json.loads(ids)
         if id_list:
-            payslips = Payslip.objects.filter(id__in=id_list)
+            payslips = _payslip_queryset_for_request(request).filter(id__in=id_list)
     except (json.JSONDecodeError, TypeError, ValueError):
         pass
 

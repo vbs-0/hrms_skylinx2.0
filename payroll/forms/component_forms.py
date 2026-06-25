@@ -240,8 +240,13 @@ class DeductionForm(ModelForm):
                 }
             kwargs["initial"] = initial
         super().__init__(*args, **kwargs)
+        request = getattr(_thread_locals, "request", None)
+        company = current_company(request) if request else None
+        employee_qs = Employee.objects.all()
+        if company:
+            employee_qs = employee_qs.filter(employee_work_info__company_id=company)
         self.fields["specific_employees"] = SkylinxMultiSelectField(
-            queryset=Employee.objects.all(),
+            queryset=employee_qs,
             widget=SkylinxMultiSelectWidget(
                 filter_route_name="employee-widget-filter",
                 filter_class=EmployeeFilter,

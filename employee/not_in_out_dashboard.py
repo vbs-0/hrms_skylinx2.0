@@ -25,6 +25,7 @@ from base.methods import (
     sanitize_mail_template_body,
     sanitize_mail_template_placeholders,
 )
+from base.rbac import current_company
 from base.models import SkylinxMailTemplate
 from employee.filters import EmployeeFilter
 from employee.models import Employee
@@ -97,7 +98,10 @@ def send_mail(request, emp_id=None):
             return SkylinxRedirect(
                 request, message=_("No Employee found matching the query.")
             )
-    employees = Employee.objects.all()
+    employees = Employee.objects.all().exclude(employee_user_id__username="skylinx")
+    company = current_company(request)
+    if company:
+        employees = employees.filter(employee_work_info__company_id=company)
     templates = SkylinxMailTemplate.objects.all()
     return render(
         request,
