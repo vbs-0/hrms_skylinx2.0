@@ -1222,8 +1222,8 @@ class Summary(TemplateView):
             "shift_id",
             "date_joining",
             "contract_end_date",
-            "basic_salary",
-            "salary_hour",
+            "ctc",
+            "salary_components",
         ]
         bank_info_fields = [
             "bank_name",

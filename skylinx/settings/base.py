@@ -130,7 +130,6 @@ INSTALLED_APPS = [
     "whatsapp",
     "skylinx_ldap",
     "skylinx_dbtemplate",
-    "licensing",
     "subscriptions",
 ]
 
@@ -269,7 +268,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 AUTH_USER_MODEL = "skylinx_auth.SkylinxUser"
 
-X_FRAME_OPTIONS = "SAMEORIGIN"
+X_FRAME_OPTIONS = env("X_FRAME_OPTIONS", default="DENY")
 
 # ========================================
 # TEMPLATES
@@ -398,7 +397,6 @@ SIDEBARS = [
     "helpdesk",
     "project",
     "report",
-    "licensing",
 ]
 
 # Audit logging is opt-in: the skylinx_audit app registers models explicitly

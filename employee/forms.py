@@ -305,16 +305,13 @@ class EmployeeForm(ModelForm):
         # surfaced as a normal form error (popup) instead of the cap signal's
         # hard 403/timeout. Only on create — editing an existing one is fine.
         if not (self.instance and self.instance.id):
-            from licensing import service
+            from subscriptions.utils import can_add_employee, company_for_user
 
-            if service.employee_cap_reached():
-                raise forms.ValidationError(
-                    _(
-                        "License limit reached: your plan allows %s active "
-                        "employees. Upgrade your subscription to add more."
-                    )
-                    % service.employee_limit()
-                )
+            request = getattr(_thread_locals, "request", None)
+            company = company_for_user(request.user) if request else None
+            ok, message = can_add_employee(company)
+            if not ok:
+                raise forms.ValidationError(_(message))
         email = self.cleaned_data["email"]
         query = Employee.objects.entire().filter(email=email)
         if self.instance and self.instance.id:
@@ -766,8 +763,8 @@ excel_columns = [
     ("employee_work_info__employee_type_id", _("Employment Type")),
     ("employee_work_info__location", _("Location")),
     ("employee_work_info__date_joining", _("Date Joining")),
-    ("employee_work_info__basic_salary", _("Basic Salary")),
-    ("employee_work_info__salary_hour", _("Salary Hour")),
+    ("employee_work_info__ctc", _("CTC")),
+    ("employee_work_info__salary_components", _("Salary Components")),
     ("employee_work_info__contract_end_date", _("Contract End Date")),
     ("employee_work_info__company_id", _("Company")),
     ("employee_bank_details__bank_name", _("Bank Name")),
@@ -814,8 +811,8 @@ class EmployeeExportExcelForm(forms.Form):
             "employee_work_info__employee_type_id",
             "employee_work_info__location",
             "employee_work_info__date_joining",
-            "employee_work_info__basic_salary",
-            "employee_work_info__salary_hour",
+            "employee_work_info__ctc",
+            "employee_work_info__salary_components",
             "employee_work_info__contract_end_date",
             "employee_work_info__company_id",
         ],

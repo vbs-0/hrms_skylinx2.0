@@ -498,13 +498,14 @@ def payroll_salary_distribution(request):
     _from, to_date = _parse_period(request)
     bands = []
     try:
-        salaries = list(
-            EmployeeWorkInformation.objects.filter(
+        salaries = [
+            wi.basic_salary
+            for wi in EmployeeWorkInformation.objects.filter(
                 employee_id__is_active=True,
-                basic_salary__gt=0,
                 date_joining__lte=to_date,
-            ).values_list("basic_salary", flat=True)
-        )
+            )
+            if wi.basic_salary > 0
+        ]
         if salaries:
             max_sal = max(salaries)
             step = max(1, round(max_sal / 6, -3)) or 10000

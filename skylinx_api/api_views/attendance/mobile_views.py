@@ -433,7 +433,7 @@ class MobileLocationLogAPIView(APIView):
                     actor_content_type=user_ct,
                     actor_object_id=str(request.user.id),
                     verb="GPS Off",
-                    description=f"{employee.employee_first_name} {employee.employee_last_name} turned off GPS location services.",
+                    description=f"{employee.employee_first_name} {employee.employee_last_name} turned off GPS location services at {timezone.now().strftime('%I:%M %p')}.",
                     level="warning"
                 )
 

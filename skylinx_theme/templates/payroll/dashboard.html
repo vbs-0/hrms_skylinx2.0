@@ -548,8 +548,7 @@
                         const b = data.bands[config.dataPointIndex];
                         const base = "{% url 'employee-view' %}";
                         if (b && b.min !== undefined) {
-                            window.location.href = base + "?employee_work_info__basic_salary__gte=" + b.min +
-                                "&employee_work_info__basic_salary__lt=" + b.max;
+                            window.location.href = base;
                         } else {
                             window.location.href = base;
                         }

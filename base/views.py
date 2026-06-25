@@ -1312,8 +1312,8 @@ def employee_workinfo_complete(request):
         "shift_id",
         "date_joining",
         "contract_end_date",
-        "basic_salary",
-        "salary_hour",
+        "ctc",
+        "salary_components",
     ]
     search = request.GET.get("search", "")
     employees_workinfos = filtersubordinates(

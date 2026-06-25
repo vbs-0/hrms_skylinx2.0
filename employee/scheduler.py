@@ -109,9 +109,15 @@ def notify_probation_end():
     from employee.models import EmployeeWorkInformation
 
     today = date.today()
-    ending = EmployeeWorkInformation.objects.filter(
-        probation_end=today, employee_id__is_active=True
-    ).select_related("employee_id", "company_id", "reporting_manager_id")
+    ending = [
+        wi
+        for wi in EmployeeWorkInformation.objects.filter(
+            employee_id__is_active=True,
+            date_joining__isnull=False,
+            probation_days__isnull=False,
+        ).select_related("employee_id", "company_id", "reporting_manager_id")
+        if wi.probation_end == today
+    ]
 
     for wi in ending:
         emp = wi.employee_id
