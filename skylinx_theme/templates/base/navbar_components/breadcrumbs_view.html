@@ -1,22 +1,9 @@
 {% load static i18n %}
-<ul class="breadcrumb breadcrumb-brand-list" id="breadcrumbList">
+<ul class="breadcrumb ms-4" id="breadcrumbList">
     {% for breadcrumb in breadcrumbs %}
         {% if forloop.first or forloop.last %}
             <li>
-                {% if forloop.first and breadcrumb.name|lower == "emplinx" %}
-                    <a
-                        href="{% if breadcrumb.found %}{{ breadcrumb.url }}{% else %}#{% endif %}"
-                        class="breadcrumb-brand"
-                    >
-                        <img
-                            src="/static/images/ui/skylinx-logo.png?v=9149937"
-                            alt="EMPLINX"
-                            class="breadcrumb-brand__logo"
-                        >
-                    </a>
-                {% else %}
-                    <a href="{% if breadcrumb.found %}{{ breadcrumb.url }}{% else %}#{% endif %}">{% trans breadcrumb.name %}</a>
-                {% endif %}
+                <a href="{% if breadcrumb.found %}{{ breadcrumb.url }}{% else %}#{% endif %}">{% trans breadcrumb.name %}</a>
             </li>
         {% else %}
             {% if forloop.counter == 2 and breadcrumbs|length > 2 %}
@@ -32,32 +19,6 @@
     {% endfor %}
 </ul>
 <style>
-    .breadcrumb-brand-list {
-        margin-left: 0.15rem !important;
-        margin-bottom: 0;
-        padding-left: 0;
-    }
-    .breadcrumb .breadcrumb-brand {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 0;
-        padding: 0;
-        border-radius: 0;
-        background: transparent;
-        box-shadow: none;
-    }
-    .breadcrumb .breadcrumb-brand__logo {
-        display: block;
-        width: auto;
-        height: 34px;
-        max-width: 260px;
-        object-fit: contain;
-    }
-    .dark .breadcrumb .breadcrumb-brand {
-        background: transparent;
-        box-shadow: none;
-    }
     .breadcrumb .breadcrumb-collapsed { display: none; }
     .breadcrumb--expanded .breadcrumb-collapsed { display: inline-flex; }
 </style>
