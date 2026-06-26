@@ -11,14 +11,16 @@ if apps.is_installed("payroll"):
     from payroll.models.models import Payslip
 
     @login_required
-    @permission_required(perm="payroll.view_payslip")
+    @permission_required(perm="payroll.change_payslip")
     def payroll_report(request):
         company = "all"
         selected_company = request.session.get("selected_company")
         if selected_company != "all":
             company = Company.objects.filter(id=selected_company).first()
 
-        if request.user.has_perm("payroll.view_payslip"):
+        if request.user.has_perm("payroll.change_payslip") or request.user.has_perm(
+            "payroll.add_payslip"
+        ):
             payslips = Payslip.objects.all()
         else:
             payslips = Payslip.objects.filter(
@@ -34,7 +36,7 @@ if apps.is_installed("payroll"):
         )
 
     @login_required
-    @permission_required(perm="payroll.view_payslip")
+    @permission_required(perm="payroll.change_payslip")
     def payroll_pivot(request):
         model_type = request.GET.get("model", "payslip")
 

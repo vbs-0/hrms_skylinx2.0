@@ -81,7 +81,8 @@ def menu_accessibility(request, submenu, user_perms, *args, **kwargs):
         or request.user.has_perm("recruitment.view_recruitment")
         or request.user.has_perm("employee.change_employee")
         or request.user.has_perm("pms.view_objective")
-        or request.user.has_perm("payroll.view_payslip")
+        or request.user.has_perm("payroll.change_payslip")
+        or request.user.has_perm("payroll.add_payslip")
         or request.user.has_perm("asset.view_asset")
     )
 
@@ -107,7 +108,11 @@ def leave_accessibility(request, submenu, user_perms, *args, **kwargs):
 
 
 def payroll_accessibility(request, submenu, user_perms, *args, **kwargs):
-    return request.user.is_superuser or request.user.has_perm("payroll.view_payslip")
+    return (
+        request.user.is_superuser
+        or request.user.has_perm("payroll.change_payslip")
+        or request.user.has_perm("payroll.add_payslip")
+    )
 
 
 def asset_accessibility(request, submenu, user_perms, *args, **kwargs):

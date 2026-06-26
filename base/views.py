@@ -5631,8 +5631,8 @@ def shift_request_approve(request, id):
     user = request.user
     if not (
         is_reportingmanger(request, shift_request)
-        or user.has_perm("approve_shiftrequest")
-        or user.has_perm("change_shiftrequest")
+        or user.has_perm("base.approve_shiftrequest")
+        or user.has_perm("base.change_shiftrequest")
         and not shift_request.approved
     ):
         messages.error(request, _("You don't have permission"))
@@ -5737,8 +5737,8 @@ def shift_request_bulk_approve(request):
         shift_request = ShiftRequest.objects.get(id=id)
         if (
             is_reportingmanger(request, shift_request)
-            or request.user.has_perm("approve_shiftrequest")
-            or request.user.has_perm("change_shiftrequest")
+            or request.user.has_perm("base.approve_shiftrequest")
+            or request.user.has_perm("base.change_shiftrequest")
             and not shift_request.approved
         ):
             """
