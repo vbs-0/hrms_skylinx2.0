@@ -60,7 +60,7 @@ SUBMENUS = [
 
 def document_accessibility(request, submenu, user_perms, *args, **kwargs):
     return request.user.has_perm(
-        "skylinx_documents.view_documentrequest"
+        "skylinx_documents.change_documentrequest"
     ) or is_reportingmanager(request.user)
 
 

@@ -39,7 +39,7 @@ from notifications.signals import notify
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(manager_can_enter("leave.view_leaverequest"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class LeaveRequestsView(TemplateView):
     """
     for leave requests page view
@@ -49,7 +49,7 @@ class LeaveRequestsView(TemplateView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(manager_can_enter("leave.view_leaverequest"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class LeaveRequestsListView(SkylinxListView):
     """
     Lits view of the page
@@ -88,7 +88,7 @@ class LeaveRequestsListView(SkylinxListView):
         data = queryset
         queryset = filter_conditional_leave_request(self.request)
         qs = data.filter(id__in=queryset.values_list("id", flat=True))
-        data = filtersubordinates(self.request, data, "leave.view_leaverequest") | qs
+        data = filtersubordinates(self.request, data, "employee.change_employee") | qs
         return data.distinct()
 
     filter_class = LeaveRequestFilter
@@ -193,7 +193,7 @@ class LeaveRequestsListView(SkylinxListView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(manager_can_enter("leave.view_leaverequest"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class LeaveRequestsNavView(SkylinxNavView):
     """
     nav bar
@@ -266,7 +266,7 @@ class LeaveRequestsNavView(SkylinxNavView):
 
 @method_decorator(login_required, name="dispatch")
 @method_decorator(hx_request_required, name="dispatch")
-@method_decorator(manager_can_enter("leave.view_leaverequest"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class LeaveRequestsExportNav(TemplateView):
     """
     for bulk export
@@ -288,7 +288,7 @@ class LeaveRequestsExportNav(TemplateView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(manager_can_enter("leave.view_leaverequest"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class LeaveRequestsDetailView(SkylinxDetailedView):
     """
     detail view of page

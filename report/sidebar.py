@@ -79,10 +79,8 @@ def menu_accessibility(request, submenu, user_perms, *args, **kwargs):
     return (
         request.user.is_superuser
         or request.user.has_perm("recruitment.view_recruitment")
-        or request.user.has_perm("employee.view_employee")
+        or request.user.has_perm("employee.change_employee")
         or request.user.has_perm("pms.view_objective")
-        or request.user.has_perm("attendance.view_attendance")
-        or request.user.has_perm("leave.view_leaverequest")
         or request.user.has_perm("payroll.view_payslip")
         or request.user.has_perm("asset.view_asset")
     )
@@ -95,17 +93,17 @@ def recruitment_accessibility(request, submenu, user_perms, *args, **kwargs):
 
 
 def employee_accessibility(request, submenu, user_perms, *args, **kwargs):
-    return request.user.is_superuser or request.user.has_perm("employee.view_employee")
+    return request.user.is_superuser or request.user.has_perm("employee.change_employee")
 
 
 def attendance_accessibility(request, submenu, user_perms, *args, **kwargs):
     return request.user.is_superuser or request.user.has_perm(
-        "attendance.view_attendance"
+        "employee.change_employee"
     )
 
 
 def leave_accessibility(request, submenu, user_perms, *args, **kwargs):
-    return request.user.is_superuser or request.user.has_perm("leave.view_leaverequest")
+    return request.user.is_superuser or request.user.has_perm("employee.change_employee")
 
 
 def payroll_accessibility(request, submenu, user_perms, *args, **kwargs):

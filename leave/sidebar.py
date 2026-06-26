@@ -50,7 +50,7 @@ SUBMENUS = [
 
 
 def dashboard_accessibility(request, submenu, user_perms, *args, **kwargs):
-    have_perm = request.user.has_perm("leave.view_leaverequest")
+    have_perm = request.user.has_perm("employee.change_employee")
     if not have_perm:
         submenu["redirect"] = (
             reverse_lazy("leave-employee-dashboard") + "?dashboard=true"

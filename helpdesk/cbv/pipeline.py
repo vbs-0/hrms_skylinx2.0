@@ -142,7 +142,7 @@ class TicketTabView(SkylinxTabView):
         ]
 
         if is_reportingmanager(self.request) or self.request.user.has_perm(
-            "helpdesk.view_ticket"
+            "helpdesk.change_ticket"
         ):
             self.tabs.append(
                 {
@@ -357,7 +357,7 @@ class TicketListView(SkylinxListView):
             queryset = filtersubordinates(
                 self.request,
                 queryset,
-                "helpdesk.view_ticket",
+                "helpdesk.change_ticket",
             )
             return queryset
 

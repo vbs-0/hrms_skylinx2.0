@@ -566,7 +566,7 @@ def leave_request_creation(request, type_id=None, emp_id=None):
 
 
 @login_required
-@manager_can_enter("leave.view_leaverequest")
+@manager_can_enter("employee.change_employee")
 def leave_request_view(request):
     """
     function used to view leave request.
@@ -579,7 +579,7 @@ def leave_request_view(request):
     """
     queryset = LeaveRequestFilter(request.GET).qs.order_by("-id").distinct()
     multiple_approvals = filter_conditional_leave_request(request).distinct()
-    normal_requests = filtersubordinates(request, queryset, "leave.view_leaverequest")
+    normal_requests = filtersubordinates(request, queryset, "employee.change_employee")
 
     if not request.user.is_superuser:
         multi_approve_requests = LeaveRequestConditionApproval.objects.filter(
@@ -681,7 +681,7 @@ def leave_request_view(request):
 
 
 @login_required
-@manager_can_enter("leave.view_leaverequest")
+@manager_can_enter("employee.change_employee")
 def leave_requests_export(request):
     if request.META.get("HTTP_HX_REQUEST") == "true":
         excel_column = LeaveRequestExportForm()
@@ -702,7 +702,7 @@ def leave_requests_export(request):
         filter_class=LeaveRequestFilter,
         form_class=LeaveRequestExportForm,
         file_name="Leave_requests",
-        perm="leave.view_leaverequest",
+        perm="employee.change_employee",
     )
 
 
@@ -741,7 +741,7 @@ def generate_leave_request_pdf(template_path, context, html=False):
 
 
 @login_required
-@manager_can_enter("leave.view_leaverequest")
+@manager_can_enter("employee.change_employee")
 def create_leave_report(request):
     """
     Generate a Leave Report as a PDF and return it in an HttpResponse.
@@ -852,7 +852,7 @@ def create_leave_report(request):
 
 @login_required
 @hx_request_required
-@manager_can_enter("leave.view_leaverequest")
+@manager_can_enter("employee.change_employee")
 def leave_request_filter(request):
     """
     function used to filter leave request.
@@ -891,7 +891,7 @@ def leave_request_filter(request):
 
     field = request.GET.get("field")
     multiple_approvals = filter_conditional_leave_request(request)
-    queryset = filtersubordinates(request, queryset, "leave.view_leaverequest")
+    queryset = filtersubordinates(request, queryset, "employee.change_employee")
 
     if not request.user.is_superuser:
         multi_approve_requests = LeaveRequestConditionApproval.objects.filter(
@@ -1443,7 +1443,7 @@ def user_leave_cancel(request, id):
 
 @login_required
 @hx_request_required
-@manager_can_enter("leave.view_leaverequest")
+@manager_can_enter("employee.change_employee")
 def one_request_view(request, id):
     """
     function used to view one leave request.
@@ -2911,7 +2911,7 @@ def user_request_one(request, id):
     leave_request = LeaveRequest.objects.get(id=id)
     employee = request.user.employee_get
     if not (
-        request.user.has_perm("leave.view_leaverequest")
+        request.user.has_perm("employee.change_employee")
         or leave_request.employee_id == employee
         or check_manager(employee, leave_request.employee_id)
     ):
@@ -4068,7 +4068,7 @@ def leave_request_select(request):
     leave_req = LeaveRequest.objects.none()
 
     if page_number == "all":
-        if request.user.has_perm("leave.view_leaverequest"):
+        if request.user.has_perm("employee.change_employee"):
             leave_req = LeaveRequest.objects.all()
         else:
             leave_req = LeaveRequest.objects.filter(
@@ -4091,7 +4091,7 @@ def leave_request_select_filter(request):
     context = {}
 
     if page_number == "all":
-        if request.user.has_perm("leave.view_leaverequest"):
+        if request.user.has_perm("employee.change_employee"):
             leave_filter = LeaveRequestFilter(
                 filters, queryset=LeaveRequest.objects.all()
             )
@@ -4333,7 +4333,7 @@ def create_leaverequest_comment(request, leave_id):
     leave = LeaveRequest.objects.filter(id=leave_id).first()
     emp = request.user.employee_get
     if not (
-        request.user.has_perm("leave.view_leaverequest")
+        request.user.has_perm("employee.change_employee")
         or (
             leave is not None
             and (
@@ -4737,7 +4737,7 @@ def view_clashes(request, leave_request_id):
     record = get_object_or_404(LeaveRequest, id=leave_request_id)
     employee = request.user.employee_get
     if not (
-        request.user.has_perm("leave.view_leaverequest")
+        request.user.has_perm("employee.change_employee")
         or record.employee_id == employee
         or check_manager(employee, record.employee_id)
     ):

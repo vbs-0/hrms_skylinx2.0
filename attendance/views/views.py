@@ -172,7 +172,7 @@ def profile_attendance_tab(request):
 
 @login_required
 @hx_request_required
-@manager_can_enter("employee.view_employee")
+@manager_can_enter("employee.change_employee")
 def attendance_tab(request, pk):
     """
     This function is used to view attendance tab of an employee in individual view.
@@ -330,7 +330,7 @@ def attendance_export(request):
 
 
 @login_required
-@manager_can_enter("attendance.view_attendance")
+@manager_can_enter("employee.change_employee")
 def attendance_view(request):
     """
     This method is used to view attendances.
@@ -1917,7 +1917,7 @@ def user_request_one_view(request, id):
 
     employee = attendance_request.employee_id
     if not (
-        request.user.has_perm("attendance.view_attendance")
+        request.user.has_perm("employee.change_employee")
         or employee == request.user.employee_get
         or check_manager(request.user.employee_get, employee)
     ):
@@ -1957,7 +1957,7 @@ def get_attendance_activities(request, obj_id):
     if attendance:
         employee = attendance.employee_id
         if not (
-            request.user.has_perm("attendance.view_attendance")
+            request.user.has_perm("employee.change_employee")
             or employee == request.user.employee_get
             or check_manager(request.user.employee_get, employee)
         ):
@@ -2378,7 +2378,7 @@ def create_attendancerequest_comment(request, attendance_id):
     if attendance:
         owner = attendance.employee_id
         if not (
-            request.user.has_perm("attendance.view_attendance")
+            request.user.has_perm("employee.change_employee")
             or owner == request.user.employee_get
             or check_manager(request.user.employee_get, owner)
         ):
@@ -2506,7 +2506,7 @@ def view_attendancerequest_comment(request, attendance_id):
     if attendance:
         owner = attendance.employee_id
         if not (
-            request.user.has_perm("attendance.view_attendance")
+            request.user.has_perm("employee.change_employee")
             or owner == request.user.employee_get
             or check_manager(request.user.employee_get, owner)
         ):
@@ -2609,7 +2609,7 @@ def work_records_change_month(request):
     employee_filter_form = EmployeeFilter(request.GET or None)
 
     employees = filtersubordinatesemployeemodel(
-        request, employee_filter_form.qs, "attendance.view_attendance"
+        request, employee_filter_form.qs, "employee.change_employee"
     )
 
     all_employees = employees

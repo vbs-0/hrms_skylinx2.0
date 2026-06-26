@@ -1,0 +1,524 @@
+--- ours/middleware.py
++++ ref/middleware.py
+@@ -21,3 +21,30 @@
+                 status=401,
+             )
+         return self.get_response(request)
++
++class MobileTenantMiddleware:
++    """
++    Middleware that reads the authenticated user's company and sets CurrentCompany
++    in the thread-local context so SkylinxCompanyManager queries are scoped correctly.
++    """
++    def __init__(self, get_response):
++        self.get_response = get_response
++
++    def __call__(self, request):
++        if request.path.startswith("/api/"):
++            try:
++                from rest_framework_simplejwt.authentication import JWTAuthentication
++                auth = JWTAuthentication()
++                header = auth.get_header(request)
++                if header:
++                    raw_token = auth.get_raw_token(header)
++                    validated_token = auth.get_validated_token(raw_token)
++                    user = auth.get_user(validated_token)
++                    company = user.employee_get.get_company()
++                    if company:
++                        from skylinx.skylinx_middlewares import set_selected_company
++                        set_selected_company(company)
++            except Exception:
++                pass
++
++        return self.get_response(request)
+
+================================================================================
+
+--- ours/urls.py
++++ ref/urls.py
+@@ -9,11 +9,11 @@
+ # Create schema view for Swagger and ReDoc
+ schema_view = get_schema_view(
+     openapi.Info(
+-        title="EMPLINX API",
++        title="Skylinx API",
+         default_version="v1",
+-        description="API documentation for EMPLINX. Click the 'Authorize' button at the top to authenticate.",
+-        terms_of_service="https://www.emplinx.com/terms/",
+-        contact=openapi.Contact(email="support@emplinx.com"),
++        description="API documentation for Skylinx HRMS. Click the 'Authorize' button at the top to authenticate.",
++        terms_of_service="https://www.skylinx.com/terms/",
++        contact=openapi.Contact(email="support@skylinx.com"),
+         license=openapi.License(name="BSD License"),
+     ),
+     public=True,
+@@ -48,12 +48,13 @@
+     path("offboarding/", include("skylinx_api.api_urls.offboarding.urls")),
+     path("recruitment/", include("skylinx_api.api_urls.recruitment.urls")),
+     path("pms/", include("skylinx_api.api_urls.pms.urls")),
+-    # --- Mobile API (v1) for the Flutter app ---
+-    path("v1/auth/", include("skylinx_api.api_urls.auth.mobile_urls")),
+-    path("v1/attendance/", include("skylinx_api.api_urls.attendance.mobile_urls")),
+-    path("v1/leaves/", include("skylinx_api.api_urls.leave.mobile_urls")),
+-    path("v1/payroll/", include("skylinx_api.api_urls.payroll.mobile_urls")),
+-    path("v1/employee/", include("skylinx_api.api_urls.employee.mobile_urls")),
+-    path("v1/base/", include("skylinx_api.api_urls.base.mobile_urls")),
+-    path("v1/admin/", include("skylinx_api.api_urls.admin.mobile_urls")),
++    # ------------------------------------------------------------------------
++    # Mobile API Endpoints (v1 namespace)
++        path("v1/auth/", include("skylinx_api.api_urls.auth.mobile_urls")),
++        path("v1/attendance/", include("skylinx_api.api_urls.attendance.mobile_urls")),
++        path("v1/leaves/", include("skylinx_api.api_urls.leave.mobile_urls")),
++        path("v1/payroll/", include("skylinx_api.api_urls.payroll.mobile_urls")),
++        path("v1/employee/", include("skylinx_api.api_urls.employee.mobile_urls")),
++        path("v1/base/", include("skylinx_api.api_urls.base.mobile_urls")),
++        path("v1/admin/", include("skylinx_api.api_urls.admin.mobile_urls")),
+ ]
+
+================================================================================
+
+--- ours/api_urls/leave/mobile_urls.py
++++ ref/api_urls/leave/mobile_urls.py
+@@ -14,6 +14,7 @@
+ urlpatterns = [
+     path("", MobileAdminLeaveListAPIView.as_view(), name="mobile-api-admin-leaves-list"),
+     path("<int:pk>/review/", MobileAdminLeaveReviewAPIView.as_view(), name="mobile-api-admin-leave-review"),
++    path("apply", MobileLeaveApplyAPIView.as_view(), name="mobile-api-leave-apply-no-slash"),
+     path("apply/", MobileLeaveApplyAPIView.as_view(), name="mobile-api-leave-apply"),
+     path("available-types/", MobileAvailableLeaveTypesAPIView.as_view(), name="mobile-api-available-leave-types"),
+     path("my/", MobileMyLeavesAPIView.as_view(), name="mobile-api-my-leaves"),
+
+================================================================================
+
+--- ours/api_views/attendance/mobile_views.py
++++ ref/api_views/attendance/mobile_views.py
+@@ -119,7 +119,7 @@
+                 print(f"Geopy calculation error: {e}")
+                 pass
+ 
+-        # 4. Perform check-in (Sync with EMPLINX Core Shift/Attendance logic)
++        # 4. Perform check-in (Sync with Skylinx Core Shift/Attendance logic)
+         if request.user.employee_get.check_online():
+             return Response({
+                 "success": False,
+@@ -481,6 +481,21 @@
+         for act in activities:
+             detail = getattr(act, "mobile_detail", None)
+ 
++            # Map Check Out event first (reverse chronological order)
++            if act.out_datetime:
++                events.append({
++                    "id": f"{act.id}_out",
++                    "userId": str(request.user.id),
++                    "eventType": "check_out",
++                    "selfieUrl": request.build_absolute_uri(detail.check_out_selfie.url) if (detail and detail.check_out_selfie) else None,
++                    "latitude": detail.check_out_lat if detail else None,
++                    "longitude": detail.check_out_lng if detail else None,
++                    "withinGeofence": detail.check_out_within_geofence if detail else True,
++                    "gpsEnabled": True,
++                    "capturedAt": act.out_datetime.isoformat(),
++                    "createdAt": act.out_datetime.isoformat()
++                })
++
+             # Map Check In event
+             if act.in_datetime:
+                 events.append({
+@@ -496,21 +511,6 @@
+                     "createdAt": act.created_at.isoformat()
+                 })
+ 
+-            # Map Check Out event
+-            if act.out_datetime:
+-                events.append({
+-                    "id": f"{act.id}_out",
+-                    "userId": str(request.user.id),
+-                    "eventType": "check_out",
+-                    "selfieUrl": request.build_absolute_uri(detail.check_out_selfie.url) if (detail and detail.check_out_selfie) else None,
+-                    "latitude": detail.check_out_lat if detail else None,
+-                    "longitude": detail.check_out_lng if detail else None,
+-                    "withinGeofence": detail.check_out_within_geofence if detail else True,
+-                    "gpsEnabled": True,
+-                    "capturedAt": act.out_datetime.isoformat(),
+-                    "createdAt": act.out_datetime.isoformat()
+-                })
+-
+         return Response({
+             "success": True,
+             "message": "Logs retrieved",
+
+================================================================================
+
+--- ours/api_views/attendance/views.py
++++ ref/api_views/attendance/views.py
+@@ -102,7 +102,7 @@
+                 if start_time_sec > end_time_sec:
+                     # night shift
+                     # ------------------
+-                    # Night shift in EMPLINX consider a 24 hours from noon to next day noon,
++                    # Night shift in Skylinx consider a 24 hours from noon to next day noon,
+                     # the shift day taken today if the attendance clocked in after 12 O clock.
+ 
+                     if mid_day_sec > now_sec:
+
+================================================================================
+
+--- ours/api_views/auth/mobile_auth_views.py
++++ ref/api_views/auth/mobile_auth_views.py
+@@ -17,8 +17,27 @@
+     except Exception:
+         employee = None
+ 
++    is_superuser = user.is_superuser
++    has_manager_role = False
++    if employee:
++        has_manager_role = EmployeeWorkInformation.objects.filter(reporting_manager_id=employee).exists()
++
++    permissions = {
++        "can_approve_leaves": is_superuser or user.has_perm("leave.change_leaverequest") or has_manager_role,
++        "can_view_all_leaves": is_superuser or user.has_perm("leave.view_leaverequest") or has_manager_role,
++        "can_add_holidays": is_superuser or user.has_perm("base.add_holidays"),
++        "can_view_reports": is_superuser or user.has_perm("attendance.view_attendance") or has_manager_role,
++        "can_view_live_map": is_superuser or user.has_perm("employee.view_employee") or has_manager_role,
++        "can_manage_selfies": is_superuser or user.has_perm("attendance.change_attendance") or has_manager_role,
++        "can_view_directory": is_superuser or user.has_perm("employee.view_employee"),
++        "can_view_leaves": is_superuser or user.has_perm("leave.view_leaverequest"),
++        "can_view_holidays": is_superuser or user.has_perm("base.view_holidays"),
++        "can_view_payslips": is_superuser or user.has_perm("payroll.view_payslip"),
++        "can_view_expenses": is_superuser, # fallback, you can update if horilla uses specific permission
++    }
++
+     role = "employee"
+-    if user.is_superuser or user.has_perm("employee.add_employee"):
++    if is_superuser or user.groups.filter(name__endswith="::Admin").exists():
+         role = "admin"
+ 
+     profile_data = None
+@@ -165,7 +184,8 @@
+         "role": role,
+         "status": "active" if user.is_active else "inactive",
+         "liveLocationEnabled": subscription_enabled,
+-        "employeeProfile": profile_data
++        "employeeProfile": profile_data,
++        "permissions": permissions
+     }
+ 
+ 
+
+================================================================================
+
+--- ours/api_views/employee/mobile_views.py
++++ ref/api_views/employee/mobile_views.py
+@@ -18,14 +18,17 @@
+ 
+         # Filter by company if resolvable
+         if company:
+-            qs = Employee.objects.filter(
++            qs = Employee.objects.all().filter(
+                 employee_work_info__company_id=company,
+                 is_active=True
+             ).select_related("employee_work_info", "employee_user_id").order_by(
+                 "employee_first_name"
+             )
++            print(f"QS Count inside API: {qs.count()}")
++            for e in qs:
++                print(e.id, getattr(e, 'employee_work_info', None))
+         else:
+-            qs = Employee.objects.filter(is_active=True).select_related(
++            qs = Employee.objects.all().filter(is_active=True).select_related(
+                 "employee_work_info", "employee_user_id"
+             ).order_by("employee_first_name")
+ 
+
+================================================================================
+
+--- ours/api_views/employee/views.py
++++ ref/api_views/employee/views.py
+@@ -753,7 +753,7 @@
+             serializer = DocumentRequestSerializer(page, many=True)
+             return pagination.get_paginated_response(serializer.data)
+ 
+-    @manager_permission_required("skylinx_documents.add_documentrequest")
++    @manager_permission_required("skylinx_documents.add_documentrequests")
+     def post(self, request):
+         serializer = DocumentRequestSerializer(data=request.data)
+         if serializer.is_valid():
+@@ -778,7 +778,7 @@
+             return Response(serializer.data, status=status.HTTP_201_CREATED)
+         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+ 
+-    @manager_permission_required("skylinx_documents.change_documentrequest")
++    @manager_permission_required("skylinx_documents.change_documentrequests")
+     def put(self, request, pk):
+         document_request = self.get_object(pk)
+         serializer = DocumentRequestSerializer(document_request, data=request.data)
+
+================================================================================
+
+--- ours/api_views/leave/mobile_views.py
++++ ref/api_views/leave/mobile_views.py
+@@ -61,9 +61,9 @@
+         # ── Leave type lookup ─────────────────────────────────────────────────
+         leave_type = None
+         if leave_type_id:
+-            leave_type = LeaveType.objects.filter(id=leave_type_id).first()
++            leave_type = LeaveType.objects.entire().filter(id=leave_type_id).first()
+         if not leave_type and leave_type_name:
+-            leave_type = LeaveType.objects.filter(name__icontains=leave_type_name).first()
++            leave_type = LeaveType.objects.entire().filter(name__icontains=leave_type_name).first()
+ 
+         if not leave_type:
+             return Response({
+@@ -74,7 +74,7 @@
+ 
+         # ── Assignment check (mirrors web form queryset restriction) ─────────
+         try:
+-            available_leave = AvailableLeave.objects.get(
++            available_leave = AvailableLeave.objects.entire().get(
+                 employee_id=employee, leave_type_id=leave_type
+             )
+         except AvailableLeave.DoesNotExist:
+@@ -128,7 +128,7 @@
+         if requested_days > total_available:
+             return Response({
+                 "success": False,
+-                "message": f"Insufficient leave balance. You have {total_available} day(s) available but requested {requested_days}",
++                "message": "Leaves allocated exhausted.",
+                 "errorCode": "INSUFFICIENT_BALANCE"
+             }, status=400)
+ 
+@@ -185,7 +185,7 @@
+ 
+         # Fetch leave requests
+         year_str = request.query_params.get("year")
+-        qs = LeaveRequest.objects.filter(employee_id=employee)
++        qs = LeaveRequest.objects.entire().filter(employee_id=employee)
+ 
+         if year_str:
+             try:
+@@ -227,50 +227,49 @@
+             return Response({
+                 "success": False,
+                 "message": "User is not registered as an employee",
+-                "data": {}
++                "data": []
+             }, status=400)
+ 
+         year = datetime.now().year
+ 
+-        # Aggregate all leave requests for this employee in the current year
+-        taken_total = LeaveRequest.objects.filter(
+-            employee_id=employee,
+-            start_date__year=year,
+-            status="approved"
+-        ).aggregate(total=Sum("requested_days"))["total"] or 0.0
+-
+-        pending_total = LeaveRequest.objects.filter(
+-            employee_id=employee,
+-            start_date__year=year,
+-            status__in=["requested", "pending"]
+-        ).aggregate(total=Sum("requested_days"))["total"] or 0.0
+-
+-        # Sick leave taken
+-        sick_taken = LeaveRequest.objects.filter(
+-            employee_id=employee,
+-            start_date__year=year,
+-            status="approved",
+-            leave_type_id__name__icontains="sick"
+-        ).aggregate(total=Sum("requested_days"))["total"] or 0.0
+-
+-        # LOP taken
+-        lop_taken = LeaveRequest.objects.filter(
+-            employee_id=employee,
+-            start_date__year=year,
+-            status="approved",
+-            leave_type_id__name__icontains="lop"
+-        ).aggregate(total=Sum("requested_days"))["total"] or 0.0
++        available_leaves = AvailableLeave.objects.entire().filter(employee_id=employee)
++        leave_types = []
++
++        for al in available_leaves:
++            leave_type = al.leave_type_id
++            if not leave_type: continue
++
++            allocated = al.total_leave_days or 0.0
++            available = al.available_days or 0.0
++            cf = al.carryforward_days or 0.0
++
++            taken = LeaveRequest.objects.entire().filter(
++                employee_id=employee,
++                leave_type_id=leave_type,
++                start_date__year=year,
++                status="approved"
++            ).aggregate(total=Sum("requested_days"))["total"] or 0.0
++
++            pending = LeaveRequest.objects.entire().filter(
++                employee_id=employee,
++                leave_type_id=leave_type,
++                start_date__year=year,
++                status__in=["requested", "pending"]
++            ).aggregate(total=Sum("requested_days"))["total"] or 0.0
++
++            leave_types.append({
++                "id": str(leave_type.id),
++                "name": leave_type.name,
++                "allocated": allocated,
++                "available": available + cf,
++                "taken": taken,
++                "pending": pending
++            })
+ 
+         return Response({
+             "success": True,
+             "message": "Leave summary loaded",
+-            "data": {
+-                "year": year,
+-                "sick": sick_taken,
+-                "lop": lop_taken,
+-                "total": taken_total,
+-                "pending": pending_total,
+-            }
++            "data": leave_types
+         }, status=200)
+ 
+ 
+@@ -342,15 +341,24 @@
+         _, num_days = calendar.monthrange(year, month)
+         month_start = date(year, month, 1)
+         month_end = date(year, month, num_days)
++        try:
++            employee = request.user.employee_get
++            company = employee.get_company()
++        except Exception:
++            company = None
+ 
+         # 1. Fetch holidays from leave.Holiday overlapping this month
+-        qs1 = Holiday.objects.filter(
++        qs1 = Holiday.objects.entire().filter(
++            company_id=company,
++        ).filter(
+             (Q(start_date__lte=month_end) & Q(end_date__gte=month_start)) |
+             (Q(end_date__isnull=True) & Q(start_date__lte=month_end) & Q(start_date__gte=month_start))
+         ).order_by("start_date")
+ 
+         # 2. Fetch holidays from base.Holidays overlapping this month
+-        qs2 = Holidays.objects.filter(
++        qs2 = Holidays.objects.entire().filter(
++            company_id=company,
++        ).filter(
+             (Q(start_date__lte=month_end) & Q(end_date__gte=month_start)) |
+             (Q(end_date__isnull=True) & Q(start_date__lte=month_end) & Q(start_date__gte=month_start))
+         ).order_by("start_date")
+@@ -376,6 +384,23 @@
+                 "isOptional": getattr(h, "is_optional", False)
+             })
+ 
++        # 3. Fetch CompanyLeaves and generate dynamic dates
++        from base.models import CompanyLeaves
++        from leave.methods import company_leave_dates_list
++        company_leaves = CompanyLeaves.objects.entire().filter(company_id=company)
++        company_leave_dates = company_leave_dates_list(company_leaves, month_start)
++        for c_date in company_leave_dates:
++            # Filter dates to only include those strictly in this month, since company_leave_dates_list might return some overlap
++            if c_date.month == month and c_date.year == year:
++                holidays_list.append({
++                    "id": f"company_leave_{c_date.isoformat()}",
++                    "name": "Company Leave",
++                    "startDate": c_date.isoformat(),
++                    "endDate": c_date.isoformat(),
++                    "description": "Company default day off",
++                    "isOptional": False
++                })
++
+         # Fetch approved leaves overlapping this month
+         leaves_qs = LeaveRequest.objects.filter(
+             status="approved",
+@@ -383,7 +408,7 @@
+             end_date__gte=month_start
+         )
+ 
+-        is_admin = request.user.is_superuser or request.user.groups.filter(name="Admin").exists() or request.user.has_perm("leave.view_leaverequest") or request.user.has_perm("employee.add_employee")
++        is_admin = request.user.is_superuser or request.user.groups.filter(name__endswith="::Admin").exists() or request.user.has_perm("leave.view_leaverequest") or request.user.has_perm("employee.add_employee")
+         if not is_admin:
+             leaves_qs = leaves_qs.none()
+ 
+@@ -413,7 +438,7 @@
+         }, status=200)
+ 
+     def post(self, request):
+-        if not (request.user.is_superuser or request.user.groups.filter(name="Admin").exists()):
++        if not (request.user.is_superuser or request.user.groups.filter(name__endswith="::Admin").exists()):
+             return Response({
+                 "success": False,
+                 "message": "Only admins can create holidays"
+@@ -475,7 +500,7 @@
+     permission_classes = [IsAuthenticated]
+ 
+     def get(self, request):
+-        if not (request.user.is_superuser or request.user.groups.filter(name="Admin").exists()):
++        if not (request.user.is_superuser or request.user.groups.filter(name__endswith="::Admin").exists()):
+             return Response({
+                 "success": False,
+                 "message": "Only admins can view leave list",
+@@ -543,7 +568,7 @@
+     permission_classes = [IsAuthenticated]
+ 
+     def patch(self, request, pk):
+-        if not (request.user.is_superuser or request.user.groups.filter(name="Admin").exists()):
++        if not (request.user.is_superuser or request.user.groups.filter(name__endswith="::Admin").exists()):
+             return Response({
+                 "success": False,
+                 "message": "Only admins can review leave requests"
+@@ -629,7 +654,7 @@
+     permission_classes = [IsAuthenticated]
+ 
+     def delete(self, request, pk):
+-        if not (request.user.is_superuser or request.user.groups.filter(name="Admin").exists()):
++        if not (request.user.is_superuser or request.user.groups.filter(name__endswith="::Admin").exists()):
+             return Response({
+                 "success": False,
+                 "message": "Only admins can delete holidays"
+
+================================================================================
+
+--- ours/api_views/payroll/mobile_views.py
++++ ref/api_views/payroll/mobile_views.py
+@@ -24,7 +24,7 @@
+             return Response({"success": False, "message": "Not an employee", "data": []}, status=400)
+ 
+         year_str = request.query_params.get("year")
+-        qs = Payslip.objects.filter(employee_id=employee).order_by("-start_date")
++        qs = Payslip.objects.entire().filter(employee_id=employee).order_by("-start_date")
+ 
+         if year_str:
+             try:
+@@ -100,7 +100,7 @@
+         except Exception:
+             return Response({"success": False, "message": "Not an employee", "data": []}, status=400)
+ 
+-        qs = Reimbursement.objects.filter(
++        qs = Reimbursement.objects.entire().filter(
+             employee_id=employee,
+             type="reimbursement"
+         ).order_by("-allowance_on")
+@@ -202,7 +202,7 @@
+             return Response({"success": False, "message": "Not an employee"}, status=400)
+ 
+         try:
+-            payslip = Payslip.objects.get(id=pk)
++            payslip = Payslip.objects.entire().get(id=pk)
+         except Payslip.DoesNotExist:
+             return Response({"success": False, "message": "Payslip not found"}, status=404)
+ 
+@@ -298,6 +298,8 @@
+         data["request"] = request
+         template_path = "payroll/payslip/payslip_pdf.html"
+ 
+-        pdf_response = generate_payslip_pdf(template_path, context=data, html=False)
++        html_flag = request.query_params.get("html", "false").lower() == "true"
++
++        pdf_response = generate_payslip_pdf(template_path, context=data, html=html_flag)
+         return pdf_response
+ 
+
+================================================================================
+

@@ -456,16 +456,16 @@ class LeaveRequestGetCreateAPIView(APIView):
         leave_request = LeaveRequest.objects.all().order_by("-id")
         multiple_approvals = filter_conditional_leave_request(self.request)
         return (
-            filtersubordinates(self.request, leave_request, "leave.view_leaverequest")
+            filtersubordinates(self.request, leave_request, "employee.change_employee")
             | multiple_approvals
         )
 
-    @manager_permission_required("leave.view_leaverequest")
+    @manager_permission_required("employee.change_employee")
     def get(self, request):
         leave_request = LeaveRequest.objects.all().order_by("-id")
         multiple_approvals = filter_conditional_leave_request(request)
         queryset = (
-            filtersubordinates(request, leave_request, "leave.view_leaverequest")
+            filtersubordinates(request, leave_request, "employee.change_employee")
             | multiple_approvals
         )
         filterset = self.filterset_class(request.GET, queryset=queryset)
@@ -522,7 +522,7 @@ class LeaveRequestGetUpdateDeleteAPIView(APIView):
         except LeaveRequest.DoesNotExist as e:
             raise serializers.ValidationError(e)
 
-    @manager_permission_required("leave.view_leaverequest")
+    @manager_permission_required("employee.change_employee")
     def get(self, request, pk):
         leave_request = self.get_leave_request(pk)
         serializer = LeaveRequestGetSerilaizer(
@@ -1064,12 +1064,12 @@ class EmployeeLeaveAllocationUpdateDeleteAPIView(APIView):
 class LeaveRequestedApprovedCountAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    @manager_permission_required("leave.view_leaverequest")
+    @manager_permission_required("employee.change_employee")
     def get(self, request):
         leave_requests = LeaveRequest.objects.all()
         multiple_approvals = filter_conditional_leave_request(request)
         queryset = (
-            filtersubordinates(request, leave_requests, "leave.view_leaverequest")
+            filtersubordinates(request, leave_requests, "employee.change_employee")
             | multiple_approvals
         )
         requested = queryset.filter(status="requested").count()
@@ -1120,7 +1120,7 @@ class LeaveAllocationGetPermissionCheckAPIView(APIView):
 class LeaveRequestGetPermissionCheckAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    @manager_permission_required("leave.view_leaverequest")
+    @manager_permission_required("employee.change_employee")
     def get(self, request):
         return Response(status=200)
 

@@ -24,7 +24,7 @@ def leave_accessibility(
     """
     employee = Employee.objects.get(id=instance.pk)
     if (
-        request.user.has_perm("leave.view_leaverequest")
+        request.user.has_perm("employee.change_employee")
         or check_manager(request.user.employee_get, instance)
         or request.user == employee.employee_user_id
     ):

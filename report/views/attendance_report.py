@@ -43,7 +43,7 @@ if apps.is_installed("attendance"):
             return "00.00"
 
     @login_required
-    @permission_required(perm="attendance.view_attendance")
+    @permission_required(perm="employee.change_employee")
     def attendance_report(request):
         company = "all"
         selected_company = request.session.get("selected_company")
@@ -57,7 +57,7 @@ if apps.is_installed("attendance"):
         )
 
     @login_required
-    @permission_required(perm="attendance.view_attendance")
+    @permission_required(perm="employee.change_employee")
     def attendance_pivot(request):
         qs = Attendance.objects.all()
         filter_obj = AttendanceFilters(request.GET, queryset=qs)

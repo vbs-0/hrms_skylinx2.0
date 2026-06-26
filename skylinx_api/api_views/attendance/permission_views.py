@@ -8,7 +8,7 @@ from ...api_decorators.base.decorators import manager_permission_required
 class AttendancePermissionCheck(APIView):
     permission_classes = [IsAuthenticated]
 
-    @manager_permission_required("attendance.view_attendance")
+    @manager_permission_required("employee.change_employee")
     def get(self, request):
         return Response(status=200)
 
@@ -16,7 +16,7 @@ class AttendancePermissionCheck(APIView):
 class AttendancePermissionCheck(APIView):
     permission_classes = [IsAuthenticated]
 
-    @manager_permission_required("attendance.view_attendance")
+    @manager_permission_required("employee.change_employee")
     def get(self, request):
 
         return Response(status=200)

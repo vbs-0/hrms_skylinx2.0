@@ -87,7 +87,7 @@ def scope_employee_queryset_to_client(request, queryset):
 @method_decorator(
     enter_if_accessible(
         feature="employee_view",
-        perm="employee.view_employee",
+        perm="employee.change_employee",
         method=_check_reporting_manager,
     ),
     name="dispatch",
@@ -114,7 +114,7 @@ from base import models as base_models
 @method_decorator(
     enter_if_accessible(
         feature="employee_view",
-        perm="employee.view_employee",
+        perm="employee.change_employee",
         method=_check_reporting_manager,
     ),
     name="dispatch",
@@ -358,7 +358,7 @@ class EmployeesList(SkylinxListView):
         """
         queryset = super().get_queryset()
         queryset = filtersubordinatesemployeemodel(
-            self.request, queryset, "employee.view_employee"
+            self.request, queryset, "employee.change_employee"
         )
         queryset = scope_employee_queryset_to_client(self.request, queryset)
         # ponytail: kill the N+1 — every row reads work_info + its FKs + user.
@@ -506,7 +506,7 @@ class WorkTab(SkylinxTabView):
 @method_decorator(
     enter_if_accessible(
         feature="employee_view",
-        perm="employee.view_employee",
+        perm="employee.change_employee",
         method=_check_reporting_manager,
     ),
     name="dispatch",
@@ -681,7 +681,7 @@ def user_generic_import_or_update(sender, **kwargs):
 @method_decorator(
     enter_if_accessible(
         feature="employee_view",
-        perm="employee.view_employee",
+        perm="employee.change_employee",
         method=_check_reporting_manager,
     ),
     name="dispatch",
@@ -707,7 +707,7 @@ class ExportView(TemplateView):
 @method_decorator(
     enter_if_accessible(
         feature="employee_view",
-        perm="employee.view_employee",
+        perm="employee.change_employee",
         method=_check_reporting_manager,
     ),
     name="dispatch",
@@ -807,7 +807,7 @@ class EmployeeCard(SkylinxCardView):
         """
         queryset = super().get_queryset()
         queryset = filtersubordinatesemployeemodel(
-            self.request, queryset, "employee.view_employee"
+            self.request, queryset, "employee.change_employee"
         )
         queryset = scope_employee_queryset_to_client(self.request, queryset)
         # ponytail: kill the N+1 — every row reads work_info + its FKs + user.

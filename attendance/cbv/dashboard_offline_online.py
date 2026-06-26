@@ -17,7 +17,7 @@ from skylinx_views.generic.cbv.views import SkylinxListView
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(manager_can_enter("leave.view_leaverequest"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class DashboardOfflineEmployees(SkylinxListView):
     """
     list view for offline employees in dashboard
@@ -60,7 +60,7 @@ class DashboardOfflineEmployees(SkylinxListView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(manager_can_enter("leave.view_leaverequest"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class DashboardOnlineEmployees(SkylinxListView):
     """
     list view for online employees in dashboard

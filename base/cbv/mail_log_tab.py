@@ -27,7 +27,7 @@ def _check_reporting_manager(request, *args, **kwargs):
 @method_decorator(
     enter_if_accessible(
         feature="view_mail_log",
-        perm="employee.view_employee",
+        perm="employee.change_employee",
         method=_check_reporting_manager,
     ),
     name="dispatch",
@@ -97,7 +97,7 @@ class MailLogTabList(SkylinxListView):
 @method_decorator(
     enter_if_accessible(
         feature="view_mail_log",
-        perm="employee.view_employee",
+        perm="employee.change_employee",
         method=_check_reporting_manager,
     ),
     name="dispatch",

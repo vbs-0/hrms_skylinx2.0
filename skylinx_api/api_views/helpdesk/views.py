@@ -255,7 +255,7 @@ class TicketGetCreateAPIView(APIView):
         if not self.request.user.is_authenticated:
             return Ticket.objects.none()
         user = self.request.user
-        perm = "helpdesk.view_ticket"
+        perm = "helpdesk.change_ticket"
         queryset = Ticket.objects.all()
         queryset = permission_based_queryset(user, perm, queryset, user_obj=True)
         return queryset
@@ -300,7 +300,7 @@ class TicketGetUpdateDeleteAPIView(APIView):
         # Check permissions
         user = request.user
         if not (
-            user.has_perm("helpdesk.view_ticket")
+            user.has_perm("helpdesk.change_ticket")
             or ticket.employee_id == user.employee_get
             or ticket.assigned_to.filter(id=user.employee_get.id).exists()
         ):

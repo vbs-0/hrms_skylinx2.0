@@ -120,7 +120,7 @@ class EmployeeAPIView(APIView):
             )
 
         # If user has global view permission
-        if user.has_perm("employee.view_employee"):
+        if user.has_perm("employee.change_employee"):
             company = request.META.get("HTTP_COMPANY", None) or request.session.get("selected_company", None)
             if company and company != "all":
                 if not getattr(employee, "employee_work_info", None) or employee.employee_work_info.company_id.id != int(company):
@@ -215,7 +215,7 @@ class EmployeeListAPIView(APIView):
         )
 
         # Permission-based filtering
-        if user.has_perm("employee.view_employee"):
+        if user.has_perm("employee.change_employee"):
             company = request.META.get("HTTP_COMPANY", None) or request.session.get("selected_company", None)
             if company and company != "all":
                 employees_queryset = employees_queryset.filter(employee_work_info__company_id=company)
@@ -360,12 +360,12 @@ class EmployeeWorkInformationAPIView(APIView):
             if (
                 request.user.employee_get
                 in [work_info.employee_id, work_info.reporting_manager_id]
-            ) or request.user.has_perm("employee.view_employeeworkinformation"):
+            ) or request.user.has_perm("employee.change_employee"):
                 serializer = EmployeeWorkInformationSerializer(work_info)
                 return Response(serializer.data, status=200)
             return Response({"message": "No permission"}, status=400)
         else:
-            if request.user.has_perm("employee.view_employeeworkinformation"):
+            if request.user.has_perm("employee.change_employee"):
                 queryset = EmployeeWorkInformation.objects.all()
             else:
                 queryset = EmployeeWorkInformation.objects.filter(employee_id=request.user.employee_get.id)
@@ -960,7 +960,7 @@ class EmployeeSelectorView(APIView):
             employees = Employee.objects.filter(
                 Q(pk=employee.pk) | Q(employee_work_info__reporting_manager_id=employee)
             )
-        if request.user.has_perm("employee.view_employee"):
+        if request.user.has_perm("employee.change_employee"):
             employees = Employee.objects.all()
 
         paginator = PageNumberPagination()

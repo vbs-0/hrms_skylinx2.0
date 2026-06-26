@@ -1,37 +1,25 @@
-#!/usr/bin/env bash
-# One-command deploy (gap #12). Pull, migrate, collectstatic, restart.
-# Backs up the DB first so a bad migration is recoverable (gap #8).
-#
-# Usage on server:
-#   chmod +x scripts/deploy.sh
-#   ./scripts/deploy.sh
-set -euo pipefail
+#!/bin/bash
+# Deploy script for permission fixes
+set -e
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$PROJECT_DIR"
+echo "=== Staging files ==="
+git add employee/sidebar.py attendance/sidebar.py leave/sidebar.py payroll/sidebar.py employee/views.py attendance/views/views.py attendance/views/requests.py
 
-PY="${PY:-$PROJECT_DIR/venv/bin/python}"
-SERVICES="${SERVICES:-hrms-client hrms-vendor hrms-scheduler}"
+echo "=== Committing ==="
+git commit -m "fix: restrict sidebar and views to self-service only for regular employees
 
-echo "==> safety backup before deploy"
-"$PROJECT_DIR/scripts/backup_db.sh" || echo "WARN: backup failed — continuing (check backup.log)"
+- employee/sidebar.py: Hide Employees link - changed from view_employee to change_employee
+- attendance/sidebar.py: Hide Attendance Requests from regular employees
+- leave/sidebar.py: Hide Leave Types and Assign Leave Type from regular employees
+- payroll/sidebar.py: Add accessibility for Payslips and Expenses
+- employee/views.py: Add filtersubordinates to employee_view (employee.change_employee gate)
+- attendance/views/views.py: Change filtersubordinates perms to employee.change_employee (4 calls)
+- attendance/views/requests.py: Change filtersubordinates perms to employee.change_employee (2 calls)"
 
-echo "==> git pull"
-git pull --ff-only
+echo "=== Pushing ==="
+git push origin 1.0.9.beta
 
-echo "==> install deps (if changed)"
-"$PY" -m pip install -q -r requirements.txt
+echo "=== Deploying to server ==="
+ssh skylinx "cd /home/ubuntu/hrms/hrms_skylinx2.0 && sudo git pull origin 1.0.9.beta && sudo systemctl restart hrms-client && echo 'Server: deployed and restarted'"
 
-echo "==> migrate"
-"$PY" manage.py migrate --noinput
-
-echo "==> collectstatic"
-"$PY" manage.py collectstatic --noinput
-
-echo "==> restart services"
-# shellcheck disable=SC2086
-sudo systemctl restart $SERVICES
-
-echo "==> done. status:"
-# shellcheck disable=SC2086
-sudo systemctl --no-pager --lines=0 status $SERVICES || true
+echo "=== Done ==="

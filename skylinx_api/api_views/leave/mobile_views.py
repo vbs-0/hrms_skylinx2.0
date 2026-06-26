@@ -383,7 +383,7 @@ class MobileHolidaysAPIView(APIView):
             end_date__gte=month_start
         )
 
-        is_admin = request.user.is_superuser or request.user.groups.filter(name="Admin").exists() or request.user.has_perm("leave.view_leaverequest") or request.user.has_perm("employee.add_employee")
+        is_admin = request.user.is_superuser or request.user.groups.filter(name="Admin").exists() or request.user.has_perm("employee.change_employee") or request.user.has_perm("employee.add_employee")
         if not is_admin:
             leaves_qs = leaves_qs.none()
 

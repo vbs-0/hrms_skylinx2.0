@@ -14,7 +14,7 @@ from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 
 
-def can_view_company_analytics(user, perm="employee.view_employee"):
+def can_view_company_analytics(user, perm="employee.change_employee"):
     """
     Whether `user` may see company-wide analytics gated by `perm`.
 
@@ -28,7 +28,7 @@ def can_view_company_analytics(user, perm="employee.view_employee"):
     )
 
 
-def analytics_permission_required(perm="employee.view_employee"):
+def analytics_permission_required(perm="employee.change_employee"):
     """Gate a dashboard JSON endpoint behind login + company-analytics permission."""
 
     def decorator(view):
@@ -130,7 +130,7 @@ def main_dashboard_view(request):
     )
 
 
-@analytics_permission_required("employee.view_employee")
+@analytics_permission_required("employee.change_employee")
 def dashboard_kpi_data(request):
     """Return KPI summary data as JSON."""
     from employee.models import Employee
@@ -246,7 +246,7 @@ def dashboard_kpi_data(request):
     )
 
 
-@analytics_permission_required("attendance.view_attendance")
+@analytics_permission_required("employee.change_employee")
 def dashboard_attendance_trend(request):
     """Weekly attendance trend.
 
@@ -294,7 +294,7 @@ def dashboard_attendance_trend(request):
     return JsonResponse({"weeks": weeks})
 
 
-@analytics_permission_required("leave.view_leaverequest")
+@analytics_permission_required("employee.change_employee")
 def dashboard_leave_breakdown(request):
     """Leave type breakdown for the selected period."""
     from_date, to_date = _parse_period(request)
@@ -331,7 +331,7 @@ def dashboard_leave_breakdown(request):
     return JsonResponse({"breakdown": breakdown, "month": today.strftime("%B %Y")})
 
 
-@analytics_permission_required("employee.view_employee")
+@analytics_permission_required("employee.change_employee")
 def dashboard_department_headcount(request):
     """Department-wise headcount."""
     departments = []
@@ -358,7 +358,7 @@ def dashboard_department_headcount(request):
     return JsonResponse({"departments": departments})
 
 
-@analytics_permission_required("employee.view_employee")
+@analytics_permission_required("employee.change_employee")
 def dashboard_gender_split(request):
     """Gender distribution."""
     genders = []
@@ -571,7 +571,7 @@ def dashboard_upcoming_holidays(request):
     return JsonResponse({"holidays": holidays_data})
 
 
-@analytics_permission_required("employee.view_employee")
+@analytics_permission_required("employee.change_employee")
 def dashboard_birthdays_anniversaries(request):
     """Upcoming birthdays and work anniversaries in the next 7 days."""
     today = date.today()
@@ -913,7 +913,7 @@ def load_dashboard_prefs(request):
         return JsonResponse({"prefs": []})
 
 
-@analytics_permission_required("employee.view_employee")
+@analytics_permission_required("employee.change_employee")
 def dashboard_turnover(request):
     """Employee turnover — new hires vs exits over the last 6 months ending at selected period."""
     _, to_date = _parse_period(request)
@@ -995,7 +995,7 @@ def dashboard_turnover(request):
     )
 
 
-@analytics_permission_required("employee.view_employee")
+@analytics_permission_required("employee.change_employee")
 def dashboard_project_status(request):
     """Return Project status data as JSON."""
     data = []
@@ -1011,7 +1011,7 @@ def dashboard_project_status(request):
     return JsonResponse({"statuses": data})
 
 
-@analytics_permission_required("employee.view_employee")
+@analytics_permission_required("employee.change_employee")
 def dashboard_ticket_status(request):
     """Return Ticket status data as JSON."""
     data = []
@@ -1027,7 +1027,7 @@ def dashboard_ticket_status(request):
     return JsonResponse({"statuses": data})
 
 
-@analytics_permission_required("employee.view_employee")
+@analytics_permission_required("employee.change_employee")
 def dashboard_asset_status(request):
     """Return Asset status data as JSON."""
     data = []

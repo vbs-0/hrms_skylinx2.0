@@ -197,7 +197,7 @@ class EmployeeFilter(SkylinxFilterSet):
             accessible = check_is_accessible("employee_view", cache_key, employee)
             if not accessible and employee.reporting_manager.exists():
                 queryset = filtersubordinatesemployeemodel(
-                    request=request, queryset=queryset, perm="employee.view_employee"
+                    request=request, queryset=queryset, perm="employee.change_employee"
                 )
 
         # Handle 'not_set' values in the cleaned data

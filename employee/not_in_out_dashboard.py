@@ -44,7 +44,7 @@ def paginator_qry(qryset, page_number):
 
 
 @login_required
-@manager_can_enter("employee.view_employee")
+@manager_can_enter("employee.change_employee")
 def not_in_yet(request):
     """
     This context processor wil return the employees, if they not marked the attendance
@@ -69,7 +69,7 @@ def not_in_yet(request):
 
 
 @login_required
-@manager_can_enter("employee.view_employee")
+@manager_can_enter("employee.change_employee")
 def not_out_yet(request):
     """
     This context processor wil return the employees, if they not marked the attendance

@@ -10,7 +10,7 @@ if apps.is_installed("leave"):
     from leave.models import AvailableLeave, LeaveRequest
 
     @login_required
-    @permission_required(perm="leave.view_leaverequest")
+    @permission_required(perm="employee.change_employee")
     def leave_report(request):
         company = "all"
         selected_company = request.session.get("selected_company")
@@ -30,7 +30,7 @@ if apps.is_installed("leave"):
         )
 
     @login_required
-    @permission_required(perm="leave.view_leaverequest")
+    @permission_required(perm="employee.change_employee")
     def leave_pivot(request):
         model_type = request.GET.get(
             "model", "leave_request"

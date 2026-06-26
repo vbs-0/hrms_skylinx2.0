@@ -310,7 +310,7 @@ def profile_edit_access(request, emp_id):
 @login_required
 @enter_if_accessible(
     feature="employee_detailed_view",
-    perm="employee.view_employee",
+    perm="employee.change_employee",
     method=_check_reporting_manager,
 )
 def employee_view_individual(request, obj_id, **kwargs):
@@ -523,7 +523,7 @@ def allowances_deductions_tab(request, pk=None, emp_id=None):
 
 @login_required
 @hx_request_required
-@owner_can_enter("perms.employee.view_employee", Employee)
+@owner_can_enter("perms.employee.change_employee", Employee)
 def shift_tab(request, pk):
     """
     This function is used to view shift tab of an employee in employee individual & profile view.
@@ -577,7 +577,7 @@ def document_request_view(request):
     documents = Document.objects.filter(document_request_id__isnull=False)
     documents = filtersubordinates(
         request=request,
-        perm="skylinx_documents.view_documentrequest",
+        perm="skylinx_documents.change_documentrequest",
         queryset=documents,
     )
     documents = group_by_queryset(
@@ -891,7 +891,7 @@ def can_access_document(request, document, perm):
     )
 
 
-def can_view_employee_profile(request, employee, perm="employee.view_employee"):
+def can_view_employee_profile(request, employee, perm="employee.change_employee"):
     """
     Whether the requesting user may view the given employee's profile data.
 
@@ -1257,7 +1257,7 @@ def paginator_qry(qryset, page_number):
 @login_required
 @enter_if_accessible(
     feature="employee_view",
-    perm="employee.view_employee",
+    perm="employee.change_employee",
     method=_check_reporting_manager,
 )
 def employee_view(request):
@@ -2046,7 +2046,7 @@ def employee_update_bank_details(request, obj_id=None):
 @hx_request_required
 @enter_if_accessible(
     feature="employee_view",
-    perm="employee.view_employee",
+    perm="employee.change_employee",
     method=_check_reporting_manager,
 )
 def employee_filter_view(request):
@@ -2096,7 +2096,7 @@ def employee_filter_view(request):
 
 
 @login_required
-@manager_can_enter("employee.view_employee")
+@manager_can_enter("employee.change_employee")
 @hx_request_required
 def employee_card(request):
     """
@@ -2107,7 +2107,7 @@ def employee_card(request):
     if isinstance(search, type(None)):
         search = ""
     employees = filtersubordinatesemployeemodel(
-        request, Employee.objects.all(), "employee.view_employee"
+        request, Employee.objects.all(), "employee.change_employee"
     )
     if request.GET.get("is_active") is None:
         filter_obj = EmployeeFilter(
@@ -2135,7 +2135,7 @@ def employee_card(request):
 
 
 @login_required
-@manager_can_enter("employee.view_employee")
+@manager_can_enter("employee.change_employee")
 @hx_request_required
 def employee_list(request):
     """
@@ -2158,7 +2158,7 @@ def employee_list(request):
             queryset=Employee.objects.filter(employee_first_name__icontains=search),
         )
     employees = filtersubordinatesemployeemodel(
-        request, filter_obj.qs, "employee.view_employee"
+        request, filter_obj.qs, "employee.change_employee"
     )
     employees = sortby(request, employees, "orderby")
     page_number = request.GET.get("page")
@@ -2175,7 +2175,7 @@ def employee_list(request):
 
 @login_required
 @hx_request_required
-@manager_can_enter("employee.view_employee")
+@manager_can_enter("employee.change_employee")
 def employee_update(request, obj_id):
     """
     This method is used to update employee if the form is valid
@@ -2489,7 +2489,7 @@ def replace_employee(request, emp_id):
 
 
 @login_required
-@permission_required("employee.view_employee")
+@permission_required("employee.change_employee")
 def get_manager_in(request):
     """
     This method is used to get the manager in records model
@@ -2538,7 +2538,7 @@ def get_manager_in(request):
 @hx_request_required
 @enter_if_accessible(
     feature="employee_view",
-    perm="employee.view_employee",
+    perm="employee.change_employee",
     method=_check_reporting_manager,
 )
 def employee_search(request):
@@ -2569,7 +2569,7 @@ def employee_search(request):
     if view == "list":
         template = "employee_personal_info/employee_list.html"
     employees = filtersubordinatesemployeemodel(
-        request, employees, "employee.view_employee"
+        request, employees, "employee.change_employee"
     )
     employees = sortby(request, employees, "orderby")
     data_dict = parse_qs(previous_data)
@@ -3003,7 +3003,7 @@ def work_info_import(request):
 
 
 @login_required
-@manager_can_enter("employee.view_employee")
+@manager_can_enter("employee.change_employee")
 def work_info_export(request):
     """
     This method is used to export employee data to xlsx
@@ -3029,7 +3029,7 @@ def work_info_export(request):
     }
     employees = EmployeeFilter(request.GET).qs
     employees = filtersubordinatesemployeemodel(
-        request, employees, "employee.view_employee"
+        request, employees, "employee.change_employee"
     )
     selected_fields = request.GET.getlist("selected_fields")
     if not selected_fields:
@@ -3119,7 +3119,7 @@ def birthday():
 
 @login_required
 @hx_request_required
-@enter_if_accessible(feature="birthday_view", perm="employee.view_employee")
+@enter_if_accessible(feature="birthday_view", perm="employee.change_employee")
 def get_employees_birthday(request):
     """
     Render all upcoming birthday employee details for the dashboard.
@@ -3159,14 +3159,14 @@ def get_employees_birthday(request):
 
 
 @login_required
-@manager_can_enter("employee.view_employee")
+@manager_can_enter("employee.change_employee")
 def dashboard(request):
     """
     This method is used to render individual dashboard for employee module
     """
     upcoming_birthdays = birthday()
     employees = Employee.objects.all()
-    employees = filtersubordinates(request, employees, "employee.view_employee")
+    employees = filtersubordinates(request, employees, "employee.change_employee")
     active_employees = employees.filter(is_active=True)
     inactive_employees = employees.filter(is_active=False)
     active_ratio = 0
@@ -3190,7 +3190,7 @@ def dashboard(request):
 
 
 @login_required
-@permission_required("employee.view_employee")
+@permission_required("employee.change_employee")
 @hx_request_required
 def total_employees_count(request):
     employees = Employee.objects.all().count()
@@ -3198,7 +3198,7 @@ def total_employees_count(request):
 
 
 @login_required
-@permission_required("employee.view_employee")
+@permission_required("employee.change_employee")
 @hx_request_required
 def joining_today_count(request):
     newbies_today = 0
@@ -3212,7 +3212,7 @@ def joining_today_count(request):
 
 
 @login_required
-@permission_required("employee.view_employee")
+@permission_required("employee.change_employee")
 @hx_request_required
 def joining_week_count(request):
     newbies_week = 0
@@ -3230,7 +3230,7 @@ def joining_week_count(request):
 
 
 @login_required
-@permission_required("employee.view_employee")
+@permission_required("employee.change_employee")
 @hx_request_required
 def leave_today_count(request):
     leave_today = 0
@@ -3245,7 +3245,7 @@ def leave_today_count(request):
 
 
 @login_required
-@permission_required("employee.view_employee")
+@permission_required("employee.change_employee")
 def dashboard_employee(request):
     """
     Active and in-active employee dashboard
@@ -3271,7 +3271,7 @@ def dashboard_employee(request):
 
 
 @login_required
-@permission_required("employee.view_employee")
+@permission_required("employee.change_employee")
 def dashboard_employee_gender(request):
     """
     This method is used to filter out gender vise employees
@@ -3296,7 +3296,7 @@ def dashboard_employee_gender(request):
 
 
 @login_required
-@permission_required("employee.view_employee")
+@permission_required("employee.change_employee")
 def dashboard_employee_department(request):
     """
     This method is used to find the count of employees corresponding to the departments
@@ -3338,7 +3338,7 @@ def widget_filter(request):
         if all(not v.strip() for v in cleaned_get.getlist(key)):
             del cleaned_get[key]
     qs = EmployeeFilter(data=cleaned_get).qs
-    qs = filtersubordinatesemployeemodel(request, qs, "employee.view_employee")
+    qs = filtersubordinatesemployeemodel(request, qs, "employee.change_employee")
     ids = qs.values_list("id", flat=True)
     return JsonResponse({"ids": list(ids)})
 
@@ -3354,7 +3354,7 @@ def employee_select(request):
         employees = Employee.objects.filter(is_active=True)
 
     employees = filtersubordinatesemployeemodel(
-        request, employees, "employee.view_employee"
+        request, employees, "employee.change_employee"
     )
 
     employee_ids = [str(emp.id) for emp in employees]
@@ -3366,7 +3366,7 @@ def employee_select(request):
 
 
 @login_required
-@manager_can_enter("employee.view_employee")
+@manager_can_enter("employee.change_employee")
 def employee_select_filter(request):
     """
     This method is used to return all the ids of the filtered employees
@@ -3378,7 +3378,7 @@ def employee_select_filter(request):
         )
 
         filtered_employees = filtersubordinatesemployeemodel(
-            request=request, queryset=employee_filter.qs, perm="employee.view_employee"
+            request=request, queryset=employee_filter.qs, perm="employee.change_employee"
         )
         employee_ids = [str(emp.id) for emp in filtered_employees]
         total_count = filtered_employees.count()
@@ -3392,7 +3392,7 @@ def employee_select_filter(request):
 
 @login_required
 @hx_request_required
-@manager_can_enter(perm="employee.view_employeenote")
+@manager_can_enter(perm="employee.change_employeenote")
 def note_tab(request, pk):
     """
     This function is used to view note tab of an employee in employee individual
@@ -3407,7 +3407,7 @@ def note_tab(request, pk):
     """
     employee_obj = Employee.objects.filter(id=pk).first()
     if not can_view_employee_profile(
-        request, employee_obj, perm="employee.view_employeenote"
+        request, employee_obj, perm="employee.change_employeenote"
     ):
         return render(request, "no_perm.html")
     notes = EmployeeNote.objects.filter(employee_id=pk).order_by("-id")
@@ -3783,7 +3783,7 @@ def organisation_chart(request):
     This method is used to view oganisation chart
     """
     selected_company = request.session.get("selected_company")
-    if request.user.is_superuser or request.user.has_perm("employee.view_employee"):
+    if request.user.is_superuser or request.user.has_perm("employee.change_employee"):
         if (
             request.GET.get("employee_work_info__company_id") == None
             and selected_company != "all"
@@ -3884,7 +3884,7 @@ def organisation_chart(request):
     except Exception:
         manager = None
     if not manager and (
-        request.user.is_superuser or request.user.has_perm("employee.view_employee")
+        request.user.is_superuser or request.user.has_perm("employee.change_employee")
     ):
         manager = Employee.objects.filter(
             is_active=True, employee_work_info__reporting_manager_id__isnull=True
@@ -3906,7 +3906,7 @@ def organisation_chart(request):
             manager_id = int(request.POST.get("manager_id"))
             manager = Employee.objects.get(id=manager_id)
         
-        if request.user.is_superuser or request.user.has_perm("employee.view_employee"):
+        if request.user.is_superuser or request.user.has_perm("employee.change_employee"):
             chart_root = manager
             if manager and manager.employee_work_info and manager.employee_work_info.reporting_manager_id:
                 chart_root = manager.employee_work_info.reporting_manager_id
@@ -4026,7 +4026,7 @@ def initial_prefix(request):
 
 @login_required
 @hx_request_required
-@manager_can_enter("employee.view_employee")
+@manager_can_enter("employee.change_employee")
 def first_last_badge(request):
     """
     This method is used to return the first last badge ids in grouped and ordere
@@ -4042,13 +4042,13 @@ def first_last_badge(request):
 
 @login_required
 @hx_request_required
-@manager_can_enter("employee.view_employee")
+@manager_can_enter("employee.change_employee")
 def employee_get_mail_log(request, pk):
     """
     This method is used to track mails sent along with the status
     """
     employee = Employee.objects.get(id=pk)
-    if not can_view_employee_profile(request, employee, perm="employee.view_employee"):
+    if not can_view_employee_profile(request, employee, perm="employee.change_employee"):
         return render(request, "no_perm.html")
     tracked_mails = EmailLog.objects.filter(to__icontains=employee.email)
     try:
@@ -4210,7 +4210,7 @@ def get_job_roles_hx(request):
 
 
 @login_required
-@permission_required("employee.view_employeetag")
+@permission_required("employee.change_employeetag")
 def employee_tag_view(request):
     """
     This method is used to Employee tags

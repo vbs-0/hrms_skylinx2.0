@@ -1249,13 +1249,13 @@ def global_search(request):
     q_lower = query.lower()
 
     # ── 1. Employee search (permission-scoped) ───────────────────────────────
-    if request.user.has_perm("employee.view_employee"):
+    if request.user.has_perm("employee.change_employee"):
         try:
             from employee.models import Employee
 
             employees = Employee.objects.filter(is_active=True)
             employees = filtersubordinatesemployeemodel(
-                request, employees, perm="employee.view_employee"
+                request, employees, perm="employee.change_employee"
             )
             employees = employees.filter(
                 Q(employee_first_name__icontains=query)
@@ -1335,7 +1335,7 @@ def global_search(request):
 
 
 @login_required
-@manager_can_enter("employee.view_employeeworkinformation")
+@manager_can_enter("employee.change_employee")
 def employee_workinfo_complete(request):
 
     employees_with_pending = []
@@ -1365,7 +1365,7 @@ def employee_workinfo_complete(request):
             employee_id__employee_first_name__icontains=search,
             employee_id__is_active=True,
         ),
-        perm="employee.view_employeeworkinformation",
+        perm="employee.change_employee",
     )
     for employee in employees_workinfos:
         completed_field_count = sum(
@@ -1387,7 +1387,7 @@ def employee_workinfo_complete(request):
     emps = filtersubordinatesemployeemodel(
         request,
         Employee.objects.filter(employee_work_info__isnull=True),
-        perm="employee.view_employeeworkinformation",
+        perm="employee.change_employee",
     )
     for emp in emps:
         employees_with_pending.insert(
@@ -8770,7 +8770,7 @@ def holiday_calendar_view(request):
         start_date__lte=end_date,
         end_date__gte=start_date,
     )
-    if not request.user.is_superuser and not request.user.has_perm("leave.view_leaverequest"):
+    if not request.user.is_superuser and not request.user.has_perm("employee.change_employee"):
         # Regular user: only show his/her own leaves
         employee = getattr(request.user, "employee_get", None)
         if employee:

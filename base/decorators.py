@@ -81,7 +81,7 @@ def manager_can_enter(function, perm):
 
     def _function(self, *args, **kwargs):
         leave_perm = [
-            "leave.view_leaverequest",
+            "employee.change_employee",
             "leave.change_leaverequest",
             "leave.delete_leaverequest",
         ]

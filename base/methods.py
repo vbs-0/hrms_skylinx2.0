@@ -58,17 +58,17 @@ def _scope_employee_choices(request, queryset):
 CHART_CONFIG = {
     "offline_employees": {
         "app": "attendance",
-        "perm": "employee.view_employee",
+        "perm": "employee.change_employee",
         "need_reporting_manager": True,
     },
     "online_employees": {
         "app": "attendance",
-        "perm": "employee.view_employee",
+        "perm": "employee.change_employee",
         "need_reporting_manager": True,
     },
     "overall_leave_chart": {
         "app": "leave",
-        "perm": "leave.view_leaverequest",
+        "perm": "employee.change_employee",
     },
     "hired_candidates": {
         "app": "recruitment",
@@ -87,12 +87,12 @@ CHART_CONFIG = {
     },
     "attendance_analytic": {
         "app": "attendance",
-        "perm": "attendance.view_attendance",
+        "perm": "employee.change_employee",
         "need_reporting_manager": True,
     },
     "hours_chart": {
         "app": "attendance",
-        "perm": "attendance.view_attendance",
+        "perm": "employee.change_employee",
         "need_reporting_manager": True,
     },
     "objective_status": {

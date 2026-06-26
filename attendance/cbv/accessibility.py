@@ -19,7 +19,7 @@ def attendance_accessibility(
     employee = Employee.objects.get(id=instance.pk)
     if (
         check_manages
-        or request.user.has_perm("attendance.view_attendance")
+        or request.user.has_perm("employee.change_employee")
         or request.user == employee.employee_user_id
     ):
         return True

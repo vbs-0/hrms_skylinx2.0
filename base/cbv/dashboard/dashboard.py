@@ -117,7 +117,7 @@ class ShiftRequestToApprove(ShiftRequestList):
 
 @method_decorator(login_required, name="dispatch")
 @method_decorator(
-    manager_can_enter("employee.view_employeeworkinformation"), name="dispatch"
+    manager_can_enter("employee.change_employee"), name="dispatch"
 )
 class EmployeeWorkInformationList(SkylinxListView):
     """
@@ -152,7 +152,7 @@ class EmployeeWorkInformationList(SkylinxListView):
     def get_queryset(self):
         queryset = super().get_queryset()
         queryset = filtersubordinates(
-            self.request, queryset, "employee.view_employeeworkinformation"
+            self.request, queryset, "employee.change_employee"
         )
         queryset = queryset.filter(
             id__in=[obj.id for obj in queryset if obj.calculate_progress() != 100]

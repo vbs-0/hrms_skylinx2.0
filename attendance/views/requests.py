@@ -417,7 +417,7 @@ def validate_attendance_request(request, attendance_id):
 
     employee = attendance.employee_id
     if not (
-        request.user.has_perm("attendance.view_attendance")
+        request.user.has_perm("employee.change_employee")
         or employee == request.user.employee_get
         or check_manager(request.user.employee_get, employee)
     ):
@@ -656,7 +656,7 @@ def select_all_filter_attendance_request(request):
     context = {}
 
     if page_number == "all":
-        if request.user.has_perm("attendance.view_attendance"):
+        if request.user.has_perm("employee.change_employee"):
             attendance_filter = AttendanceFilters(
                 filters,
                 queryset=Attendance.objects.filter(is_validate_request=True),

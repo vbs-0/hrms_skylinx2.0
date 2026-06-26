@@ -34,7 +34,7 @@ from skylinx.group_by import group_by_queryset
 
 @login_required
 @hx_request_required
-@manager_can_enter("attendance.view_attendance")
+@manager_can_enter("employee.change_employee")
 def attendance_search(request):
     """
     This method is used to search attendances
@@ -71,15 +71,15 @@ def attendance_search(request):
     attendances = AttendanceFilters(request.GET, attendances).qs
     ot_attendances = AttendanceFilters(request.GET, ot_attendances).qs
 
-    if not request.user.has_perm("attendance.view_attendance"):
+    if not request.user.has_perm("employee.change_employee"):
         attendances = filtersubordinates(
-            request, attendances, "attendance.view_attendance"
+            request, attendances, "employee.change_employee"
         )
         validate_attendances = filtersubordinates(
-            request, validate_attendances, "attendance.view_attendance"
+            request, validate_attendances, "employee.change_employee"
         )
         ot_attendances = filtersubordinates(
-            request, ot_attendances, "attendance.view_attendance"
+            request, ot_attendances, "employee.change_employee"
         )
     data_dict = parse_qs(previous_data)
     get_key_instances(Attendance, data_dict)
@@ -414,7 +414,7 @@ def search_attendance_requests(request):
     )
     requests = filtersubordinates(
         request=request,
-        perm="attendance.view_attendance",
+        perm="employee.change_employee",
         queryset=requests,
     )
     requests = requests | all_attendance.filter(
@@ -424,7 +424,7 @@ def search_attendance_requests(request):
     requests = AttendanceFilters(request.GET, requests).qs
     attendances = filtersubordinates(
         request=request,
-        perm="attendance.view_attendance",
+        perm="employee.change_employee",
         queryset=all_attendance.all(),
     )
     attendances = attendances | all_attendance.filter(

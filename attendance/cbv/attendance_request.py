@@ -191,7 +191,7 @@ class AttendanceRequestListTab(AttendancesRequestListView):
         )
         queryset = filtersubordinates(
             request=self.request,
-            perm="attendance.view_attendance",
+            perm="employee.change_employee",
             queryset=queryset,
         )
         queryset = queryset | self_data.filter(
@@ -224,7 +224,7 @@ class AttendanceListTab(AttendancesRequestListView):
         data = queryset
         attendances = filtersubordinates(
             request=self.request,
-            perm="attendance.view_attendance",
+            perm="employee.change_employee",
             queryset=queryset,
         )
         queryset = attendances | data.filter(

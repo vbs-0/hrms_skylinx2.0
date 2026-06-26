@@ -14,7 +14,7 @@ from skylinx_views.cbv_methods import decorator_with_arguments
 
 class ManagerPermission(BasePermission):
     leave_perm = [
-        "leave.view_leaverequest",
+        "employee.change_employee",
         "leave.change_leaverequest",
         "leave.delete_leaverequest",
     ]

@@ -196,7 +196,7 @@ def paginator_qry(qryset, page_number):
 
 
 @login_required
-@manager_can_enter("attendance.view_attendance")
+@manager_can_enter("employee.change_employee")
 def attendance_view(request):
     """
     This method is used to view attendances.
@@ -221,12 +221,12 @@ def attendance_view(request):
         attendance_validated=True,
     )
     filter_obj = AttendanceFilters(queryset=Attendance.objects.all())
-    attendances = filtersubordinates(request, attendances, "attendance.view_attendance")
+    attendances = filtersubordinates(request, attendances, "employee.change_employee")
     validate_attendances = filtersubordinates(
-        request, validate_attendances, "attendance.view_attendance"
+        request, validate_attendances, "employee.change_employee"
     )
     ot_attendances = filtersubordinates(
-        request, ot_attendances, "attendance.view_attendance"
+        request, ot_attendances, "employee.change_employee"
     )
 
     return render(
@@ -249,7 +249,7 @@ def attendance_view(request):
 
 
 @login_required
-@manager_can_enter("attendance.view_attendance")
+@manager_can_enter("employee.change_employee")
 def attendance_search(request):
     """
     This method is used to search attendance by employee
@@ -287,12 +287,12 @@ def attendance_search(request):
         ot_attendances = ot_attendances.order_by(field_copy)
         template = "attendance/attendance/group_by.html"
 
-    attendances = filtersubordinates(request, attendances, "attendance.view_attendance")
+    attendances = filtersubordinates(request, attendances, "employee.change_employee")
     validate_attendances = filtersubordinates(
-        request, validate_attendances, "attendance.view_attendance"
+        request, validate_attendances, "employee.change_employee"
     )
     ot_attendances = filtersubordinates(
-        request, ot_attendances, "attendance.view_attendance"
+        request, ot_attendances, "employee.change_employee"
     )
 
     attendances = sortby(request, attendances, "sortby")
@@ -1178,7 +1178,7 @@ def find_on_time(request, today, week_day, department=None):
     """
     on_time = 0
     attendances = Attendance.objects.filter(attendance_date=today)
-    attendances = filtersubordinates(request, attendances, "attendance.view_attendance")
+    attendances = filtersubordinates(request, attendances, "employee.change_employee")
     if department is not None:
         attendances = attendances.filter(
             employee_id__employee_work_info__department_id=department

@@ -84,7 +84,7 @@ class LeaveRequestsToApprove(LeaveRequestsListView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(manager_can_enter("leave.view_leaverequest"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class DashboardOnLeave(SkylinxListView):
     """
     list view for on leave in dashboard
@@ -102,7 +102,7 @@ class DashboardOnLeave(SkylinxListView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.search_url = reverse("dashboard-on-leave")
-        if self.request.user.has_perm("leave.view_leaverequest"):
+        if self.request.user.has_perm("employee.change_employee"):
             self.row_attrs = """
                 hx-get='{leave_requests_detail_view}?instance_ids={ordered_ids}'
                 hx-target="#genericModalBody"

@@ -8,7 +8,7 @@ from skylinx.decorators import login_required, permission_required
 
 
 @login_required
-@permission_required(perm="employee.view_employee")
+@permission_required(perm="employee.change_employee")
 def employee_report(request):
     company = "all"
     selected_company = request.session.get("selected_company")
@@ -23,7 +23,7 @@ def employee_report(request):
 
 
 @login_required
-@permission_required(perm="employee.view_employee")
+@permission_required(perm="employee.change_employee")
 def employee_pivot(request):
     qs = Employee.objects.all()
     filtered_qs = EmployeeFilter(request.GET, queryset=qs)

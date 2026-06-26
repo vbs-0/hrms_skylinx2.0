@@ -162,7 +162,7 @@ def mail_log_accessibility(
     permission for mail log tab
     """
 
-    if request.user.has_perm("employee.view_employee"):
+    if request.user.has_perm("employee.change_employee"):
         return True
     return False
 

@@ -428,8 +428,8 @@ def ticket_view(request):
     )
     all_tickets = []
     if is_reportingmanager(request):
-        all_tickets = filtersubordinates(request, tickets, "helpdesk.view_ticket")
-    if request.user.has_perm("helpdesk.view_ticket"):
+        all_tickets = filtersubordinates(request, tickets, "helpdesk.change_ticket")
+    if request.user.has_perm("helpdesk.change_ticket"):
         all_tickets = tickets
     allocated_tickets = []
     ticket_list = tickets.filter(is_active=True)
@@ -836,7 +836,7 @@ def ticket_filter(request):
 
     all_tickets = tickets.filter(is_active=True)
     all_tickets = filtersubordinates(request, tickets, "helpdesk.add_tickets")
-    if request.user.has_perm("helpdesk.view_ticket"):
+    if request.user.has_perm("helpdesk.change_ticket"):
         all_tickets = tickets
 
     allocated_tickets = Ticket.objects.none()
@@ -924,7 +924,7 @@ def ticket_detail(request, ticket_id, **kwargs):
         )
 
     if (
-        request.user.has_perm("helpdesk.view_ticket")
+        request.user.has_perm("helpdesk.change_ticket")
         or ticket.employee_id.get_reporting_manager() == request.user.employee_get
         or is_department_manager(request, ticket)
         or request.user.employee_get == ticket.employee_id
@@ -1052,7 +1052,7 @@ def ticket_update_tag(request):
         )
 
     if (
-        request.user.has_perm("helpdesk.view_ticket")
+        request.user.has_perm("helpdesk.change_ticket")
         or request.user.employee_get == ticket.employee_id
         or is_department_manager(request, ticket)
     ):
@@ -1075,7 +1075,7 @@ def ticket_update_tag(request):
 def ticket_change_raised_on(request, ticket_id):
     ticket = Ticket.objects.get(id=ticket_id)
     if (
-        request.user.has_perm("helpdesk.view_ticket")
+        request.user.has_perm("helpdesk.change_ticket")
         or request.user.employee_get == ticket.employee_id
     ):
         form = TicketRaisedOnForm(instance=ticket)
@@ -1198,7 +1198,7 @@ def can_access_ticket(request, ticket):
         return False
     employee = request.user.employee_get
     return (
-        request.user.has_perm("helpdesk.view_ticket")
+        request.user.has_perm("helpdesk.change_ticket")
         or employee == ticket.employee_id
         or employee in ticket.assigned_to.all()
         or ticket.employee_id.get_reporting_manager() == employee
@@ -1755,7 +1755,7 @@ def update_priority(request, ticket_id):
         )
 
     if (
-        request.user.has_perm("helpdesk.view_ticket")
+        request.user.has_perm("helpdesk.change_ticket")
         or ticket.employee_id.get_reporting_manager() == request.user.employee_get
         or is_department_manager(request, ticket)
         or request.user.employee_get == ticket.employee_id

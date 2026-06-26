@@ -70,7 +70,7 @@ class DashboardaAttendanceOT(OTAttendancesList):
             attendance_overtime_approve=False,
         )
         queryset = filtersubordinates(
-            self.request, queryset, "attendance.view_attendance"
+            self.request, queryset, "employee.change_employee"
         )
         return queryset
 

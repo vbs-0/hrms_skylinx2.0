@@ -220,7 +220,7 @@ class AttendanceView(APIView):
             queryset = Attendance.objects.all()
         user = request.user
         # checking user level permissions
-        perm = "attendance.view_attendance"
+        perm = "employee.change_employee"
         queryset = permission_based_queryset(user, perm, queryset, user_obj=True)
         return queryset
 
@@ -420,7 +420,7 @@ class AttendanceRequestView(APIView):
         )
         requests = filtersubordinates(
             request=request,
-            perm="attendance.view_attendance",
+            perm="employee.change_employee",
             queryset=requests,
         )
         requests = requests | Attendance.objects.filter(
@@ -747,7 +747,7 @@ class OfflineEmployeesCountView(APIView):
             .exists()
         )
 
-        if request.user.has_perm("employee.view_enployee") or is_manager:
+        if request.user.has_perm("employee.change_employee") or is_manager:
             count = (
                 EmployeeFilter({"not_in_yet": date.today()})
                 .qs.exclude(employee_work_info__isnull=True)
@@ -778,7 +778,7 @@ class OfflineEmployeesListView(APIView):
         ).values_list("employee_id", flat=True)
 
         # Superusers or users with view permission see all employees
-        if user.has_perm("employee.view_employee"):
+        if user.has_perm("employee.change_employee"):
             base_queryset = Employee.objects.all()
         elif managed_employee_ids.exists():
             base_queryset = Employee.objects.filter(id__in=managed_employee_ids)
@@ -1049,7 +1049,7 @@ class AttendanceTypeAccessCheck(APIView):
         user = request.user
         employee_id = user.employee_get.id
 
-        if user.has_perm("attendance.view_attendance"):
+        if user.has_perm("employee.change_employee"):
             return Response(status=200)
 
         is_manager = (

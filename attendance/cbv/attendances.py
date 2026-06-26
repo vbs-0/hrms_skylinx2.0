@@ -44,7 +44,7 @@ from skylinx_views.generic.cbv.views import (
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(manager_can_enter("attendance.view_attendance"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class AttendancesView(TemplateView):
     """
     for attendances page
@@ -135,7 +135,7 @@ class AttendancesListView(SkylinxListView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(manager_can_enter("attendance.view_attendance"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class AttendancesTabView(SkylinxTabView):
     """
     tabview of candidate page
@@ -194,7 +194,7 @@ class AttendancesTabView(SkylinxTabView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(manager_can_enter("attendance.view_attendance"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class AttendancesNavView(SkylinxNavView):
     """
     nav bar
@@ -283,7 +283,7 @@ class AttendancesNavView(SkylinxNavView):
 
 @method_decorator(login_required, name="dispatch")
 @method_decorator(hx_request_required, name="dispatch")
-@method_decorator(manager_can_enter("attendance.view_attendance"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class AttendancesExportNav(TemplateView):
     """
     for bulk export
@@ -306,7 +306,7 @@ class AttendancesExportNav(TemplateView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(manager_can_enter("attendance.view_attendance"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class ValidateAttendancesList(AttendancesListView):
     """
     validate tab
@@ -323,7 +323,7 @@ class ValidateAttendancesList(AttendancesListView):
                 attendance_validated=False, employee_id__is_active=True
             )
             self.queryset = filtersubordinates(
-                self.request, self.queryset, "attendance.view_attendance"
+                self.request, self.queryset, "employee.change_employee"
             )
         return self.queryset
 
@@ -344,7 +344,7 @@ class ValidateAttendancesList(AttendancesListView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(manager_can_enter("attendance.view_attendance"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class OTAttendancesList(AttendancesListView):
     """
     OT tab
@@ -372,7 +372,7 @@ class OTAttendancesList(AttendancesListView):
                 attendance_validated=True,
             )
             self.queryset = filtersubordinates(
-                self.request, self.queryset, "attendance.view_attendance"
+                self.request, self.queryset, "employee.change_employee"
             )
         return self.queryset
 
@@ -390,7 +390,7 @@ class OTAttendancesList(AttendancesListView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(manager_can_enter("attendance.view_attendance"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class ValidatedAttendancesList(AttendancesListView):
     """
     validated tab
@@ -410,7 +410,7 @@ class ValidatedAttendancesList(AttendancesListView):
                 attendance_validated=True, employee_id__is_active=True
             )
             self.queryset = filtersubordinates(
-                self.request, self.queryset, "attendance.view_attendance"
+                self.request, self.queryset, "employee.change_employee"
             )
         return self.queryset
 
@@ -446,7 +446,7 @@ def attendance_tabs_badge_counts(request):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(manager_can_enter("attendance.view_attendance"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class GenericAttendancesDetailView(SkylinxDetailedView):
     """
     Generic Detail view of page
@@ -477,7 +477,7 @@ class GenericAttendancesDetailView(SkylinxDetailedView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(manager_can_enter("attendance.view_attendance"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class ValidateDetailView(GenericAttendancesDetailView):
     """
     detail view for validate tab
@@ -487,7 +487,7 @@ class ValidateDetailView(GenericAttendancesDetailView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(manager_can_enter("attendance.view_attendance"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class OtDetailView(GenericAttendancesDetailView):
     """
     detail view for OT tab
@@ -501,7 +501,7 @@ class OtDetailView(GenericAttendancesDetailView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(manager_can_enter("attendance.view_attendance"), name="dispatch")
+@method_decorator(manager_can_enter("employee.change_employee"), name="dispatch")
 class ValidatedDetailView(GenericAttendancesDetailView):
     """
     detail view for validate tab
@@ -664,7 +664,7 @@ class ValidateAttendancesIndividualTabView(AttendancesListView):
             attendance_validated=False,
         )
         queryset = (
-            filtersubordinates(self.request, queryset, "attendance.view_attendance")
+            filtersubordinates(self.request, queryset, "employee.change_employee")
             | queryset
         )
         return queryset
@@ -706,9 +706,9 @@ class ValidateAttendancesIndividualDetailView(GenericAttendancesDetailView):
         employee_id = obj.employee_id
         if is_reportingmanager(self.request):
             queryset = filtersubordinates(
-                self.request, queryset, "attendance.view_attendance"
+                self.request, queryset, "employee.change_employee"
             ) | queryset.filter(employee_id=self.request.user.employee_get)
-        elif self.request.user.has_perm("attendance.view_attendance"):
+        elif self.request.user.has_perm("employee.change_employee"):
             queryset = queryset.filter(employee_id=employee_id)
         else:
             queryset = queryset.filter(employee_id=self.request.user.employee_get)
