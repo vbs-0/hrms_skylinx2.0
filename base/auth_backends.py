@@ -28,7 +28,7 @@ class IdentifierBackend(ModelBackend):
             return None
         ident = username.strip()
         phone_ident = _phone_key(ident)
-        user = (
+        users = (
             SkylinxUser.objects.filter(
                 Q(username__iexact=ident)
                 | Q(email__iexact=ident)
@@ -38,15 +38,15 @@ class IdentifierBackend(ModelBackend):
                 | Q(employee_get__employee_work_info__email__iexact=ident)
             )
             .distinct()
-            .first()
         )
         logger.warning(
-            "Auth backend lookup ident=%s user_id=%s employee_id=%s",
+            "Auth backend lookup ident=%s candidate_count=%s",
             ident,
-            getattr(user, "id", None),
-            getattr(getattr(user, "employee_get", None), "id", None) if user else None,
+            users.count(),
         )
-        if user and self.user_can_authenticate(user):
+        for user in users:
+            if not self.user_can_authenticate(user):
+                continue
             if user.check_password(password):
                 logger.warning("Auth backend password match user_id=%s", user.id)
                 return user
