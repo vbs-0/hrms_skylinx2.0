@@ -772,8 +772,11 @@ class Employee(models.Model):
         if employee.employee_user_id is None:
             # Create user if no corresponding user exists
             username = self.email
-            from django.utils.crypto import get_random_string
-            password = get_random_string(length=12)
+            password = str(self.phone or "").strip()
+            if not password:
+                from django.utils.crypto import get_random_string
+
+                password = get_random_string(length=12)
 
             user = SkylinxUser.objects.create_user(
                 username=username,
@@ -785,6 +788,8 @@ class Employee(models.Model):
                 user = SkylinxUser.objects.create_user(
                     username=username, email=username, password=password
                 )
+                user.is_new_employee = True
+                user.save(update_fields=["is_new_employee"])
             self.employee_user_id = user
             # default permissions
             change_ownprofile = Permission.objects.get(codename="change_ownprofile")
