@@ -46,7 +46,7 @@ class CompanyListView(SkylinxListView):
         super().setup(request, *args, **kwargs)
         self.search_url = reverse("company-list")
         self.actions = []
-        if self.is_platform_owner(request.user):
+        if is_platform_owner(request.user):
             self.actions.append(
                 {
                     "action": _("Edit"),
@@ -75,7 +75,7 @@ class CompanyListView(SkylinxListView):
                       """,
                 }
             )
-        if self.is_platform_owner(request.user):
+        if is_platform_owner(request.user):
             self.actions.append(
                 {
                     "action": _("Delete"),
@@ -173,7 +173,7 @@ class CompanyNavView(SkylinxNavView):
     def setup(self, request, *args, **kwargs) -> None:
         super().setup(request, *args, **kwargs)
         self.search_url = reverse("company-list")
-        if self.is_platform_owner(request.user):
+        if is_platform_owner(request.user):
             self.create_attrs = f"""
                                 onclick = "event.stopPropagation();"
                                 data-toggle="oh-modal-toggle"
