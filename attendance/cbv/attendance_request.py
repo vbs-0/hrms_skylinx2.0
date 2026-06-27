@@ -292,7 +292,12 @@ class AttendanceRequestNav(SkylinxNavView):
         super().__init__(**kwargs)
         self.search_url = reverse("attendance-request-tab")
         self.create_url = reverse("request-new-attendance")
-        self.create_attrs = ""
+        self.create_attrs = f"""
+            hx-get="{self.create_url}"
+            hx-target="#objectCreateModalTarget"
+            data-toggle="oh-modal-toggle"
+            data-target="#objectCreateModal"
+        """
         if self.request.user.has_perm(
             "attendance.add_attendanceovertime"
         ) or is_reportingmanager(self.request):
