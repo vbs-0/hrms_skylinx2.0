@@ -512,7 +512,11 @@ class EmployeeWorkInformationForm(ModelForm):
         if instance.company_id is None:
             instance.company_id = _default_company_id()
         # Persist the basic % into the salary_components JSON.
-        instance.salary_components = {"basic": self.cleaned_data.get("basic_pct") or 0}
+        current_basic = (instance.salary_components or {}).get("basic", 50)
+        basic_pct = self.cleaned_data.get("basic_pct")
+        instance.salary_components = {
+            "basic": current_basic if basic_pct is None else basic_pct
+        }
         if commit:
             instance.save()
             self.save_m2m()
@@ -619,7 +623,11 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        instance.salary_components = {"basic": self.cleaned_data.get("basic_pct") or 0}
+        current_basic = (instance.salary_components or {}).get("basic", 50)
+        basic_pct = self.cleaned_data.get("basic_pct")
+        instance.salary_components = {
+            "basic": current_basic if basic_pct is None else basic_pct
+        }
         if commit:
             instance.save()
             self.save_m2m()
