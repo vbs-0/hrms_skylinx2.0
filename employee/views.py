@@ -2769,6 +2769,10 @@ def employee_work_information_delete(request, obj_id):
 
 @login_required
 @permission_required("employee.add_employee")
+def _normalized_phone(value):
+    return "".join(ch for ch in str(value or "").strip() if ch.isdigit())
+
+
 def employee_import(request):
     """
     This method is used to create employee and corresponding user.
@@ -2808,7 +2812,7 @@ def employee_import(request):
                     user = SkylinxUser.objects.create_user(
                         username=email,
                         email=email,
-                        password=str(phone).strip(),
+                        password=_normalized_phone(phone),
                         is_superuser=False,
                     )
                     employee = Employee()

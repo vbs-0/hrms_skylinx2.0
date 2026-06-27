@@ -63,6 +63,10 @@ phone_validator = RegexValidator(
 )
 
 
+def _normalized_phone(value):
+    return "".join(ch for ch in str(value or "").strip() if ch.isdigit())
+
+
 class Employee(models.Model):
     """
     Employee model
@@ -772,7 +776,7 @@ class Employee(models.Model):
         if employee.employee_user_id is None:
             # Create user if no corresponding user exists
             username = self.email
-            password = str(self.phone or "").strip()
+            password = _normalized_phone(self.phone)
             if not password:
                 from django.utils.crypto import get_random_string
 

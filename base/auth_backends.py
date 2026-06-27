@@ -13,6 +13,10 @@ from django.db.models import Q
 from skylinx_auth.models import SkylinxUser
 
 
+def _phone_key(value):
+    return "".join(ch for ch in str(value or "").strip() if ch.isdigit())
+
+
 class IdentifierBackend(ModelBackend):
     """Authenticate by username / email / work-email / phone, then password."""
 
@@ -20,12 +24,14 @@ class IdentifierBackend(ModelBackend):
         if not username or not password:
             return None
         ident = username.strip()
+        phone_ident = _phone_key(ident)
         user = (
             SkylinxUser.objects.filter(
                 Q(username__iexact=ident)
                 | Q(email__iexact=ident)
                 | Q(employee_get__email__iexact=ident)
-                | Q(employee_get__phone=ident)
+                | Q(employee_get__phone__iexact=ident)
+                | Q(employee_get__phone=phone_ident)
                 | Q(employee_get__employee_work_info__email__iexact=ident)
             )
             .distinct()
