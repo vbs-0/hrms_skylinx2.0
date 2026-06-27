@@ -28,7 +28,7 @@ from skylinx_views.generic.cbv.views import (
 
 
 def _company_is_user_company(request, instance, *_args, **_kwargs):
-    if not request or not instance or getattr(request.user, "is_superuser", False):
+    if not request or not instance:
         return False
     employee = getattr(request.user, "employee_get", None)
     company = getattr(getattr(employee, "employee_work_info", None), "company_id", None)
