@@ -31,13 +31,6 @@ from skylinx.methods import get_skylinx_model_class
 CACHE_TIMEOUT = getattr(settings, "CACHE_TIMEOUT", 3600)
 
 
-def is_platform_owner(user):
-    return bool(
-        user
-        and user.is_authenticated
-        and is_platform_owner(user)
-        and user.username == "skylinx"
-    )
 
 
 class AllCompany:
