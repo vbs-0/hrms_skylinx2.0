@@ -2288,6 +2288,8 @@ class ChangePasswordForm(forms.Form):
     def __init__(self, user, *args, **kwargs):
         self.user = user
         super(ChangePasswordForm, self).__init__(*args, **kwargs)
+        if getattr(user, "is_new_employee", False):
+            self.fields["old_password"].required = False
 
     def clean_old_password(self):
         old_password = self.cleaned_data.get("old_password")

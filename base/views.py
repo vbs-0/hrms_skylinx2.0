@@ -1060,7 +1060,11 @@ def change_password(request):
             update_session_auth_hash(request, user)
             messages.success(request, _("Password changed successfully"))
             return redirect("/")
-        return render(request, "base/auth/password_change_form.html", {"form": form})
+        return render(
+            request,
+            "base/auth/password_change_form.html",
+            {"form": form, "is_new_employee": getattr(user, "is_new_employee", False)},
+        )
 
     return render(
         request,

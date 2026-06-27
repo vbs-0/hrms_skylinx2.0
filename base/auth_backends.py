@@ -20,6 +20,18 @@ def _phone_key(value):
     return "".join(ch for ch in str(value or "").strip() if ch.isdigit())
 
 
+def _dedupe_users(querysets):
+    seen = set()
+    users = []
+    for queryset in querysets:
+        for user in queryset:
+            if user.pk in seen:
+                continue
+            seen.add(user.pk)
+            users.append(user)
+    return users
+
+
 class IdentifierBackend(ModelBackend):
     """Authenticate by username / email / work-email / phone, then password."""
 
@@ -28,21 +40,22 @@ class IdentifierBackend(ModelBackend):
             return None
         ident = username.strip()
         phone_ident = _phone_key(ident)
-        users = (
-            SkylinxUser.objects.filter(
-                Q(username__iexact=ident)
-                | Q(email__iexact=ident)
-                | Q(employee_get__email__iexact=ident)
-                | Q(employee_get__phone__iexact=ident)
-                | Q(employee_get__phone=phone_ident)
-                | Q(employee_get__employee_work_info__email__iexact=ident)
-            )
-            .distinct()
+        users = _dedupe_users(
+            [
+                SkylinxUser.objects.filter(username__iexact=ident),
+                SkylinxUser.objects.filter(email__iexact=ident),
+                SkylinxUser.objects.filter(employee_get__employee_work_info__email__iexact=ident),
+                SkylinxUser.objects.filter(employee_get__email__iexact=ident),
+                SkylinxUser.objects.filter(
+                    Q(employee_get__phone__iexact=ident)
+                    | Q(employee_get__phone=phone_ident)
+                ),
+            ]
         )
         logger.warning(
             "Auth backend lookup ident=%s candidate_count=%s",
             ident,
-            users.count(),
+            len(users),
         )
         for user in users:
             if not self.user_can_authenticate(user):
