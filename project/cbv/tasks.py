@@ -20,6 +20,7 @@ from django.utils.translation import gettext_lazy as _
 from base.methods import get_subordinates
 from skylinx.http import SkylinxRedirect
 from skylinx.methods import handle_no_permission
+from skylinx.skylinx_middlewares import _thread_locals
 from skylinx_views.cbv_methods import login_required
 from skylinx_views.generic.cbv.views import (
     SkylinxCardView,
@@ -269,7 +270,8 @@ class TaskCreateForm(SkylinxFormView):
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        if self.request.user.has_perm("project.view_task"):
+        request = getattr(_thread_locals, "request", None)
+        if request and request.user.has_perm("project.view_task"):
             self.dynamic_create_fields = [
                 ("project", DynamicProjectCreationFormView),
                 ("stage", StageDynamicCreateForm, ["project"]),
@@ -367,7 +369,7 @@ class TaskCreateForm(SkylinxFormView):
                 self.form.fields["project"].widget = forms.HiddenInput()
                 self.form.fields["stage"].widget = forms.HiddenInput()
         else:
-            if self.is_platform_owner(request.user):
+            if is_platform_owner(self.request.user):
                 self.dynamic_create_fields = [
                     ("project", DynamicProjectCreationFormView),
                     ("stage", StageDynamicCreateForm, ["project"]),
@@ -376,7 +378,7 @@ class TaskCreateForm(SkylinxFormView):
         if project_id or stage_id:
             if (
                 self.request.user.employee_get in project.managers.all()
-                or self.is_platform_owner(request.user)
+                or is_platform_owner(self.request.user)
             ):
 
                 self.form.fields["project"].choices.append(

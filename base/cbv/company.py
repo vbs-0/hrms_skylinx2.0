@@ -2,6 +2,7 @@
 this page is handling the cbv methods for company in settings
 """
 from base.rbac import current_company, is_platform_owner
+from skylinx.skylinx_middlewares import _thread_locals
 
 
 from typing import Any
@@ -47,11 +48,12 @@ class CompanyListView(SkylinxListView):
     list view for company in settings
     """
 
-    def setup(self, request, *args, **kwargs) -> None:
-        super().setup(request, *args, **kwargs)
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        request = getattr(_thread_locals, "request", None)
         self.search_url = reverse("company-list")
         self.actions = []
-        if is_platform_owner(request.user):
+        if request and is_platform_owner(request.user):
             self.actions.append(
                 {
                     "action": _("Edit"),
@@ -65,7 +67,7 @@ class CompanyListView(SkylinxListView):
                       """,
                 }
             )
-        else:
+        elif request:
             self.actions.append(
                 {
                     "action": _("Edit"),
@@ -80,7 +82,7 @@ class CompanyListView(SkylinxListView):
                       """,
                 }
             )
-        if is_platform_owner(request.user):
+        if request and is_platform_owner(request.user):
             self.actions.append(
                 {
                     "action": _("Delete"),
@@ -174,10 +176,11 @@ class CompanyNavView(SkylinxNavView):
     nav bar of the department view
     """
 
-    def setup(self, request, *args, **kwargs) -> None:
-        super().setup(request, *args, **kwargs)
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        request = getattr(_thread_locals, "request", None)
         self.search_url = reverse("company-list")
-        if is_platform_owner(request.user):
+        if request and is_platform_owner(request.user):
             self.create_attrs = f"""
                                 onclick = "event.stopPropagation();"
                                 data-toggle="oh-modal-toggle"
