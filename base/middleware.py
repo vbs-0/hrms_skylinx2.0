@@ -271,7 +271,7 @@ class CompanyMiddleware:
         user_company_id = getattr(
             getattr(user, "employee_work_info", None), "company_id", None
         )
-        if company_id and request.session.get("selected_company") != "all":
+        if company_id:
             if company_id == "all":
                 text = "All companies"
             elif company_id == user_company_id:
@@ -287,7 +287,7 @@ class CompanyMiddleware:
                 "text": text,
                 "id": company_id.id,
             }
-        else:
+        elif self._is_platform_owner(request):
             request.selected_company_instance = (
                 user_company_id
                 if not user_company_id
@@ -301,6 +301,10 @@ class CompanyMiddleware:
                 "text": all_company.text,
                 "id": all_company.id,
             }
+        else:
+            request.selected_company_instance = None
+            request.session["selected_company"] = None
+            request.session["selected_company_instance"] = None
 
     def __call__(self, request):
         # ✅ make request globally accessible (safe)

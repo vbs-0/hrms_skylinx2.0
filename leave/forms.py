@@ -185,7 +185,7 @@ class LeaveTypeForm(ConditionForm):
     class Meta:
         model = LeaveType
         fields = "__all__"
-        exclude = ["is_active", "conditions"]
+        exclude = ["is_active", "conditions", "company_id"]
         labels = {
             "name": _("Name"),
         }
@@ -264,7 +264,7 @@ class UpdateLeaveTypeForm(ConditionForm):
     class Meta:
         model = LeaveType
         fields = "__all__"
-        exclude = ["is_active", "conditions"]
+        exclude = ["is_active", "conditions", "company_id"]
         widgets = {
             "color": TextInput(attrs={"type": "color", "style": "height:40px;"}),
             "period_in": forms.HiddenInput(),
