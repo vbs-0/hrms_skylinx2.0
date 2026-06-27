@@ -275,7 +275,7 @@ def payroll_calculation(employee, start_date, end_date):
     data_to_json["employee"] = employee.id
     data_to_json["start_date"] = start_date.strftime("%Y-%m-%d")
     data_to_json["end_date"] = end_date.strftime("%Y-%m-%d")
-    json_data = json.dumps(data_to_json)
+    json_data = json.dumps(data_to_json, default=str)
 
     payslip_data["json_data"] = json_data
     payslip_data["installments"] = installments
