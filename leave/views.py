@@ -1066,13 +1066,6 @@ def leave_request_approve(request, id, emp_id=None):
             request, message=_("No leave rquest found matching the query.")
         )
     employee_id = leave_request.employee_id
-    if not is_platform_owner(request.user):
-        if employee_id == request.user.employee_get:
-            messages.error(request, _("You cannot approve your own leave request."))
-            if emp_id is not None:
-                employee_id = emp_id
-                return redirect(f"/employee/employee-view/{employee_id}/")
-            return SkylinxRedirect(request)
     leave_type_id = leave_request.leave_type_id
     try:
         available_leave = AvailableLeave.objects.get(
