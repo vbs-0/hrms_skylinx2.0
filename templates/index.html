@@ -15,7 +15,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <script>
         window.CURRENT_LANGUAGE = "{{ LANGUAGE_CODE }}";
-        var at_work_seconds = {{ request.user.employee_get.get_forecasted_at_work.forecasted_at_work_seconds }}
+        var at_work_seconds = parseInt({{ request.user.employee_get.get_forecasted_at_work.forecasted_at_work_seconds }}) || 0;
         var run = 0
     </script>
     <title class="time-runner stop-runner">{{white_label_company_name}}</title>
@@ -315,11 +315,31 @@
             $("title.time-runner").html("{{white_label_company_name}} | " + secondsToDuration(at_work_seconds));
             setInterval(() => {
                 if (run) {
-                    at_work_seconds = at_work_seconds + 1
+                    at_work_seconds = parseInt(at_work_seconds) + 1;
                     $("div.time-runner").html(secondsToDuration(at_work_seconds));
                     $("title").html("{{white_label_company_name}} | " + secondsToDuration(at_work_seconds));
                 }
             }, 1000);
+
+            // After HTMX swaps the check-in/out component, read data attributes
+            // to update run and at_work_seconds. HTMX does not execute <script>
+            // tags in swapped content, so the inline `run = 1` never fires.
+            document.body.addEventListener("htmx:afterSwap", function (event) {
+                if (
+                    event.detail.target &&
+                    event.detail.target.id === "attendance-activity-container"
+                ) {
+                    var el = event.detail.target.querySelector("[data-run]");
+                    if (el) {
+                        run = parseInt(el.getAttribute("data-run")) || 0;
+                        at_work_seconds = parseInt(el.getAttribute("data-at-work-seconds")) || 0;
+                        // Immediately refresh the displayed timer
+                        $("div.time-runner").html(secondsToDuration(at_work_seconds));
+                        $("title").html("{{white_label_company_name}} | " + secondsToDuration(at_work_seconds));
+                        $(".at-work-seconds").html(secondsToDuration(at_work_seconds));
+                    }
+                }
+            });
 
             function switchTab(e) {
                 let parentContainerEl = e.target.closest(".oh-tabs");
