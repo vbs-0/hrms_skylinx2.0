@@ -168,6 +168,8 @@
         </main>
     </div>
 
+    <div hidden id="statiUrl" data-url='{% static "" %}'></div>
+    <script src="{% url 'javascript-catalog' %}"></script>
     <script src="{% static '/build/js/web.frontend.min.js' %}"></script>
     <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
     <script type="module" src="{% static 'images/ionicons/ui_icons/ionicons/ionicons.esm.js' %}"></script>

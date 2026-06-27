@@ -1,3 +1,4 @@
+import logging
 """
 Modern recruitment dashboard views — KPI summary + ApexCharts.
 
@@ -7,6 +8,9 @@ Accessible at /recruitment/dashboard/modern/ alongside the existing dashboard.
 from datetime import date
 
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+
+logger = logging.getLogger(__name__)
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -76,13 +80,13 @@ def recruitment_kpi_data(request):
         if total_hired > 0:
             acceptance_rate = round((accepted / total_hired) * 100, 1)
     except Exception:
-        pass
+        logger.warning('[recruitment/dashboard.py] accepted  candidatesfilteroffer_letter_statusaccep failed', exc_info=True)
 
     onboarding_count = 0
     try:
         onboarding_count = hired_candidates.filter(start_onboard=True).count()
     except Exception:
-        pass
+        logger.warning('[recruitment/dashboard.py] onboarding_count  0 failed', exc_info=True)
 
     return JsonResponse(
         {
@@ -222,7 +226,7 @@ def recruitment_time_to_hire(request):
                     if delta >= 0:
                         days_list.append(delta)
                 except Exception:
-                    pass
+                    logger.warning('[recruitment/dashboard.py] delta  cjoining_date  ccreated_atdatedays failed', exc_info=True)
 
         avg_days = round(sum(days_list) / len(days_list)) if days_list else None
         data.append(
@@ -298,7 +302,7 @@ def recruitment_source_of_hire(request):
         sources.sort(key=lambda x: x["count"], reverse=True)
 
     except Exception:
-        pass
+        logger.warning('[recruitment/dashboard.py] sourcessortkeylambda x xcount reverseTrue failed', exc_info=True)
 
     return JsonResponse({"sources": sources})
 
@@ -340,7 +344,7 @@ def recruitment_upcoming_interviews(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[recruitment/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"interviews": interviews})
 
@@ -395,7 +399,7 @@ def recruitment_open_by_department(request):
 
         departments.sort(key=lambda x: x["open"], reverse=True)
     except Exception:
-        pass
+        logger.warning('[recruitment/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"departments": departments})
 
@@ -438,7 +442,7 @@ def recruitment_stage_conversion(request):
             if current > 0:
                 prev_count = current
     except Exception:
-        pass
+        logger.warning('[recruitment/dashboard.py] prev_count  current failed', exc_info=True)
 
     return JsonResponse(
         {
@@ -515,7 +519,7 @@ def recruitment_source_conversion(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[recruitment/dashboard.py] operation failed', exc_info=True)
     return JsonResponse({"sources": sources})
 
 

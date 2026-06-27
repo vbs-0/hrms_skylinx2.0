@@ -1,3 +1,4 @@
+from base.rbac import is_platform_owner
 from django.contrib.auth import authenticate
 from drf_yasg import openapi
 from rest_framework.permissions import IsAuthenticated
@@ -97,7 +98,7 @@ class LoginAPIView(APIView):
                     except:
                         pass
                 is_admin = bool(
-                    user.is_superuser or user.has_perm("employee.add_employee")
+                    is_platform_owner(user) or user.has_perm("employee.add_employee")
                 )
                 result = {
                     "employee": GetEmployeeSerializer(employee).data if employee else None,

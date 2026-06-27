@@ -1,3 +1,4 @@
+from base.rbac import is_platform_owner
 from django.utils.translation import gettext_lazy as _
 
 from skylinx.http import SkylinxRedirect
@@ -86,7 +87,7 @@ def project_delete_permission(function=None, *args, **kwargs):
             return SkylinxRedirect(request, message=_("Project not found"))
         if (
             request.user.employee_get in project.managers.all()
-            or request.user.is_superuser
+            or is_platform_owner(request.user)
         ):
             return function(request, *args, project_id=project_id, **kwargs)
         return SkylinxRedirect(request, message=_("You don't have permission."))
@@ -139,7 +140,7 @@ def project_stage_delete_permission(function=None, *args, **kwargs):
         project = stage.project
         if (
             request.user.employee_get in project.managers.all()
-            or request.user.is_superuser
+            or is_platform_owner(request.user)
         ):
             return function(request, *args, stage_id=stage_id, **kwargs)
         return SkylinxRedirect(request, message=_("You don't have permission."))
@@ -185,7 +186,7 @@ def task_delete_permission(function=None, *args, **kwargs):
         project = task.project
 
         if (
-            request.user.is_superuser
+            is_platform_owner(request.user)
             or request.user.employee_get in task.task_managers.all()
             or request.user.employee_get in project.managers.all()
         ):

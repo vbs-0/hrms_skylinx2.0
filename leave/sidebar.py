@@ -1,6 +1,8 @@
 """
 leave/sidebar.py
 """
+from base.rbac import is_platform_owner
+
 
 from django.apps import apps
 from django.urls import reverse_lazy
@@ -83,19 +85,19 @@ def assign_accessibility(request, submenu, user_perm, *args, **kwargs):
 
 
 def holiday_accessibility(request, submenu, user_perms, *args, **kwargs):
-    return not request.user.is_superuser and not request.user.has_perm(
+    return not is_platform_owner(request.user) and not request.user.has_perm(
         "base.view_holidays"
     )
 
 
 def company_leave_accessibility(request, submenu, user_perms, *args, **kwargs):
-    return not request.user.is_superuser and not request.user.has_perm(
+    return not is_platform_owner(request.user) and not request.user.has_perm(
         "base.view_companyleaves"
     )
 
 
 def restrict_leave_accessibility(request, submenu, user_perms, *args, **kwargs):
-    return not request.user.is_superuser and not request.user.has_perm(
+    return not is_platform_owner(request.user) and not request.user.has_perm(
         "leave.view_restrictleave"
     )
 

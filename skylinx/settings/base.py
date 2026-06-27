@@ -192,6 +192,7 @@ MIDDLEWARE = [
     "base.middleware.CompanyMiddleware",
     "base.middleware.ForcePasswordChangeMiddleware",
     "base.middleware.TwoFactorAuthMiddleware",
+    "base.middleware.HTMXSecurityMiddleware",
     "accessibility.middlewares.AccessibilityMiddleware",
     "skylinx.skylinx_middlewares.MethodNotAllowedMiddleware",
     "skylinx.skylinx_middlewares.SVGSecurityMiddleware",
@@ -554,3 +555,40 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 AUTH_LDAP_ALWAYS_UPDATE_USER = True
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'WARNING',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'level': 'WARNING',
+            'class': 'logging.FileHandler',
+            'filename': 'skylinx_audit.log',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'WARNING',
+            'propagate': True,
+        },
+        'skylinx': {
+            'handlers': ['console', 'file'],
+            'level': 'WARNING',
+            'propagate': True,
+        },
+    },
+}

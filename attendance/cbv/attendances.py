@@ -1,3 +1,4 @@
+from django.utils import timezone
 """
 this page is handling the cbv methods of  attendances page
 """
@@ -118,7 +119,7 @@ class AttendancesListView(SkylinxListView):
 
     #     # If no date range is specified, set default to last 2 days
     #     if not has_min and not has_max:
-    #         today = datetime.now().date()
+    #         today = timezone.now().date()
     #         two_days_ago = today - timedelta(days=32)
     #         get_data["attendance_date__gte"] = two_days_ago.strftime("%Y-%m-%d")
     #         get_data["attendance_date__lte"] = today.strftime("%Y-%m-%d")
@@ -737,7 +738,7 @@ EmployeeProfileView.add_tab(
 
 
 def get_working_today(queryset, _name, value):
-    today = datetime.now().date()
+    today = timezone.now().date()
     yesterday = today - timedelta(days=1)
 
     working_employees = Attendance.objects.filter(

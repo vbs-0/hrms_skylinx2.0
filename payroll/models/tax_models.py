@@ -1,3 +1,4 @@
+from skylinx.validators import SafeMimeValidator
 """
 tax_models.py
 
@@ -33,7 +34,7 @@ class PayrollSettings(SkylinxModel):
         max_length=15, null=True, choices=choices, default="prefix"
     )
 
-    company_id = models.ForeignKey(Company, null=True, on_delete=models.PROTECT)
+    company_id = models.ForeignKey(Company, null=True, on_delete=models.CASCADE)
     objects = SkylinxCompanyManager("company_id")
 
     class Meta:
@@ -49,6 +50,9 @@ class TaxBracket(SkylinxModel):
     TaxBracket model
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     filing_status_id = models.ForeignKey(
         FilingStatus,
         on_delete=models.CASCADE,
@@ -61,7 +65,7 @@ class TaxBracket(SkylinxModel):
     tax_rate = models.FloatField(
         null=False, blank=False, default=0.0, verbose_name=_("Tax Rate")
     )
-    objects = models.Manager()
+#     objects = models.Manager()
 
     def __str__(self):
         if self.max_income != math.inf:
@@ -145,11 +149,14 @@ class Form16Document(SkylinxModel):
     """
     Form 16 uploaded documents model
     """
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
     from employee.models import Employee  # Local import or add to top
     
     employee = models.ForeignKey("employee.Employee", on_delete=models.CASCADE, verbose_name=_("Employee"))
     financial_year = models.CharField(max_length=9, verbose_name=_("Financial Year"), help_text="e.g., 2023-2024")
-    document = models.FileField(upload_to="payroll/form16/", verbose_name=_("Form 16 Document"))
+    document = models.FileField(upload_to="payroll/form16/", verbose_name=_("Form 16 Document"), validators=[SafeMimeValidator()])
 
     class Meta:
         unique_together = ("employee", "financial_year")

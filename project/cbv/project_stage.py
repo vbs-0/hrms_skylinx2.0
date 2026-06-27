@@ -1,6 +1,8 @@
 """
 This page handles the cbv methods for project stages
 """
+from base.rbac import is_platform_owner
+
 
 import logging
 from typing import Any
@@ -47,7 +49,7 @@ class ProjectStageCreateForm(SkylinxFormView):
                     project = ProjectStage.objects.filter(id=stage_id).first().project
                 if (
                     request.user.employee_get in project.managers.all()
-                    or request.user.is_superuser
+                    or is_platform_owner(request.user)
                 ):
                     return super().get(request, *args, pk=pk, **kwargs)
                 else:

@@ -1,3 +1,4 @@
+from base.rbac import is_platform_owner
 from django.apps import apps
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
@@ -77,7 +78,7 @@ if apps.is_installed("pms"):
 
 def menu_accessibility(request, submenu, user_perms, *args, **kwargs):
     return (
-        request.user.is_superuser
+        is_platform_owner(request.user)
         or request.user.has_perm("recruitment.view_recruitment")
         or request.user.has_perm("employee.change_employee")
         or request.user.has_perm("pms.view_objective")
@@ -88,36 +89,36 @@ def menu_accessibility(request, submenu, user_perms, *args, **kwargs):
 
 
 def recruitment_accessibility(request, submenu, user_perms, *args, **kwargs):
-    return request.user.is_superuser or request.user.has_perm(
+    return is_platform_owner(request.user) or request.user.has_perm(
         "recruitment.view_recruitment"
     )
 
 
 def employee_accessibility(request, submenu, user_perms, *args, **kwargs):
-    return request.user.is_superuser or request.user.has_perm("employee.change_employee")
+    return is_platform_owner(request.user) or request.user.has_perm("employee.change_employee")
 
 
 def attendance_accessibility(request, submenu, user_perms, *args, **kwargs):
-    return request.user.is_superuser or request.user.has_perm(
+    return is_platform_owner(request.user) or request.user.has_perm(
         "employee.change_employee"
     )
 
 
 def leave_accessibility(request, submenu, user_perms, *args, **kwargs):
-    return request.user.is_superuser or request.user.has_perm("employee.change_employee")
+    return is_platform_owner(request.user) or request.user.has_perm("employee.change_employee")
 
 
 def payroll_accessibility(request, submenu, user_perms, *args, **kwargs):
     return (
-        request.user.is_superuser
+        is_platform_owner(request.user)
         or request.user.has_perm("payroll.change_payslip")
         or request.user.has_perm("payroll.add_payslip")
     )
 
 
 def asset_accessibility(request, submenu, user_perms, *args, **kwargs):
-    return request.user.is_superuser or request.user.has_perm("asset.view_asset")
+    return is_platform_owner(request.user) or request.user.has_perm("asset.view_asset")
 
 
 def pms_accessibility(request, submenu, user_perms, *args, **kwargs):
-    return request.user.is_superuser or request.user.has_perm("pms.view_objective")
+    return is_platform_owner(request.user) or request.user.has_perm("pms.view_objective")

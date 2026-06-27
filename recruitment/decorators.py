@@ -219,8 +219,15 @@ def candidate_login_required(view_func):
                 ):
                     allow_func = True
 
-        if "candidate_id" in request.session:
-            allow_func = True
+        if "candidate_id" in request.session and not allow_func:
+            # Verify the session candidate_id matches the requested candidate_pk
+            # Perm/manager checks above take priority (allow_func already True)
+            candidate_pk = kwargs.get("pk") or kwargs.get("candidate_id")
+            if candidate_pk is None:
+                # No specific candidate target — allow if any candidate session
+                allow_func = True
+            else:
+                allow_func = str(request.session["candidate_id"]) == str(candidate_pk)
 
         if allow_func:
             try:

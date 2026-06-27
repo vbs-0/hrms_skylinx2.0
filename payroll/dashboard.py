@@ -1,3 +1,4 @@
+import logging
 """
 Modern payroll dashboard views — KPI summary + ApexCharts.
 
@@ -7,6 +8,9 @@ Accessible at /payroll/dashboard/modern/ alongside the existing dashboard.
 from datetime import date, timedelta
 
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+
+logger = logging.getLogger(__name__)
 from django.db.models import Count, FloatField, Q, Sum
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
@@ -98,7 +102,7 @@ def payroll_kpi_data(request):
             total=Coalesce(Sum("loan_amount"), 0.0, output_field=FloatField())
         )["total"]
     except Exception:
-        pass
+        logger.warning('[payroll/dashboard.py] operation failed', exc_info=True)
 
     # Pending reimbursements
     pending_reimbursements = 0
@@ -107,7 +111,7 @@ def payroll_kpi_data(request):
             status="requested"
         ).count()
     except Exception:
-        pass
+        logger.warning('[payroll/dashboard.py] pending_reimbursements  Reimbursementobjectsfilter failed', exc_info=True)
 
     return JsonResponse(
         {
@@ -217,7 +221,7 @@ def payroll_department_cost(request):
                     }
                 )
     except Exception:
-        pass
+        logger.warning('[payroll/dashboard.py] count itemcount failed', exc_info=True)
 
     return JsonResponse({"departments": departments, "month": today.strftime("%B %Y")})
 
@@ -297,7 +301,7 @@ def payroll_top_earners(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[payroll/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"earners": earners, "month": today.strftime("%B %Y")})
 
@@ -365,7 +369,7 @@ def payroll_contract_status(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[payroll/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse(
         {
@@ -430,7 +434,7 @@ def payroll_loan_summary(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[payroll/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"loans": loans})
 
@@ -485,7 +489,7 @@ def payroll_reimbursement_summary(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[payroll/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"summary": summary, "by_type": by_type})
 
@@ -533,7 +537,7 @@ def payroll_salary_distribution(request):
                 for k, v in sorted(band_map.items())
             ]
     except Exception:
-        pass
+        logger.warning('[payroll/dashboard.py] operation failed', exc_info=True)
     return JsonResponse({"bands": bands})
 
 
@@ -576,5 +580,5 @@ def payroll_component_breakdown(request):
             :10
         ]
     except Exception:
-        pass
+        logger.warning('[payroll/dashboard.py] operation failed', exc_info=True)
     return JsonResponse({"components": components})

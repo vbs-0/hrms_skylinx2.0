@@ -1,4 +1,5 @@
 from django.db import models
+from base.skylinx_company_manager import SkylinxCompanyManager
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
@@ -25,6 +26,9 @@ class MailAutomation(SkylinxModel):
     """
     MailAutoMation
     """
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
 
     choices = [
         ("on_create", _("On Create")),

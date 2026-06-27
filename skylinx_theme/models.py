@@ -3,6 +3,7 @@ Models for the skylinx_theme app
 """
 
 from django.core.exceptions import ValidationError
+from base.skylinx_company_manager import SkylinxCompanyManager
 from django.core.validators import RegexValidator
 
 # Create your skylinx_theme models here.
@@ -426,6 +427,9 @@ class SkylinxColorTheme(SkylinxModel):
     Model to store predefined color themes for EMPLINX
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     name = models.CharField(max_length=100, unique=True, verbose_name=_("Name"))
     description = models.TextField(blank=True, verbose_name=_("Description"))
 
@@ -584,6 +588,8 @@ class CompanyTheme(SkylinxModel):
     """
     Model to store company-wide theme settings
     """
+
+    objects = SkylinxCompanyManager(related_company_field="company")
 
     theme = models.ForeignKey(
         SkylinxColorTheme,

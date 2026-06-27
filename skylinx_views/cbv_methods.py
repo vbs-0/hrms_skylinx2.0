@@ -295,7 +295,8 @@ def hx_request_required(function):
         key = "HTTP_HX_REQUEST"
         if key not in request.META.keys():
             if request.method == "GET" and request.user.is_authenticated:
-                return redirect("/")
+                from skylinx.http import SkylinxRedirect
+                return SkylinxRedirect(request)
             return render(request, "405.html", status=405)
         return function(request, *args, **kwargs)
 
@@ -675,7 +676,7 @@ def export_xlsx(json_data, columns, file_name="quick_export", extra_info=None):
             logo.height = 60
             ws.add_image(logo, "A1")  # top-left corner
         except Exception as e:
-            print(f"Logo load failed: {e}")
+            logger.exception("Logo load failed")
 
     # --- 3️⃣ Report Title (merged & centered) ---
     ws.merge_cells(start_row=2, start_column=1, end_row=3, end_column=total_columns)

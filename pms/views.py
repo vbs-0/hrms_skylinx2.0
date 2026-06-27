@@ -1,3 +1,4 @@
+from django.utils import timezone
 """
 views.py
 
@@ -664,7 +665,7 @@ def objective_filter_pagination(request, objective_own):
     objectives_own = objective_paginator_own.get_page(own_page)
     objectives = objectives.get_page(all_page)
 
-    now = datetime.datetime.now()
+    now = datetime.timezone.now()
     data_dict = parse_qs(previous_data)
     get_key_instances(EmployeeObjective, data_dict)
     context = {
@@ -797,7 +798,7 @@ def objective_detailed_view(request, obj_id, **kwargs):
 
     previous_data = request.GET.urlencode()
     data_dict = parse_qs(previous_data)
-    now = datetime.datetime.now()
+    now = datetime.timezone.now()
     context = {
         "emp_objectives": emp_objectives,
         "pd": previous_data,

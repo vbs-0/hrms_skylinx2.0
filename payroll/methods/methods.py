@@ -1,3 +1,4 @@
+from decimal import Decimal
 """
 methods.py
 
@@ -87,7 +88,7 @@ def get_leaves(employee, start_date, end_date):
             elif ptype == "half_paid":
                 custom_leave_dates += [(d, 50.0) for d in dates_in_range]
             elif ptype == "custom":
-                pct = float(leave_type.payment_percentage or 0)
+                pct = Decimal(str(leave_type.payment_percentage or 0) or "0")
                 custom_leave_dates += [(d, pct) for d in dates_in_range]
             else:
                 unpaid_leave_dates += dates_in_range
@@ -195,7 +196,7 @@ def hourly_computation(employee, wage, start_date, end_date):
     # to find wage per second
     # wage_per_second = wage_per_hour / total_seconds_in_hour
     wage_in_second = wage / 3600
-    basic_pay = float(f"{(wage_in_second * total_worked_hour_in_second):.2f}")
+    basic_pay = Decimal(f"{(wage_in_second * total_worked_hour_in_second):.2f}")
 
     return {
         "basic_pay": basic_pay,

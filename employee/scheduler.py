@@ -1,3 +1,4 @@
+from django.utils import timezone
 import sys
 from datetime import date, datetime, time, timedelta
 
@@ -26,7 +27,7 @@ def block_unblock_disciplinary():
     from skylinx_auth.models import SkylinxUser
 
     today = date.today()
-    now = datetime.now().time()
+    now = timezone.now().time()
 
     dis_actions = DisciplinaryAction.objects.select_related("action").prefetch_related(
         "employee_id"

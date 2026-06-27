@@ -299,7 +299,7 @@ class SkylinxListView(ListView):
         context["sortby_mapping"] = self.sortby_mapping
         context["selected_instances_key_id"] = self.selected_instances_key_id
         context["row_status_indications"] = self.row_status_indications
-        context["saved_filters"] = self._saved_filters
+        context["saved_filters"] = getattr(self, "_saved_filters", QueryDict("", mutable=True))
         context["quick_export"] = self.quick_export
         context["filter_selected"] = self.filter_selected
         context["bulk_update"] = self.bulk_update

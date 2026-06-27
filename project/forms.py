@@ -1,3 +1,4 @@
+from base.rbac import is_platform_owner
 from typing import Any
 
 from django import forms
@@ -189,7 +190,7 @@ class TaskAllForm(ModelForm):
         request = getattr(_thread_locals, "request", None)
         employee = request.user.employee_get
         if not self.instance.pk:
-            if request.user.is_superuser or request.user.has_perm("project.add_task"):
+            if is_platform_owner(request.user) or request.user.has_perm("project.add_task"):
                 projects = Project.objects.all()
             elif Project.objects.filter(managers=employee).exists():
                 projects = Project.objects.filter(managers=employee)
@@ -199,7 +200,7 @@ class TaskAllForm(ModelForm):
 
         else:
             task = self.instance
-            if request.user.is_superuser:
+            if is_platform_owner(request.user):
                 projects = Project.objects.all()
             elif employee in task.project.managers.all():
                 projects = Project.objects.filter(managers=employee)

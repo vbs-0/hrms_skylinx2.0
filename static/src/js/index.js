@@ -45,5 +45,5 @@ const dashbaord = new Dashboard();
 const helpdesk = new Helpdesk();
 const faq = new Faq();
 const orgChart = new OrgChart();
-const accordion = new Accordion();
+// const accordion = new Accordion();
 // const workEntry = new WorkEntry();

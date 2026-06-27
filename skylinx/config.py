@@ -4,6 +4,7 @@ skylinx/config.py
 EMPLINX app configurations
 """
 
+
 import importlib
 import logging
 
@@ -48,7 +49,8 @@ def generate_sidebar(request):
                 # Per-company subscription: hide modules the client's plan doesn't
                 # include (superuser sees everything). Keeps the sidebar in sync
                 # with what the owner set on /manage.
-                if not request.user.is_superuser:
+                from base.rbac import is_platform_owner
+                if not is_platform_owner(request.user):
                     from subscriptions.features import APP_TO_FEATURE as _SUB_FEAT
                     sub_key = _SUB_FEAT.get(app)
                     if sub_key and sub_key not in getattr(

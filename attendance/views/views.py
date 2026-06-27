@@ -10,6 +10,8 @@ actions to handle the request, process data, and generate a response.
 This module is part of the recruitment project and is intended to
 provide the main entry points for interacting with the application's functionality.
 """
+from base.rbac import is_platform_owner
+
 
 import logging
 import uuid
@@ -305,6 +307,7 @@ def attendance_import(request):
 
 
 @login_required
+@permission_required("attendance.view_attendance")
 def attendance_export(request):
     resolver_match = request.resolver_match
     if (
@@ -683,6 +686,7 @@ def attendance_overtime_view(request):
 
 
 @login_required
+@permission_required("attendance.view_attendanceovertime")
 def attendance_account_export(request):
     if request.META.get("HTTP_HX_REQUEST") == "true":
         context = {
@@ -806,7 +810,7 @@ def form_shift_dynamic_data(request):
     """
     shift_id = request.POST.get("shift_id")
     attendance_date_str = request.POST.get("attendance_date")
-    today = datetime.now()
+    today = timezone.now()
     attendance_date = date(day=today.day, month=today.month, year=today.year)
     if attendance_date_str is not None and attendance_date_str != "":
         attendance_date = datetime.strptime(attendance_date_str, "%Y-%m-%d").date()
@@ -826,7 +830,7 @@ def form_shift_dynamic_data(request):
             attendance_clock_out_date = attendance_date + timedelta(days=1)
     worked_hour = minimum_hour
     if attendance_date == date(day=today.day, month=today.month, year=today.year):
-        shift_end_time = datetime.now().strftime("%H:%M")
+        shift_end_time = timezone.now().strftime("%H:%M")
         worked_hour = "00:00"
 
     minimum_hour = attendance_day_checking(str(attendance_date), minimum_hour)
@@ -1398,7 +1402,7 @@ def validate_bulk_attendance(request):
         except (OverflowError, ValueError):
             error_messages.append(_("Invalid attendance ID"))
 
-    if request.user.is_superuser:
+    if is_platform_owner(request.user):
         filtered_ids = ids
 
     for obj_id in filtered_ids:
@@ -1469,7 +1473,7 @@ def validate_this_attendance(request, obj_id):
     """
     try:
         attendance = Attendance.objects.get(id=obj_id)
-        if not request.user.is_superuser:
+        if not is_platform_owner(request.user):
             if attendance.employee_id.id == request.user.employee_get.id:
                 messages.error(request, _("You cannot validate your own attendance."))
                 return attendance_view_redirect(request)
@@ -1565,7 +1569,7 @@ def approve_overtime(request, obj_id):
     """
     try:
         attendance = Attendance.objects.get(id=obj_id)
-        if not request.user.is_superuser:
+        if not is_platform_owner(request.user):
             if attendance.employee_id.id == request.user.employee_get.id:
                 messages.error(request, _("You cannot approve your own overtime."))
                 return attendance_view_redirect(request)
@@ -1615,7 +1619,7 @@ def approve_bulk_overtime(request):
                 filtered_ids.append(attendance_id)
         except (Attendance.DoesNotExist, OverflowError, ValueError):
             messages.error(request, _("Attendance not found"))
-    if request.user.is_superuser:
+    if is_platform_owner(request.user):
         filtered_ids = ids
     for attendance_id in filtered_ids:
         try:
@@ -1745,7 +1749,7 @@ def update_fields_based_shift(request):
         attendance_clock_out_date = attendance_date.strftime("%Y-%m-%d")
 
     if attendance_date == datetime.today().date():
-        shift_end_time = datetime.now().time()
+        shift_end_time = timezone.now().time()
         worked_hour = "00:00"
     else:
         worked_hour = minimum_hour
@@ -2848,7 +2852,7 @@ def work_record_export(request):
                     {"x_scale": 0.5, "y_scale": 0.5},
                 )
             except Exception as e:
-                print(f"Logo insert failed: {e}")
+                logger.exception("Logo insert failed")
 
         # --- Cell formats for codes ---
         formats = {

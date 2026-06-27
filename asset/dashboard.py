@@ -1,3 +1,4 @@
+import logging
 """
 Modern asset dashboard views — KPI summary + ApexCharts.
 
@@ -7,6 +8,9 @@ Accessible at /asset/dashboard/modern/ alongside the existing dashboard.
 from datetime import date, timedelta
 
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+
+logger = logging.getLogger(__name__)
 from django.db.models import Count, DecimalField, Q, Sum
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
@@ -158,7 +162,7 @@ def asset_by_category(request):
                     }
                 )
     except Exception:
-        pass
+        logger.warning('[asset/dashboard.py] available itemavailable_count failed', exc_info=True)
 
     return JsonResponse({"categories": categories})
 
@@ -224,7 +228,7 @@ def asset_value_by_category(request):
                     }
                 )
     except Exception:
-        pass
+        logger.warning('[asset/dashboard.py] count itemcount failed', exc_info=True)
 
     return JsonResponse({"categories": categories})
 
@@ -266,7 +270,7 @@ def asset_expiring_soon(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[asset/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"assets": assets})
 
@@ -315,7 +319,7 @@ def asset_recent_allocations(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[asset/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"allocations": allocations})
 
@@ -357,7 +361,7 @@ def asset_department_distribution(request):
                     }
                 )
     except Exception:
-        pass
+        logger.warning('[asset/dashboard.py] count itemcount failed', exc_info=True)
 
     return JsonResponse({"departments": departments})
 
@@ -389,5 +393,5 @@ def asset_age_distribution(request):
                 bracket_map["5+ years"] += 1
         brackets = [{"bracket": k, "count": v} for k, v in bracket_map.items() if v > 0]
     except Exception:
-        pass
+        logger.warning('[asset/dashboard.py] brackets  bracket k count v for k v in bracket_m failed', exc_info=True)
     return JsonResponse({"brackets": brackets})

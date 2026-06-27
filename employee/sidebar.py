@@ -3,6 +3,8 @@ employee/sidebar.py
 
 To set EMPLINX sidebar for employee
 """
+from base.rbac import is_platform_owner
+
 
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
@@ -86,7 +88,7 @@ def employee_accessibility(request, submenu, user_perms, *args, **kwargs):
     Regular employees (who only have view_employee) should not see the full employee list.
     """
     return (
-        request.user.is_superuser
+        is_platform_owner(request.user)
         or is_reportingmanager(request.user)
         or request.user.has_perm("employee.change_employee")
     )

@@ -1,3 +1,4 @@
+from skylinx.validators import SafeMimeValidator
 """
 forms.py
 
@@ -267,8 +268,7 @@ class AttachmentForm(forms.ModelForm):
                 "type": "File",
                 "class": "form-control",
                 "multiple": "True",
-            }
-        ),
+            }), validators=[SafeMimeValidator()],
         label="",
     )
 

@@ -1,3 +1,4 @@
+from django.utils import timezone
 """
 pg_backup.scheduler
 
@@ -103,7 +104,7 @@ else:
         """
         Method that dump pg data
         """
-        timestamp = datetime.datetime.now().strftime(DATE_FORMAT)
+        timestamp = datetime.timezone.now().strftime(DATE_FORMAT)
         backup_file = BACKUP_DIR / f"{DB_NAME}_backup_{timestamp}.sql"
 
         os.makedirs(BACKUP_DIR, exist_ok=True)

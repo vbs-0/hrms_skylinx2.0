@@ -1,3 +1,4 @@
+from base.rbac import is_platform_owner
 from django.db.models import ProtectedError, Q
 from django.http import Http404
 from django.utils.decorators import method_decorator
@@ -125,7 +126,7 @@ class EmployeeAPIView(APIView):
             if company and company != "all":
                 if not getattr(employee, "employee_work_info", None) or employee.employee_work_info.company_id.id != int(company):
                     return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
-            if employee.employee_user_id.is_superuser:
+            if is_platform_owner(employee.employee_user_id):
                 return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
             serializer = EmployeeSerializer(employee)
             return Response(serializer.data)

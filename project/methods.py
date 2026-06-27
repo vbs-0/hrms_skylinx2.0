@@ -1,3 +1,4 @@
+from base.rbac import is_platform_owner
 import random
 
 from django.core.paginator import Paginator
@@ -230,5 +231,5 @@ def is_project_manager_or_super_user(request, project):
     user is a super user.
     """
     return (
-        request.user.employee_get in project.managers.all() or request.user.is_superuser
+        request.user.employee_get in project.managers.all() or is_platform_owner(request.user)
     )

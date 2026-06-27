@@ -272,7 +272,7 @@ def hx_request_required(view_func):
         key = "HTTP_HX_REQUEST"
         if key not in request.META.keys():
             if request.method == "GET" and request.user.is_authenticated:
-                return redirect("/")
+                return SkylinxRedirect(request)
             return render(request, "405.html", status=405)
         return view_func(request, *args, **kwargs)
 

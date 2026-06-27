@@ -1,3 +1,4 @@
+from base.rbac import is_platform_owner
 def holiday_calendar_view(request):
     """
     Renders a unified Holiday Calendar containing public holidays and approved leaves.
@@ -40,7 +41,7 @@ def holiday_calendar_view(request):
         start_date__lte=end_date,
         end_date__gte=start_date,
     )
-    if not request.user.is_superuser and not request.user.has_perm("leave.view_leaverequest"):
+    if not is_platform_owner(request.user) and not request.user.has_perm("leave.view_leaverequest"):
         # Regular user: only show his/her own leaves
         employee = getattr(request.user, "employee_get", None)
         if employee:

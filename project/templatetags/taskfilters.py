@@ -1,6 +1,8 @@
 """
 This module is used to write custom template filters.
 """
+from base.rbac import is_platform_owner
+
 
 from django.template.defaultfilters import register
 
@@ -59,7 +61,7 @@ def is_project_manager(user, project):
     """
     This method will return true, if the user is manager of the project
     """
-    if user.is_superuser:
+    if is_platform_owner(user):
         return True
     employee = getattr(user, "employee_get", None)
     if not employee:

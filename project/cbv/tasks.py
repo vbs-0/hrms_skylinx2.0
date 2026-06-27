@@ -1,6 +1,8 @@
 """
 This page handles the cbv methods for task page
 """
+from base.rbac import is_platform_owner
+
 
 import logging
 from typing import Any
@@ -302,7 +304,7 @@ class TaskCreateForm(SkylinxFormView):
             return super().get(request, *args, pk=pk, **kwargs)
         if (
             request.user.employee_get in project.managers.all()
-            or request.user.is_superuser
+            or is_platform_owner(request.user)
             or request.user.has_perm("project.add_task")
         ):
             self.dynamic_create_fields = [
@@ -365,7 +367,7 @@ class TaskCreateForm(SkylinxFormView):
                 self.form.fields["project"].widget = forms.HiddenInput()
                 self.form.fields["stage"].widget = forms.HiddenInput()
         else:
-            if self.request.user.is_superuser:
+            if self.is_platform_owner(request.user):
                 self.dynamic_create_fields = [
                     ("project", DynamicProjectCreationFormView),
                     ("stage", StageDynamicCreateForm, ["project"]),
@@ -374,7 +376,7 @@ class TaskCreateForm(SkylinxFormView):
         if project_id or stage_id:
             if (
                 self.request.user.employee_get in project.managers.all()
-                or self.request.user.is_superuser
+                or self.is_platform_owner(request.user)
             ):
 
                 self.form.fields["project"].choices.append(

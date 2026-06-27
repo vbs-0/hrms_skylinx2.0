@@ -1,3 +1,4 @@
+import logging
 """
 Modern helpdesk dashboard views — KPI summary + ApexCharts.
 
@@ -7,6 +8,9 @@ Accessible at /helpdesk/dashboard/modern/ alongside the existing pipeline view.
 from datetime import date, timedelta
 
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+
+logger = logging.getLogger(__name__)
 from django.db.models import Avg, Count, F, Q
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -100,7 +104,7 @@ def helpdesk_kpi_data(request):
                         count += 1
             avg_resolution = round(total_days / count, 1) if count > 0 else None
     except Exception:
-        pass
+        logger.warning('[helpdesk/dashboard.py] count  1 failed', exc_info=True)
 
     return JsonResponse(
         {
@@ -190,7 +194,7 @@ def helpdesk_type_distribution(request):
                     }
                 )
     except Exception:
-        pass
+        logger.warning('[helpdesk/dashboard.py] count itemcount failed', exc_info=True)
 
     return JsonResponse({"types": types})
 
@@ -264,7 +268,7 @@ def helpdesk_department_breakdown(request):
                     {"id": dept_id, "department": dept, "count": item["count"]}
                 )
     except Exception:
-        pass
+        logger.warning('[helpdesk/dashboard.py] id dept_id department dept count itemcount failed', exc_info=True)
 
     return JsonResponse({"departments": departments})
 
@@ -312,7 +316,7 @@ def helpdesk_overdue_tickets(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[helpdesk/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"tickets": tickets})
 
@@ -352,7 +356,7 @@ def helpdesk_recent_tickets(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[helpdesk/dashboard.py] date tcreated_datestrftimeb d if tcreated_date e failed', exc_info=True)
 
     return JsonResponse({"tickets": tickets})
 
@@ -386,7 +390,7 @@ def helpdesk_sla_compliance(request):
             status__in=["new", "in_progress", "on_hold"],
         ).count()
     except Exception:
-        pass
+        logger.warning('[helpdesk/dashboard.py] count failed', exc_info=True)
 
     total_with_deadline = resolved_on_time + resolved_late
     compliance_rate = (
@@ -437,6 +441,6 @@ def helpdesk_assignee_workload(request):
             :10
         ]
     except Exception:
-        pass
+        logger.warning('[helpdesk/dashboard.py] assignees  sortedworkloadvalues keylambda x xcount failed', exc_info=True)
 
     return JsonResponse({"assignees": assignees})

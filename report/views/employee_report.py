@@ -1,10 +1,22 @@
+from base.rbac import is_platform_owner
 from django.http import JsonResponse
 from django.shortcuts import render
 
 from base.models import Company
+from base.rbac import current_company
 from employee.filters import EmployeeFilter
 from employee.models import Employee
 from skylinx.decorators import login_required, permission_required
+
+
+def _employee_report_queryset(request):
+    qs = Employee.objects.exclude(employee_user_id__is_superuser=True)
+    company = current_company(request)
+    if company:
+        qs = qs.filter(employee_work_info__company_id=company)
+    elif not is_platform_owner(request.user):
+        qs = qs.none()
+    return qs
 
 
 @login_required
@@ -18,14 +30,14 @@ def employee_report(request):
     return render(
         request,
         "report/employee_report.html",
-        {"company": company, "f": EmployeeFilter()},
+        {"company": company, "f": EmployeeFilter(queryset=_employee_report_queryset(request))},
     )
 
 
 @login_required
 @permission_required(perm="employee.change_employee")
 def employee_pivot(request):
-    qs = Employee.objects.all()
+    qs = _employee_report_queryset(request)
     filtered_qs = EmployeeFilter(request.GET, queryset=qs)
     qs = filtered_qs.qs
 

@@ -1,3 +1,4 @@
+from django.utils import timezone
 """
 views.py
 
@@ -96,7 +97,7 @@ def late_come(attendance, start_time, end_time):
 
     """
 
-    now_sec = strtime_seconds(datetime.now().strftime("%H:%M"))
+    now_sec = strtime_seconds(timezone.now().strftime("%H:%M"))
     mid_day_sec = strtime_seconds("12:00")
     if start_time > end_time and start_time != end_time:
         # night shift
@@ -135,7 +136,7 @@ def early_out(attendance, start_time, end_time):
         start_end : attendance day shift end time
     """
 
-    now_sec = strtime_seconds(datetime.now().strftime("%H:%M"))
+    now_sec = strtime_seconds(timezone.now().strftime("%H:%M"))
     mid_day_sec = strtime_seconds("12:00")
     if start_time > end_time:
         # Early out condition for night shift
@@ -747,7 +748,7 @@ def clock_in(request):
         attendance_date = date_today
         day = date_today.strftime("%A").lower()
         day = EmployeeShiftDay.objects.get(day=day)
-        now = datetime.now().strftime("%H:%M")
+        now = timezone.now().strftime("%H:%M")
         now_sec = strtime_seconds(now)
         mid_day_sec = strtime_seconds("12:00")
         minimum_hour, start_time_sec, end_time_sec = shift_schedule_today(
@@ -866,7 +867,7 @@ def clock_out(request):
     )
     if attendance is not None:
         day = attendance.attendance_day
-    now = datetime.now().strftime("%H:%M")
+    now = timezone.now().strftime("%H:%M")
     minimum_hour, start_time_sec, end_time_sec = shift_schedule_today(
         day=day, shift=shift
     )

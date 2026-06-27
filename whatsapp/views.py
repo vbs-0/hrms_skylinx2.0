@@ -110,7 +110,7 @@ def clean_string(s):
         return s
 
 
-@csrf_exempt
+# @csrf_exempt  # SECURITY REMEDIATION: Removed to prevent CSRF
 @check_integration_enabled(app_name="whatsapp")
 def whatsapp(request):
     """

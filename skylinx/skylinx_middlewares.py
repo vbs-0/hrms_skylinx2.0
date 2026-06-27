@@ -53,6 +53,7 @@ class ThreadLocalMiddleware:
         _thread_locals.request = request
         response = self.get_response(request)
         return response
+        _thread_locals.request = None
 
 
 class MethodNotAllowedMiddleware:
@@ -64,6 +65,7 @@ class MethodNotAllowedMiddleware:
         if isinstance(response, HttpResponseNotAllowed):
             return render(request, "405.html", status=405)
         return response
+        _thread_locals.request = None
 
 
 class HtmxRedirectMiddleware:
@@ -86,6 +88,7 @@ class HtmxRedirectMiddleware:
                     pass
                 response["HX-Redirect"] = redirect_to
         return response
+        _thread_locals.request = None
 
 
 class SVGSecurityMiddleware:
@@ -103,6 +106,7 @@ class SVGSecurityMiddleware:
             response["X-Content-Type-Options"] = "nosniff"
 
         return response
+        _thread_locals.request = None
 
 
 class MissingParameterMiddleware:

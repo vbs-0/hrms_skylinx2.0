@@ -3,15 +3,21 @@ Modern dashboard views — KPI summary + ApexCharts.
 
 Accessible at /dashboard/modern/ alongside the existing dashboard.
 """
+from base.rbac import is_platform_owner
+
 
 import json
 from datetime import date, timedelta
 from functools import wraps
 
+import logging
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
+
+logger = logging.getLogger(__name__)
+
 
 
 def can_view_company_analytics(user, perm="employee.change_employee"):
@@ -24,7 +30,7 @@ def can_view_company_analytics(user, perm="employee.change_employee"):
     """
     return bool(
         getattr(user, "is_authenticated", False)
-        and (user.is_superuser or user.has_perm(perm))
+        and (is_platform_owner(user) or user.has_perm(perm))
     )
 
 
@@ -89,12 +95,12 @@ def main_dashboard_view(request):
             if first:
                 enabled_timerunner = first.time_runner
         except Exception:
-            pass
+            logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
 
         try:
             get_forecasted_at_work = request.user.employee_get.get_forecasted_at_work()
         except Exception:
-            pass
+            logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
 
     # Load saved chart preferences from DB for the current employee
     employee_chart_prefs = "[]"
@@ -106,7 +112,7 @@ def main_dashboard_view(request):
         if obj and obj.charts:
             employee_chart_prefs = json.dumps(obj.charts)
     except Exception:
-        pass
+        logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
 
     return render(
         request,
@@ -150,7 +156,7 @@ def dashboard_kpi_data(request):
             date_joining__lte=today,
         ).count()
     except Exception:
-        pass
+        logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
 
     present_today = 0
     try:
@@ -165,7 +171,7 @@ def dashboard_kpi_data(request):
             .count()
         )
     except Exception:
-        pass
+        logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
 
     absent_today = max(0, total_employees - present_today)
     attendance_rate = (
@@ -187,7 +193,7 @@ def dashboard_kpi_data(request):
             .count()
         )
     except Exception:
-        pass
+        logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
 
     pending_leaves = 0
     try:
@@ -195,7 +201,7 @@ def dashboard_kpi_data(request):
 
         pending_leaves = LeaveRequest.objects.filter(status="requested").count()
     except Exception:
-        pass
+        logger.warning("[dashboard] from leavemodels import LeaveRequest failed", exc_info=True)
 
     open_recruitments = 0
     try:
@@ -205,28 +211,28 @@ def dashboard_kpi_data(request):
             is_active=True, closed=False
         ).count()
     except Exception:
-        pass
+        logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
 
     active_projects = 0
     try:
         from project.models import Project
         active_projects = Project.objects.count()
     except Exception:
-        pass
+        logger.warning("[dashboard] from projectmodels import Project failed", exc_info=True)
 
     active_tickets = 0
     try:
         from helpdesk.models import Ticket
         active_tickets = Ticket.objects.exclude(status="resolved").count()
     except Exception:
-        pass
+        logger.warning("[dashboard] from helpdeskmodels import Ticket failed", exc_info=True)
 
     total_assets = 0
     try:
         from asset.models import Asset
         total_assets = Asset.objects.count()
     except Exception:
-        pass
+        logger.warning("[dashboard] from assetmodels import Asset failed", exc_info=True)
 
     return JsonResponse(
         {
@@ -326,7 +332,7 @@ def dashboard_leave_breakdown(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
 
     return JsonResponse({"breakdown": breakdown, "month": today.strftime("%B %Y")})
 
@@ -353,7 +359,7 @@ def dashboard_department_headcount(request):
             if dept:
                 departments.append({"department": dept, "count": item["count"]})
     except Exception:
-        pass
+        logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
 
     return JsonResponse({"departments": departments})
 
@@ -391,7 +397,7 @@ def dashboard_gender_split(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
 
     return JsonResponse({"genders": genders})
 
@@ -426,7 +432,7 @@ def dashboard_announcements(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
 
     return JsonResponse({"announcements": announcements})
 
@@ -459,7 +465,7 @@ def dashboard_announcement_detail(request, pk):
             )
             attachments.append({"url": url, "name": name, "is_image": is_image})
         except Exception:
-            pass
+            logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
 
     departments = [d.department for d in ann.department.all()]
     job_positions = [j.job_position for j in ann.job_position.all()]
@@ -530,7 +536,7 @@ def dashboard_todays_leave(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
 
     return JsonResponse({"leaves": leaves, "date": today.isoformat()})
 
@@ -566,7 +572,7 @@ def dashboard_upcoming_holidays(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
 
     return JsonResponse({"holidays": holidays_data})
 
@@ -635,7 +641,7 @@ def dashboard_birthdays_anniversaries(request):
 
         anniversaries.sort(key=lambda x: x["days_away"])
     except Exception:
-        pass
+        logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
 
     return JsonResponse(
         {
@@ -762,7 +768,7 @@ def dashboard_payroll_summary(request):
         )
         previous = _aggregate(prev_qs)
     except Exception:
-        pass
+        logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
 
     # Trend calculation
     change_pct = 0
@@ -895,7 +901,7 @@ def save_dashboard_prefs(request):
             employee=emp, defaults={"charts": clean_prefs}
         )
     except Exception:
-        pass
+        logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
     return JsonResponse({"status": "ok"})
 
 
@@ -962,7 +968,7 @@ def dashboard_turnover(request):
                     .count()
                 )
             except Exception:
-                pass
+                logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
 
             months.append(
                 {
@@ -1007,7 +1013,7 @@ def dashboard_project_status(request):
             if count > 0:
                 data.append({"status": str(label), "count": count})
     except Exception:
-        pass
+        logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
     return JsonResponse({"statuses": data})
 
 
@@ -1023,7 +1029,7 @@ def dashboard_ticket_status(request):
             if count > 0:
                 data.append({"status": str(label), "count": count})
     except Exception:
-        pass
+        logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
     return JsonResponse({"statuses": data})
 
 
@@ -1039,5 +1045,5 @@ def dashboard_asset_status(request):
             if count > 0:
                 data.append({"status": str(label), "count": count})
     except Exception:
-        pass
+        logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
     return JsonResponse({"statuses": data})

@@ -1,3 +1,4 @@
+from base.rbac import is_platform_owner
 from datetime import datetime
 from django.db.models import Q
 from django.urls import reverse
@@ -206,7 +207,7 @@ class MobilePayslipPDFAPIView(APIView):
         except Payslip.DoesNotExist:
             return Response({"success": False, "message": "Payslip not found"}, status=404)
 
-        if payslip.employee_id != employee and not (user.is_superuser or user.has_perm("payroll.view_payslip")):
+        if payslip.employee_id != employee and not (is_platform_owner(user) or user.has_perm("payroll.view_payslip")):
             return Response({"success": False, "message": "Permission denied"}, status=403)
 
         company = Company.objects.filter(hq=True).first()

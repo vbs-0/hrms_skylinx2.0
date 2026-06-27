@@ -1,8 +1,11 @@
+from django.contrib.auth.decorators import login_required
 """
 views.py
 
 This module is used to map url pattens with django views or methods
 """
+from base.rbac import is_platform_owner
+
 
 import csv
 import json
@@ -405,7 +408,7 @@ def initialize_database(request):
         if request.method == "POST":
             password = request._post.get("password")
             if settings.DB_INIT_PASSWORD == password:
-                return redirect(initialize_database_user)
+                return render(request, "initialize_database/skylinx_user_signup.html")
             else:
                 messages.warning(
                     request,
@@ -1452,12 +1455,12 @@ def user_group_table(request):
     if request.method == "POST":
         company = current_company(request)
         post = request.POST.copy()
-        if company and not request.user.is_superuser:
+        if company:
             post["name"] = scoped_name(company.id, post.get("name", ""))
         form = UserGroupForm(post)
         if form.is_valid():
             group = form.save()
-            if company and not request.user.is_superuser:
+            if company:
                 CompanyGroup.objects.get_or_create(
                     group=group, defaults={"company": company}
                 )
@@ -1491,7 +1494,7 @@ def update_group_permission(
     if not owns_group(request, instance.id):
         return JsonResponse({"message": "Group not found", "type": "danger"})
     company = current_company(request)
-    scope = company and not request.user.is_superuser
+    scope = bool(company)
     form = UserGroupForm(request.POST, instance=instance)
     if form.is_valid():
         grp = form.save()
@@ -1844,6 +1847,8 @@ def user_group_permission_remove(request, pid, gid):
         pid: permission id
         gid: group id
     """
+    if not owns_group(request, gid):
+        return SkylinxRedirect(request, message=_("Group not found"))
     group = Group.objects.get(id=gid)
     permission = Permission.objects.get(id=pid)
     group.permissions.remove(permission)
@@ -1860,6 +1865,8 @@ def group_remove_user(request, uid, gid):
         uid: user instance id
         gid: group instance id
     """
+    if not owns_group(request, gid):
+        return SkylinxRedirect(request, message=_("Group not found"))
     group = Group.objects.get(id=gid)
     user = SkylinxUser.objects.get(id=uid)
     group.user_set.remove(user)
@@ -2057,7 +2064,10 @@ def add_remove_dynamic_fields(request, **kwargs):
         hx_target = request.META.get("HTTP_HX_TARGET")
 
         if hx_target:
-            field_counts = int(hx_target.split("_")[-1]) + 1
+            try:
+                field_counts = int(hx_target.split("_")[-1]) + 1
+            except (ValueError, IndexError, TypeError):
+                return HttpResponse()
             next_hx_target = f"{hx_target.rsplit('_', 1)[0]}_{field_counts}"
             form = form_class()
             field_name = f"{field_name_pre}{field_counts}"
@@ -2379,7 +2389,7 @@ def company_create(request):
     This method render template and form to create company and save if the form is valid
     """
 
-    if not request.user.is_superuser:
+    if not is_platform_owner(request.user):
         return HttpResponse(status=403)
 
     form = CompanyForm()
@@ -2406,7 +2416,7 @@ def company_view(request):
     """
     This method used to view created companies
     """
-    if request.user.is_superuser:
+    if is_platform_owner(request.user):
         companies = Company.objects.all()
     else:
         employee = getattr(request.user, "employee_get", None)
@@ -2430,7 +2440,7 @@ def company_update(request, id, **kwargs):
 
     """
     company = Company.objects.get(id=id)
-    if not request.user.is_superuser:
+    if not is_platform_owner(request.user):
         employee = getattr(request.user, "employee_get", None)
         own_company = getattr(getattr(employee, "employee_work_info", None), "company_id", None)
         if not own_company or own_company.id != company.id:
@@ -6143,7 +6153,7 @@ def save_date_format(request):
         else:
             user = request.user
             employee = user.employee_get
-            if request.user.is_superuser:
+            if is_platform_owner(request.user):
                 selected_company = request.session.get("selected_company")
                 if selected_company == "all":
                     all_companies = Company.objects.all()
@@ -6200,7 +6210,7 @@ def get_date_format(request):
     employee = user.employee_get
 
     selected_company = request.session.get("selected_company")
-    if selected_company != "all" and request.user.is_superuser:
+    if selected_company != "all" and is_platform_owner(request.user):
         company = Company.objects.filter(id=selected_company).first()
         if not company:
             return JsonResponse({"selected_format": "MMM. D, YYYY"})
@@ -6241,7 +6251,7 @@ def save_time_format(request):
         else:
             user = request.user
             employee = user.employee_get
-            if request.user.is_superuser:
+            if is_platform_owner(request.user):
                 selected_company = request.session.get("selected_company")
                 if selected_company == "all":
                     all_companies = Company.objects.all()
@@ -6299,7 +6309,7 @@ def get_time_format(request):
     employee = user.employee_get
 
     selected_company = request.session.get("selected_company")
-    if selected_company != "all" and request.user.is_superuser:
+    if selected_company != "all" and is_platform_owner(request.user):
         company = Company.objects.filter(id=selected_company).first()
         if not company:
             return JsonResponse({"selected_format": "hh:mm A"})
@@ -6386,7 +6396,8 @@ def enable_profile_edit_feature(request):
             instance.is_enabled = enabled
             instance.save()
         else:
-            ProfileEditFeature.objects.create(is_enabled=enabled)
+            company = current_company(request)
+            ProfileEditFeature.objects.create(is_enabled=enabled, company_id=company)
 
         if enabled and not feature:
             DefaultAccessibility.objects.create(
@@ -8490,10 +8501,15 @@ def protected_media(request, path):
             ),
             None,
         )
-        if required_perm and not (
-            getattr(auth_user, "is_superuser", False) or auth_user.has_perm(required_perm)
-        ):
-            raise Http404("File not found")
+        
+        # Check for explicitly sensitive keywords in the path to prevent IDOR
+        sensitive_keywords = ["payslip", "document", "contract", "loan", "reimbursement", "disciplinary"]
+        is_sensitive_path = any(keyword in path.lower() for keyword in sensitive_keywords)
+
+        if not (getattr(auth_user, "is_superuser", False) or is_platform_owner(auth_user)):
+            if is_sensitive_path or (required_perm and not auth_user.has_perm(required_perm)):
+                if not is_own_resource:
+                    raise Http404("Direct media access to this file is blocked for security.")
 
     return FileResponse(open(media_path, "rb"))
 
@@ -8508,7 +8524,7 @@ def get_home_announcement(request):
 def edit_home_announcement(request):
     from django.http import HttpResponseForbidden
     # Allow superuser OR company admin with change_announcement permission
-    if not (request.user.is_superuser or request.user.has_perm("base.change_announcement")):
+    if not (is_platform_owner(request.user) or request.user.has_perm("base.change_announcement")):
         return HttpResponseForbidden("Permission Denied")
         
     from base.models import Announcement
@@ -8560,7 +8576,7 @@ def get_home_logo_card(request):
 def edit_home_logo_card(request):
     from django.http import HttpResponseForbidden
     # Allow superuser OR company admin with change_company permission
-    if not (request.user.is_superuser or request.user.has_perm("base.change_company")):
+    if not (is_platform_owner(request.user) or request.user.has_perm("base.change_company")):
         return HttpResponseForbidden("Permission Denied")
         
     from base.models import Company
@@ -8643,7 +8659,7 @@ def edit_home_logo_card(request):
 def edit_home_logo_card_image(request):
     from django.http import HttpResponseForbidden
     # Allow superuser OR company admin with change_company permission
-    if not (request.user.is_superuser or request.user.has_perm("base.change_company")):
+    if not (is_platform_owner(request.user) or request.user.has_perm("base.change_company")):
         return HttpResponseForbidden("Permission Denied")
         
     from base.models import Company
@@ -8770,7 +8786,7 @@ def holiday_calendar_view(request):
         start_date__lte=end_date,
         end_date__gte=start_date,
     )
-    if not request.user.is_superuser and not request.user.has_perm("employee.change_employee"):
+    if not is_platform_owner(request.user) and not request.user.has_perm("employee.change_employee"):
         # Regular user: only show his/her own leaves
         employee = getattr(request.user, "employee_get", None)
         if employee:
@@ -8915,8 +8931,11 @@ import json
 from django.conf import settings
 from django.http import JsonResponse
 
-@csrf_exempt
+@login_required
 def legal_editor(request):
+    from base.rbac import is_platform_owner
+    if not is_platform_owner(request.user):
+        return JsonResponse({"error": "Unauthorized"}, status=403)
     legal_dir = os.path.join(settings.BASE_DIR, 'base', 'templates', 'legal')
     md_dir = os.path.join(legal_dir, 'md')
     os.makedirs(md_dir, exist_ok=True)

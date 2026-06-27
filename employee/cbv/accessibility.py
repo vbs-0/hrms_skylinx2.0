@@ -1,6 +1,8 @@
 """
 Accessiblility
 """
+from base.rbac import is_platform_owner
+
 
 from django.contrib.auth.context_processors import PermWrapper
 
@@ -114,7 +116,7 @@ def note_accessibility(
     """
     accessibility for note tab
     """
-    if instance.employee_user_id != request.user or request.user.is_superuser:
+    if instance.employee_user_id != request.user or is_platform_owner(request.user):
         if request.user.has_perm("employee.view_employeenote") or check_manager(
             request.user.employee_get, instance
         ):

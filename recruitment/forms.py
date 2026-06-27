@@ -1,3 +1,4 @@
+from django.utils import timezone
 """
 forms.py
 
@@ -81,7 +82,7 @@ class ModelForm(forms.ModelForm):
         request = getattr(skylinx_middlewares._thread_locals, "request", None)
 
         today = date.today()
-        now = datetime.now()
+        now = timezone.now()
 
         default_input_class = "oh-input w-100"
         select_class = "oh-select oh-select-2 select2-hidden-accessible"
@@ -1338,7 +1339,7 @@ class ScheduleInterviewForm(BaseModelForm):
             self.add_error("interview_date", _("Interview date cannot be in the past."))
 
         if not instance.pk and interview_time:
-            now = datetime.now().time()
+            now = timezone.now().time()
             if (
                 not instance.pk
                 and interview_date == date.today()

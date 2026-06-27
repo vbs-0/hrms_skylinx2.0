@@ -10,6 +10,8 @@ actions to handle the request, process data, and generate a response.
 This module is part of the recruitment project and is intended to
 provide the main entry points for interacting with the application's functionality.
 """
+from base.rbac import is_platform_owner
+
 
 import ast
 import calendar
@@ -68,6 +70,7 @@ from base.models import (
     WorkTypeRequest,
 )
 from base.views import generate_error_report
+from base.rbac import current_company
 from employee.cbv.document_request import htmx_refresh_document_request_container
 from employee.filters import DocumentRequestFilter, EmployeeFilter, EmployeeReGroup
 from employee.forms import (
@@ -345,7 +348,7 @@ def employee_view_individual(request, obj_id, **kwargs):
 
     # # Convert the string to an actual list of integers
     # requests_ids = (
-    #     ast.literal_eval(request_ids_str)
+    #     json.loads(request_ids_str)
     #     if isinstance(request_ids_str, str)
     #     else request_ids_str
     # )
@@ -761,6 +764,7 @@ def document_create(request, emp_id):
     return render(request, "tabs/htmx/document_create_form.html", context=context)
 
 
+@login_required
 @hx_request_required
 def get_notify_field(request):
     expiry_date = request.GET.get("expiry_date")
@@ -1550,7 +1554,7 @@ def save_employee_bulk_update(request):
         bulk_employee_ids = (
             json.loads(bulk_employee_ids_str) if bulk_employee_ids_str else []
         )
-        employee_list = ast.literal_eval(bulk_employee_ids)
+        employee_list = json.loads(bulk_employee_ids)
         for id in employee_list:
             try:
                 employee_instance = Employee.objects.get(id=int(id))
@@ -1609,7 +1613,7 @@ def employee_account_block_unblock(request, emp_id):
     if not user:
         messages.info(request, _("Employee not found"))
         return redirect(f"{reverse('employee-view')}?view=list")
-    if not user.is_superuser:
+    if not is_platform_owner(user):
         user.is_active = not user.is_active
         action_message = _("blocked") if not user.is_active else _("unblocked")
         user.save()
@@ -1908,6 +1912,13 @@ def employee_create_update_personal_info(request, obj_id=None):
     This method is used to update employee's personal info.
     """
     employee = Employee.objects.filter(id=obj_id).first()
+    
+    # IDOR Prevention
+    if employee and not (getattr(request.user, "is_superuser", False) or request.user.has_perm("employee.change_employee")):
+        if hasattr(request.user, "employee_get") and request.user.employee_get not in [employee, getattr(getattr(employee, "employee_work_info", None), "reporting_manager_id", None)]:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied("You do not have permission to modify this profile.")
+
     # Seat limit: block creating a NEW employee once the plan's cap is hit.
     if obj_id is None:
         from subscriptions.utils import can_add_employee, company_for_user
@@ -1978,6 +1989,13 @@ def employee_update_work_info(request, obj_id=None):
     This method is used to update employee work info
     """
     employee = Employee.objects.filter(id=obj_id).first()
+    
+    # IDOR Prevention
+    if employee and not (getattr(request.user, "is_superuser", False) or request.user.has_perm("employee.change_employeeworkinformation")):
+        if hasattr(request.user, "employee_get") and request.user.employee_get not in [employee, getattr(getattr(employee, "employee_work_info", None), "reporting_manager_id", None)]:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied("You do not have permission to modify this profile.")
+
     form = EmployeeWorkInformationForm(
         request.POST,
         instance=EmployeeWorkInformation.objects.filter(employee_id=employee).first(),
@@ -2016,6 +2034,13 @@ def employee_update_bank_details(request, obj_id=None):
     This method is used to render form to create employee's bank information.
     """
     employee = Employee.objects.filter(id=obj_id).first()
+    
+    # IDOR Prevention
+    if employee and not (getattr(request.user, "is_superuser", False) or request.user.has_perm("employee.change_employeebankdetails")):
+        if hasattr(request.user, "employee_get") and request.user.employee_get not in [employee, getattr(getattr(employee, "employee_work_info", None), "reporting_manager_id", None)]:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied("You do not have permission to modify this profile.")
+
     form = EmployeeBankDetailsForm(
         request.POST,
         instance=EmployeeBankDetails.objects.filter(employee_id=employee).first(),
@@ -2632,6 +2657,13 @@ def employee_work_info_view_update(request, obj_id):
     """
 
     work_information = EmployeeWorkInformation.objects.get(id=obj_id)
+    
+    # IDOR Prevention
+    if not (getattr(request.user, "is_superuser", False) or request.user.has_perm("employee.change_employeeworkinformation")):
+        if hasattr(request.user, "employee_get") and request.user.employee_get not in [work_information.employee_id, work_information.reporting_manager_id]:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied("You do not have permission to modify this profile.")
+
     form = EmployeeForm(instance=work_information.employee_id)
     bank_form = EmployeeBankDetailsUpdateForm(
         instance=work_information.employee_id.employee_bank_details
@@ -2688,6 +2720,13 @@ def employee_bank_details_view_update(request, obj_id):
     This method is used to update employee bank details.
     """
     employee_bank_instance = EmployeeBankDetails.objects.get(id=obj_id)
+    
+    # IDOR Prevention
+    if not (getattr(request.user, "is_superuser", False) or request.user.has_perm("employee.change_employeebankdetails")):
+        if hasattr(request.user, "employee_get") and request.user.employee_get not in [employee_bank_instance.employee_id, getattr(getattr(employee_bank_instance.employee_id, "employee_work_info", None), "reporting_manager_id", None)]:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied("You do not have permission to modify this profile.")
+
     form = EmployeeForm(instance=employee_bank_instance.employee_id)
     work_form = EmployeeWorkInformationUpdateForm(
         instance=employee_bank_instance.employee_id.employee_work_info
@@ -3103,7 +3142,7 @@ def birthday():
     """
     This method is used to find upcoming birthday and returns the queryset
     """
-    today = datetime.now().date()
+    today = timezone.now().date()
     last_day_of_month = calendar.monthrange(today.year, today.month)[1]
     employees = Employee.objects.filter(
         is_active=True,
@@ -3783,7 +3822,7 @@ def organisation_chart(request):
     This method is used to view oganisation chart
     """
     selected_company = request.session.get("selected_company")
-    if request.user.is_superuser or request.user.has_perm("employee.change_employee"):
+    if is_platform_owner(request.user) or request.user.has_perm("employee.change_employee"):
         if (
             request.GET.get("employee_work_info__company_id") == None
             and selected_company != "all"
@@ -3884,7 +3923,7 @@ def organisation_chart(request):
     except Exception:
         manager = None
     if not manager and (
-        request.user.is_superuser or request.user.has_perm("employee.change_employee")
+        is_platform_owner(request.user) or request.user.has_perm("employee.change_employee")
     ):
         manager = Employee.objects.filter(
             is_active=True, employee_work_info__reporting_manager_id__isnull=True
@@ -3906,7 +3945,7 @@ def organisation_chart(request):
             manager_id = int(request.POST.get("manager_id"))
             manager = Employee.objects.get(id=manager_id)
         
-        if request.user.is_superuser or request.user.has_perm("employee.change_employee"):
+        if is_platform_owner(request.user) or request.user.has_perm("employee.change_employee"):
             chart_root = manager
             if manager and manager.employee_work_info and manager.employee_work_info.reporting_manager_id:
                 chart_root = manager.employee_work_info.reporting_manager_id
@@ -4234,7 +4273,11 @@ def employee_tag_create(request):
     if request.method == "POST":
         form = EmployeeTagForm(request.POST)
         if form.is_valid():
-            form.save()
+            obj = form.save(commit=False)
+            company = current_company(request)
+            if company:
+                obj.company_id = company
+            obj.save()
             form = EmployeeTagForm()
             messages.success(request, _("Tag has been created successfully!"))
     return render(
@@ -4258,7 +4301,11 @@ def employee_tag_update(request, tag_id):
     if request.method == "POST":
         form = EmployeeTagForm(request.POST, instance=tag)
         if form.is_valid():
-            form.save()
+            obj = form.save(commit=False)
+            company = current_company(request)
+            if company:
+                obj.company_id = company
+            obj.save()
             form = EmployeeTagForm()
             messages.success(request, _("Tag has been updated successfully!"))
             return SkylinxRedirect(request)

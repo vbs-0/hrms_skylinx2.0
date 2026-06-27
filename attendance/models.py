@@ -1,3 +1,4 @@
+from skylinx.validators import SafeMimeValidator
 """
 models.py
 
@@ -54,7 +55,7 @@ class AttendanceActivity(SkylinxModel):
 
     employee_id = models.ForeignKey(
         Employee,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL, null=True,
         related_name="employee_attendance_activities",
         verbose_name=_("Employee"),
     )
@@ -157,7 +158,7 @@ class AttendanceActivity(SkylinxModel):
 
         if not self.clock_out or not self.clock_out_date:
             self.clock_out_date = datetime.today().date()
-            self.clock_out = datetime.now().time()
+            self.clock_out = timezone.now().time()
 
         clock_in_datetime = datetime.combine(self.clock_in_date, self.clock_in)
         clock_out_datetime = datetime.combine(self.clock_out_date, self.clock_out)
@@ -184,6 +185,9 @@ class BatchAttendance(SkylinxModel):
     Batch attendance model
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     title = models.CharField(max_length=150, verbose_name=_("Title"))
 
     def __str__(self):
@@ -206,8 +210,7 @@ class Attendance(SkylinxModel):
 
     employee_id = models.ForeignKey(
         Employee,
-        on_delete=models.PROTECT,
-        null=True,
+        on_delete=models.SET_NULL, null=True,
         related_name="employee_attendances",
         verbose_name=_("Employee"),
     )
@@ -261,7 +264,7 @@ class Attendance(SkylinxModel):
         BatchAttendance,
         null=True,
         blank=True,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         verbose_name=_("Batch Attendance"),
     )
     attendance_overtime = models.CharField(
@@ -298,7 +301,7 @@ class Attendance(SkylinxModel):
     requested_data = models.JSONField(null=True, editable=False)
     approved_by = models.ForeignKey(
         Employee,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         verbose_name=_("Approved By"),
@@ -599,7 +602,7 @@ class Attendance(SkylinxModel):
             attendance_date=self.attendance_date, employee_id=self.employee_id
         ).order_by("clock_in")
         at_work_seconds = 0
-        now = datetime.now()
+        now = timezone.now()
         for activity in activities:
             out_time = activity.clock_out
             if out_time is None:
@@ -914,7 +917,7 @@ class Attendance(SkylinxModel):
 
     def clean(self, *args, **kwargs):
         super().clean(*args, **kwargs)
-        now = datetime.now().time()
+        now = timezone.now().time()
         today = datetime.today().date()
 
         # Convert to time if it's a string
@@ -952,7 +955,10 @@ class Attendance(SkylinxModel):
 
 
 class AttendanceRequestFile(SkylinxModel):
-    file = models.FileField(upload_to=upload_path)
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+    file = models.FileField(upload_to=upload_path, validators=[SafeMimeValidator()])
 
 
 class AttendanceRequestComment(SkylinxModel):
@@ -960,8 +966,11 @@ class AttendanceRequestComment(SkylinxModel):
     AttendanceRequestComment Model
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     request_id = models.ForeignKey(Attendance, on_delete=models.CASCADE)
-    employee_id = models.ForeignKey(Employee, on_delete=models.CASCADE)
+    employee_id = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True)
     files = models.ManyToManyField(AttendanceRequestFile, blank=True)
     comment = models.TextField(null=True, verbose_name=_("Comment"), max_length=255)
 
@@ -976,7 +985,7 @@ class AttendanceOverTime(SkylinxModel):
 
     employee_id = models.ForeignKey(
         Employee,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL, null=True,
         related_name="employee_overtime",
         verbose_name=_("Employee"),
     )
@@ -986,7 +995,7 @@ class AttendanceOverTime(SkylinxModel):
     )
     month_sequence = models.PositiveSmallIntegerField(default=0)
     year = models.CharField(
-        default=datetime.now().strftime("%Y"),
+        default=timezone.now().strftime("%Y"),
         null=True,
         max_length=10,
         verbose_name=_("Year"),
@@ -1241,7 +1250,7 @@ class AttendanceLateComeEarlyOut(SkylinxModel):
 
     attendance_id = models.ForeignKey(
         Attendance,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="late_come_early_out",
         verbose_name=_("Attendance"),
     )
@@ -1581,7 +1590,7 @@ class WorkRecords(models.Model):
     record_name = models.CharField(max_length=250, null=True, blank=True)
     work_record_type = models.CharField(max_length=10, null=True, choices=choices)
     employee_id = models.ForeignKey(
-        Employee, on_delete=models.CASCADE, verbose_name=_("Employee")
+        Employee, on_delete=models.SET_NULL, null=True, verbose_name=_("Employee")
     )
     date = models.DateField(null=True, blank=True)
     at_work = models.CharField(
@@ -1665,10 +1674,10 @@ class MobileAttendanceDetail(models.Model):
         related_name="mobile_detail",
         verbose_name=_("Attendance Activity"),
     )
-    check_in_selfie = models.ImageField(upload_to="selfies/check_in/", null=True, blank=True)
+    check_in_selfie = models.ImageField(upload_to="selfies/check_in/", null=True, blank=True, validators=[SafeMimeValidator()])
     check_in_lat = models.FloatField(null=True, blank=True)
     check_in_lng = models.FloatField(null=True, blank=True)
-    check_out_selfie = models.ImageField(upload_to="selfies/check_out/", null=True, blank=True)
+    check_out_selfie = models.ImageField(upload_to="selfies/check_out/", null=True, blank=True, validators=[SafeMimeValidator()])
     check_out_lat = models.FloatField(null=True, blank=True)
     check_out_lng = models.FloatField(null=True, blank=True)
     within_geofence = models.BooleanField(default=True)

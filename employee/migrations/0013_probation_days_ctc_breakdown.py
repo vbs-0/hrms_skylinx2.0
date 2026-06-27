@@ -3,11 +3,16 @@
 from django.db import migrations, models
 
 
-def drop_if_exists(table, column):
-    return migrations.RunSQL(
-        sql=f"ALTER TABLE {table} DROP COLUMN IF EXISTS {column};",
-        reverse_sql=migrations.RunSQL.noop,
-    )
+def drop_if_exists_sql(table, column):
+    """Drop a column if it exists, silently skipping on SQLite builds that lack support."""
+    def _drop(apps, schema_editor):
+        try:
+            schema_editor.execute(
+                f"ALTER TABLE {schema_editor.quote_name(table)} DROP COLUMN {schema_editor.quote_name(column)}"
+            )
+        except Exception:
+            pass  # Column doesn't exist or DB doesn't support this syntax
+    return migrations.RunPython(_drop, migrations.RunPython.noop)
 
 
 class Migration(migrations.Migration):
@@ -18,12 +23,12 @@ class Migration(migrations.Migration):
 
     operations = [
         # Use IF EXISTS so this is safe on DBs that already lack these columns.
-        drop_if_exists("employee_employeeworkinformation", "basic_salary"),
-        drop_if_exists("employee_employeeworkinformation", "probation_end"),
-        drop_if_exists("employee_employeeworkinformation", "salary_hour"),
-        drop_if_exists("employee_historicalemployeeworkinformation", "basic_salary"),
-        drop_if_exists("employee_historicalemployeeworkinformation", "probation_end"),
-        drop_if_exists("employee_historicalemployeeworkinformation", "salary_hour"),
+        drop_if_exists_sql("employee_employeeworkinformation", "basic_salary"),
+        drop_if_exists_sql("employee_employeeworkinformation", "probation_end"),
+        drop_if_exists_sql("employee_employeeworkinformation", "salary_hour"),
+        drop_if_exists_sql("employee_historicalemployeeworkinformation", "basic_salary"),
+        drop_if_exists_sql("employee_historicalemployeeworkinformation", "probation_end"),
+        drop_if_exists_sql("employee_historicalemployeeworkinformation", "salary_hour"),
 
         migrations.AddField(
             model_name='employeeworkinformation',

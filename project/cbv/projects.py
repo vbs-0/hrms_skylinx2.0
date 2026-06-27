@@ -1,6 +1,8 @@
 """
 CBV of projects page
 """
+from base.rbac import is_platform_owner
+
 
 from typing import Any
 
@@ -172,7 +174,7 @@ class ProjectsList(SkylinxListView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.search_url = reverse("project-list-view")
-        if self.request.user.is_superuser:
+        if self.is_platform_owner(request.user):
             self.action_method = "actions"
 
     @cached_property
@@ -281,7 +283,7 @@ class ProjectFormView(SkylinxFormView):
         super().__init__(**kwargs)
         user = self.request.user
 
-        if not user.is_superuser and not user.has_perm("project.add_project"):
+        if not is_platform_owner(user) and not user.has_perm("project.add_project"):
             self.template_name = "decorator_404.html"
 
     def get_context_data(self, **kwargs):

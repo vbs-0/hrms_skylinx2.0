@@ -32,7 +32,7 @@ class GoogleCloudCredential(models.Model):
     redirect_uris = models.TextField(help_text=_("Comma separated URIs"))
     company_id = models.ForeignKey(
         Company,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         verbose_name="Company",
@@ -136,6 +136,9 @@ class GoogleCredential(SkylinxModel, NoPermissionModel):
     token information, client ID, client secret, scopes, and expiration time.
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     employee_id = models.OneToOneField(
         Employee, on_delete=models.CASCADE, related_name="google_credential"
     )
@@ -217,6 +220,9 @@ class GoogleMeeting(SkylinxModel):
     The model also includes methods for generating URLs for update/delete operations
     and handling attendees, as well as calculating the meeting's end time.
     """
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
 
     employee_id = models.ForeignKey(
         Employee, on_delete=models.CASCADE, related_name="meetings"

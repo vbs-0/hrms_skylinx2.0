@@ -1,3 +1,4 @@
+from skylinx.validators import SafeMimeValidator
 """
 models.py
 
@@ -138,11 +139,11 @@ class CandidateStage(SkylinxModel):
     """
 
     candidate_id = models.OneToOneField(
-        Candidate, on_delete=models.PROTECT, related_name="onboarding_stage"
+        Candidate, on_delete=models.CASCADE, related_name="onboarding_stage"
     )
     onboarding_stage_id = models.ForeignKey(
         OnboardingStage,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="candidate",
         verbose_name=_("Stage"),
     )
@@ -205,19 +206,19 @@ class CandidateTask(SkylinxModel):
         ("done", _("Done")),
     )
     candidate_id = models.ForeignKey(
-        Candidate, on_delete=models.PROTECT, related_name="candidate_task"
+        Candidate, on_delete=models.CASCADE, related_name="candidate_task"
     )
     # managers = models.ManyToManyField(Employee)
     stage_id = models.ForeignKey(
         OnboardingStage,
         null=True,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="candidate_task",
     )
     status = models.CharField(
         max_length=50, choices=choice, blank=True, null=True, default="todo"
     )
-    onboarding_task_id = models.ForeignKey(OnboardingTask, on_delete=models.PROTECT)
+    onboarding_task_id = models.ForeignKey(OnboardingTask, on_delete=models.CASCADE)
     objects = SkylinxCompanyManager("candidate_id__recruitment_id__company_id")
     history = SkylinxAuditLog(
         related_name="history_set",
@@ -254,12 +255,12 @@ class OnboardingPortal(SkylinxModel):
     """
 
     candidate_id = models.OneToOneField(
-        Candidate, on_delete=models.PROTECT, related_name="onboarding_portal"
+        Candidate, on_delete=models.CASCADE, related_name="onboarding_portal"
     )
     token = models.CharField(max_length=200)
     used = models.BooleanField(default=False)
     count = models.IntegerField(default=0)
-    profile = models.ImageField(upload_to="employee/profile", null=True, blank=True)
+    profile = models.ImageField(upload_to="employee/profile", null=True, blank=True, validators=[SafeMimeValidator()])
     objects = SkylinxCompanyManager("candidate_id__recruitment_id__company_id")
 
     def __str__(self):

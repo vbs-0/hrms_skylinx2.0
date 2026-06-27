@@ -1,3 +1,4 @@
+from skylinx.validators import SafeMimeValidator
 """
 forms.py
 Asset Management Forms
@@ -149,8 +150,7 @@ class DocumentForm(forms.ModelForm):
                 "class": "form-control",
                 "multiple": "True",
                 "accept": ".jpeg, .jpg, .png, .pdf",
-            }
-        )
+            }), validators=[SafeMimeValidator()]
     )
 
     class Meta:
@@ -192,8 +192,7 @@ class AssetReportForm(ModelForm):
                 "class": "form-control",
                 "multiple": "True",
                 "accept": ".jpeg, .jpg, .png, .pdf",
-            }
-        ),
+            }), validators=[SafeMimeValidator()],
     )
 
     class Meta:

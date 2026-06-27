@@ -1,3 +1,4 @@
+import logging
 """
 Modern leave dashboard views — KPI summary + ApexCharts.
 
@@ -7,6 +8,9 @@ Accessible at /leave/dashboard/modern/ alongside the existing dashboard.
 from datetime import date, timedelta
 
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+
+logger = logging.getLogger(__name__)
 from django.db.models import Count, F, FloatField, Q, Sum
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
@@ -86,7 +90,7 @@ def leave_kpi_data(request):
             status="requested"
         ).count()
     except Exception:
-        pass
+        logger.warning('[leave/dashboard.py] pending_allocations  LeaveAllocationRequestobjects failed', exc_info=True)
 
     # Pending comp leave requests
     pending_comp = 0
@@ -97,7 +101,7 @@ def leave_kpi_data(request):
             status="requested"
         ).count()
     except Exception:
-        pass
+        logger.warning('[leave/dashboard.py] pending_comp  CompensatoryLeaveRequestobjectsfilte failed', exc_info=True)
     return JsonResponse(
         {
             "pending_approval": pending_approval,
@@ -210,7 +214,7 @@ def leave_type_distribution(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[leave/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"types": types, "month": today.strftime("%B %Y")})
 
@@ -248,7 +252,7 @@ def leave_department_breakdown(request):
                     }
                 )
     except Exception:
-        pass
+        logger.warning('[leave/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"departments": departments, "month": today.strftime("%B %Y")})
 
@@ -305,7 +309,7 @@ def leave_utilization_rate(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[leave/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"utilization": utilization})
 
@@ -340,7 +344,7 @@ def leave_paid_unpaid_split(request):
             else:
                 unpaid += days
     except Exception:
-        pass
+        logger.warning('[leave/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse(
         {
@@ -394,7 +398,7 @@ def leave_top_takers(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[leave/dashboard.py] requests itemrequest_count failed', exc_info=True)
 
     return JsonResponse(
         {
@@ -446,7 +450,7 @@ def leave_on_leave_today(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[leave/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"employees": employees, "date": today.isoformat()})
 
@@ -480,7 +484,7 @@ def leave_upcoming_holidays(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[leave/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"holidays": holidays})
 
@@ -516,7 +520,7 @@ def leave_weekly_pattern(request):
                 counts[d.weekday()] += 1
                 d += timedelta(days=1)
     except Exception:
-        pass
+        logger.warning('[leave/dashboard.py] countsdweekday  1 failed', exc_info=True)
 
     return JsonResponse(
         {
@@ -570,7 +574,7 @@ def leave_upcoming(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[leave/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"upcoming": upcoming})
 
@@ -729,7 +733,7 @@ def employee_leave_balance(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[leave/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"balances": balances})
 
@@ -845,7 +849,7 @@ def employee_upcoming_leaves(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[leave/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"leaves": leaves})
 
@@ -890,6 +894,6 @@ def employee_leave_history(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[leave/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"requests": requests})

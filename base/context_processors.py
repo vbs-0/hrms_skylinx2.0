@@ -3,6 +3,8 @@ context_processor.py
 
 This module is used to register context processor`
 """
+from base.rbac import is_platform_owner
+
 
 import re
 
@@ -33,7 +35,7 @@ def is_platform_owner(user):
     return bool(
         user
         and user.is_authenticated
-        and user.is_superuser
+        and is_platform_owner(user)
         and user.username == "skylinx"
     )
 

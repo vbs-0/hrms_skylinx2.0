@@ -1,3 +1,4 @@
+from django.utils import timezone
 from datetime import date, datetime, timedelta
 
 from django import template
@@ -7,7 +8,7 @@ register = template.Library()
 
 @register.filter(name="current_month_record")
 def current_month_record(queryset):
-    current_month_start_date = datetime.now().replace(day=1)
+    current_month_start_date = timezone.now().replace(day=1)
     next_month_start_date = current_month_start_date + timedelta(days=31)
 
     return queryset.filter(

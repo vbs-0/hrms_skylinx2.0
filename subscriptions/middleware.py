@@ -12,6 +12,8 @@ Superusers (platform owners) bypass everything. The attached
 ``request.company_features`` is read by the context processor / sidebar to hide
 locked modules.
 """
+from base.rbac import is_platform_owner
+
 
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -23,6 +25,7 @@ from .utils import features_for_request, subscription_for_request
 EXEMPT_PREFIXES = (
     "/login",
     "/logout",
+    "/change-password",
     "/accounts/",
     "/static/",
     "/media/",
@@ -46,7 +49,7 @@ class SubscriptionMiddleware:
             return self.get_response(request)
 
         # platform owner sees everything, never blocked
-        if user.is_superuser:
+        if is_platform_owner(user):
             request.company_features = features_for_request(request)
             return self.get_response(request)
 

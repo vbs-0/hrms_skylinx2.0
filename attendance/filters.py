@@ -1,3 +1,4 @@
+from django.utils import timezone
 """
 filters.py
 
@@ -743,7 +744,7 @@ class AttendanceGeneralSettingFilter(SkylinxFilterSet):
 
 
 def get_working_today(queryset, _name, value):
-    today = datetime.datetime.now().date()
+    today = timezone.now().date()
     yesterday = today - datetime.timedelta(days=1)
 
     working_employees = Attendance.objects.filter(

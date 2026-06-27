@@ -1,6 +1,8 @@
 """
 this page is handling the cbv methods for company in settings
 """
+from base.rbac import is_platform_owner
+
 
 from typing import Any
 
@@ -44,7 +46,7 @@ class CompanyListView(SkylinxListView):
         super().__init__(**kwargs)
         self.search_url = reverse("company-list")
         self.actions = []
-        if self.request.user.is_superuser:
+        if self.is_platform_owner(request.user):
             self.actions.append(
                 {
                     "action": _("Edit"),
@@ -73,7 +75,7 @@ class CompanyListView(SkylinxListView):
                       """,
                 }
             )
-        if self.request.user.is_superuser:
+        if self.is_platform_owner(request.user):
             self.actions.append(
                 {
                     "action": _("Delete"),
@@ -95,7 +97,7 @@ class CompanyListView(SkylinxListView):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        if self.request.user.is_superuser:
+        if self.is_platform_owner(request.user):
             return queryset
         employee = getattr(self.request.user, "employee_get", None)
         company = getattr(getattr(employee, "employee_work_info", None), "company_id", None)
@@ -171,7 +173,7 @@ class CompanyNavView(SkylinxNavView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.search_url = reverse("company-list")
-        if self.request.user.is_superuser:
+        if self.is_platform_owner(request.user):
             self.create_attrs = f"""
                                 onclick = "event.stopPropagation();"
                                 data-toggle="oh-modal-toggle"
@@ -186,11 +188,24 @@ class CompanyNavView(SkylinxNavView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(user_passes_test(lambda u: u.is_superuser), name="dispatch")
 class CompanyCreateForm(SkylinxFormView):
     """
     form view for creating and editing company in settings
     """
+
+    def dispatch(self, request, *args, **kwargs):
+        if not is_platform_owner(request.user):
+            from skylinx_views.cbv_methods import handle_no_permission
+            pk = kwargs.get("pk")
+            if pk:
+                company = Company.objects.filter(pk=pk).first()
+                has_perm = request.user.has_perm("base.change_company")
+                is_user_company = _company_is_user_company(request, company)
+                if not (has_perm or is_user_company):
+                    return handle_no_permission(request)
+            if not pk and not request.user.has_perm("base.add_company"):
+                return handle_no_permission(request)
+        return super().dispatch(request, *args, **kwargs)
 
     model = Company
     form_class = CompanyForm

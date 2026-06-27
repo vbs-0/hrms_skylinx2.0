@@ -1,6 +1,8 @@
 """
 CBV of time sheet page
 """
+from base.rbac import is_platform_owner
+
 
 from typing import Any
 
@@ -261,7 +263,7 @@ class TaskTimeSheet(TimeSheetList):
                 employee
                 and not employee in task.task_managers.all()
                 and not employee in task.project.managers.all()
-                and not employee.employee_user_id.is_superuser
+                and not is_platform_owner(employee.employee_user_id)
             ):
                 queryset = queryset.filter(employee_id=employee_id)
         else:
@@ -337,7 +339,7 @@ class TimeSheetFormView(SkylinxFormView):
             self.form_class.verbose_name = _("Update Time Sheet")
         # If the timesheet create from task or project
         if project:
-            if self.request.user.is_superuser or self.request.user.has_perm(
+            if self.is_platform_owner(request.user) or self.request.user.has_perm(
                 "project.add_project"
             ):
                 members = (

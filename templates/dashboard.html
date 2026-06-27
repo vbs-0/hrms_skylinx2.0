@@ -1126,7 +1126,7 @@
 
     // Apply saved preferences on load (localStorage first, DB fallback)
     // DB prefs are embedded in the page context by the server
-    const _dbPrefsRaw = {{ employee_chart_prefs|safe }};
+    const _dbPrefsRaw = JSON.parse("{{ employee_chart_prefs|escapejs }}" || "[]");
     const _localPrefs = loadPrefs();
     if (_localPrefs) {
         applyPrefs(_localPrefs);

@@ -3,6 +3,8 @@ component_views.py
 
 This module is used to write methods to the component_urls patterns respectively
 """
+from base.rbac import is_platform_owner
+
 
 import json
 import math
@@ -94,7 +96,7 @@ from payroll.models.models import (
 def _payslip_queryset_for_request(request):
     """Limit payslip visibility to the employee's own slips unless the user is a payroll admin."""
     qs = Payslip.objects.all()
-    if request.user.is_superuser or request.user.username == "skylinx":
+    if is_platform_owner(request.user) or request.user.username == "skylinx":
         return qs
     company = current_company(request)
     if company:
@@ -1281,6 +1283,7 @@ def filter_payslip(request):
 
 
 @login_required
+@permission_required("payroll.view_payslip")
 def payslip_export(request):
     """
     This view exports payslip data based on selected fields and filters,
@@ -1393,7 +1396,7 @@ def send_slip(request):
     payslip_ids = request.GET.getlist("id")
 
     # payslip_ids = request.GET.get("id")
-    payslips = Payslip.objects.filter(id__in=payslip_ids)
+    payslips = _payslip_queryset_for_request(request).filter(id__in=payslip_ids)
     if not getattr(
         email_backend, "dynamic_from_email_with_display_name", None
     ) or not len(email_backend.dynamic_from_email_with_display_name):
@@ -1861,7 +1864,7 @@ def create_reimbursement(request):
     if instance_id:
         instance = Reimbursement.objects.filter(id=instance_id).first()
         if instance and not (
-            request.user.is_superuser
+            is_platform_owner(request.user)
             or request.user.has_perm("payroll.change_reimbursement")
             or instance.employee_id == request.user.employee_get
         ):
@@ -2211,6 +2214,7 @@ def all_deductions(pay_head):
 
 
 @login_required
+@permission_required("payroll.view_payslip")
 def payslip_detailed_export_data(request):
     """
     This view create the data for exporting payslip data based on selected fields and filters,
@@ -2435,6 +2439,7 @@ def payslip_detailed_export_data(request):
 
 
 @login_required
+@permission_required("payroll.view_payslip")
 def payslip_detailed_export(request):
     """
     Generate an Excel file for download containing detailed payslip data based on
@@ -2459,7 +2464,9 @@ def payslip_detailed_export(request):
             "payroll/payslip/payslip_export_filter.html",
             {
                 "export_column": forms.PayslipExportColumnForm(),
-                "export_filter": PayslipFilter(request.GET),
+                "export_filter": PayslipFilter(
+                    request.GET, queryset=_payslip_queryset_for_request(request)
+                ),
                 "report": True,
             },
         )

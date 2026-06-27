@@ -75,7 +75,7 @@ def send_employee_welcome(employee):
     try:
         company = employee.employee_work_info.company_id.company
     except Exception:
-        pass
+        logger.warning("[email_utils] Failed to resolve company for welcome email", exc_info=True)
     send_async(
         f"Welcome to {company or 'the team'}",
         (

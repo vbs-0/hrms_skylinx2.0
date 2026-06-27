@@ -5,6 +5,7 @@ models.py
 from collections.abc import Iterable
 
 from django.db import models
+from base.skylinx_company_manager import SkylinxCompanyManager
 from django.dispatch import receiver
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
@@ -149,13 +150,19 @@ def post_create_skylinx_audit_log(sender, instance, *_args, **kwargs):
 
 
 class HistoryTrackingFields(SkylinxModel):
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
     tracking_fields = models.JSONField(null=True, blank=True, editable=False)
     work_info_track = models.BooleanField(default=True)
 
 
 class AccountBlockUnblock(SkylinxModel):
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
     is_enabled = models.BooleanField(default=False, null=True, blank=True)
-    objects = models.Manager()
+#     objects = models.Manager()
 
 
 class AuditModelConfig(SkylinxModel):
@@ -165,6 +172,9 @@ class AuditModelConfig(SkylinxModel):
     of Employee-related models is tracked. Rows here fully override the
     defaults.
     """
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
 
     app_label = models.CharField(max_length=100, verbose_name=_("App"))
     model_name = models.CharField(max_length=100, verbose_name=_("Model"))

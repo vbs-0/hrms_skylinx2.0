@@ -1,6 +1,8 @@
 """
 middleware.py
 """
+from base.rbac import is_platform_owner
+
 
 from django.apps import apps
 from django.conf import settings
@@ -222,7 +224,7 @@ class CompanyMiddleware:
     def _is_platform_owner(self, request):
         return bool(
             request.user.is_authenticated
-            and request.user.is_superuser
+            and is_platform_owner(request.user)
             and request.user.username == "skylinx"
         )
 
@@ -365,7 +367,8 @@ class ForcePasswordChangeMiddleware:
             "/notifications",
             "/inbox/notifications",
             "/jsi18n",
-            "/reload-messages"
+            "/reload-messages",
+            "/subscription"
         ]
         # Check if path starts with any of the excluded paths
         excluded = False
@@ -428,5 +431,33 @@ class TwoFactorAuthMiddleware:
                     return self.get_response(request)
             except Exception as e:
                 return self.get_response(request)
+
+        return self.get_response(request)
+
+class HTMXSecurityMiddleware:
+    """
+    Middleware to globally enforce authentication and tenant checking on all HTMX requests.
+    Prevents unauthenticated access to HTMX views that might lack @login_required.
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+        # Paths that are allowed to be accessed via HTMX without auth (e.g. login form interactions)
+        self.public_paths = [
+            "/login/",
+            "/logout/",
+            "/change-password/",
+            "/two-factor/",
+            "/send-otp/",
+        ]
+
+    def __call__(self, request):
+        if request.headers.get("HX-Request") == "true":
+            path = request.path.rstrip("/") + "/"
+            is_public = any(path.startswith(p) for p in self.public_paths)
+            
+            if not is_public and not request.user.is_authenticated:
+                # Reject unauthenticated HTMX requests
+                from django.http import HttpResponseForbidden
+                return HttpResponseForbidden("Authentication required for this component.")
 
         return self.get_response(request)

@@ -10,6 +10,8 @@ actions to handle the request, process data, and generate a response.
 This module is part of the recruitment project and is intended to
 provide the main entry points for interacting with the application's functionality.
 """
+from base.rbac import is_platform_owner
+
 
 import contextlib
 import json
@@ -67,13 +69,13 @@ def is_stagemanager(request, stage_id=False):
     employee = user.employee_get
     if not stage_id:
         return (
-            employee.stage_set.exists() or user.is_superuser,
+            employee.stage_set.exists() or is_platform_owner(user),
             employee.stage_set.all(),
         )
     stage_obj = Stage.objects.get(id=stage_id)
     return (
         employee in stage_obj.stage_managers.all()
-        or user.is_superuser
+        or is_platform_owner(user)
         or is_recruitmentmanager(request, rec_id=stage_obj.recruitment_id.id)[0],
         employee.stage_set.all(),
     )
@@ -95,12 +97,12 @@ def is_recruitmentmanager(request, rec_id=False):
     employee = user.employee_get
     if not rec_id:
         return (
-            employee.recruitment_set.exists() or user.is_superuser,
+            employee.recruitment_set.exists() or is_platform_owner(user),
             employee.recruitment_set.all(),
         )
     recruitment_obj = Recruitment.objects.get(id=rec_id)
     return (
-        employee in recruitment_obj.recruitment_managers.all() or user.is_superuser,
+        employee in recruitment_obj.recruitment_managers.all() or is_platform_owner(user),
         employee.recruitment_set.all(),
     )
 
@@ -567,7 +569,7 @@ def candidate_stage_update(request, cand_id):
     )
     if (
         stage_manager_on_this_recruitment
-        or request.user.is_superuser
+        or is_platform_owner(request.user)
         or is_recruitmentmanager(rec_id=stage_obj.recruitment_id.id)[0]
     ):
         candidate_obj.stage_id = stage_obj

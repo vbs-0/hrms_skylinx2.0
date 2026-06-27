@@ -1,3 +1,4 @@
+from skylinx.validators import SafeMimeValidator
 import os
 from datetime import date
 
@@ -92,13 +93,13 @@ def document_request_m2m_changed(sender, instance, action, **kwargs):
 class Document(SkylinxModel):
     title = models.CharField(max_length=250)
     employee_id = models.ForeignKey(
-        Employee, on_delete=models.PROTECT, verbose_name=_("Employee")
+        Employee, on_delete=models.CASCADE, verbose_name=_("Employee")
     )
     document_request_id = models.ForeignKey(
-        DocumentRequest, on_delete=models.PROTECT, null=True
+        DocumentRequest, on_delete=models.CASCADE, null=True
     )
     document = models.FileField(
-        upload_to=upload_path, null=True, verbose_name=_("Document")
+        upload_to=upload_path, null=True, verbose_name=_("Document"), validators=[SafeMimeValidator()]
     )
     status = models.CharField(
         choices=STATUS, max_length=10, default="requested", verbose_name=_("Status")

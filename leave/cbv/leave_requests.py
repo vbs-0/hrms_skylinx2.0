@@ -2,6 +2,7 @@
 This page handles the cbv of leave requests page
 """
 
+import json
 import ast
 import contextlib
 from datetime import date
@@ -20,6 +21,7 @@ from base.decorators import manager_can_enter
 from base.filters import PenaltyFilter
 from base.methods import choosesubordinates, filtersubordinates, is_reportingmanager
 from base.models import PenaltyAccounts
+from base.rbac import is_platform_owner
 from employee.models import Employee
 from skylinx_views.cbv_methods import hx_request_required, login_required
 from skylinx_views.generic.cbv.views import (
@@ -69,14 +71,14 @@ class LeaveRequestsListView(SkylinxListView):
             and isinstance(instance_ids[0], str)
             and instance_ids[0].startswith("[")
         ):
-            instance_ids = ast.literal_eval(instance_ids[0])
+            instance_ids = json.loads(instance_ids[0])
         instance_ids = [int(i) for i in instance_ids if str(i).isdigit()]
         filtered_ids = []
         for request_id in instance_ids:
             leave_request = LeaveRequest.objects.get(id=request_id)
             if leave_request.employee_id.id != request.user.employee_get.id:
                 filtered_ids.append(request_id)
-        if request.user.is_superuser:
+        if is_platform_owner(request.user):
             filtered_ids = instance_ids
         formatted_ids = [str(filtered_ids)]
         request.POST = request.POST.copy()

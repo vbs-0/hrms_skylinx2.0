@@ -668,7 +668,9 @@ def asset_request_approve(request, req_id):
     Approves an asset request with the given ID and updates the corresponding asset record
     to mark it as allocated.
     """
-    asset_request = AssetRequest.find(req_id)
+    from django.db import transaction
+
+    asset_request = AssetRequest.objects.select_for_update().filter(id=req_id).first()
     homepage_url = request.build_absolute_uri("/")
     error_response = (
         f"<script>" f'window.location.href = "{homepage_url}";' f"</script>"
@@ -688,19 +690,32 @@ def asset_request_approve(request, req_id):
         form = AssetAllocationForm(post_data, request.FILES)
         if form.is_valid():
             try:
-                asset = form.cleaned_data["asset_id"]
-                allocation = form.save(commit=False)
-                allocation.assigned_by_employee_id = request.user.employee_get
-                allocation.save()
-                active_count = AssetAssignment.objects.filter(
-                    asset_id=asset, return_date__isnull=True
-                ).count()
-                if active_count >= asset.quantity:
-                    asset.asset_status = "In use"
-                    asset.save()
+                with transaction.atomic():
+                    # Lock the asset and request rows to prevent double-allocation
+                    locked_asset = Asset.objects.select_for_update().filter(
+                        id=form.cleaned_data["asset_id"].id
+                    ).first()
+                    if not locked_asset:
+                        messages.error(request, _("Selected asset not found."))
+                        return HttpResponse(error_response)
 
-                asset_request.asset_request_status = "Approved"
-                asset_request.save()
+                    active_allocations = AssetAssignment.objects.select_for_update().filter(
+                        asset_id=locked_asset, return_date__isnull=True
+                    ).count()
+                    if active_allocations >= locked_asset.quantity:
+                        messages.error(request, _("Asset is no longer available."))
+                        return HttpResponse(error_response)
+
+                    allocation = form.save(commit=False)
+                    allocation.assigned_by_employee_id = request.user.employee_get
+                    allocation.save()
+
+                    if active_allocations + 1 >= locked_asset.quantity:
+                        locked_asset.asset_status = "In use"
+                        locked_asset.save()
+
+                    asset_request.asset_request_status = "Approved"
+                    asset_request.save()
 
                 notify.send(
                     request.user.employee_get,
@@ -812,6 +827,7 @@ def asset_allocate_creation(request):
     Returns:
     - to allocated view.
     """
+    from django.db import transaction
 
     form = AssetAllocationForm(
         initial={"assigned_by_employee_id": request.user.employee_get}
@@ -820,8 +836,18 @@ def asset_allocate_creation(request):
     if request.method == "POST":
         form = AssetAllocationForm(request.POST)
         if form.is_valid():
-            instance = form.save()
-            asset = instance.asset_id
+            with transaction.atomic():
+                # Lock the selected asset to prevent double-allocation race conditions
+                asset_id = form.cleaned_data["asset_id"].id if form.cleaned_data.get("asset_id") else None
+                if asset_id:
+                    from asset.models import Asset
+                    locked_asset = Asset.objects.select_for_update().filter(id=asset_id).first()
+                    if not locked_asset:
+                        messages.error(request, _("Selected asset not found."))
+                        return render(request, "request_allocation/asset_allocation_creation.html", context)
+                    form.cleaned_data["asset_id"] = locked_asset
+                instance = form.save()
+                asset = instance.asset_id
             active_count = AssetAssignment.objects.filter(
                 asset_id=asset, return_date__isnull=True
             ).count()

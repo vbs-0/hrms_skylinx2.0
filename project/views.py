@@ -1,3 +1,4 @@
+from base.rbac import is_platform_owner
 import calendar
 import datetime
 import json
@@ -1448,7 +1449,7 @@ def get_stages(request):
         )
         # project = Project.objects.filter(id = project_id).first()
         # if (
-        #     request.user.is_superuser or
+        #     is_platform_owner(request.user) or
         #     request.user.employee_get in project.managers.all()
         # ):
         #     form.fields['stage'].choices.append(('dynamic_create','Dynamic create'))
@@ -1588,7 +1589,7 @@ def get_members(request):
             emp = employee.first()
             if project and task and emp:
                 if (
-                    request.user.is_superuser
+                    is_platform_owner(request.user)
                     or request.user.has_perm("project.add_timesheet")
                 ):
                     members = (
@@ -1658,7 +1659,7 @@ def get_tasks_in_timesheet(request):
             tasks = Task.objects.filter(project=project_id, task_members=employee)
         form.fields["task_id"].queryset = tasks
         form.fields["task_id"].choices = list(form.fields["task_id"].choices)
-        if employee in project.managers.all() or request.user.is_superuser:
+        if employee in project.managers.all() or is_platform_owner(request.user):
             form.fields["task_id"].choices.append(("dynamic_create", "Dynamic create"))
         task_id = request.GET.get("task_id")
         if task_id:

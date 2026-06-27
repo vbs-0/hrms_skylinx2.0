@@ -4,6 +4,8 @@ skylinxfilters.py
 This module is used to write custom template filters.
 
 """
+from base.rbac import is_platform_owner
+
 
 import base64
 from datetime import date, datetime, timedelta
@@ -69,7 +71,7 @@ def checkmanager(user, employee):
     employee_manager = employee.employee_work_info.reporting_manager_id
     return bool(
         employee_user == employee_manager
-        or user.is_superuser
+        or is_platform_owner(user)
         or user.has_perm("attendance.change_attendance")
     )
 

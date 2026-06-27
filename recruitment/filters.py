@@ -5,6 +5,7 @@ This page is used to register filter for recruitment models
 
 """
 
+import json
 import ast
 import uuid
 
@@ -249,7 +250,7 @@ class CandidateFilter(SkylinxFilterSet):
                 # Parse JSON if stored as string
                 if isinstance(answer_json, str):
                     try:
-                        answer_json = ast.literal_eval(answer_json)
+                        answer_json = json.loads(answer_json)
                     except Exception:
                         continue
 

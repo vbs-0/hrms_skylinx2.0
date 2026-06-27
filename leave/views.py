@@ -41,6 +41,7 @@ from base.methods import (
     sortby,
 )
 from base.models import CompanyLeaves, Holidays, PenaltyAccounts
+from base.rbac import is_platform_owner
 from employee.models import Employee
 from skylinx.decorators import (
     hx_request_required,
@@ -581,7 +582,7 @@ def leave_request_view(request):
     multiple_approvals = filter_conditional_leave_request(request).distinct()
     normal_requests = filtersubordinates(request, queryset, "employee.change_employee")
 
-    if not request.user.is_superuser:
+    if not is_platform_owner(request.user):
         multi_approve_requests = LeaveRequestConditionApproval.objects.filter(
             is_approved=False, is_rejected=False
         )
@@ -893,7 +894,7 @@ def leave_request_filter(request):
     multiple_approvals = filter_conditional_leave_request(request)
     queryset = filtersubordinates(request, queryset, "employee.change_employee")
 
-    if not request.user.is_superuser:
+    if not is_platform_owner(request.user):
         multi_approve_requests = LeaveRequestConditionApproval.objects.filter(
             is_approved=False, is_rejected=False
         )
@@ -1065,7 +1066,7 @@ def leave_request_approve(request, id, emp_id=None):
             request, message=_("No leave rquest found matching the query.")
         )
     employee_id = leave_request.employee_id
-    if not request.user.is_superuser:
+    if not is_platform_owner(request.user):
         if employee_id == request.user.employee_get:
             messages.error(request, _("You cannot approve your own leave request."))
             if emp_id is not None:
@@ -1127,7 +1128,9 @@ def leave_request_approve(request, id, emp_id=None):
                 send_notification = True
                 approved = True
             else:
-                if request.user.is_superuser:
+                if is_platform_owner(request.user) or request.user.has_perm(
+                    "leave.change_leaverequest"
+                ):
                     LeaveRequestConditionApproval.objects.filter(
                         leave_request_id=leave_request
                     ).update(is_approved=True)
@@ -1237,7 +1240,7 @@ def leave_request_bulk_approve(request):
             # Exclude requests where the employee is the current user
             if leave_request.employee_id != request.user.employee_get:
                 filtered_ids.append(request_id)
-        if request.user.is_superuser:
+        if is_platform_owner(request.user):
             filtered_ids = request_ids
         for request_id in filtered_ids:
             try:
@@ -1328,19 +1331,33 @@ def leave_request_cancel(request, id, emp_id=None):
                 leave_request.status = "rejected"
                 leave_request.leave_clashes_count = 0
 
-                if leave_request.multiple_approvals() and not request.user.is_superuser:
+                if leave_request.multiple_approvals() and not (
+                    is_platform_owner(request.user)
+                    or request.user.has_perm("leave.change_leaverequest")
+                ):
                     conditional_requests = leave_request.multiple_approvals()
                     approver = [
                         manager
                         for manager in conditional_requests["managers"]
                         if manager.employee_user_id == request.user
                     ]
+                    if not approver:
+                        messages.error(
+                            request,
+                            _("You are not an approver for this leave request."),
+                        )
+                        return SkylinxRedirect(request)
                     condition_approval = LeaveRequestConditionApproval.objects.filter(
                         manager_id=approver[0], leave_request_id=leave_request
                     ).first()
-                    condition_approval.is_approved = False
-                    condition_approval.is_rejected = True
-                    condition_approval.save()
+                    if condition_approval:
+                        condition_approval.is_approved = False
+                        condition_approval.is_rejected = True
+                        condition_approval.save()
+                elif leave_request.multiple_approvals():
+                    LeaveRequestConditionApproval.objects.filter(
+                        leave_request_id=leave_request
+                    ).update(is_approved=False, is_rejected=True)
 
                 leave_request.reject_reason = form.cleaned_data["reason"]
                 leave_request.save()
@@ -5625,7 +5642,7 @@ def employee_view_individual_leave_tab(request, pk, **kwargs):
 
     # Convert the string to an actual list of integers
     requests_ids = (
-        ast.literal_eval(request_ids_str)
+        json.loads(request_ids_str)
         if isinstance(request_ids_str, str)
         else request_ids_str
     )

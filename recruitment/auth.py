@@ -1,5 +1,6 @@
 import re
 
+from django.core.cache import cache
 from django.contrib.auth.backends import BaseBackend
 from django.contrib.auth.models import AnonymousUser
 
@@ -18,6 +19,13 @@ class CandidateAuthenticationBackend(BaseBackend):
         phone = _normalize_phone(password)
         if not email or not phone:
             return None
+
+        # Rate limiting: max 5 attempts per email per 15 minutes
+        cache_key = f"candidate_login_{email}"
+        attempts = cache.get(cache_key, 0)
+        if attempts >= 5:
+            return None  # Silently reject; too many attempts
+        cache.set(cache_key, attempts + 1, 900)  # 15-minute window
 
         candidates = Candidate.objects.filter(email__iexact=email)
         for candidate in candidates:

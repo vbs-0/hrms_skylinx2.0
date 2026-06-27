@@ -114,7 +114,7 @@ class BiometricDevices(SkylinxModel):
         Company,
         null=True,
         editable=True,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         verbose_name=_("Company"),
     )
 
@@ -363,7 +363,10 @@ class BiometricEmployees(models.Model):
     device_id = models.ForeignKey(
         BiometricDevices, on_delete=models.CASCADE, null=True, blank=True
     )
-    objects = models.Manager()
+    objects = SkylinxCompanyManager()
+    company_id = models.ForeignKey(
+        "base.Company", on_delete=models.CASCADE, null=True, blank=True
+    )
 
     def __str__(self):
         return f"{self.employee_id} - {self.user_id} - {self.device_id}"
@@ -393,7 +396,10 @@ class COSECAttendanceArguments(models.Model):
     device_id = models.ForeignKey(
         BiometricDevices, on_delete=models.CASCADE, null=True, blank=True
     )
-    objects = models.Manager()
+    objects = SkylinxCompanyManager()
+    company_id = models.ForeignKey(
+        "base.Company", on_delete=models.CASCADE, null=True, blank=True
+    )
 
     class Meta:
         verbose_name = _("COSEC Attendance Arguments")

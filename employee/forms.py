@@ -1,3 +1,4 @@
+from django.utils import timezone
 """
 forms.py
 
@@ -20,6 +21,8 @@ class YourForm(forms.Form):
         # Custom validation logic goes here
         pass
 """
+from base.rbac import is_platform_owner
+
 
 import logging
 import re
@@ -68,7 +71,7 @@ class ModelForm(forms.ModelForm):
         request = getattr(skylinx_middlewares._thread_locals, "request", None)
 
         today = date.today()
-        now = datetime.now()
+        now = timezone.now()
 
         default_input_class = "oh-input w-100"
         select_class = "oh-select"
@@ -489,7 +492,7 @@ class EmployeeWorkInformationForm(ModelForm):
                         can_create = True
                         perm = perm_map.get(field.label)
                         if request and getattr(request, "user", None) and perm:
-                            can_create = request.user.is_superuser or request.user.has_perm(perm)
+                            can_create = is_platform_owner(request.user) or request.user.has_perm(perm)
                         if can_create:
                             self.fields[label].choices += [
                                 ("create", _("Create New {} ").format(translated_label))

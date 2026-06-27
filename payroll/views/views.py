@@ -3,12 +3,17 @@ views.py
 
 This module is used to define the method for the path in the urls
 """
+from base.rbac import is_platform_owner
+
 
 import json
+import logging
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from itertools import groupby
 from urllib.parse import parse_qs
+
+logger = logging.getLogger(__name__)
 
 import pandas as pd
 import pdfkit
@@ -67,7 +72,7 @@ from payroll.models.tax_models import PayrollSettings
 
 def _payslip_queryset_for_request(request):
     qs = Payslip.objects.all()
-    if request.user.is_superuser or request.user.username == "skylinx":
+    if is_platform_owner(request.user) or request.user.username == "skylinx":
         return qs
     company = current_company(request)
     if company:
@@ -535,7 +540,7 @@ def update_payslip_status_no_id(request):
         ids_json = request.POST["ids"]
         ids = json.loads(ids_json)
         status = request.POST["status"]
-        slips = Payslip.objects.filter(id__in=ids)
+        slips = _payslip_queryset_for_request(request).filter(id__in=ids)
         slips.update(status=status)
         message = {
             "type": "success",
@@ -741,7 +746,7 @@ def dashboard_employee_chart(request):
     payroll dashboard employee chart data
     """
 
-    date = request.GET.get("period", datetime.now().strftime("%Y-%m"))
+    date = request.GET.get("period", timezone.now().strftime("%Y-%m"))
     year, month = date.split("-")
     dataset = []
     employee_label = []
@@ -826,7 +831,7 @@ def payslip_details(request):
     payroll dashboard payslip details data
     """
 
-    date = request.GET.get("period", datetime.now().strftime("%Y-%m"))
+    date = request.GET.get("period", timezone.now().strftime("%Y-%m"))
     year, month = date.split("-")
     employee_list = []
     employee_list = Payslip.objects.filter(
@@ -850,7 +855,7 @@ def dashboard_department_chart(request):
     payroll dashboard department chart data
     """
 
-    date = request.GET.get("period", datetime.now().strftime("%Y-%m"))
+    date = request.GET.get("period", timezone.now().strftime("%Y-%m"))
     year, month = date.split("-")
     dataset = [
         {
@@ -882,7 +887,7 @@ def dashboard_department_chart(request):
                 dept = slip.employee_id.get_department().department
                 department_totals[dept] += round(slip.net_pay, 2)
             except Exception as e:
-                print(e)
+                logger.exception("Error processing payslip department")
 
         departments = list(department_totals.keys())
 
@@ -1125,8 +1130,8 @@ def payslip_export(request):
     contract_end = Contract.objects.all()
     if not start_date and not end_date:
         contract_end = contract_end.filter(
-            Q(contract_end_date__month=datetime.now().month)
-            & Q(contract_end_date__year=datetime.now().year)
+            Q(contract_end_date__month=timezone.now().month)
+            & Q(contract_end_date__year=timezone.now().year)
         )
     if end_date:
         contract_end = contract_end.filter(contract_end_date__lte=end_date)
@@ -1135,7 +1140,7 @@ def payslip_export(request):
         if not end_date:
             contract_end = contract_end.filter(
                 Q(contract_end_date__gte=start_date)
-                & Q(contract_end_date__lte=datetime.now())
+                & Q(contract_end_date__lte=timezone.now())
             )
         else:
             contract_end = contract_end.filter(contract_end_date__gte=start_date)
@@ -1867,7 +1872,7 @@ def delete_payrollrequest_comment(request, comment_id):
     
     comment_obj = comment.first()
     if not (
-        request.user.is_superuser
+        is_platform_owner(request.user)
         or request.user.has_perm("payroll.change_reimbursement")
         or comment_obj.employee_id == request.user.employee_get
     ):

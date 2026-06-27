@@ -1,3 +1,4 @@
+from base.rbac import is_platform_owner
 #!/usr/bin/env python
 """
 Comprehensive fix for all remaining vulnerable permission gates.
@@ -167,20 +168,20 @@ REPLACEMENTS = [
     },
     {
         "file": "report/sidebar.py",
-        "old": 'return request.user.is_superuser or request.user.has_perm("employee.view_employee")',
-        "new": 'return request.user.is_superuser or request.user.has_perm("employee.change_employee")',
+        "old": 'return is_platform_owner(request.user) or request.user.has_perm("employee.view_employee")',
+        "new": 'return is_platform_owner(request.user) or request.user.has_perm("employee.change_employee")',
         "count": 0,
     },
     {
         "file": "report/sidebar.py",
-        "old": 'return request.user.is_superuser or request.user.has_perm(\n        "attendance.view_attendance"\n    )',
-        "new": 'return request.user.is_superuser or request.user.has_perm(\n        "employee.change_employee"\n    )',
+        "old": 'return is_platform_owner(request.user) or request.user.has_perm(\n        "attendance.view_attendance"\n    )',
+        "new": 'return is_platform_owner(request.user) or request.user.has_perm(\n        "employee.change_employee"\n    )',
         "count": 0,
     },
     {
         "file": "report/sidebar.py",
-        "old": 'return request.user.is_superuser or request.user.has_perm("employee.change_employee")',
-        "new": 'return request.user.is_superuser or request.user.has_perm("employee.change_employee")',
+        "old": 'return is_platform_owner(request.user) or request.user.has_perm("employee.change_employee")',
+        "new": 'return is_platform_owner(request.user) or request.user.has_perm("employee.change_employee")',
         "count": 0,
     },
 
@@ -257,8 +258,8 @@ REPLACEMENTS = [
     # =========================================================================
     {
         "file": "skylinx_api/api_views/employee/views.py",
-        "old": 'if user.has_perm("employee.view_employee"):\n            company = request.META.get("HTTP_COMPANY", None) or request.session.get("selected_company", None)\n            if company and company != "all":\n                if not getattr(employee, "employee_work_info", None) or employee.employee_work_info.company_id.id != int(company):\n                    return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)\n            if employee.employee_user_id.is_superuser:\n                return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)\n            serializer = EmployeeSerializer(employee)\n            return Response(serializer.data)',
-        "new": 'if user.has_perm("employee.change_employee"):\n            company = request.META.get("HTTP_COMPANY", None) or request.session.get("selected_company", None)\n            if company and company != "all":\n                if not getattr(employee, "employee_work_info", None) or employee.employee_work_info.company_id.id != int(company):\n                    return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)\n            if employee.employee_user_id.is_superuser:\n                return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)\n            serializer = EmployeeSerializer(employee)\n            return Response(serializer.data)',
+        "old": 'if user.has_perm("employee.view_employee"):\n            company = request.META.get("HTTP_COMPANY", None) or request.session.get("selected_company", None)\n            if company and company != "all":\n                if not getattr(employee, "employee_work_info", None) or employee.employee_work_info.company_id.id != int(company):\n                    return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)\n            if is_platform_owner(employee.employee_user_id):\n                return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)\n            serializer = EmployeeSerializer(employee)\n            return Response(serializer.data)',
+        "new": 'if user.has_perm("employee.change_employee"):\n            company = request.META.get("HTTP_COMPANY", None) or request.session.get("selected_company", None)\n            if company and company != "all":\n                if not getattr(employee, "employee_work_info", None) or employee.employee_work_info.company_id.id != int(company):\n                    return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)\n            if is_platform_owner(employee.employee_user_id):\n                return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)\n            serializer = EmployeeSerializer(employee)\n            return Response(serializer.data)',
         "count": 0,
     },
     {

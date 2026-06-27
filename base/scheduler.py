@@ -1,3 +1,5 @@
+import logging
+from django.utils import timezone
 import calendar
 import sys
 from datetime import date, datetime, timedelta
@@ -6,6 +8,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from django.urls import reverse
 
 from notifications.signals import notify
+
+logger = logging.getLogger(__name__)
 
 
 def update_rotating_work_type_assign(rotating_work_type, new_date):
@@ -62,7 +66,7 @@ def work_type_rotate_after(rotating_work_work_type):
     """
     This method for rotate work type based on after day
     """
-    date_today = datetime.now()
+    date_today = timezone.now()
     switch_date = rotating_work_work_type.next_change_date
     if switch_date.strftime("%Y-%m-%d") == date_today.strftime("%Y-%m-%d"):
         new_date = date_today + timedelta(days=rotating_work_work_type.rotate_after_day)
@@ -74,10 +78,10 @@ def work_type_rotate_weekend(rotating_work_type):
     """
     This method for rotate work type based on weekend
     """
-    date_today = datetime.now()
+    date_today = timezone.now()
     switch_date = rotating_work_type.next_change_date
     if switch_date.strftime("%Y-%m-%d") == date_today.strftime("%Y-%m-%d"):
-        day = datetime.now().strftime("%A").lower()
+        day = timezone.now().strftime("%A").lower()
         switch_day = rotating_work_type.rotate_every_weekend
         if day == switch_day:
             new_date = date_today + timedelta(days=7)
@@ -89,7 +93,7 @@ def work_type_rotate_every(rotating_work_type):
     """
     This method for rotate work type based on every month
     """
-    date_today = datetime.now()
+    date_today = timezone.now()
     switch_date = rotating_work_type.next_change_date
     day_date = rotating_work_type.rotate_every
     if switch_date.strftime("%Y-%m-%d") == date_today.strftime("%Y-%m-%d"):
@@ -223,7 +227,7 @@ def rotate_shift():
     from base.models import RotatingShiftAssign
 
     rotating_shifts = RotatingShiftAssign.objects.filter(is_active=True)
-    today = datetime.now().date()
+    today = timezone.now().date()
     r_shifts = rotating_shifts.filter(start_date__lte=today)
     rotating_shifts_modified = rotating_shifts.none()
     for r_shift in r_shifts:
@@ -413,7 +417,7 @@ def recurring_holiday():
     from .models import Holidays
 
     recurring_holidays = Holidays.objects.filter(recurring=True)
-    today = datetime.now()
+    today = timezone.now()
     # Looping through all recurring holiday
     for recurring_holiday in recurring_holidays:
         start_date = recurring_holiday.start_date
@@ -455,7 +459,7 @@ def sync_roster_shifts():
                 work_info.shift_id = entry.shift
                 work_info.save(update_fields=["shift_id"])
         except Exception:
-            pass
+            logger.warning("[scheduler] sync_roster_shifts failed", exc_info=True)
 
 
 if not any(
@@ -465,60 +469,18 @@ if not any(
     scheduler = BackgroundScheduler()
 
     # Add jobs with next_run_time set to the end of the previous job
-    try:
-        scheduler.add_job(rotate_shift, "interval", hours=4, id="job1")
-    except:
-        pass
-
-    try:
-        scheduler.add_job(
-            rotate_work_type,
-            "interval",
-            hours=4,
-            id="job2",
-        )
-    except:
-        pass
-
-    try:
-        scheduler.add_job(
-            undo_shift,
-            "interval",
-            hours=4,
-            id="job3",
-        )
-    except:
-        pass
-
-    try:
-        scheduler.add_job(
-            switch_shift,
-            "interval",
-            hours=4,
-            id="job4",
-        )
-    except:
-        pass
-
-    try:
-        scheduler.add_job(
-            undo_work_type,
-            "interval",
-            hours=4,
-            id="job6",
-        )
-    except:
-        pass
-
-    try:
-        scheduler.add_job(
-            switch_work_type,
-            "interval",
-            hours=4,
-            id="job5",
-        )
-    except:
-        pass
+    for name, fn, job_id in [
+        ("rotate_shift", rotate_shift, "job1"),
+        ("rotate_work_type", rotate_work_type, "job2"),
+        ("undo_shift", undo_shift, "job3"),
+        ("switch_shift", switch_shift, "job4"),
+        ("undo_work_type", undo_work_type, "job6"),
+        ("switch_work_type", switch_work_type, "job5"),
+    ]:
+        try:
+            scheduler.add_job(fn, "interval", hours=4, id=job_id)
+        except Exception:
+            logger.warning(f"[scheduler] Failed to add job {name}", exc_info=True)
 
     scheduler.add_job(recurring_holiday, "interval", hours=4)
     scheduler.add_job(sync_roster_shifts, "interval", hours=4)

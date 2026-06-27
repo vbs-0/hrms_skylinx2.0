@@ -1,3 +1,4 @@
+from decimal import Decimal
 """
 This module contains various functions for calculating payroll-related information for employees.
 It includes functions for calculating gross pay, taxable gross pay, allowances, tax deductions,
@@ -759,7 +760,7 @@ def if_condition_on(*_args, **kwargs):
     basic_pay = kwargs["basic_pay"]
     amount = kwargs["amount"]
     gross_pay = 0
-    amount = float(amount)
+    amount = Decimal(str(amount) or "0")
     if not isinstance(component, Allowance):
         gross_pay = calculate_gross_pay(
             **kwargs,
@@ -865,7 +866,7 @@ def calculate_based_on_net_pay(component, net_pay, day_dict):
     Returns:
         float: The calculated amount of the component based on the net pay.
     """
-    rate = float(component.rate)
+    rate = Decimal(str(component.rate) or "0")
     amount = net_pay * rate / 100
     amount = compute_limit(component, amount, day_dict)
     return amount

@@ -1,3 +1,4 @@
+from decimal import Decimal
 """
 deductions.py
 
@@ -31,7 +32,7 @@ def update_compensation_deduction(
         employee_rate = deduction.rate
         if employee_rate:
             amount = compensation_amount * employee_rate / 100
-        compensation_amount = compensation_amount - float(amount)
+        compensation_amount = compensation_amount - Decimal(str(amount) or "0")
         employer_contribution_amount = 0
         if max(0, deduction.employer_rate):
             employer_contribution_amount = (amount * deduction.employer_rate) / 100

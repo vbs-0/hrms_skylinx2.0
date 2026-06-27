@@ -1,3 +1,4 @@
+from base.rbac import is_platform_owner
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import QueryDict
@@ -41,7 +42,7 @@ class GeoFencingSetupGetPostAPIView(APIView):
             data = data.dict()
         else:
             data = dict(data)
-        if not request.user.is_superuser:
+        if not is_platform_owner(request.user):
             company = request.user.employee_get.get_company()
             if company:
                 data["company_id"] = company.id
@@ -68,13 +69,13 @@ class GeoFencingSetupPutDeleteAPIView(APIView):
     def put(self, request, pk):
         location = self.get_location(pk)
         company = request.user.employee_get.get_company()
-        if request.user.is_superuser or company == location.company_id:
+        if is_platform_owner(request.user) or company == location.company_id:
             data = request.data
             if isinstance(data, QueryDict):
                 data = data.dict()
             else:
                 data = dict(data)
-            if not request.user.is_superuser:
+            if not is_platform_owner(request.user):
                 data["company_id"] = location.company_id.id if location.company_id else None
             serializer = GeoFencingSetupSerializer(
                 location, data=data, partial=True
@@ -92,7 +93,7 @@ class GeoFencingSetupPutDeleteAPIView(APIView):
     def delete(self, request, pk):
         location = self.get_location(pk)
         company = request.user.employee_get.get_company()
-        if request.user.is_superuser or company == location.company_id:
+        if is_platform_owner(request.user) or company == location.company_id:
             location.delete()
             return Response(
                 {"message": "GeoFencing location deleted successfully"},

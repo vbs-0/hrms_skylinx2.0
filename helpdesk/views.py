@@ -1,3 +1,4 @@
+from django.utils import timezone
 import json
 import logging
 import os
@@ -686,7 +687,7 @@ def change_ticket_status(request, ticket_id):
         if ticket.status != status:
             ticket.status = status
             ticket.save()
-            time = datetime.now()
+            time = timezone.now()
             time = time.strftime("%b. %d, %Y, %I:%M %p")
             response = {
                 "type": "success",
@@ -930,7 +931,7 @@ def ticket_detail(request, ticket_id, **kwargs):
         or request.user.employee_get == ticket.employee_id
         or request.user.employee_get in ticket.assigned_to.all()
     ):
-        today = datetime.now().date()
+        today = timezone.now().date()
         c_form = CommentForm()
         f_form = AttachmentForm()
         attachments = ticket.ticket_attachment.all()

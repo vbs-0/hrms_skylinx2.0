@@ -1,3 +1,4 @@
+from django.utils import timezone
 import sys
 from datetime import datetime
 
@@ -10,7 +11,7 @@ def leave_reset():
     pre_scheduler.send(sender=leave_reset)
     from leave.models import LeaveType
 
-    today = datetime.now()
+    today = timezone.now()
     today_date = today.date()
     leave_types = LeaveType.objects.filter(reset=True)
     # Looping through filtered leave types with reset is true

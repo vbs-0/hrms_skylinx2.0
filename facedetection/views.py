@@ -1,3 +1,4 @@
+from base.rbac import is_platform_owner
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import QueryDict
@@ -111,7 +112,7 @@ class EmployeeFaceDetectionGetPostAPIView(APIView):
         
         # Determine target employee
         if target_employee_id and str(target_employee_id) != str(current_employee.id):
-            if request.user.is_superuser or request.user.has_perm(
+            if is_platform_owner(request.user) or request.user.has_perm(
                 "facedetection.delete_employeefacedetection"
             ):
                 employee_id = target_employee_id

@@ -1,3 +1,4 @@
+from skylinx.validators import SafeMimeValidator
 """
 Models for Asset Management System
 
@@ -141,7 +142,7 @@ class Asset(SkylinxModel):
     asset_name = models.CharField(max_length=255, verbose_name=_("Asset Name"))
     owner = models.ForeignKey(
         Employee,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         verbose_name=_("Current User"),
@@ -157,7 +158,7 @@ class Asset(SkylinxModel):
         max_digits=10, decimal_places=2, verbose_name=_("Cost")
     )
     asset_category_id = models.ForeignKey(
-        AssetCategory, on_delete=models.PROTECT, verbose_name=_("Category")
+        AssetCategory, on_delete=models.CASCADE, verbose_name=_("Category")
     )
     asset_status = models.CharField(
         choices=ASSET_STATUS,
@@ -167,7 +168,7 @@ class Asset(SkylinxModel):
     )
     asset_lot_number_id = models.ForeignKey(
         AssetLot,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         verbose_name=_("Batch No"),
@@ -309,6 +310,9 @@ class AssetReport(SkylinxModel):
     - asset_id: A ForeignKey to the Asset model, linking the report to a specific asset.
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     title = models.CharField(max_length=255, blank=True, null=True)
     asset_id = models.ForeignKey(
         Asset, related_name="asset_report", on_delete=models.CASCADE
@@ -337,11 +341,14 @@ class AssetDocuments(SkylinxModel):
     - file: A FileField for uploading the document file (optional).
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     asset_report = models.ForeignKey(
         "AssetReport", related_name="documents", on_delete=models.CASCADE
     )
-    file = models.FileField(upload_to=upload_path, blank=True, null=True)
-    objects = models.Manager()
+    file = models.FileField(upload_to=upload_path, blank=True, null=True, validators=[SafeMimeValidator()])
+#     objects = models.Manager()
 
     class Meta:
         verbose_name = _("Asset Document")
@@ -359,7 +366,10 @@ class ReturnImages(SkylinxModel):
     - image: A FileField for uploading the image file (optional).
     """
 
-    image = models.FileField(upload_to=upload_path, blank=True, null=True)
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
+    image = models.FileField(upload_to=upload_path, blank=True, null=True, validators=[SafeMimeValidator()])
 
 
 class AssetAssignment(SkylinxModel):
@@ -373,18 +383,18 @@ class AssetAssignment(SkylinxModel):
         ("Healthy", _("Healthy")),
     ]
     asset_id = models.ForeignKey(
-        Asset, on_delete=models.PROTECT, verbose_name=_("Asset")
+        Asset, on_delete=models.SET_NULL, null=True, verbose_name=_("Asset")
     )
     assigned_to_employee_id = models.ForeignKey(
         Employee,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL, null=True,
         related_name="allocated_employee",
         verbose_name=_("Assigned To"),
     )
     assigned_date = models.DateField(auto_now_add=True)
     assigned_by_employee_id = models.ForeignKey(
         Employee,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="assigned_by",
         verbose_name=_("Assigned By"),
     )
@@ -671,14 +681,14 @@ class AssetRequest(SkylinxModel):
     ]
     requested_employee_id = models.ForeignKey(
         Employee,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="requested_employee",
         null=False,
         blank=False,
         verbose_name=_("Requesting User"),
     )
     asset_category_id = models.ForeignKey(
-        AssetCategory, on_delete=models.PROTECT, verbose_name=_("Asset Category")
+        AssetCategory, on_delete=models.CASCADE, verbose_name=_("Asset Category")
     )
     asset_request_date = models.DateField(auto_now_add=True)
     description = models.TextField(

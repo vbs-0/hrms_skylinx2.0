@@ -1,3 +1,4 @@
+from skylinx.validators import SafeMimeValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -44,7 +45,7 @@ class LocalBackup(models.Model):
 class GoogleDriveBackup(models.Model):
     oauth_credentials_file = models.FileField(
         upload_to="gdrive_oauth_credentials_file",
-        verbose_name=_("OAuth Credentials File"),
+        verbose_name=_("OAuth Credentials File"), validators=[SafeMimeValidator()],
         blank=True,
         null=True,
         help_text=_(

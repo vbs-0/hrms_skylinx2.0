@@ -19,6 +19,8 @@ from django.contrib.sites.managers import CurrentSiteManager
 from django.contrib.sites.models import Site
 from django.core.exceptions import ValidationError
 from django.db import models
+from base.skylinx_company_manager import SkylinxCompanyManager
+
 from django.template import Template as DjangoTemplate
 from django.template import TemplateSyntaxError
 from django.utils.timezone import now
@@ -166,7 +168,8 @@ class Template(models.Model):
     )
     history = AuditlogHistoryField()
 
-    objects = models.Manager()
+    objects = SkylinxCompanyManager()
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
     on_site = CurrentSiteManager("sites")
 
     class Meta:

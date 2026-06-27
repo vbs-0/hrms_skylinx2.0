@@ -11,6 +11,8 @@ Client pages:
   * /subscription/inactive/  shown when a company's subscription isn't live
   * /subscription/locked/    shown when a module isn't in the company's plan
 """
+from base.rbac import is_platform_owner
+
 
 import json
 import re
@@ -540,7 +542,7 @@ def subscription_update(request, company_id):
 @superuser_required
 def impersonate(request, user_id):
     target = get_object_or_404(User, id=user_id)
-    if target.is_superuser:
+    if is_platform_owner(target):
         messages.error(request, "Refusing to impersonate another superuser.")
         return redirect("subscriptions-console")
     original_id = request.user.id
@@ -626,7 +628,7 @@ def client_plans(request):
     from django.contrib import messages
     from django.shortcuts import redirect
 
-    if not (request.user.is_superuser or request.user.has_perm('subscriptions.change_subscription') or request.user.has_perm('base.change_company')):
+    if not (is_platform_owner(request.user) or request.user.has_perm('subscriptions.change_subscription') or request.user.has_perm('base.change_company')):
         messages.error(request, "You do not have permission to view or change subscriptions.")
         return redirect("/")
 
@@ -655,7 +657,7 @@ def choose_plan(request):
     from django.contrib import messages
     from django.shortcuts import redirect
 
-    if not (request.user.is_superuser or request.user.has_perm('subscriptions.change_subscription') or request.user.has_perm('base.change_company')):
+    if not (is_platform_owner(request.user) or request.user.has_perm('subscriptions.change_subscription') or request.user.has_perm('base.change_company')):
         messages.error(request, "You do not have permission to view or change subscriptions.")
         return redirect("/")
 
@@ -734,7 +736,7 @@ def _activate_from_receipt(receipt):
 
 
 def _is_company_admin(user):
-    return user.is_superuser or user.groups.filter(name="Company Admin").exists()
+    return is_platform_owner(user) or user.groups.filter(name="Company Admin").exists()
 
 
 @login_required
@@ -800,7 +802,7 @@ def company_admins(request):
     return render(request, "subscriptions/admins.html", {"rows": rows, "company": company})
 
 
-@csrf_exempt
+# @csrf_exempt  # SECURITY REMEDIATION: Removed to prevent CSRF
 def razorpay_webhook(request):
     """Server-to-server payment confirmation (gap #5).
 

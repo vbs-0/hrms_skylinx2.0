@@ -1,3 +1,4 @@
+from skylinx.validators import SafeMimeValidator
 import os
 from datetime import date, datetime
 
@@ -61,7 +62,7 @@ class DepartmentManager(SkylinxModel):
         on_delete=models.CASCADE,
     )
     company_id = models.ForeignKey(
-        Company, null=True, editable=False, on_delete=models.PROTECT
+        Company, null=True, editable=False, on_delete=models.CASCADE
     )
 
     objects = SkylinxCompanyManager("manager__employee_work_info__company_id")
@@ -100,7 +101,7 @@ class TicketType(SkylinxModel):
     type = models.CharField(choices=TICKET_TYPES, max_length=50, verbose_name=_("Type"))
     prefix = models.CharField(max_length=3, unique=True, verbose_name=_("Prefix"))
     company_id = models.ForeignKey(
-        Company, null=True, editable=False, on_delete=models.PROTECT
+        Company, null=True, editable=False, on_delete=models.CASCADE
     )
     objects = SkylinxCompanyManager(related_company_field="company_id")
 
@@ -138,13 +139,13 @@ class Ticket(SkylinxModel):
     title = models.CharField(max_length=50)
     employee_id = models.ForeignKey(
         Employee,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="ticket",
         verbose_name=_("Owner"),
     )
     ticket_type = models.ForeignKey(
         TicketType,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         verbose_name=_("Ticket Type"),
     )
     description = models.TextField(max_length=255)
@@ -411,6 +412,9 @@ class Ticket(SkylinxModel):
 
 
 class ClaimRequest(SkylinxModel):
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
     ticket_id = models.ForeignKey(
         Ticket,
         on_delete=models.CASCADE,
@@ -441,6 +445,9 @@ class ClaimRequest(SkylinxModel):
 
 
 class Comment(SkylinxModel):
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
     comment = models.TextField(null=True, blank=True)
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name="comment")
     employee_id = models.ForeignKey(
@@ -453,7 +460,10 @@ class Comment(SkylinxModel):
 
 
 class Attachment(SkylinxModel):
-    file = models.FileField(upload_to=upload_path)
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+    file = models.FileField(upload_to=upload_path, validators=[SafeMimeValidator()])
     description = models.CharField(max_length=100, blank=True, null=True)
     format = models.CharField(max_length=50, blank=True, null=True)
     ticket = models.ForeignKey(
@@ -529,9 +539,9 @@ class FAQ(SkylinxModel):
     question = models.CharField(max_length=255)
     answer = models.TextField()
     tags = models.ManyToManyField(Tags, blank=True)
-    category = models.ForeignKey(FAQCategory, on_delete=models.PROTECT)
+    category = models.ForeignKey(FAQCategory, on_delete=models.CASCADE)
     company_id = models.ForeignKey(
-        Company, null=True, editable=False, on_delete=models.PROTECT
+        Company, null=True, editable=False, on_delete=models.CASCADE
     )
     objects = SkylinxCompanyManager()
 

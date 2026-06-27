@@ -3,6 +3,8 @@ requests.py
 
 This module is used to register the endpoints to the attendance requests
 """
+from base.rbac import is_platform_owner
+
 
 import copy
 import json
@@ -495,7 +497,7 @@ def approve_validate_attendance_request(request, attendance_id):
         )
         Attendance.objects.filter(id=attendance_id).update(**requested_data)
         # DUE TO AFFECT THE OVERTIME CALCULATION ON SAVE METHOD, SAVE THE INSTANCE ONCE MORE
-        attendance = Attendance.objects.get(id=attendance_id)
+        attendance = Attendance.objects.select_for_update().get(id=attendance_id)
         attendance.save()
     if attendance.request_type == "create_request":
         attendance.request_type = "created_request"
@@ -602,7 +604,7 @@ def cancel_attendance_request(request, attendance_id):
     This method is used to cancel attendance request
     """
     try:
-        attendance = Attendance.objects.get(id=attendance_id)
+        attendance = Attendance.objects.select_for_update().get(id=attendance_id)
         if (
             attendance.employee_id.employee_user_id == request.user
             or is_reportingmanager(request)
@@ -694,13 +696,13 @@ def bulk_approve_attendance_request(request):
     ids = json.loads(request.POST.get("ids", "[]"))
     filtered_ids = []
     for attendance_id in ids:
-        attendance = Attendance.objects.get(id=attendance_id)
+        attendance = Attendance.objects.select_for_update().get(id=attendance_id)
         if attendance.employee_id != request.user.employee_get:
             filtered_ids.append(attendance_id)
-    if request.user.is_superuser:
+    if is_platform_owner(request.user):
         filtered_ids = ids
     for attendance_id in filtered_ids:
-        attendance = Attendance.objects.get(id=attendance_id)
+        attendance = Attendance.objects.select_for_update().get(id=attendance_id)
         prev_attendance_date = attendance.attendance_date
         prev_attendance_clock_in_date = attendance.attendance_clock_in_date
         prev_attendance_clock_in = attendance.attendance_clock_in
@@ -724,7 +726,7 @@ def bulk_approve_attendance_request(request):
             )
             Attendance.objects.filter(id=attendance_id).update(**requested_data)
             # DUE TO AFFECT THE OVERTIME CALCULATION ON SAVE METHOD, SAVE THE INSTANCE ONCE MORE
-            attendance = Attendance.objects.get(id=attendance_id)
+            attendance = Attendance.objects.select_for_update().get(id=attendance_id)
             attendance.save()
         if (
             attendance.attendance_clock_out is None
@@ -827,7 +829,7 @@ def bulk_reject_attendance_request(request):
     ids = json.loads(request.POST.get("ids", "[]"))
     for attendance_id in ids:
         try:
-            attendance = Attendance.objects.get(id=attendance_id)
+            attendance = Attendance.objects.select_for_update().get(id=attendance_id)
             if (
                 attendance.employee_id.employee_user_id == request.user
                 or is_reportingmanager(request)

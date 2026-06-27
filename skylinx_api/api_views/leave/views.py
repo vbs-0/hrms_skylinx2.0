@@ -1,3 +1,5 @@
+from django.utils import timezone
+from base.rbac import is_platform_owner
 import contextlib
 
 from django.contrib.auth.decorators import permission_required
@@ -730,7 +732,7 @@ class LeaveRequestApproveAPIView(APIView):
         available_leave.save()
 
     def leave_multiple_approve(self, request, leave_request, available_leave):
-        if request.user.is_superuser:
+        if is_platform_owner(request.user):
             LeaveRequestConditionApproval.objects.filter(
                 leave_request_id=leave_request
             ).update(is_approved=True)
@@ -844,7 +846,7 @@ class LeaveRequestCancelAPIView(APIView):
             and leave_request.status == "approved"
         ):
             start_date = leave_request.start_date
-            curr_date = datetime.now().date()
+            curr_date = timezone.now().date()
             if start_date >= curr_date:
                 leave_request.status = "cancelled"
                 leave_request.save()

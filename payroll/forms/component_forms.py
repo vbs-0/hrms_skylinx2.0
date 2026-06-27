@@ -1088,7 +1088,7 @@ class ReimbursementForm(ModelForm):
                         redirect=f"/payroll/view-reimbursement?id={instance.id}",
                     )
             except Exception:
-                pass
+                logger.warning("[component_forms] Failed to send reimbursement notification", exc_info=True)
 
         return instance, attachments
 

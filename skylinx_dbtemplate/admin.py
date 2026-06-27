@@ -13,6 +13,8 @@ Features exposed in Django admin:
   export as JSON fixture, force unlock
 - Custom list display with state badge, lock indicator, schedule status
 """
+from base.rbac import is_platform_owner
+
 
 import difflib
 
@@ -584,7 +586,7 @@ class TemplateAdmin(admin.ModelAdmin):
     def unlock_view(self, request, pk):
         """Force-unlock a template."""
         tmpl = get_object_or_404(Template, pk=pk)
-        if not request.user.is_superuser and tmpl.locked_by != request.user:
+        if not is_platform_owner(request.user) and tmpl.locked_by != request.user:
             messages.error(
                 request, _("Only a superuser or the locking user can force-unlock.")
             )
@@ -708,7 +710,7 @@ class TemplateAdmin(admin.ModelAdmin):
     @admin.action(description=_("🔓 Force-unlock selected templates"))
     def action_force_unlock(self, request, queryset):
         """Clear locked_by / locked_at for superusers only."""
-        if not request.user.is_superuser:
+        if not is_platform_owner(request.user):
             self.message_user(
                 request,
                 _("Only superusers can force-unlock templates."),

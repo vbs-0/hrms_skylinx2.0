@@ -11,6 +11,7 @@ from django.db.models import Q
 from django.db.models.query import QuerySet
 
 from skylinx.skylinx_middlewares import _thread_locals, get_selected_company
+from base.rbac import is_platform_owner
 from skylinx.signals import (
     post_bulk_update,
     post_model_clean,
@@ -139,7 +140,7 @@ class SkylinxCompanyManager(models.Manager):
             if (
                 user is not None
                 and getattr(user, "is_authenticated", False)
-                and not user.is_superuser
+                and not is_platform_owner(user)
             ):
                 return qs.none()
             return qs

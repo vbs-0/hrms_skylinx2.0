@@ -1,3 +1,4 @@
+import logging
 """
 Modern offboarding dashboard views — KPI summary + ApexCharts.
 
@@ -8,6 +9,9 @@ from datetime import date, timedelta
 
 from django.apps import apps
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+
+logger = logging.getLogger(__name__)
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -129,7 +133,7 @@ def offboarding_pipeline(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[offboarding/dashboard.py] count count failed', exc_info=True)
 
     return JsonResponse({"stages": stages})
 
@@ -217,7 +221,7 @@ def offboarding_department_attrition(request):
                     }
                 )
     except Exception:
-        pass
+        logger.warning('[offboarding/dashboard.py] count itemcount failed', exc_info=True)
 
     return JsonResponse({"departments": departments})
 
@@ -249,7 +253,7 @@ def offboarding_exit_reasons(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[offboarding/dashboard.py] count itemcount failed', exc_info=True)
 
     return JsonResponse({"reasons": reasons})
 
@@ -308,7 +312,7 @@ def offboarding_notice_period_tracker(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[offboarding/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"employees": employees})
 
@@ -349,7 +353,7 @@ def offboarding_unreturned_assets(request):
                     }
                 )
     except Exception:
-        pass
+        logger.warning('[offboarding/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"assets": assets})
 
@@ -421,7 +425,7 @@ def offboarding_avg_duration(request):
         if durations:
             avg_days = round(sum(durations) / len(durations), 1)
     except Exception:
-        pass
+        logger.warning('[offboarding/dashboard.py] operation failed', exc_info=True)
     return JsonResponse(
         {
             "avg_days": avg_days,

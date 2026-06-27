@@ -1,6 +1,7 @@
 import json
 
 from django.db import models
+from base.skylinx_company_manager import SkylinxCompanyManager
 
 from skylinx.skylinx_middlewares import _thread_locals
 from skylinx.models import SkylinxModel
@@ -13,6 +14,9 @@ class ToggleColumn(SkylinxModel):
     """
     ToggleColumn
     """
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
 
     user_id = models.ForeignKey(
         SkylinxUser,
@@ -38,6 +42,9 @@ class ActiveTab(SkylinxModel):
     ActiveTab
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     path = models.CharField(max_length=256)
     tab_target = models.CharField(max_length=256)
 
@@ -46,6 +53,9 @@ class ActiveGroup(SkylinxModel):
     """
     ActiveGroup
     """
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
 
     path = models.CharField(max_length=256)
     group_target = models.CharField(max_length=256)
@@ -56,6 +66,9 @@ class SavedFilter(SkylinxModel):
     """
     SavedFilter
     """
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
 
     title = models.CharField(max_length=20, null=True)
     color = models.CharField(max_length=10, default="")
@@ -84,6 +97,9 @@ class ActiveView(SkylinxModel):
     This model to store the active view type for HNV
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     path = models.CharField(max_length=256)
     type = models.CharField(max_length=50)
 
@@ -92,6 +108,9 @@ class ActiveView(SkylinxModel):
 
 
 class ColumnOrder(SkylinxModel):
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
     employee = models.ForeignKey(
         "employee.Employee", on_delete=models.CASCADE, related_name="column_order"
     )

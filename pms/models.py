@@ -386,14 +386,14 @@ class EmployeeObjective(SkylinxModel):
         blank=True,
         related_name="employee_objective",
         verbose_name="Objective",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
     )
     employee_id = models.ForeignKey(
         Employee,
         null=True,
         blank=True,
         related_name="employee_objective",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         verbose_name="Employee",
     )
     key_result_id = models.ManyToManyField(
@@ -625,7 +625,7 @@ class EmployeeKeyResult(models.Model):
         blank=True,
         related_name="employee_key_result",
         verbose_name="Key result",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
     )
     progress_type = models.CharField(
         max_length=60, null=True, blank=True, choices=PROGRESS_CHOICES
@@ -975,7 +975,7 @@ class QuestionOptions(SkylinxModel):
 
     question_id = models.ForeignKey(
         Question,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="question_options",
         null=True,
         blank=True,
@@ -1278,7 +1278,8 @@ class AnonymousFeedback(models.Model):
         max_length=10, null=True, blank=False, editable=False
     )
     feedback_description = models.TextField(null=True, blank=True, max_length=255)
-    objects = models.Manager()
+    objects = SkylinxCompanyManager()
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self) -> str:
         return f"Feedback based on a {self.based_on}"
@@ -1363,7 +1364,7 @@ class Answer(models.Model):
         blank=True,
     )
     feedback_id = models.ForeignKey(
-        Feedback, on_delete=models.PROTECT, related_name="feedback_answer"
+        Feedback, on_delete=models.CASCADE, related_name="feedback_answer"
     )
     objects = SkylinxCompanyManager("employee_id__employee_work_info__company_id")
 
@@ -1374,7 +1375,7 @@ class Answer(models.Model):
 class KeyResultFeedback(models.Model):
     feedback_id = models.ForeignKey(
         Feedback,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="feedback_key_result",
         null=True,
         blank=True,
@@ -1413,7 +1414,7 @@ class Meetings(SkylinxModel):
     )
     question_template = models.ForeignKey(
         QuestionTemplate,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         verbose_name=_("Question Template"),
@@ -1608,7 +1609,7 @@ class MeetingsAnswer(models.Model):
         verbose_name="Employee",
     )
     meeting_id = models.ForeignKey(
-        Meetings, on_delete=models.PROTECT, related_name="meeting_answer"
+        Meetings, on_delete=models.CASCADE, related_name="meeting_answer"
     )
     objects = SkylinxCompanyManager("employee_id__employee_work_info__company_id")
 

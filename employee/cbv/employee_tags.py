@@ -14,6 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from base.forms import EmployeeTagForm
 from employee.filters import EmployeeTagFilter
 from employee.models import EmployeeTag
+from base.rbac import current_company
 from skylinx_views.cbv_methods import login_required, permission_required
 from skylinx_views.generic.cbv.views import (
     SkylinxFormView,
@@ -143,6 +144,11 @@ class EmployeeTagCreateForm(SkylinxFormView):
                 messages.success(self.request, _("Tag has been updated successfully!"))
             else:
                 messages.success(self.request, _("Tag has been created successfully!"))
-            form.save()
+            
+            obj = form.save(commit=False)
+            company = current_company(self.request)
+            if company:
+                obj.company_id = company
+            obj.save()
             return self.HttpResponse()
         return super().form_valid(form)

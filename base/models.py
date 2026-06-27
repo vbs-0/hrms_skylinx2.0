@@ -1,3 +1,4 @@
+from skylinx.validators import SafeMimeValidator
 """
 This module is used to register django models
 """
@@ -103,8 +104,7 @@ class Company(SkylinxModel):
     zip = models.CharField(max_length=20)
     icon = models.FileField(
         upload_to=upload_path,
-        null=True,
-    )
+        null=True, validators=[SafeMimeValidator()])
     objects = models.Manager()
     date_format = models.CharField(max_length=30, blank=True, null=True, default="DD-MM-YYYY")
     time_format = models.CharField(max_length=20, blank=True, null=True)
@@ -253,7 +253,7 @@ class JobPosition(SkylinxModel):
     )
     department_id = models.ForeignKey(
         Department,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="job_position",
         verbose_name=_("Department"),
     )
@@ -300,7 +300,7 @@ class JobRole(SkylinxModel):
     """JobRole model"""
 
     job_position_id = models.ForeignKey(
-        JobPosition, on_delete=models.PROTECT, verbose_name=_("Job Position")
+        JobPosition, on_delete=models.CASCADE, verbose_name=_("Job Position")
     )
     job_role = models.CharField(
         max_length=50, blank=False, null=True, verbose_name=_("Job Role")
@@ -414,13 +414,13 @@ class RotatingWorkType(SkylinxModel):
     name = models.CharField(max_length=50)
     work_type1 = models.ForeignKey(
         WorkType,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="work_type1",
         verbose_name=_("Work Type 1"),
     )
     work_type2 = models.ForeignKey(
         WorkType,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="work_type2",
         verbose_name=_("Work Type 2"),
     )
@@ -529,26 +529,26 @@ class RotatingWorkTypeAssign(SkylinxModel):
 
     employee_id = models.ForeignKey(
         "employee.Employee",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         verbose_name=_("Employee"),
     )
     rotating_work_type_id = models.ForeignKey(
-        RotatingWorkType, on_delete=models.PROTECT, verbose_name=_("Rotating Work Type")
+        RotatingWorkType, on_delete=models.CASCADE, verbose_name=_("Rotating Work Type")
     )
     start_date = models.DateField(default=timezone.now, verbose_name=_("Start Date"))
     next_change_date = models.DateField(null=True, verbose_name=_("Next Switch"))
     current_work_type = models.ForeignKey(
         WorkType,
         null=True,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="current_work_type",
         verbose_name=_("Current Work Type"),
     )
     next_work_type = models.ForeignKey(
         WorkType,
         null=True,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="next_work_type",
         verbose_name=_("Next Work Type"),
     )
@@ -791,7 +791,7 @@ class EmployeeShift(SkylinxModel):
             null=True,
             blank=True,
             related_name="employee_shift",
-            on_delete=models.PROTECT,
+            on_delete=models.CASCADE,
             verbose_name=_("Grace Time"),
         )
 
@@ -861,10 +861,10 @@ class EmployeeShiftSchedule(SkylinxModel):
     """
 
     day = models.ForeignKey(
-        EmployeeShiftDay, on_delete=models.PROTECT, related_name="day_schedule"
+        EmployeeShiftDay, on_delete=models.CASCADE, related_name="day_schedule"
     )
     shift_id = models.ForeignKey(
-        EmployeeShift, on_delete=models.PROTECT, verbose_name=_("Shift")
+        EmployeeShift, on_delete=models.CASCADE, verbose_name=_("Shift")
     )
     minimum_working_hour = models.CharField(
         default="08:15",
@@ -990,7 +990,7 @@ class RotatingShift(SkylinxModel):
     shift1 = models.ForeignKey(
         EmployeeShift,
         related_name="shift1",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         verbose_name=_("Shift 1"),
         blank=True,
         null=True,
@@ -998,7 +998,7 @@ class RotatingShift(SkylinxModel):
     shift2 = models.ForeignKey(
         EmployeeShift,
         related_name="shift2",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         verbose_name=_("Shift 2"),
         blank=True,
         null=True,
@@ -1109,23 +1109,23 @@ class RotatingShiftAssign(SkylinxModel):
     """
 
     employee_id = models.ForeignKey(
-        "employee.Employee", on_delete=models.PROTECT, verbose_name=_("Employee")
+        "employee.Employee", on_delete=models.CASCADE, verbose_name=_("Employee")
     )
     rotating_shift_id = models.ForeignKey(
-        RotatingShift, on_delete=models.PROTECT, verbose_name=_("Rotating Shift")
+        RotatingShift, on_delete=models.CASCADE, verbose_name=_("Rotating Shift")
     )
     start_date = models.DateField(default=timezone.now, verbose_name=_("Start Date"))
     next_change_date = models.DateField(null=True, verbose_name=_("Next Switch"))
     current_shift = models.ForeignKey(
         EmployeeShift,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         related_name="current_shift",
         verbose_name=_("Current Shift"),
     )
     next_shift = models.ForeignKey(
         EmployeeShift,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         related_name="next_shift",
         verbose_name=_("Next Shift"),
@@ -1300,7 +1300,7 @@ class Roster(SkylinxModel):
     date = models.DateField(verbose_name=_("Date"))
     shift = models.ForeignKey(
         "base.EmployeeShift",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name="roster_entries",
@@ -1377,7 +1377,10 @@ class RosterPublishLog(models.Model):
         verbose_name=_("Total Employees"),
     )
 
-    objects = models.Manager()
+    company_id = models.ForeignKey(
+        "base.Company", on_delete=models.CASCADE, null=True, blank=True
+    )
+    objects = SkylinxCompanyManager()
 
     class Meta:
         verbose_name = _("Roster Publish Log")
@@ -1389,8 +1392,11 @@ class RosterPublishLog(models.Model):
 
 
 class BaserequestFile(models.Model):
-    file = models.FileField(upload_to=upload_path)
-    objects = models.Manager()
+    file = models.FileField(upload_to=upload_path, validators=[SafeMimeValidator()])
+    company_id = models.ForeignKey(
+        "base.Company", on_delete=models.CASCADE, null=True, blank=True
+    )
+    objects = SkylinxCompanyManager()
 
 
 class WorkTypeRequest(SkylinxModel):
@@ -1400,20 +1406,20 @@ class WorkTypeRequest(SkylinxModel):
 
     employee_id = models.ForeignKey(
         "employee.Employee",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         related_name="work_type_request",
         verbose_name=_("Employee"),
     )
     work_type_id = models.ForeignKey(
         WorkType,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="requested_work_type",
         verbose_name=_("Requesting Work Type"),
     )
     previous_work_type_id = models.ForeignKey(
         WorkType,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name="previous_work_type",
@@ -1576,9 +1582,8 @@ class WorkTypeRequest(SkylinxModel):
 
     def clean(self):
         request = getattr(skylinx_middlewares._thread_locals, "request", None)
-        if not request.user.is_superuser:
-            if self.requested_date < timezone.now().date():
-                raise ValidationError(_("Date must be greater than or equal to today"))
+        if not self.pk and self.requested_date < timezone.now().date():
+            raise ValidationError(_("Date must be greater than or equal to today"))
         if self.requested_till and self.requested_till < self.requested_date:
             raise ValidationError(
                 _("End date must be greater than or equal to start date")
@@ -1608,13 +1613,16 @@ class WorkTypeRequestComment(SkylinxModel):
     WorkTypeRequestComment Model
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     from employee.models import Employee
 
     request_id = models.ForeignKey(WorkTypeRequest, on_delete=models.CASCADE)
     employee_id = models.ForeignKey(Employee, on_delete=models.CASCADE)
     comment = models.TextField(null=True, verbose_name=_("Comment"))
     files = models.ManyToManyField(BaserequestFile, blank=True)
-    objects = models.Manager()
+#     objects = models.Manager()
 
     def __str__(self) -> str:
         return f"{self.comment}"
@@ -1627,20 +1635,20 @@ class ShiftRequest(SkylinxModel):
 
     employee_id = models.ForeignKey(
         "employee.Employee",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         related_name="shift_request",
         verbose_name=_("Employee"),
     )
     shift_id = models.ForeignKey(
         EmployeeShift,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="requested_shift",
         verbose_name=_("Requesting Shift"),
     )
     previous_shift_id = models.ForeignKey(
         EmployeeShift,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name="previous_shift",
@@ -1651,7 +1659,7 @@ class ShiftRequest(SkylinxModel):
     )
     reallocate_to = models.ForeignKey(
         "employee.Employee",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name="reallocate_shift_request",
@@ -1818,11 +1826,9 @@ class ShiftRequest(SkylinxModel):
         return f"{self.employee_id.get_department()} / {self.employee_id.get_job_position()}"
 
     def clean(self):
-
         request = getattr(skylinx_middlewares._thread_locals, "request", None)
-        if not request.user.is_superuser:
-            if not self.pk and self.requested_date < timezone.now().date():
-                raise ValidationError(_("Date must be greater than or equal to today"))
+        if not self.pk and self.requested_date < timezone.now().date():
+            raise ValidationError(_("Date must be greater than or equal to today"))
         if self.requested_till and self.requested_till < self.requested_date:
             raise ValidationError(
                 _("End date must be greater than or equal to start date")
@@ -1897,13 +1903,16 @@ class ShiftRequestComment(SkylinxModel):
     ShiftRequestComment Model
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     from employee.models import Employee
 
     request_id = models.ForeignKey(ShiftRequest, on_delete=models.CASCADE)
     employee_id = models.ForeignKey(Employee, on_delete=models.CASCADE)
     files = models.ManyToManyField(BaserequestFile, blank=True)
     comment = models.TextField(null=True, verbose_name=_("Comment"))
-    objects = models.Manager()
+#     objects = models.Manager()
 
     def __str__(self) -> str:
         return f"{self.comment}"
@@ -1913,7 +1922,7 @@ class Tags(SkylinxModel):
     title = models.CharField(max_length=30)
     color = models.CharField(max_length=30)
     company_id = models.ForeignKey(
-        Company, null=True, editable=False, on_delete=models.PROTECT
+        Company, null=True, editable=False, on_delete=models.CASCADE
     )
     objects = SkylinxCompanyManager(related_company_field="company_id")
 
@@ -1980,6 +1989,8 @@ class DynamicEmailConfiguration(SkylinxModel):
     """
     SingletonModel to keep the mail server configurations
     """
+
+    objects = SkylinxCompanyManager()
 
     host = models.CharField(null=True, max_length=256, verbose_name=_("Email Host"))
 
@@ -2065,18 +2076,14 @@ class DynamicEmailConfiguration(SkylinxModel):
 
     def save(self, *args, **kwargs) -> None:
         if self.is_primary:
-            DynamicEmailConfiguration.objects.filter(is_primary=True).update(
-                is_primary=False
-            )
-        if not DynamicEmailConfiguration.objects.exists():
+            DynamicEmailConfiguration.objects.filter(
+                is_primary=True, company_id=self.company_id
+            ).exclude(id=self.id).update(is_primary=False)
+            
+        if not DynamicEmailConfiguration.objects.filter(company_id=self.company_id).exists():
             self.is_primary = True
 
         super().save(*args, **kwargs)
-        servers_same_company = DynamicEmailConfiguration.objects.filter(
-            company_id=self.company_id
-        ).exclude(id=self.id)
-        if servers_same_company.exists():
-            self.delete()
         return
 
     class Meta:
@@ -2380,7 +2387,11 @@ class Attachment(models.Model):
     Attachment model for multiple attachments in announcements.
     """
 
-    file = models.FileField(upload_to=upload_path)
+    file = models.FileField(upload_to=upload_path, validators=[SafeMimeValidator()])
+    company_id = models.ForeignKey(
+        "base.Company", on_delete=models.CASCADE, null=True, blank=True, related_name="base_attachments"
+    )
+    objects = SkylinxCompanyManager()
 
     def __str__(self):
         return self.file.name
@@ -2478,7 +2489,7 @@ class Announcement(SkylinxModel):
         custom col for announcement list col
         """
 
-        current_date = datetime.now().strftime("%Y-%m-%d")
+        current_date = timezone.now().strftime("%Y-%m-%d")
 
         return render_template(
             path="cbv/dashboard/announcement_title.html",
@@ -2491,12 +2502,15 @@ class AnnouncementComment(SkylinxModel):
     AnnouncementComment Model
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     from employee.models import Employee
 
     announcement_id = models.ForeignKey(Announcement, on_delete=models.CASCADE)
     employee_id = models.ForeignKey(Employee, on_delete=models.CASCADE)
     comment = models.TextField(null=True, verbose_name=_("Comment"), max_length=255)
-    objects = models.Manager()
+#     objects = models.Manager()
 
 
 class AnnouncementView(models.Model):
@@ -2509,7 +2523,10 @@ class AnnouncementView(models.Model):
     viewed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
 
-    objects = models.Manager()
+    company_id = models.ForeignKey(
+        "base.Company", on_delete=models.CASCADE, null=True, blank=True
+    )
+    objects = SkylinxCompanyManager()
 
     def announcement_viewed_by_col(self):
         """
@@ -2536,7 +2553,7 @@ class EmailLog(models.Model):
     to = models.EmailField()
     status = models.CharField(max_length=6, choices=statuses)
     created_at = models.DateTimeField(auto_now_add=True)
-    objects = models.Manager()
+    objects = SkylinxCompanyManager()
     company_id = models.ForeignKey(
         Company, on_delete=models.CASCADE, null=True, editable=False
     )
@@ -2594,6 +2611,9 @@ class DashboardEmployeeCharts(SkylinxModel):
     dashboard employee chart
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     from employee.models import Employee
 
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
@@ -2619,7 +2639,7 @@ class BiometricAttendance(models.Model):
         Company,
         null=True,
         editable=False,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="biometric_enabled_company",
         verbose_name=_("Company"),
     )
@@ -2655,6 +2675,10 @@ class AttendanceAllowedIP(models.Model):
     additional_data = models.JSONField(
         null=True, blank=True, default=default_additional_data
     )
+    company_id = models.ForeignKey(
+        "base.Company", on_delete=models.CASCADE, null=True, blank=True
+    )
+    objects = SkylinxCompanyManager()
 
     def clean(self):
         """
@@ -2726,7 +2750,7 @@ class Holidays(SkylinxModel):
     company_id = models.ForeignKey(
         Company,
         null=True,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         verbose_name=_("Company"),
     )
     objects = SkylinxCompanyManager(related_company_field="company_id")
@@ -2805,7 +2829,7 @@ class CompanyLeaves(SkylinxModel):
         max_length=100, choices=WEEK_DAYS, verbose_name=_("Based On Week Day")
     )
     company_id = models.ForeignKey(
-        Company, null=True, on_delete=models.PROTECT, verbose_name=_("Company")
+        Company, null=True, on_delete=models.CASCADE, verbose_name=_("Company")
     )
     objects = SkylinxCompanyManager()
 
@@ -2889,9 +2913,12 @@ class PenaltyAccounts(SkylinxModel):
     LateComeEarlyOutPenaltyAccount
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     employee_id = models.ForeignKey(
         "employee.Employee",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="penalty_accounts",
         editable=False,
         verbose_name=_("Employee"),
@@ -2998,9 +3025,16 @@ class NotificationSound(models.Model):
         Employee, on_delete=models.CASCADE, related_name="notification_sound"
     )
     sound_enabled = models.BooleanField(default=False)
+    company_id = models.ForeignKey(
+        "base.Company", on_delete=models.CASCADE, null=True, blank=True
+    )
+    objects = SkylinxCompanyManager()
 
 
 class IntegrationApps(SkylinxModel, NoPermissionModel):
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
     app_label = models.CharField(max_length=255, unique=True)
     is_enabled = models.BooleanField(default=False)
 
@@ -3051,7 +3085,7 @@ class LegalDocument(models.Model):
     public /terms/ page. Up to ~14 docs; enforced in the upload view."""
 
     title = models.CharField(max_length=200, verbose_name=_("Title"))
-    file = models.FileField(upload_to="legal/", verbose_name=_("PDF file"))
+    file = models.FileField(upload_to="legal/", verbose_name=_("PDF file"), validators=[SafeMimeValidator()])
     order = models.PositiveIntegerField(default=0)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 

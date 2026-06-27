@@ -1,4 +1,4 @@
-﻿"""
+"""
 views.py
 
 This module is used to map url pattens with django views or methods
@@ -1828,7 +1828,10 @@ def add_remove_dynamic_fields(request, **kwargs):
         hx_target = request.META.get("HTTP_HX_TARGET")
 
         if hx_target:
-            field_counts = int(hx_target.split("_")[-1]) + 1
+            try:
+                field_counts = int(hx_target.split("_")[-1]) + 1
+            except (ValueError, IndexError, TypeError):
+                return HttpResponse()
             next_hx_target = f"{hx_target.rsplit('_', 1)[0]}_{field_counts}"
             form = form_class()
             field_name = f"{field_name_pre}{field_counts}"

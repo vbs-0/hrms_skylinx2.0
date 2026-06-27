@@ -1,6 +1,7 @@
 """Helpers to resolve a request's company + subscription, and seat checks."""
 
 from .features import ALL_FEATURE_KEYS
+from base.rbac import current_company, is_platform_owner
 
 
 def company_for_user(user):
@@ -38,7 +39,9 @@ def subscription_for_request(request):
     user = getattr(request, "user", None)
     sub = None
     if user and user.is_authenticated:
-        sub = subscription_for_company(company_for_user(user))
+        sub = subscription_for_company(
+            current_company(request) or company_for_user(user)
+        )
     try:
         request._subscription_cache = sub
     except Exception:
@@ -50,11 +53,16 @@ def features_for_request(request):
     """
     Feature keys available on this request.
 
-    Superusers (platform owners) get everything. Clients get whatever their
-    subscription's plan grants.
+    The platform owner gets everything only outside a selected tenant context.
+    Clients get whatever their subscription's plan grants.
     """
     user = getattr(request, "user", None)
-    if user and user.is_authenticated and user.is_superuser:
+    if (
+        user
+        and user.is_authenticated
+        and is_platform_owner(user)
+        and current_company(request) is None
+    ):
         return list(ALL_FEATURE_KEYS)
     sub = subscription_for_request(request)
     if not sub:

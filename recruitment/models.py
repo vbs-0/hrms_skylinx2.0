@@ -1,3 +1,4 @@
+from skylinx.validators import SafeMimeValidator
 """
 models.py
 
@@ -110,6 +111,9 @@ class SurveyTemplate(SkylinxModel):
 
 
 class Skill(SkylinxModel):
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
     title = models.CharField(max_length=100)
 
     def __str__(self):
@@ -195,7 +199,7 @@ class Recruitment(SkylinxModel):
     )
     job_position_id = models.ForeignKey(
         JobPosition,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         db_constraint=False,
@@ -210,7 +214,7 @@ class Recruitment(SkylinxModel):
     )
     company_id = models.ForeignKey(
         Company,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         verbose_name=_("Company"),
@@ -222,7 +226,7 @@ class Recruitment(SkylinxModel):
     skills = models.ManyToManyField(Skill, blank=True, verbose_name=_("Skills"))
     linkedin_account_id = models.ForeignKey(
         "recruitment.LinkedInAccount",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         verbose_name=_("LinkedIn Account"),
@@ -629,25 +633,25 @@ class Candidate(SkylinxModel):
         ("other", _("Other")),
     ]
     name = models.CharField(max_length=100, null=True, verbose_name=_("Name"))
-    profile = models.ImageField(upload_to=upload_path, null=True)  # 853
+    profile = models.ImageField(upload_to=upload_path, null=True, validators=[SafeMimeValidator()])  # 853
     portfolio = models.URLField(max_length=200, blank=True, verbose_name=_("Portfolio"))
     recruitment_id = models.ForeignKey(
         Recruitment,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         related_name="candidate",
         verbose_name=_("Recruitment"),
     )
     job_position_id = models.ForeignKey(
         JobPosition,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         verbose_name=_("Job Position"),
     )
     stage_id = models.ForeignKey(
         Stage,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         verbose_name=_("Stage"),
     )
@@ -1337,7 +1341,7 @@ class Candidate(SkylinxModel):
         if answer_instance and answer_instance.answer_json:
             return json.loads(
                 answer_instance.answer_json
-            )  # faster than ast.literal_eval
+            )  # faster than json.loads
         return {}
 
     def __getattr__(self, name):
@@ -1438,7 +1442,7 @@ class RejectedCandidate(SkylinxModel):
 
     candidate_id = models.OneToOneField(
         Candidate,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         verbose_name="Candidate",
         related_name="rejected_candidate",
     )
@@ -1462,7 +1466,10 @@ class RejectedCandidate(SkylinxModel):
 
 
 class StageFiles(SkylinxModel):
-    files = models.FileField(upload_to=upload_path, blank=True, null=True)
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+    files = models.FileField(upload_to=upload_path, blank=True, null=True, validators=[SafeMimeValidator()])
 
     def __str__(self):
         return self.files.name.split("/")[-1]
@@ -1606,10 +1613,12 @@ class QuestionOrdering(SkylinxModel):
     Survey Template model
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+
     question_id = models.ForeignKey(RecruitmentSurvey, on_delete=models.CASCADE)
     recruitment_id = models.ForeignKey(Recruitment, on_delete=models.CASCADE)
     sequence = models.IntegerField(default=0)
-    objects = SkylinxCompanyManager(related_company_field="recruitment_ids__company_id")
+    objects = SkylinxCompanyManager()
 
 
 class RecruitmentSurveyAnswer(SkylinxModel):
@@ -1620,18 +1629,18 @@ class RecruitmentSurveyAnswer(SkylinxModel):
     candidate_id = models.ForeignKey(Candidate, on_delete=models.CASCADE)
     recruitment_id = models.ForeignKey(
         Recruitment,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         verbose_name=_("Recruitment"),
         null=True,
     )
     job_position_id = models.ForeignKey(
         JobPosition,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         verbose_name=_("Job Position"),
         null=True,
     )
     answer_json = models.JSONField()
-    attachment = models.FileField(upload_to=upload_path, null=True, blank=True)
+    attachment = models.FileField(upload_to=upload_path, null=True, blank=True, validators=[SafeMimeValidator()])
     objects = SkylinxCompanyManager(related_company_field="recruitment_id__company_id")
 
     @property
@@ -1707,19 +1716,19 @@ class SkillZoneCandidate(SkylinxModel):
         SkillZone,
         verbose_name=_("Skill Zone"),
         related_name="skillzonecandidate_set",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
     )
     candidate_id = models.ForeignKey(
         Candidate,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         related_name="skillzonecandidate_set",
         verbose_name=_("Candidate"),
     )
     # job_position_id=models.ForeignKey(
     #     JobPosition,
-    #     on_delete=models.PROTECT,
+    #     on_delete=models.CASCADE,
     #     null=True,
     #     related_name="talent_pool",
     #     verbose_name=_("Job Position")
@@ -1758,11 +1767,14 @@ class SkillZoneCandidate(SkylinxModel):
 
 
 class CandidateRating(SkylinxModel):
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
     employee_id = models.ForeignKey(
-        Employee, on_delete=models.PROTECT, related_name="candidate_rating"
+        Employee, on_delete=models.CASCADE, related_name="candidate_rating"
     )
     candidate_id = models.ForeignKey(
-        Candidate, on_delete=models.PROTECT, related_name="candidate_rating"
+        Candidate, on_delete=models.CASCADE, related_name="candidate_rating"
     )
     rating = models.IntegerField(
         validators=[MinValueValidator(0), MaxValueValidator(5)]
@@ -1970,14 +1982,17 @@ class CandidateDocumentRequest(SkylinxModel):
 
 
 class CandidateDocument(SkylinxModel):
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
     title = models.CharField(max_length=250, verbose_name=_("Title"))
     candidate_id = models.ForeignKey(
-        Candidate, on_delete=models.PROTECT, verbose_name=_("Candidate")
+        Candidate, on_delete=models.CASCADE, verbose_name=_("Candidate")
     )
     document_request_id = models.ForeignKey(
-        CandidateDocumentRequest, on_delete=models.PROTECT, null=True
+        CandidateDocumentRequest, on_delete=models.CASCADE, null=True
     )
-    document = models.FileField(upload_to=upload_path, null=True)
+    document = models.FileField(upload_to=upload_path, null=True, validators=[SafeMimeValidator()])
     status = models.CharField(
         choices=STATUS, max_length=10, default="requested", verbose_name=_("Status")
     )
@@ -2023,6 +2038,8 @@ class CandidateDocument(SkylinxModel):
 
 
 class LinkedInAccount(SkylinxModel):
+
+    objects = SkylinxCompanyManager()
     username = models.CharField(max_length=250, verbose_name=_("App Name"))
     email = models.EmailField(max_length=254, verbose_name=_("Email"))
     api_token = models.CharField(max_length=500, verbose_name=_("API Token"))

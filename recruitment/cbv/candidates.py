@@ -316,8 +316,8 @@ class ListCandidates(SkylinxListView):
         """
 
         request = getattr(_thread_locals, "request", None)
-        ids = ast.literal_eval(request.POST["ids"])
-        _columns = ast.literal_eval(request.POST["columns"])
+        ids = json.loads(request.POST["ids"])
+        _columns = json.loads(request.POST["columns"])
         queryset = self.model.objects.filter(id__in=ids)
         question_mapping = self.survey_question_mapping
         export_format = request.POST.get("format", "xlsx")
@@ -366,7 +366,7 @@ class ListCandidates(SkylinxListView):
                         survey_answers = survey_answers.answer_json
                         if isinstance(survey_answers, str):
                             try:
-                                survey_answers = ast.literal_eval(
+                                survey_answers = json.loads(
                                     survey_answers
                                 )  # Convert string to dict
                             except Exception:
@@ -405,10 +405,7 @@ class ListCandidates(SkylinxListView):
 
             for field_tuple in _columns:
                 if not field_tuple[1].startswith("question_"):
-                    dynamic_fn_str = f"def dehydrate_{field_tuple[1]}(self, instance):return self.remove_extra_spaces(getattribute(instance, '{field_tuple[1]}'))"
-                    exec(dynamic_fn_str)
-                    dynamic_fn = locals()[f"dehydrate_{field_tuple[1]}"]
-                    locals()[field_tuple[1]] = fields.Field(column_name=field_tuple[0])
+                    setattr(self.__class__, f'dehydrate_{field_tuple[1]}', lambda self, inst, f=field_tuple[1]: self.remove_extra_spaces(getattr(inst, f, '')))
 
             def remove_extra_spaces(self, text):
                 """

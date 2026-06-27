@@ -1,3 +1,4 @@
+from django.utils import timezone
 """
 attendance/sidebar.py
 """
@@ -50,7 +51,7 @@ def hour_account_accessibility(request, submenu, user_perms, *args, **kwargs):
     """
     Modify the submenu redirect URL to include the current year as a query parameter.
     """
-    submenu["redirect"] = submenu["redirect"] + f"?year={datetime.now().year}"
+    submenu["redirect"] = submenu["redirect"] + f"?year={timezone.now().year}"
     return True
 
 

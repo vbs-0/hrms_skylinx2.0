@@ -1,3 +1,4 @@
+import logging
 """
 Modern PMS (Performance Management) dashboard views — KPI summary + ApexCharts.
 
@@ -7,6 +8,9 @@ Accessible at /pms/dashboard/modern/ alongside the existing dashboard.
 from datetime import date, timedelta
 
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+
+logger = logging.getLogger(__name__)
 from django.db.models import Avg, Count, F, FloatField, Q, Sum
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
@@ -173,7 +177,7 @@ def pms_department_performance(request):
                     }
                 )
     except Exception:
-        pass
+        logger.warning('[pms/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"departments": departments})
 
@@ -223,7 +227,7 @@ def pms_at_risk_objectives(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[pms/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"objectives": objectives})
 
@@ -265,7 +269,7 @@ def pms_top_performers(request):
                     employee_id=item["employee_id"]
                 ).aggregate(total=Coalesce(Sum("bonus_point"), 0))["total"]
             except Exception:
-                pass
+                logger.warning('[pms/dashboard.py] bonus  EmployeeBonusPointobjectsfilter failed', exc_info=True)
 
             performers.append(
                 {
@@ -279,7 +283,7 @@ def pms_top_performers(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[pms/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"performers": performers})
 
@@ -334,7 +338,7 @@ def pms_kr_progress_overview(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[pms/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"overview": overview})
 
@@ -366,7 +370,7 @@ def pms_upcoming_meetings(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[pms/dashboard.py] attendees memployee_idcount  mmanagercount failed', exc_info=True)
 
     return JsonResponse({"meetings": meetings})
 
@@ -405,7 +409,7 @@ def pms_progress_trend(request):
             )
             cursor = next_month
     except Exception:
-        pass
+        logger.warning('[pms/dashboard.py] operation failed', exc_info=True)
     return JsonResponse({"months": months})
 
 
@@ -447,5 +451,5 @@ def pms_feedback_completion(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning('[pms/dashboard.py] operation failed', exc_info=True)
     return JsonResponse({"completions": completions})

@@ -1,3 +1,4 @@
+import logging
 """
 Modern attendance dashboard views — KPI summary + ApexCharts.
 
@@ -7,6 +8,9 @@ Accessible at /attendance/dashboard/modern/ alongside the existing dashboard.
 from datetime import date, datetime, timedelta
 
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+
+logger = logging.getLogger(__name__)
 from django.db.models import Count, Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -112,7 +116,7 @@ def attendance_kpi_data(request):
             overtime_second__gt=0,
         ).count()
     except Exception:
-        pass
+        logger.warning('[attendance/dashboard.py] count failed', exc_info=True)
 
     return JsonResponse(
         {
@@ -257,7 +261,7 @@ def attendance_department_breakdown(request):
                     }
                 )
     except Exception:
-        pass
+        logger.warning('[attendance/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"departments": departments, "date": today.isoformat()})
 
@@ -301,7 +305,7 @@ def attendance_late_early_data(request):
             if dept:
                 early_data.append({"department": dept, "count": item["count"]})
     except Exception:
-        pass
+        logger.warning('[attendance/dashboard.py] early_dataappenddepartment dept count itemcount failed', exc_info=True)
 
     return JsonResponse(
         {"late_come": late_data, "early_out": early_data, "date": today.isoformat()}
@@ -349,7 +353,7 @@ def attendance_overtime_summary(request):
                     }
                 )
     except Exception:
-        pass
+        logger.warning('[attendance/dashboard.py] employees itemcount failed', exc_info=True)
 
     return JsonResponse(
         {
@@ -405,7 +409,7 @@ def attendance_hours_distribution(request):
 
         departments.sort(key=lambda x: x["worked_hours"], reverse=True)
     except Exception:
-        pass
+        logger.warning('[attendance/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse({"departments": departments[:10]})
 
@@ -437,7 +441,7 @@ def attendance_shift_distribution(request):
                     {"shift": shift, "shift_id": shift_id, "count": item["count"]}
                 )
     except Exception:
-        pass
+        logger.warning('[attendance/dashboard.py] shift shift shift_id shift_id count itemcount failed', exc_info=True)
 
     return JsonResponse({"shifts": shifts})
 
@@ -547,7 +551,7 @@ def attendance_work_type_distribution(request):
                 {"work_type": "Not Assigned", "work_type_id": None, "count": no_wt}
             )
     except Exception:
-        pass
+        logger.warning('[attendance/dashboard.py] work_type Not Assigned work_type_id None count failed', exc_info=True)
 
     return JsonResponse({"work_types": work_types})
 
@@ -597,7 +601,7 @@ def attendance_avg_working_hours(request):
 
         departments.sort(key=lambda x: x["avg_hours_per_day"], reverse=True)
     except Exception:
-        pass
+        logger.warning('[attendance/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse(
         {
@@ -664,7 +668,7 @@ def attendance_top_absentees(request):
 
         absentees.sort(key=lambda x: x["absent_days"], reverse=True)
     except Exception:
-        pass
+        logger.warning('[attendance/dashboard.py] operation failed', exc_info=True)
 
     return JsonResponse(
         {
@@ -691,7 +695,7 @@ def attendance_clockin_distribution(request):
             label = f"{hour:02d}:00"
             buckets[label] = buckets.get(label, 0) + 1
     except Exception:
-        pass
+        logger.warning('[attendance/dashboard.py] bucketslabel  bucketsgetlabel 0  1 failed', exc_info=True)
     sorted_buckets = sorted(buckets.items())
     return JsonResponse(
         {
@@ -783,7 +787,7 @@ def attendance_calendar_heatmap(request):
                 )
                 week_start += timedelta(days=7)
     except Exception:
-        pass
+        logger.warning('[attendance/dashboard.py] operation failed', exc_info=True)
 
     if from_date.year == to_date.year and from_date.month == to_date.month:
         period_label = from_date.strftime("%B %Y")
@@ -862,7 +866,7 @@ def attendance_overview(request):
             late_series.append(late_count)
             early_series.append(early_count)
     except Exception:
-        pass
+        logger.warning('[attendance/dashboard.py] on_time_seriesappendon_time_count failed', exc_info=True)
 
     data_set = [
         {"label": "On Time", "data": on_time_series},

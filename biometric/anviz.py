@@ -9,6 +9,7 @@ attendance records .
 
 from datetime import datetime
 
+from django.utils import timezone
 import requests
 
 
@@ -42,7 +43,7 @@ class CrossChexCloudAPI:
         """
         Generates a UTC timestamp in ISO 8601 format.
         """
-        return datetime.utcnow().isoformat() + "Z"
+        return timezone.now().strftime("%Y-%m-%dT%H:%M:%SZ")
 
     def _post(self, data):
         """
@@ -67,9 +68,11 @@ class CrossChexCloudAPI:
         """Check if the token is expired."""
         if self.expires:
             expires_datetime = datetime.fromisoformat(self.expires)
-            # Remove timezone info to make it offset-naive
-            expires_datetime = expires_datetime.replace(tzinfo=None)
-            return datetime.utcnow() > expires_datetime
+            # Use timezone-aware comparison
+            if timezone.is_naive(expires_datetime):
+                expires_datetime = timezone.make_aware(expires_datetime)
+            now = timezone.now()
+            return now > expires_datetime
         return True
 
     def get_token(self):
@@ -100,13 +103,13 @@ class CrossChexCloudAPI:
         self, begin_time, end_time, order, page, per_page, token
     ):
         """Constructs the payload for retrieving attendance records."""
-        current_utc_time = datetime.utcnow()
+        current_utc_time = timezone.now()
         begin_time = begin_time or current_utc_time.replace(
             hour=0, minute=0, second=0, microsecond=0
         )
         end_time = end_time or current_utc_time
-        begin_time_str = begin_time.isoformat() + "+00:00"
-        end_time_str = end_time.isoformat() + "+00:00"
+        begin_time_str = begin_time.isoformat()
+        end_time_str = end_time.isoformat()
         return {
             "header": {
                 "nameSpace": "attendance.record",

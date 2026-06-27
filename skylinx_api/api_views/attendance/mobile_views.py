@@ -145,7 +145,7 @@ class MobileCheckInAPIView(APIView):
             # Fallback to general Mon-Sun days
             day = EmployeeShiftDay.objects.first()
 
-        now_str = datetime.now().strftime("%H:%M")
+        now_str = timezone.now().strftime("%H:%M")
         now_sec = strtime_seconds(now_str)
         mid_day_sec = strtime_seconds("12:00")
         
@@ -167,7 +167,7 @@ class MobileCheckInAPIView(APIView):
                     day = day_yesterday
 
         # Create Core Attendance Activity
-        datetime_now = datetime.now()
+        datetime_now = timezone.now()
         clock_in_attendance_and_activity(
             employee=employee,
             date_today=date_today,
@@ -323,8 +323,8 @@ class MobileCheckOutAPIView(APIView):
 
         # Perform checkout
         current_date = date.today()
-        current_time = datetime.now().time()
-        current_datetime = datetime.now()
+        current_time = timezone.now().time()
+        current_datetime = timezone.now()
 
         # Call Django Core check-out
         clock_out(

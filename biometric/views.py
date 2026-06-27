@@ -799,7 +799,7 @@ def test_dahua_connection(device):
 
 def test_etimeoffice_connection(device):
     """Test connection for e-TimeOffice device."""
-    now = datetime.now()
+    now = timezone.now()
     etimeoffice = ETimeOfficeAPI(
         username=device.bio_username,
         password=device.bio_password,
@@ -2284,7 +2284,7 @@ def anviz_biometric_attendance_logs(device):
     and processes them based on device direction configuration.
     """
 
-    current_utc_time = datetime.utcnow()
+    current_utc_time = django_timezone.now()
 
     anviz_device = CrossChexCloudAPI(
         api_url=device.api_url,
@@ -2559,7 +2559,7 @@ def etimeoffice_biometric_attendance_logs(device):
     """
     Retrieves and processes attendance logs from an eTimeOffice biometric device.
     """
-    now = datetime.now()
+    now = timezone.now()
     etimeoffice = ETimeOfficeAPI(
         username=device.bio_username,
         password=device.bio_password,

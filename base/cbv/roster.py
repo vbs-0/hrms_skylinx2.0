@@ -6,9 +6,12 @@ Provides roster grid, cell editing, publish, my roster, and import/export.
 """
 
 import json
+import logging
 from datetime import date, timedelta
 
 from django.contrib import messages
+
+logger = logging.getLogger(__name__)
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse, reverse_lazy
@@ -359,7 +362,7 @@ class RosterPublishView(View):
                     icon="calendar-outline",
                 )
             except Exception:
-                pass
+                logger.warning("[roster] Failed to send notification", exc_info=True)
 
         dept_label = departments.first() if dept_id else _("All Departments")
         messages.success(
@@ -433,7 +436,7 @@ class RosterEmployeeBulkPublishView(View):
                     icon="calendar-outline",
                 )
             except Exception:
-                pass
+                logger.warning("[roster] Failed to send bulk publish notification", exc_info=True)
 
         messages.success(
             request,

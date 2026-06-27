@@ -1,3 +1,5 @@
+from django.utils import timezone
+from base.rbac import is_platform_owner
 from datetime import datetime
 from django.db.models import Sum
 from rest_framework.permissions import IsAuthenticated
@@ -230,7 +232,7 @@ class MobileLeaveSummaryAPIView(APIView):
                 "data": {}
             }, status=400)
 
-        year = datetime.now().year
+        year = timezone.now().year
 
         # Aggregate all leave requests for this employee in the current year
         taken_total = LeaveRequest.objects.filter(
@@ -383,7 +385,7 @@ class MobileHolidaysAPIView(APIView):
             end_date__gte=month_start
         )
 
-        is_admin = request.user.is_superuser or request.user.groups.filter(name="Admin").exists() or request.user.has_perm("employee.change_employee") or request.user.has_perm("employee.add_employee")
+        is_admin = is_platform_owner(request.user) or request.user.groups.filter(name="Admin").exists() or request.user.has_perm("employee.change_employee") or request.user.has_perm("employee.add_employee")
         if not is_admin:
             leaves_qs = leaves_qs.none()
 
@@ -413,7 +415,7 @@ class MobileHolidaysAPIView(APIView):
         }, status=200)
 
     def post(self, request):
-        if not (request.user.is_superuser or request.user.groups.filter(name="Admin").exists()):
+        if not (is_platform_owner(request.user) or request.user.groups.filter(name="Admin").exists()):
             return Response({
                 "success": False,
                 "message": "Only admins can create holidays"
@@ -475,7 +477,7 @@ class MobileAdminLeaveListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        if not (request.user.is_superuser or request.user.groups.filter(name="Admin").exists()):
+        if not (is_platform_owner(request.user) or request.user.groups.filter(name="Admin").exists()):
             return Response({
                 "success": False,
                 "message": "Only admins can view leave list",
@@ -543,7 +545,7 @@ class MobileAdminLeaveReviewAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk):
-        if not (request.user.is_superuser or request.user.groups.filter(name="Admin").exists()):
+        if not (is_platform_owner(request.user) or request.user.groups.filter(name="Admin").exists()):
             return Response({
                 "success": False,
                 "message": "Only admins can review leave requests"
@@ -629,7 +631,7 @@ class MobileAdminHolidayDeleteAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk):
-        if not (request.user.is_superuser or request.user.groups.filter(name="Admin").exists()):
+        if not (is_platform_owner(request.user) or request.user.groups.filter(name="Admin").exists()):
             return Response({
                 "success": False,
                 "message": "Only admins can delete holidays"

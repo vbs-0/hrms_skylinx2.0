@@ -1,6 +1,8 @@
 """
 Accessibility
 """
+from base.rbac import is_platform_owner
+
 
 from django.contrib.auth.context_processors import PermWrapper
 
@@ -35,5 +37,5 @@ def project_manager_accessibility(
     """
     return (
         request.user.employee_get in instance.managers.all()
-        or request.user.is_superuser
+        or is_platform_owner(request.user)
     )

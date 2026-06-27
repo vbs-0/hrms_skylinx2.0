@@ -9,6 +9,7 @@ if apps.is_installed("payroll"):
     from skylinx.decorators import login_required, permission_required
     from payroll.filters import PayslipFilter
     from payroll.models.models import Payslip
+    from payroll.views.views import _payslip_queryset_for_request
 
     @login_required
     @permission_required(perm="payroll.change_payslip")
@@ -18,14 +19,7 @@ if apps.is_installed("payroll"):
         if selected_company != "all":
             company = Company.objects.filter(id=selected_company).first()
 
-        if request.user.has_perm("payroll.change_payslip") or request.user.has_perm(
-            "payroll.add_payslip"
-        ):
-            payslips = Payslip.objects.all()
-        else:
-            payslips = Payslip.objects.filter(
-                employee_id__employee_user_id=request.user
-            )
+        payslips = _payslip_queryset_for_request(request)
 
         filter_form = PayslipFilter(request.GET, payslips)
 
@@ -39,9 +33,10 @@ if apps.is_installed("payroll"):
     @permission_required(perm="payroll.change_payslip")
     def payroll_pivot(request):
         model_type = request.GET.get("model", "payslip")
+        payslips = _payslip_queryset_for_request(request)
 
         if model_type == "payslip":
-            qs = Payslip.objects.all()
+            qs = payslips
 
             if employee_id := request.GET.getlist("employee_id"):
                 qs = qs.filter(employee_id__id__in=employee_id)
@@ -131,7 +126,7 @@ if apps.is_installed("payroll"):
             # Fetch pay_head_data separately and map by payslip ID
             payslip_ids = [item["id"] for item in data]
             pay_head_data_dict = dict(
-                Payslip.objects.filter(id__in=payslip_ids).values_list(
+                payslips.filter(id__in=payslip_ids).values_list(
                     "id", "pay_head_data"
                 )
             )
@@ -276,8 +271,6 @@ if apps.is_installed("payroll"):
 
         elif model_type == "allowance":
 
-            payslips = Payslip.objects.all()
-
             payslip_filter = PayslipFilter(request.GET, queryset=payslips)
             filtered_qs = payslip_filter.qs  # This uses all custom filters you defined
 
@@ -316,7 +309,7 @@ if apps.is_installed("payroll"):
             # Fetch pay_head_data separately and map by payslip ID
             payslip_ids = [item["id"] for item in data]
             pay_head_data_dict = dict(
-                Payslip.objects.filter(id__in=payslip_ids).values_list(
+                payslips.filter(id__in=payslip_ids).values_list(
                     "id", "pay_head_data"
                 )
             )

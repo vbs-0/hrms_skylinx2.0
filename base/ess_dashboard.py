@@ -5,11 +5,14 @@ Accessible at /ess/ — shows personal data only for the logged-in employee.
 All data is scoped to request.user.employee_get; no cross-employee access.
 """
 
+import logging
 from datetime import date, timedelta
 
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render
+
+logger = logging.getLogger(__name__)
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -86,7 +89,7 @@ def ess_kpi_data(request):
             float(b.available_days) + float(b.carryforward_days) for b in balances
         )
     except Exception:
-        pass
+        logger.warning("[ess_dashboard] Failed to fetch leave balances", exc_info=True)
 
     # Attendance in the selected month
     present_count = 0
@@ -112,7 +115,7 @@ def ess_kpi_data(request):
                 .count()
             )
     except Exception:
-        pass
+        logger.warning("[ess_dashboard] Failed to fetch attendance KPI", exc_info=True)
 
     # Open objectives
     open_objectives = 0
@@ -125,7 +128,7 @@ def ess_kpi_data(request):
             status__in=["Not Started", "On Track", "Behind", "At Risk"],
         ).count()
     except Exception:
-        pass
+        logger.warning("[ess_dashboard] Failed to fetch open objectives", exc_info=True)
 
     # Latest payslip
     latest_net_pay = None
@@ -145,7 +148,7 @@ def ess_kpi_data(request):
             latest_net_pay = round(float(ps.net_pay or 0), 2)
             latest_payslip_period = ps.start_date.strftime("%b %Y")
     except Exception:
-        pass
+        logger.warning("[ess_dashboard] Failed to fetch latest payslip", exc_info=True)
 
     return JsonResponse(
         {
@@ -191,7 +194,7 @@ def ess_leave_balance(request):
                 )
                 taken = float(sum(float(lr.requested_days or 0) for lr in approved))
             except Exception:
-                pass
+                logger.warning("[ess_dashboard] Failed to fetch taken days", exc_info=True)
             balances.append(
                 {
                     "type": al.leave_type_id.name,
@@ -202,7 +205,7 @@ def ess_leave_balance(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning("[ess_dashboard] Failed to fetch leave balance list", exc_info=True)
 
     return JsonResponse({"balances": balances})
 
@@ -255,7 +258,7 @@ def ess_leave_requests(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning("[ess_dashboard] Failed to fetch leave requests", exc_info=True)
 
     return JsonResponse({"requests": results})
 
@@ -301,7 +304,7 @@ def ess_attendance_calendar(request):
         )
         late_dates = {d.isoformat() for d in late_dates}
     except Exception:
-        pass
+        logger.warning("[ess_dashboard] Failed to fetch late/early data", exc_info=True)
 
     try:
         from leave.models import LeaveRequest
@@ -318,7 +321,7 @@ def ess_attendance_calendar(request):
                     on_leave_dates.add(cur.isoformat())
                 cur += timedelta(days=1)
     except Exception:
-        pass
+        logger.warning("[ess_dashboard] Failed to fetch leave records for calendar", exc_info=True)
 
     try:
         from base.models import Holidays
@@ -334,7 +337,7 @@ def ess_attendance_calendar(request):
                     holiday_dates.add(cur.isoformat())
                 cur += timedelta(days=1)
     except Exception:
-        pass
+        logger.warning("[ess_dashboard] Failed to fetch holidays for calendar", exc_info=True)
 
     days = []
     cur = from_date
@@ -422,7 +425,7 @@ def ess_work_hours_week(request):
             seconds = att["at_work_second"] or 0
             hours_map[att["attendance_date"].isoformat()] = round(seconds / 3600, 2)
     except Exception:
-        pass
+        logger.warning("[ess_dashboard] Failed to fetch work hours data", exc_info=True)
 
     day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     days = []
@@ -485,7 +488,7 @@ def ess_payslips(request):
         if results:
             latest_net = results[0]["net_pay"]
     except Exception:
-        pass
+        logger.warning("[ess_dashboard] Failed to fetch payslips", exc_info=True)
 
     return JsonResponse({"payslips": results, "latest_net": latest_net})
 
@@ -530,6 +533,7 @@ def ess_objectives(request):
             try:
                 kr_count = emp_obj.key_result_id.count()
             except Exception:
+                logger.warning("[ess_dashboard] Failed to count key results", exc_info=True)
                 kr_count = 0
             results.append(
                 {
@@ -544,7 +548,7 @@ def ess_objectives(request):
         # Fallbacks removed: the chart honours the date filter and shows empty
         # when no EmployeeObjective overlaps the selected month.
     except Exception:
-        pass
+        logger.warning("[ess_dashboard] Failed to fetch objectives", exc_info=True)
 
     return JsonResponse({"objectives": results})
 
@@ -571,7 +575,7 @@ def ess_announcements(request):
         emp_department = wi.department_id
         emp_job_position = wi.job_position_id
     except Exception:
-        pass
+        logger.warning("[ess_dashboard] Failed to fetch announcements data", exc_info=True)
 
     results = []
     try:
@@ -614,7 +618,7 @@ def ess_announcements(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning("[ess_dashboard] Failed to fetch announcements list", exc_info=True)
 
     return JsonResponse({"announcements": results})
 
@@ -658,7 +662,7 @@ def ess_upcoming(request):
                 }
             )
     except Exception:
-        pass
+        logger.warning("[ess_dashboard] Failed to fetch holidays for upcoming", exc_info=True)
 
     # Birthday
     birthday = None
@@ -672,7 +676,7 @@ def ess_upcoming(request):
             if days_away <= 30:
                 birthday = {"date": bday.strftime("%b %d"), "days_away": days_away}
     except Exception:
-        pass
+        logger.warning("[ess_dashboard] Failed to fetch birthday data", exc_info=True)
 
     # Work anniversary
     anniversary = None
@@ -691,7 +695,7 @@ def ess_upcoming(request):
                     "years": years,
                 }
     except Exception:
-        pass
+        logger.warning("[ess_dashboard] Failed to fetch anniversary data", exc_info=True)
 
     return JsonResponse(
         {"holidays": holiday_list, "birthday": birthday, "anniversary": anniversary}

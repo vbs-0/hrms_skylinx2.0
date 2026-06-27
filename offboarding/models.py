@@ -1,3 +1,4 @@
+from skylinx.validators import SafeMimeValidator
 import json
 from ast import literal_eval
 from collections.abc import Iterable
@@ -73,6 +74,9 @@ class OffboardingStage(SkylinxModel):
     Offboarding model
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     types = [
         ("notice_period", _("Notice period")),
         ("fnf", _("FnF Settlement")),
@@ -143,7 +147,10 @@ class OffboardingStageMultipleFile(SkylinxModel):
     OffboardingStageMultipleFile
     """
 
-    attachment = models.FileField(upload_to=upload_path)
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
+    attachment = models.FileField(upload_to=upload_path, validators=[SafeMimeValidator()])
 
 
 class OffboardingEmployee(SkylinxModel):
@@ -503,11 +510,14 @@ class OffboardingTask(SkylinxModel):
     OffboardingTask model
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     title = models.CharField(max_length=30)
     managers = models.ManyToManyField(Employee)
     stage_id = models.ForeignKey(
         OffboardingStage,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         verbose_name="Stage",
         null=True,
         blank=True,
@@ -524,6 +534,9 @@ class EmployeeTask(SkylinxModel):
     """
     EmployeeTask model
     """
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
 
     statuses = [
         ("todo", _("Todo")),
@@ -576,6 +589,9 @@ class ExitReason(SkylinxModel):
     ExitReason model
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     title = models.CharField(max_length=50)
     description = models.TextField(max_length=255)
     offboarding_employee_id = models.ForeignKey(
@@ -589,6 +605,9 @@ class OffboardingNote(SkylinxModel):
     OffboardingNote
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     attachments = models.ManyToManyField(
         OffboardingStageMultipleFile, blank=True, editable=False
     )
@@ -600,7 +619,7 @@ class OffboardingNote(SkylinxModel):
         OffboardingEmployee, on_delete=models.CASCADE, null=True, editable=False
     )
     stage_id = models.ForeignKey(
-        OffboardingStage, on_delete=models.PROTECT, null=True, editable=False
+        OffboardingStage, on_delete=models.CASCADE, null=True, editable=False
     )
 
     class Meta:

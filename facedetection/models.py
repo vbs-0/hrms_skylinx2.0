@@ -1,3 +1,4 @@
+from skylinx.validators import SafeMimeValidator
 import os
 
 from django.core.exceptions import ValidationError
@@ -47,7 +48,7 @@ class EmployeeFaceDetection(models.Model):
     employee_id = models.OneToOneField(
         "employee.Employee", related_name="face_detection", on_delete=models.CASCADE
     )
-    image = models.ImageField()
+    image = models.ImageField(validators=[SafeMimeValidator()])
 
 
 @receiver(post_delete, sender=EmployeeFaceDetection)

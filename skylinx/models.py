@@ -165,6 +165,13 @@ class SkylinxModel(models.Model, metaclass=SkylinxModelBase):
             if request and not request.user.is_anonymous:
                 self.modified_by = user
 
+        # Auto-populate company_id from thread local if not set
+        if hasattr(self, "company_id_id") and not getattr(self, "company_id_id", None):
+            from base.skylinx_company_manager import get_selected_company
+            current_company = get_selected_company()
+            if current_company and current_company != "all":
+                setattr(self, "company_id_id", current_company)
+
         super(SkylinxModel, self).save(*args, **kwargs)
 
     def clean_fields(self, exclude=None):

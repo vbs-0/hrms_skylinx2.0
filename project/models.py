@@ -1,3 +1,4 @@
+from skylinx.validators import SafeMimeValidator
 """
 models.py
 
@@ -75,11 +76,11 @@ class Project(SkylinxModel):
     start_date = models.DateField(verbose_name=_("Start Date"))
     end_date = models.DateField(null=True, blank=True, verbose_name=_("End Date"))
     document = models.FileField(
-        upload_to=upload_path, blank=True, null=True, verbose_name=_("Project File")
+        upload_to=upload_path, blank=True, null=True, verbose_name=_("Project File"), validators=[SafeMimeValidator()]
     )
     description = models.TextField(verbose_name=_("Description"))
     company_id = models.ForeignKey(
-        Company, null=True, editable=False, on_delete=models.PROTECT
+        Company, null=True, editable=False, on_delete=models.CASCADE
     )
     objects = SkylinxCompanyManager("company_id")
 
@@ -371,7 +372,7 @@ class Task(SkylinxModel):
     start_date = models.DateField(null=True, blank=True, verbose_name=_("Start Date"))
     end_date = models.DateField(null=True, blank=True, verbose_name=_("End Date"))
     document = models.FileField(
-        upload_to=upload_path, blank=True, null=True, verbose_name=_("Task File")
+        upload_to=upload_path, blank=True, null=True, verbose_name=_("Task File"), validators=[SafeMimeValidator()]
     )
     description = models.TextField(verbose_name=_("Description"))
     sequence = models.IntegerField(default=0)

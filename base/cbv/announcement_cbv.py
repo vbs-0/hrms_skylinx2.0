@@ -2,6 +2,7 @@
 Announcement page
 """
 
+import json
 import os
 
 from django.contrib import messages
@@ -167,7 +168,7 @@ class AnnouncementDetailView(SkylinxDetailedView):
             context["extra_query"] = ""
             return context
 
-        instance_ids = ast.literal_eval(self.request.GET.get("instance_ids", "[]"))
+        instance_ids = json.loads(self.request.GET.get("instance_ids", "[]"))
         url_info = resolve(self.request.path)
         url_name = url_info.url_name
         key = next(iter(url_info.kwargs), "pk")

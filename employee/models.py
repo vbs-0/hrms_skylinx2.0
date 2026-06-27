@@ -1,3 +1,5 @@
+from skylinx.validators import SafeMimeValidator
+from django.utils import timezone
 """
 models.py
 
@@ -92,7 +94,7 @@ class Employee(models.Model):
         max_length=200, null=True, blank=True, verbose_name=_("Last Name")
     )
     employee_profile = models.ImageField(
-        upload_to=upload_path, null=True, blank=True, verbose_name=_("Profile Image")
+        upload_to=upload_path, null=True, blank=True, verbose_name=_("Profile Image"), validators=[SafeMimeValidator()]
     )
     email = models.EmailField(max_length=254, unique=True)
     phone = models.CharField(max_length=25, validators=[phone_validator])
@@ -625,7 +627,7 @@ class Employee(models.Model):
                     not hasattr(request, "working_employees")
                     or request.working_employees is None
                 ):
-                    today = datetime.now().date()
+                    today = timezone.now().date()
                     yesterday = today - timedelta(days=1)
                     working_employees = Attendance.objects.filter(
                         attendance_date__gte=yesterday,
@@ -770,7 +772,8 @@ class Employee(models.Model):
         if employee.employee_user_id is None:
             # Create user if no corresponding user exists
             username = self.email
-            password = str(self.phone)
+            from django.utils.crypto import get_random_string
+            password = get_random_string(length=12)
 
             user = SkylinxUser.objects.create_user(
                 username=username,
@@ -803,6 +806,8 @@ class EmployeeTag(SkylinxModel):
 
     title = models.CharField(max_length=50, null=True, verbose_name=_("Title"))
     color = models.CharField(max_length=30, null=True)
+    company_id = models.ForeignKey("base.Company", null=True, blank=True, on_delete=models.CASCADE)
+    objects = SkylinxCompanyManager("company_id")
 
     def __str__(self) -> str:
         return f"{self.title}"
@@ -849,28 +854,28 @@ class EmployeeWorkInformation(models.Model):
     )
     department_id = models.ForeignKey(
         Department,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         verbose_name=_("Department"),
     )
     job_position_id = models.ForeignKey(
         JobPosition,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         verbose_name=_("Designation"),
     )
     job_role_id = models.ForeignKey(
         JobRole,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         verbose_name=_("Job Role"),
     )
     reporting_manager_id = models.ForeignKey(
         Employee,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         blank=True,
         null=True,
         related_name="reporting_manager",
@@ -885,7 +890,7 @@ class EmployeeWorkInformation(models.Model):
     )
     work_type_id = models.ForeignKey(
         WorkType,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         verbose_name=_("Work Mode"),
@@ -893,7 +898,7 @@ class EmployeeWorkInformation(models.Model):
 
     employee_type_id = models.ForeignKey(
         EmployeeType,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         verbose_name=_("Employment Type"),
@@ -906,7 +911,7 @@ class EmployeeWorkInformation(models.Model):
     )
     company_id = models.ForeignKey(
         Company,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         blank=True,
         null=True,
         verbose_name=_("Company"),
@@ -1052,7 +1057,7 @@ class EmployeeWorkInformation(models.Model):
         joining_date = self.date_joining
         if joining_date is None:
             return 0
-        current_date = datetime.now().date()
+        current_date = timezone.now().date()
 
         # Calculate the difference between the current date and joining date
         delta = current_date - joining_date
@@ -1124,8 +1129,9 @@ class EmployeeBankDetails(SkylinxModel):
 
 
 class NoteFiles(SkylinxModel):
-    files = models.FileField(upload_to=upload_path, blank=True, null=True)
-    objects = models.Manager()
+    files = models.FileField(upload_to=upload_path, blank=True, null=True, validators=[SafeMimeValidator()])
+    company_id = models.ForeignKey("base.Company", null=True, blank=True, on_delete=models.CASCADE)
+    objects = SkylinxCompanyManager("company_id")
 
     def __str__(self):
         return self.files.name.split("/")[-1]
@@ -1157,7 +1163,10 @@ class PolicyMultipleFile(SkylinxModel):
     PoliciesMultipleFile model
     """
 
-    attachment = models.FileField(upload_to=upload_path)
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
+    attachment = models.FileField(upload_to=upload_path, validators=[SafeMimeValidator()])
 
 
 class Policy(SkylinxModel):
@@ -1252,6 +1261,9 @@ class Actiontype(SkylinxModel):
     Action type model
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     choice_actions = [
         ("warning", _("Warning")),
         ("suspension", _("Suspension")),
@@ -1330,7 +1342,7 @@ class DisciplinaryAction(SkylinxModel):
         validators=[validate_time_format],
     )
     start_date = models.DateField(null=True)
-    attachment = models.FileField(upload_to=upload_path, null=True, blank=True)
+    attachment = models.FileField(upload_to=upload_path, null=True, blank=True, validators=[SafeMimeValidator()])
     objects = SkylinxCompanyManager("employee_id__employee_work_info__company_id")
 
     def __str__(self) -> str:
@@ -1447,7 +1459,8 @@ class ProfileEditFeature(SkylinxModel):
     """
 
     is_enabled = models.BooleanField(default=False)
-    objects = models.Manager()
+    company_id = models.ForeignKey("base.Company", null=True, blank=True, on_delete=models.CASCADE)
+    objects = SkylinxCompanyManager("company_id")
 
 
 ACCESSBILITY_FEATURE.append(("gender_chart", _("Can view Gender Chart")))

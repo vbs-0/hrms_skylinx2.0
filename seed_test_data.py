@@ -456,7 +456,8 @@ def clear_and_seed():
                 work_info.email = spec["email"]
                 work_info.mobile = spec["phone"]
                 work_info.date_joining = date(2024, 1, 15)
-                work_info.basic_salary = spec["salary"]
+                work_info.ctc = spec["salary"]
+                work_info.salary_components = {"basic": 50, "hra": 30, "other": 20}
                 work_info.experience = float(spec["experience"])
                 work_info.save()
 

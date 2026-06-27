@@ -1,3 +1,4 @@
+from base.rbac import is_platform_owner
 from django.contrib.auth import authenticate
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -18,7 +19,7 @@ def get_mobile_user_data(user):
         employee = None
 
     role = "employee"
-    if user.is_superuser or user.has_perm("employee.add_employee"):
+    if is_platform_owner(user) or user.has_perm("employee.add_employee"):
         role = "admin"
 
     profile_data = None

@@ -1,3 +1,5 @@
+from skylinx.validators import SafeMimeValidator
+from attendance.models import WorkRecords, Attendance
 """
 models.py
 Used to register models
@@ -109,7 +111,7 @@ class FilingStatus(SkylinxModel):
         max_length=255,
     )
     company_id = models.ForeignKey(
-        Company, null=True, editable=False, on_delete=models.PROTECT
+        Company, null=True, editable=False, on_delete=models.CASCADE
     )
     objects = SkylinxCompanyManager()
 
@@ -175,7 +177,7 @@ class Contract(SkylinxModel):
     )
     employee_id = models.ForeignKey(
         Employee,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="contract_set",
         verbose_name=_("Employee"),
     )
@@ -196,10 +198,10 @@ class Contract(SkylinxModel):
         default="monthly",
         verbose_name=_("Pay Frequency"),
     )
-    wage = models.FloatField(verbose_name=_("Basic Salary"), null=True, default=0)
+    wage = models.DecimalField(max_digits=15, decimal_places=2, verbose_name=_("Basic Salary"), null=True, default=0)
     filing_status = models.ForeignKey(
         FilingStatus,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="contracts",
         null=True,
         blank=True,
@@ -213,7 +215,7 @@ class Contract(SkylinxModel):
     )
     department = models.ForeignKey(
         Department,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name="contracts",
@@ -221,7 +223,7 @@ class Contract(SkylinxModel):
     )
     job_position = models.ForeignKey(
         JobPosition,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name="contracts",
@@ -229,7 +231,7 @@ class Contract(SkylinxModel):
     )
     job_role = models.ForeignKey(
         JobRole,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name="contracts",
@@ -237,7 +239,7 @@ class Contract(SkylinxModel):
     )
     shift = models.ForeignKey(
         EmployeeShift,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name="contracts",
@@ -245,7 +247,7 @@ class Contract(SkylinxModel):
     )
     work_type = models.ForeignKey(
         WorkType,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name="contracts",
@@ -257,7 +259,7 @@ class Contract(SkylinxModel):
         validators=[min_zero],
         verbose_name=_("Notice Period"),
     )
-    contract_document = models.FileField(upload_to=upload_path, null=True, blank=True)
+    contract_document = models.FileField(upload_to=upload_path, null=True, blank=True, validators=[SafeMimeValidator()])
     deduct_leave_from_basic_pay = models.BooleanField(
         default=True,
         verbose_name=_("Deduct From Basic Pay"),
@@ -270,7 +272,7 @@ class Contract(SkylinxModel):
             "Leave amount will be calculated by dividing the basic pay by number of working days."
         ),
     )
-    deduction_for_one_leave_amount = models.FloatField(
+    deduction_for_one_leave_amount = models.DecimalField(max_digits=15, decimal_places=2, 
         null=True,
         blank=True,
         default=0,
@@ -484,76 +486,8 @@ class Contract(SkylinxModel):
         unique_together = ["employee_id", "contract_start_date", "contract_end_date"]
 
 
-class WorkRecord(models.Model):
-    """
-    WorkRecord Model
-    """
-
-    choices = [
-        ("FDP", _("Present")),
-        ("HDP", _("Half Day Present")),
-        ("ABS", _("Absent")),
-        ("HD", _("Holiday/Company Leave")),
-        ("CONF", _("Conflict")),
-        ("DFT", _("Draft")),
-    ]
-
-    record_name = models.CharField(max_length=250, null=True, blank=True)
-    work_record_type = models.CharField(max_length=5, null=True, choices=choices)
-    employee_id = models.ForeignKey(
-        Employee, on_delete=models.PROTECT, verbose_name=_("Employee")
-    )
-    date = models.DateField(null=True, blank=True)
-    at_work = models.CharField(
-        null=True,
-        blank=True,
-        validators=[
-            validate_time_format,
-        ],
-        default="00:00",
-        max_length=5,
-    )
-    min_hour = models.CharField(
-        null=True,
-        blank=True,
-        validators=[
-            validate_time_format,
-        ],
-        default="00:00",
-        max_length=5,
-    )
-    at_work_second = models.IntegerField(null=True, blank=True, default=0)
-    min_hour_second = models.IntegerField(null=True, blank=True, default=0)
-    note = models.TextField(max_length=255)
-    message = models.CharField(max_length=30, null=True, blank=True)
-    is_attendance_record = models.BooleanField(default=False)
-    is_leave_record = models.BooleanField(default=False)
-    day_percentage = models.FloatField(default=0)
-    last_update = models.DateTimeField(null=True, blank=True)
-    objects = SkylinxCompanyManager("employee_id__employee_work_info__company_id")
-
-    def save(self, *args, **kwargs):
-        self.last_update = timezone.now()
-
-        super().save(*args, **kwargs)
-
-    def clean(self):
-        super().clean()
-        if not 0.0 <= self.day_percentage <= 1.0:
-            raise ValidationError(_("Day percentage must be between 0.0 and 1.0"))
-
-    def __str__(self):
-        return (
-            self.record_name
-            if self.record_name is not None
-            else f"{self.work_record_type}-{self.date}"
-        )
-
-
-if apps.is_installed("attendance"):
-    from attendance.models import Attendance
-
-    # class OverrideAttendance(Attendance):
+class OverrideAttendance(Attendance):
+    pass
     #     """
     #     Class to override Attendance model save method
     #     """
@@ -577,18 +511,18 @@ if apps.is_installed("attendance"):
     #             if status == "HDP" and min_hour_second > at_work_second
     #             else message
     #         )
-    #         work_record = WorkRecord.objects.filter(
+    #         work_record = WorkRecords.objects.filter(
     #             date=instance.attendance_date,
     #             is_attendance_record=True,
     #             employee_id=instance.employee_id,
     #         )
     #         work_record = (
-    #             WorkRecord()
-    #             if not WorkRecord.objects.filter(
+    #             WorkRecords()
+    #             if not WorkRecords.objects.filter(
     #                 date=instance.attendance_date,
     #                 employee_id=instance.employee_id,
     #             ).exists()
-    #             else WorkRecord.objects.filter(
+    #             else WorkRecords.objects.filter(
     #                 date=instance.attendance_date,
     #                 employee_id=instance.employee_id,
     #             ).first()
@@ -628,7 +562,7 @@ if apps.is_installed("attendance"):
     #     """
     #     # Perform any actions before deleting the instance
     #     # ...
-    #     WorkRecord.objects.filter(
+    #     WorkRecords.objects.filter(
     #         employee_id=instance.employee_id,
     #         is_attendance_record=True,
     #         date=instance.attendance_date,
@@ -662,15 +596,15 @@ if apps.is_installed("leave"):
         #         for date in period_dates:
         #             try:
         #                 work_entry = (
-        #                     WorkRecord.objects.filter(
+        #                     WorkRecords.objects.filter(
         #                         date=date,
         #                         employee_id=instance.employee_id,
         #                     )
-        #                     if WorkRecord.objects.filter(
+        #                     if WorkRecords.objects.filter(
         #                         date=date,
         #                         employee_id=instance.employee_id,
         #                     ).exists()
-        #                     else WorkRecord()
+        #                     else WorkRecords()
         #                 )
         #                 work_entry.employee_id = instance.employee_id
         #                 work_entry.is_leave_record = True
@@ -705,7 +639,7 @@ if apps.is_installed("leave"):
 
         #     else:
         #         for date in period_dates:
-        #             WorkRecord.objects.filter(
+        #             WorkRecords.objects.filter(
         #                 is_leave_record=True,
         #                 date=date,
         #                 employee_id=instance.employee_id,
@@ -894,7 +828,7 @@ class Allowance(SkylinxModel):
     is_fixed = models.BooleanField(
         default=True, help_text=_("To specify, the allowance is fixed or not")
     )
-    amount = models.FloatField(
+    amount = models.DecimalField(max_digits=15, decimal_places=2, 
         null=True,
         blank=True,
         validators=[min_zero],
@@ -911,7 +845,7 @@ class Allowance(SkylinxModel):
             "If the allowance is not fixed then specifies how the allowance provided"
         ),
     )
-    rate = models.FloatField(
+    rate = models.DecimalField(max_digits=15, decimal_places=2, 
         null=True,
         blank=True,
         validators=[
@@ -920,7 +854,7 @@ class Allowance(SkylinxModel):
         help_text=_("The percentage of based on"),
     )
     # If based on attendance
-    per_attendance_fixed_amount = models.FloatField(
+    per_attendance_fixed_amount = models.DecimalField(max_digits=15, decimal_places=2, 
         null=True,
         blank=True,
         default=0.00,
@@ -928,7 +862,7 @@ class Allowance(SkylinxModel):
         help_text=_("The attendance fixed amount for one validated attendance"),
     )
     # If based on children
-    per_children_fixed_amount = models.FloatField(
+    per_children_fixed_amount = models.DecimalField(max_digits=15, decimal_places=2, 
         null=True,
         blank=True,
         default=0.00,
@@ -938,19 +872,19 @@ class Allowance(SkylinxModel):
     # If based on shift
     shift_id = models.ForeignKey(
         EmployeeShift,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         verbose_name=_("Shift"),
     )
-    shift_per_attendance_amount = models.FloatField(
+    shift_per_attendance_amount = models.DecimalField(max_digits=15, decimal_places=2, 
         null=True,
         default=0.00,
         blank=True,
         validators=[min_zero],
         help_text=_("The fixed amount for one validated attendance with that shift"),
     )
-    amount_per_one_hr = models.FloatField(
+    amount_per_one_hr = models.DecimalField(max_digits=15, decimal_places=2, 
         null=True,
         default=0.00,
         blank=True,
@@ -962,12 +896,12 @@ class Allowance(SkylinxModel):
     )
     work_type_id = models.ForeignKey(
         WorkType,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         verbose_name=_("Work Type"),
     )
-    work_type_per_attendance_amount = models.FloatField(
+    work_type_per_attendance_amount = models.DecimalField(max_digits=15, decimal_places=2, 
         null=True,
         default=0.00,
         blank=True,
@@ -982,7 +916,7 @@ class Allowance(SkylinxModel):
         verbose_name=_("Has max limit for allowance"),
         help_text=_("Limit the allowance amount"),
     )
-    maximum_amount = models.FloatField(
+    maximum_amount = models.DecimalField(max_digits=15, decimal_places=2, 
         null=True,
         blank=True,
         validators=[min_zero],
@@ -1015,17 +949,17 @@ class Allowance(SkylinxModel):
         default="gt",
         help_text=_("Apply for those, if the pay-head conditions satisfy"),
     )
-    if_amount = models.FloatField(
+    if_amount = models.DecimalField(max_digits=15, decimal_places=2, 
         default=0.00, help_text=_("The amount of the pay-head")
     )
-    start_range = models.FloatField(
+    start_range = models.DecimalField(max_digits=15, decimal_places=2, 
         blank=True, null=True, help_text=_("The start amount of the pay-head range")
     )
-    end_range = models.FloatField(
+    end_range = models.DecimalField(max_digits=15, decimal_places=2, 
         blank=True, null=True, help_text=_("The end amount of the pay-head range")
     )
     company_id = models.ForeignKey(
-        Company, null=True, editable=False, on_delete=models.PROTECT
+        Company, null=True, editable=False, on_delete=models.CASCADE
     )
     only_show_under_employee = models.BooleanField(default=False, editable=False)
     is_loan = models.BooleanField(default=False, editable=False)
@@ -1485,7 +1419,7 @@ class Deduction(SkylinxModel):
         help_text=_("To specify, the deduction is fixed or not"),
     )
     # If fixed amount then fill amount
-    amount = models.FloatField(
+    amount = models.DecimalField(max_digits=15, decimal_places=2, 
         null=True,
         blank=True,
         validators=[min_zero],
@@ -1500,7 +1434,7 @@ class Deduction(SkylinxModel):
             "If the deduction is not fixed then specifies how the deduction provided"
         ),
     )
-    rate = models.FloatField(
+    rate = models.DecimalField(max_digits=15, decimal_places=2, 
         null=True,
         blank=True,
         default=0.00,
@@ -1511,7 +1445,7 @@ class Deduction(SkylinxModel):
         help_text=_("The percentage of based on"),
     )
 
-    employer_rate = models.FloatField(
+    employer_rate = models.DecimalField(max_digits=15, decimal_places=2, 
         default=0.00,
         validators=[
             rate_validator,
@@ -1522,7 +1456,7 @@ class Deduction(SkylinxModel):
         verbose_name=_("Has max limit for deduction"),
         help_text=_("Limit the deduction"),
     )
-    maximum_amount = models.FloatField(
+    maximum_amount = models.DecimalField(max_digits=15, decimal_places=2, 
         null=True,
         blank=True,
         validators=[min_zero],
@@ -1553,17 +1487,17 @@ class Deduction(SkylinxModel):
         default="gt",
         help_text=_("Apply for those, if the pay-head conditions satisfy"),
     )
-    if_amount = models.FloatField(
+    if_amount = models.DecimalField(max_digits=15, decimal_places=2, 
         default=0.00, help_text=_("The amount of the pay-head")
     )
-    start_range = models.FloatField(
+    start_range = models.DecimalField(max_digits=15, decimal_places=2, 
         blank=True, null=True, help_text=_("The start amount of the pay-head range")
     )
-    end_range = models.FloatField(
+    end_range = models.DecimalField(max_digits=15, decimal_places=2, 
         blank=True, null=True, help_text=_("The end amount of the pay-head range")
     )
     company_id = models.ForeignKey(
-        Company, null=True, editable=False, on_delete=models.PROTECT
+        Company, null=True, editable=False, on_delete=models.CASCADE
     )
     only_show_under_employee = models.BooleanField(default=False, editable=False)
     objects = SkylinxCompanyManager()
@@ -1890,16 +1824,16 @@ class Payslip(SkylinxModel):
     )
     reference = models.CharField(max_length=255, unique=False, null=True, blank=True)
     employee_id = models.ForeignKey(
-        Employee, on_delete=models.PROTECT, verbose_name=_("Employee")
+        Employee, on_delete=models.CASCADE, verbose_name=_("Employee")
     )
     start_date = models.DateField()
     end_date = models.DateField()
     pay_head_data = models.JSONField()
-    contract_wage = models.FloatField(null=True, default=0)
-    basic_pay = models.FloatField(null=True, default=0)
-    gross_pay = models.FloatField(null=True, default=0)
-    deduction = models.FloatField(null=True, default=0)
-    net_pay = models.FloatField(null=True, default=0)
+    contract_wage = models.DecimalField(max_digits=15, decimal_places=2, null=True, default=0)
+    basic_pay = models.DecimalField(max_digits=15, decimal_places=2, null=True, default=0)
+    gross_pay = models.DecimalField(max_digits=15, decimal_places=2, null=True, default=0)
+    deduction = models.DecimalField(max_digits=15, decimal_places=2, null=True, default=0)
+    net_pay = models.DecimalField(max_digits=15, decimal_places=2, null=True, default=0)
     status = models.CharField(
         max_length=20, null=True, default="draft", choices=status_choices
     )
@@ -2162,10 +2096,10 @@ class LoanAccount(SkylinxModel):
     ]
     title = models.CharField(max_length=100)
     employee_id = models.ForeignKey(
-        Employee, on_delete=models.PROTECT, verbose_name=_("Employee")
+        Employee, on_delete=models.CASCADE, verbose_name=_("Employee")
     )
     type = models.CharField(default="loan", choices=loan_type, max_length=15)
-    loan_amount = models.FloatField(default=0, verbose_name=_("Amount"))
+    loan_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name=_("Amount"))
     provided_date = models.DateField()
     allowance_id = models.ForeignKey(
         Allowance, on_delete=models.SET_NULL, editable=False, null=True
@@ -2173,8 +2107,8 @@ class LoanAccount(SkylinxModel):
     description = models.TextField(null=True)
     deduction_ids = models.ManyToManyField(Deduction, editable=False)
     is_fixed = models.BooleanField(default=True, editable=False)
-    rate = models.FloatField(default=0, editable=False)
-    installment_amount = models.FloatField(
+    rate = models.DecimalField(max_digits=15, decimal_places=2, default=0, editable=False)
+    installment_amount = models.DecimalField(max_digits=15, decimal_places=2, 
         verbose_name=_("installment Amount"), blank=True, null=True
     )
     installments = models.IntegerField(verbose_name=_("Total installments"))
@@ -2189,7 +2123,7 @@ class LoanAccount(SkylinxModel):
     if apps.is_installed("asset"):
         asset_id = models.ForeignKey(
             "asset.Asset",
-            on_delete=models.PROTECT,
+            on_delete=models.CASCADE,
             blank=True,
             null=True,
             editable=False,
@@ -2333,8 +2267,9 @@ class ReimbursementMultipleAttachment(models.Model):
     ReimbursementMultipleAttachement Model
     """
 
-    attachment = models.FileField(upload_to=upload_path)
-    objects = models.Manager()
+    attachment = models.FileField(upload_to=upload_path, validators=[SafeMimeValidator()])
+    objects = SkylinxCompanyManager()
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
 
 
 class Reimbursement(SkylinxModel):
@@ -2378,27 +2313,27 @@ class Reimbursement(SkylinxModel):
         verbose_name=_("Category"),
     )
     employee_id = models.ForeignKey(
-        Employee, on_delete=models.PROTECT, verbose_name="Employee"
+        Employee, on_delete=models.CASCADE, verbose_name="Employee"
     )
     allowance_on = models.DateField()
-    attachment = models.FileField(upload_to=upload_path, null=True)
+    attachment = models.FileField(upload_to=upload_path, null=True, validators=[SafeMimeValidator()])
     other_attachments = models.ManyToManyField(
         ReimbursementMultipleAttachment, blank=True, editable=False
     )
     if apps.is_installed("leave"):
         leave_type_id = models.ForeignKey(
             "leave.LeaveType",
-            on_delete=models.PROTECT,
+            on_delete=models.CASCADE,
             blank=True,
             null=True,
             verbose_name=_("Leave type"),
         )
-    ad_to_encash = models.FloatField(
+    ad_to_encash = models.DecimalField(max_digits=15, decimal_places=2, 
         default=0,
         help_text=_("Available Days to encash"),
         verbose_name=_("Available days"),
     )
-    cfd_to_encash = models.FloatField(
+    cfd_to_encash = models.DecimalField(max_digits=15, decimal_places=2, 
         default=0,
         help_text=_("Carry Forward Days to encash"),
         verbose_name=_("Carry forward days"),
@@ -2408,7 +2343,7 @@ class Reimbursement(SkylinxModel):
         help_text=_("Bonus points to encash"),
         verbose_name=_("Bonus points"),
     )
-    amount = models.FloatField(default=0)
+    amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     status = models.CharField(
         max_length=10,
         choices=status_types,
@@ -2657,14 +2592,18 @@ class Reimbursement(SkylinxModel):
 
 
 class ReimbursementFile(models.Model):
-    file = models.FileField(upload_to=upload_path)
-    objects = models.Manager()
+    file = models.FileField(upload_to=upload_path, validators=[SafeMimeValidator()])
+    objects = SkylinxCompanyManager()
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
 
 
 class ReimbursementrequestComment(SkylinxModel):
     """
     ReimbursementRequestComment Model
     """
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
 
     request_id = models.ForeignKey(Reimbursement, on_delete=models.CASCADE)
     employee_id = models.ForeignKey(Employee, on_delete=models.CASCADE)

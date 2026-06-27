@@ -1,3 +1,5 @@
+from skylinx.validators import SafeMimeValidator
+from base.rbac import is_platform_owner
 import calendar
 import logging
 import math
@@ -188,6 +190,9 @@ class LeaveTypeCondition(SkylinxModel):
     Mirrors the allowance condition pattern for consistency.
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     condition_type = models.CharField(
         max_length=50,
         choices=LEAVE_CONDITION_TYPE,
@@ -201,7 +206,7 @@ class LeaveTypeCondition(SkylinxModel):
         help_text=_("Required for value-based conditions such as gender"),
     )
 
-    objects = models.Manager()
+# 
 
     class Meta:
         ordering = ["-id"]
@@ -233,7 +238,7 @@ class LeaveTypeCondition(SkylinxModel):
 
 class LeaveType(SkylinxModel):
     icon = models.ImageField(
-        null=True, blank=True, upload_to=upload_path, verbose_name=_("Icon")
+        null=True, blank=True, upload_to=upload_path, verbose_name=_("Icon"), validators=[SafeMimeValidator()]
     )
     name = models.CharField(max_length=30, null=False, verbose_name=_("Name"))
     color = models.CharField(null=True, max_length=30, verbose_name=_("Color"))
@@ -321,7 +326,7 @@ class LeaveType(SkylinxModel):
     )
     is_compensatory_leave = models.BooleanField(default=False)
     company_id = models.ForeignKey(
-        Company, null=True, blank=True, on_delete=models.PROTECT
+        Company, null=True, blank=True, on_delete=models.CASCADE
     )
     payment_type = models.CharField(
         max_length=20,
@@ -369,7 +374,7 @@ class LeaveType(SkylinxModel):
         return url
 
     def leave_type_next_reset_date(self):
-        today = datetime.now().date()
+        today = timezone.now().date()
 
         if not self.reset or not self.reset_day:
             return None
@@ -631,7 +636,7 @@ class Holiday(SkylinxModel):
     end_date = models.DateField(null=True, blank=True, verbose_name=_("End Date"))
     recurring = models.BooleanField(default=False, verbose_name=_("Recurring"))
     company_id = models.ForeignKey(
-        Company, null=True, editable=False, on_delete=models.PROTECT
+        Company, null=True, editable=False, on_delete=models.CASCADE
     )
     objects = SkylinxCompanyManager(related_company_field="company_id")
 
@@ -678,7 +683,7 @@ class CompanyLeave(SkylinxModel):
     )
     based_on_week_day = models.CharField(max_length=100, choices=WEEK_DAYS)
     company_id = models.ForeignKey(
-        Company, null=True, editable=False, on_delete=models.PROTECT
+        Company, null=True, editable=False, on_delete=models.CASCADE
     )
     objects = SkylinxCompanyManager(related_company_field="company_id")
 
@@ -768,7 +773,7 @@ class AvailableLeave(SkylinxModel):
     )
     leave_type_id = models.ForeignKey(
         LeaveType,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="employee_available_leave",
         blank=True,
         null=True,
@@ -844,7 +849,7 @@ class AvailableLeave(SkylinxModel):
     def forcasted_leaves(self):
         forecasted_leave = {}
         if self.leave_type_id.reset_based == "monthly":
-            today = datetime.now()
+            today = timezone.now()
             for i in range(1, 7):  # Calculate for the next 6 months
                 next_month = today + relativedelta(months=i)
                 if self.leave_type_id.carryforward_max:
@@ -1069,7 +1074,7 @@ class LeaveRequest(SkylinxModel):
         Employee, on_delete=models.CASCADE, verbose_name=_("Employee")
     )
     leave_type_id = models.ForeignKey(
-        LeaveType, on_delete=models.PROTECT, verbose_name=_("Leave Type")
+        LeaveType, on_delete=models.CASCADE, verbose_name=_("Leave Type")
     )
     start_date = models.DateField(null=False, verbose_name=_("Start Date"))
     start_date_breakdown = models.CharField(
@@ -1096,7 +1101,7 @@ class LeaveRequest(SkylinxModel):
         null=True,
         blank=True,
         upload_to=upload_path,
-        verbose_name=_("Attachment"),
+        verbose_name=_("Attachment"), validators=[SafeMimeValidator()],
     )
     status = models.CharField(
         max_length=30,
@@ -1120,7 +1125,7 @@ class LeaveRequest(SkylinxModel):
     )
     created_by = models.ForeignKey(
         Employee,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         null=True,
         related_name="leave_request_created",
         verbose_name=_("Created By"),
@@ -1718,7 +1723,7 @@ class LeaveRequest(SkylinxModel):
 
         # Past date restriction
         if (
-            not request.user.is_superuser
+            not is_platform_owner(request.user)
             and EmployeePastLeaveRestrict.objects.filter(enabled=True).exists()
         ):
             restrict = EmployeePastLeaveRestrict.objects.first()
@@ -1776,7 +1781,7 @@ class LeaveRequest(SkylinxModel):
         emp_job = work_info.job_position_id if work_info else None
 
         # Skip further checks for superusers
-        if request.user.is_superuser:
+        if is_platform_owner(request.user):
             return cleaned_data
 
         # Restricted leave checks
@@ -1980,13 +1985,16 @@ class LeaveRequest(SkylinxModel):
 
 
 class LeaverequestFile(models.Model):
-    file = models.FileField(upload_to=upload_path)
+    file = models.FileField(upload_to=upload_path, validators=[SafeMimeValidator()])
 
 
 class LeaverequestComment(SkylinxModel):
     """
     LeaverequestComment Model
     """
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
 
     request_id = models.ForeignKey(LeaveRequest, on_delete=models.CASCADE)
     employee_id = models.ForeignKey(Employee, on_delete=models.CASCADE)
@@ -1999,7 +2007,7 @@ class LeaverequestComment(SkylinxModel):
 
 class LeaveAllocationRequest(SkylinxModel):
     leave_type_id = models.ForeignKey(
-        LeaveType, on_delete=models.PROTECT, verbose_name=_("Leave type")
+        LeaveType, on_delete=models.CASCADE, verbose_name=_("Leave type")
     )
     employee_id = models.ForeignKey(
         Employee, on_delete=models.CASCADE, verbose_name=_("Employee")
@@ -2012,7 +2020,7 @@ class LeaveAllocationRequest(SkylinxModel):
         null=True,
         blank=True,
         upload_to=upload_path,
-        verbose_name=_("Attachment"),
+        verbose_name=_("Attachment"), validators=[SafeMimeValidator()],
     )
     description = models.TextField(verbose_name=_("Description"))
     status = models.CharField(
@@ -2186,6 +2194,9 @@ class LeaveallocationrequestComment(SkylinxModel):
     LeaveallocationrequestComment Model
     """
 
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
+
     request_id = models.ForeignKey(LeaveAllocationRequest, on_delete=models.CASCADE)
     employee_id = models.ForeignKey(Employee, on_delete=models.CASCADE)
     files = models.ManyToManyField(LeaverequestFile, blank=True)
@@ -2300,7 +2311,7 @@ if apps.is_installed("attendance"):
 
     class CompensatoryLeaveRequest(SkylinxModel):
         leave_type_id = models.ForeignKey(
-            LeaveType, on_delete=models.PROTECT, verbose_name="Leave type"
+            LeaveType, on_delete=models.CASCADE, verbose_name="Leave type"
         )
         employee_id = models.ForeignKey(
             Employee, on_delete=models.CASCADE, verbose_name="Employee"
@@ -2498,6 +2509,9 @@ if apps.is_installed("attendance"):
         """
         CompensatoryLeaverequestComment Model
         """
+        company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+        objects = SkylinxCompanyManager()
+
 
         request_id = models.ForeignKey(
             CompensatoryLeaveRequest, on_delete=models.CASCADE
@@ -2511,6 +2525,9 @@ if apps.is_installed("attendance"):
 
 
 class EmployeePastLeaveRestrict(SkylinxModel):
+
+    company_id = models.ForeignKey("base.Company", on_delete=models.CASCADE, null=True, blank=True)
+    objects = SkylinxCompanyManager()
     enabled = models.BooleanField(default=True)
 
 

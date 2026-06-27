@@ -1,3 +1,4 @@
+from base.rbac import is_platform_owner
 import datetime
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -340,7 +341,7 @@ class WorkTypeRequestSerializer(serializers.ModelSerializer):
         # Check if the user is not a superuser
         requested_date = attrs.get("requested_date", None)
 
-        if request and not request.user.is_superuser:
+        if request and not is_platform_owner(request.user):
 
             if requested_date and requested_date < datetime.datetime.today().date():
                 raise serializers.ValidationError(

@@ -1,3 +1,4 @@
+from django.utils import timezone
 """
 forms.py
 
@@ -196,7 +197,7 @@ class ModelForm(forms.ModelForm):
         request = getattr(skylinx_middlewares._thread_locals, "request", None)
 
         today = date.today()
-        now = datetime.now()
+        now = timezone.now()
 
         default_input_class = "oh-input w-100"
         select_class = "oh-select oh-select-2 select2-hidden-accessible"
@@ -549,9 +550,12 @@ class AddToUserGroupForm(Form):
         """
         employee = self.cleaned_data["employee"]
         groups = self.cleaned_data["group"]
-        employee.employee_user_id.groups.clear()
-        for group in groups:
-            employee.employee_user_id.groups.add(group)
+        request = getattr(_thread_locals, "request", None)
+        manageable_groups = (
+            groups_for_request(request) if request else Group.objects.none()
+        )
+        employee.employee_user_id.groups.remove(*manageable_groups)
+        employee.employee_user_id.groups.add(*groups)
         return employee
 
 

@@ -1,11 +1,15 @@
 """Invalidate and warm DB template loader cache when ``Template`` rows or M2M sites change."""
 
+import logging
+
 from django.db import transaction
 from django.db.models import signals
 from django.db.models.signals import m2m_changed
 
 from .models import Template
 from .utils.cache import remove_cached_template, warm_template_cache
+
+logger = logging.getLogger(__name__)
 
 
 def _clear_any_active_flag(*args, **kwargs):
@@ -16,7 +20,7 @@ def _clear_any_active_flag(*args, **kwargs):
         try:
             cache.delete("dbtemplate:any_active")
         except Exception:
-            pass
+            logger.warning("[dbtemplate] Failed to clear cache", exc_info=True)
 
 
 def _schedule_warm_template_cache(pk):

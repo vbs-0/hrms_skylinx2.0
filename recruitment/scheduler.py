@@ -1,3 +1,4 @@
+from django.utils import timezone
 import calendar
 import datetime as dt
 import sys
@@ -6,7 +7,7 @@ from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from dateutil.relativedelta import relativedelta
 
-today = datetime.now()
+today = timezone.now()
 
 
 def recruitment_close():

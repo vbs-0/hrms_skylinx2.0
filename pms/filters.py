@@ -45,7 +45,7 @@ class DateRangeFilter(django_filters.Filter):
     def filter(self, qs, value):
         if value:
             if value == "today":
-                today = datetime.datetime.now().date()
+                today = datetime.timezone.now().date()
                 formatted_date = today.strftime("%Y-%m-%d")
                 qs = qs.filter(created_at__startswith=formatted_date)
 
@@ -752,7 +752,7 @@ class AnonymousFilter(SkylinxFilterSet):
     def filter(self, qs, value):
         if value:
             if value == "today":
-                today = datetime.datetime.now().date()
+                today = datetime.timezone.now().date()
                 formatted_date = today.strftime("%Y-%m-%d")
                 qs = qs.filter(created_at__startswith=formatted_date)
 

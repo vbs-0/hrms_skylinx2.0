@@ -1,3 +1,4 @@
+from django.utils import timezone
 """
 outlook_auth/views.py
 """
@@ -62,7 +63,7 @@ def refresh_outlook_token(api: models.AzureApi):
         client_secret=api.outlook_client_secret,
     )
     api.token = new_token
-    api.last_refreshed = datetime.now()
+    api.last_refreshed = timezone.now()
     api.save()
     return api
 
@@ -108,7 +109,7 @@ def outlook_callback(request):
     authorization_response_uri = authorization_response_uri.replace(
         "http://", "https://"
     )
-    api.last_refreshed = datetime.now()
+    api.last_refreshed = timezone.now()
     token = oauth.fetch_token(
         api.outlook_token_url,
         client_secret=api.outlook_client_secret,

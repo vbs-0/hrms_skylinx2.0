@@ -1,6 +1,8 @@
 """
 employee view page
 """
+from base.rbac import is_platform_owner
+
 
 import logging
 import threading
@@ -71,7 +73,7 @@ def scope_employee_queryset_to_client(request, queryset):
     Client users must only see their own company's employees.
     Platform-owner superusers keep the existing all-company view.
     """
-    if not request or request.user.is_superuser:
+    if not request or is_platform_owner(request.user):
         return queryset
 
     selected_company = request.session.get("selected_company")

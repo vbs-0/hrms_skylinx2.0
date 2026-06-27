@@ -1384,7 +1384,12 @@ def eval_validate(value):
     """
     Method to validate the dynamic value
     """
-    value = ast.literal_eval(value)
+    import json
+    try:
+        value = json.loads(value)
+    except json.JSONDecodeError:
+        import ast
+        value = json.loads(value)
     return value
 
 

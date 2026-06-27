@@ -1,3 +1,4 @@
+from django.utils import timezone
 from datetime import date, datetime, timedelta, timezone
 
 from django import template
@@ -80,7 +81,7 @@ class ClockInAPIView(APIView):
             except:
                 pass
             employee, work_info = employee_exists(request)
-            datetime_now = datetime.now()
+            datetime_now = timezone.now()
             if request.__dict__.get("datetime"):
                 datetime_now = request.datetime
             if employee and work_info is not None:
@@ -91,7 +92,7 @@ class ClockInAPIView(APIView):
                 attendance_date = date_today
                 day = date_today.strftime("%A").lower()
                 day = EmployeeShiftDay.objects.get(day=day)
-                now = datetime.now().strftime("%H:%M")
+                now = timezone.now().strftime("%H:%M")
                 if request.__dict__.get("time"):
                     now = request.time.strftime("%H:%M")
                 now_sec = strtime_seconds(now)
@@ -161,8 +162,8 @@ class ClockOutAPIView(APIView):
             pass
         if request.user.employee_get.check_online():
             current_date = date.today()
-            current_time = datetime.now().time()
-            current_datetime = datetime.now()
+            current_time = timezone.now().time()
+            current_datetime = timezone.now()
 
             try:
                 clock_out(
@@ -883,7 +884,7 @@ class CheckingStatus(APIView):
         status = False
         clock_in_time = None
 
-        today = datetime.now()
+        today = timezone.now()
         attendance_activity_first = (
             AttendanceActivity.objects.filter(
                 employee_id=request.user.employee_get, clock_in_date=today

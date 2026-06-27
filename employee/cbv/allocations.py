@@ -4,6 +4,7 @@ employee/cbv/allocations.py
 Detailed view to manage all modules employee information
 """
 
+import json
 import ast
 import logging
 from datetime import datetime
@@ -556,7 +557,7 @@ if app_installed("leave"):
             """
             post
             """
-            ids = ast.literal_eval(self.request.POST["ids"])
+            ids = json.loads(self.request.POST["ids"])
             employee_id = self.request.POST["instance_id"]
             avaiable_model = get_model_class("leave.models.AvailableLeave")
             type_model = get_model_class("leave.models.LeaveType")
@@ -723,7 +724,7 @@ if app_installed("asset"):
 
         def post(self, *args, **kwargs):
             _response = super().post(*args, **kwargs)
-            ids = ast.literal_eval(self.request.POST["ids"])
+            ids = json.loads(self.request.POST["ids"])
             employee_id = self.request.POST["instance_id"]
             instance = Employee.objects.get(pk=employee_id)
             assets = Asset.objects.filter(pk__in=ids).filter(asset_status="Available")
@@ -970,7 +971,7 @@ if app_installed("payroll"):
                     self.request, _("Allowance excluded") + f" {allowance}"
                 )
             else:
-                ids = ast.literal_eval(self.request.POST["ids"])
+                ids = json.loads(self.request.POST["ids"])
                 allowances = Allowance.objects.filter(pk__in=ids)
                 for allowance in allowances:
                     allowance.exclude_employees.remove(self.instance)
@@ -1088,7 +1089,7 @@ if app_installed("payroll"):
                     self.request, _("Deduction excluded") + f" {deduction}"
                 )
             else:
-                ids = ast.literal_eval(self.request.POST["ids"])
+                ids = json.loads(self.request.POST["ids"])
                 deductions = Deduction.objects.filter(pk__in=ids)
                 for deduction in deductions:
                     deduction.exclude_employees.remove(self.instance)
