@@ -692,7 +692,7 @@ def login_user(request):
         query_params.pop("next", None)
         params = urlencode(query_params)
 
-        logger.info(
+        logger.warning(
             "Login attempt username=%s has_password=%s next=%s path=%s",
             username,
             bool(password),
@@ -701,7 +701,7 @@ def login_user(request):
         )
 
         user = authenticate(request, username=username, password=password)
-        logger.info(
+        logger.warning(
             "Login authenticate result username=%s user_id=%s is_active=%s has_employee=%s is_new_employee=%s",
             username,
             getattr(user, "id", None),
@@ -735,7 +735,7 @@ def login_user(request):
             return redirect("login")
 
         login(request, user)
-        logger.info(
+        logger.warning(
             "Login success user_id=%s employee_id=%s redirect_target=%s",
             user.id,
             getattr(getattr(user, "employee_get", None), "id", None),
@@ -823,12 +823,14 @@ def _resolve_login_user(ident):
     ident = (ident or "").strip()
     if not ident:
         return None
+    phone_ident = "".join(ch for ch in ident if ch.isdigit())
     return (
         SkylinxUser.objects.filter(
             Q(username__iexact=ident)
             | Q(email__iexact=ident)
             | Q(employee_get__email__iexact=ident)
             | Q(employee_get__phone=ident)
+            | Q(employee_get__phone=phone_ident)
             | Q(employee_get__employee_work_info__email__iexact=ident)
         )
         .distinct()

@@ -585,6 +585,11 @@ LOGGING = {
             'level': 'WARNING',
             'propagate': True,
         },
+        'base': {
+            'handlers': ['console', 'file'],
+            'level': 'WARNING',
+            'propagate': True,
+        },
         'skylinx': {
             'handlers': ['console', 'file'],
             'level': 'WARNING',
