@@ -1019,6 +1019,8 @@ def reload_queryset(fields):
                 company_field = None
 
             if company_field is not None:
+                if model_name == "EmployeeShiftDay":
+                    continue
                 if getattr(company_field, "many_to_many", False):
                     field.queryset = field.queryset.filter(company_id__id=selected_company)
                 else:
