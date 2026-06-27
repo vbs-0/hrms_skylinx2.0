@@ -28,7 +28,7 @@ from django.apps import apps
 from django.apps import apps as django_apps
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import Group, Permission
 from django.contrib.auth.views import PasswordResetConfirmView, PasswordResetView
@@ -1045,13 +1045,12 @@ def change_password(request):
             new_password = form.cleaned_data["new_password"]
             user.set_password(new_password)
             user.save()
-            user = authenticate(request, username=user.username, password=new_password)
             if hasattr(user, "is_new_employee"):
                 user.is_new_employee = False
-                user.save()
-            login(request, user)
+                user.save(update_fields=["is_new_employee"])
+            update_session_auth_hash(request, user)
             messages.success(request, _("Password changed successfully"))
-            return HttpResponse("<script>window.location.href='/';</script>")
+            return redirect("/")
         return render(request, "base/auth/password_change_form.html", {"form": form})
 
     return render(request, "base/auth/password_change.html", {"form": form})
@@ -1081,9 +1080,9 @@ def change_username(request):
             user.save()
             if hasattr(user, "is_new_employee"):
                 user.is_new_employee = False
-                user.save()
+                user.save(update_fields=["is_new_employee"])
             messages.success(request, _("Username changed successfully"))
-            return HttpResponse("<script>window.location.href='/';</script>")
+            return redirect("/")
         return render(request, "base/auth/username_change_form.html", {"form": form})
 
     return render(request, "base/auth/username_change.html", {"form": form})
