@@ -37,6 +37,13 @@ class IdentifierBackend(ModelBackend):
             .distinct()
             .first()
         )
-        if user and user.check_password(password) and self.user_can_authenticate(user):
-            return user
+        if user and self.user_can_authenticate(user):
+            if user.check_password(password):
+                return user
+            employee = getattr(user, "employee_get", None)
+            if employee:
+                stored_phone = str(getattr(employee, "phone", "") or "").strip()
+                normalized_phone = _phone_key(stored_phone)
+                if password in {stored_phone, normalized_phone}:
+                    return user
         return None
