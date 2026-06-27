@@ -1560,6 +1560,9 @@ class EmployeeShiftScheduleForm(ModelForm):
         super().__init__(*args, **kwargs)
 
         self.fields["end_time"].initial = None
+        self.fields["day"].widget.attrs.update(
+            {"class": "oh-select oh-select-2 w-100"}
+        )
         if self.instance.pk:
             self.fields["day"] = forms.ModelChoiceField(
                 queryset=EmployeeShiftDay.objects.all(),
@@ -1637,6 +1640,8 @@ class EmployeeShiftScheduleForm(ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
+        request = getattr(_thread_locals, "request", None)
+        company = current_company(request) if request else None
         if not self.instance.pk:
             for day in self.data.getlist("day"):
                 # if int(day) != int(instance.day.id):
@@ -1646,6 +1651,8 @@ class EmployeeShiftScheduleForm(ModelForm):
                     commit=False
                 )
                 shift_schedule.save()
+                if company:
+                    shift_schedule.company_id.add(company)
         return instance
 
     def clean_day(self):
