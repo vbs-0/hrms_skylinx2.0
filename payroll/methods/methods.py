@@ -7,6 +7,7 @@ Payroll related module to write custom calculation methods
 """
 
 import calendar
+import json
 from datetime import date, datetime, timedelta
 
 from dateutil.relativedelta import relativedelta
@@ -651,7 +652,7 @@ def save_payslip(**kwargs):
     instance.gross_pay = round(kwargs["gross_pay"], 2)
     instance.deduction = round(kwargs["deduction"], 2)
     instance.net_pay = round(kwargs["net_pay"], 2)
-    instance.pay_head_data = kwargs["pay_data"]
+    instance.pay_head_data = json.loads(json.dumps(kwargs["pay_data"], default=str))
     instance.save()
     instance.installment_ids.set(kwargs["installments"])
     return instance
