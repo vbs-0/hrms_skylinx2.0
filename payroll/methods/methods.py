@@ -1,4 +1,5 @@
 from decimal import Decimal
+from decimal import InvalidOperation
 """
 methods.py
 
@@ -602,9 +603,15 @@ def calculate_employer_contribution(data):
     for deductions in deductions_to_process:
         if deductions:
             for deduction in deductions:
+                try:
+                    employer_contribution_rate = Decimal(
+                        str(deduction.get("employer_contribution_rate", 0) or 0)
+                    )
+                except (TypeError, ValueError, InvalidOperation):
+                    employer_contribution_rate = Decimal("0")
                 if (
                     deduction.get("deduction_id")
-                    and deduction.get("employer_contribution_rate", 0) > 0
+                    and employer_contribution_rate > 0
                 ):
                     object = Deduction.objects.filter(
                         id=deduction.get("deduction_id")
