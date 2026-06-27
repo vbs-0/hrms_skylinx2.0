@@ -1019,7 +1019,10 @@ def reload_queryset(fields):
                 company_field = None
 
             if company_field is not None:
-                field.queryset = field.queryset.filter(company_id=selected_company)
+                if getattr(company_field, "many_to_many", False):
+                    field.queryset = field.queryset.filter(company_id__id=selected_company)
+                else:
+                    field.queryset = field.queryset.filter(company_id=selected_company)
 
         if model_name == "Employee":
             field.queryset = field.queryset.exclude(employee_user_id__is_superuser=True)
