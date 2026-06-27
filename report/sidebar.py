@@ -77,15 +77,8 @@ if apps.is_installed("pms"):
 
 
 def menu_accessibility(request, submenu, user_perms, *args, **kwargs):
-    return (
-        is_platform_owner(request.user)
-        or request.user.has_perm("recruitment.view_recruitment")
-        or request.user.has_perm("employee.change_employee")
-        or request.user.has_perm("pms.view_objective")
-        or request.user.has_perm("payroll.change_payslip")
-        or request.user.has_perm("payroll.add_payslip")
-        or request.user.has_perm("asset.view_asset")
-    )
+    # Hide from employee view
+    return is_platform_owner(request.user)
 
 
 def recruitment_accessibility(request, submenu, user_perms, *args, **kwargs):

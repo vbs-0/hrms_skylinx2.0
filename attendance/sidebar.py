@@ -75,12 +75,9 @@ def dashboard_accessibility(request, submenu, user_perms, *args, **kwargs):
 
 def attendance_requests_accessibility(request, submenu, user_perms, *args, **kwargs):
     """
-    Attendance Requests list is for managers/HR only. Regular employees
-    should use "My Attendances" for their own records.
+    Allow employees to view and make attendance requests.
     """
-    return request.user.has_perm("attendance.change_attendance") or is_reportingmanager(
-        request.user
-    )
+    return True
 
 
 def tracking_accessibility(request, submenu, user_perms, *args, **kwargs):
