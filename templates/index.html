@@ -236,6 +236,23 @@
                     <div class="oh-modal" id="dynamicCreateModal" role="dialog" aria-hidden="true" style="z-index: 1022;">
                         <div id="dynamicCreateModalTarget" class="oh-modal__dialog" style="max-width: 550px"></div>
                     </div>
+                    <script>
+                        (function () {
+                            function syncModalA11y(modal) {
+                                var shown = modal.classList.contains("oh-modal--show");
+                                if (!shown && modal.contains(document.activeElement)) {
+                                    document.activeElement.blur();
+                                }
+                                modal.setAttribute("aria-hidden", shown ? "false" : "true");
+                            }
+                            document.querySelectorAll(".oh-modal").forEach(function (modal) {
+                                syncModalA11y(modal);
+                                new MutationObserver(function () {
+                                    syncModalA11y(modal);
+                                }).observe(modal, { attributes: true, attributeFilter: ["class"] });
+                            });
+                        })();
+                    </script>
                 </div>
             <!-- End of main section -->
             <footer class="text-center mt-auto py-3" style="border-top: 1px solid var(--sx-border); margin-top: 40px !important;">

@@ -696,6 +696,14 @@ class DepartmentForm(ModelForm):
         fields = "__all__"
         exclude = ["is_active"]
 
+    def save(self, commit=True):
+        instance = super().save(commit=commit)
+        request = getattr(_thread_locals, "request", None)
+        company = current_company(request) if request else None
+        if company and not self.cleaned_data.get("company_id"):
+            instance.company_id.add(company)
+        return instance
+
 
 class JobPositionForm(ModelForm):
     """
@@ -766,6 +774,7 @@ class JobPositionForm(ModelForm):
     def save(self, commit, *args, **kwargs) -> Any:
         if not self.instance.pk:
             request = getattr(_thread_locals, "request")
+            company = current_company(request)
             department = Department.objects.filter(
                 id__in=self.data.getlist("department_id")
             )
@@ -784,6 +793,8 @@ class JobPositionForm(ModelForm):
                         request, _("Job position has been created successfully!")
                     )
                     position.save()
+                    if company:
+                        position.company_id.add(company)
                 positions.append(position.pk)
             return JobPosition.objects.filter(id__in=positions)
         super().save(commit, *args, **kwargs)
@@ -808,7 +819,7 @@ class JobPositionMultiForm(ModelForm):
     class Meta:
         model = JobPosition
         fields = "__all__"
-        exclude = ["department_id", "is_active"]
+        exclude = ["department_id", "is_active", "company_id"]
 
     def clean(self):
         """
@@ -842,6 +853,7 @@ class JobPositionMultiForm(ModelForm):
         """
         if not self.instance.pk:
             request = getattr(_thread_locals, "request")
+            company = current_company(request)
             department_ids = self.data.getlist("department_id")
             job_position = self.data.get("job_position")
             positions = []
@@ -859,6 +871,8 @@ class JobPositionMultiForm(ModelForm):
                 else:
                     position = JobPosition(department_id=dep, job_position=job_position)
                     position.save()
+                    if company:
+                        position.company_id.add(company)
                     positions.append(position.pk)
 
             return JobPosition.objects.filter(id__in=positions)
@@ -928,6 +942,7 @@ class JobRoleForm(ModelForm):
     def save(self, commit, *args, **kwargs) -> Any:
         if not self.instance.pk:
             request = getattr(_thread_locals, "request")
+            company = current_company(request)
             job_positions = JobPosition.objects.filter(
                 id__in=self.data.getlist("job_position_id")
             )
@@ -938,6 +953,8 @@ class JobRoleForm(ModelForm):
                 role.job_role = self.data["job_role"]
                 try:
                     role.save()
+                    if company:
+                        role.company_id.add(company)
                     messages.success(
                         request, _("Job role has been created successfully!")
                     )

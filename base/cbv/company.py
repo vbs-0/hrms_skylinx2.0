@@ -1,7 +1,7 @@
 """
 this page is handling the cbv methods for company in settings
 """
-from base.rbac import is_platform_owner
+from base.rbac import current_company, is_platform_owner
 
 
 from typing import Any
@@ -30,8 +30,7 @@ from skylinx_views.generic.cbv.views import (
 def _company_is_user_company(request, instance, *_args, **_kwargs):
     if not request or not instance:
         return False
-    employee = getattr(request.user, "employee_get", None)
-    company = getattr(getattr(employee, "employee_work_info", None), "company_id", None)
+    company = current_company(request)
     return bool(company and getattr(instance, "id", None) == company.id)
 
 
@@ -99,8 +98,7 @@ class CompanyListView(SkylinxListView):
         queryset = super().get_queryset()
         if is_platform_owner(self.request.user):
             return queryset
-        employee = getattr(self.request.user, "employee_get", None)
-        company = getattr(getattr(employee, "employee_work_info", None), "company_id", None)
+        company = current_company(self.request)
         if not company:
             return queryset.none()
         return queryset.filter(id=company.id)
