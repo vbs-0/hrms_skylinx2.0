@@ -485,16 +485,9 @@ def approve_validate_attendance_request(request, attendance_id):
     attendance.save()
     if attendance.requested_data is not None:
         requested_data = json.loads(attendance.requested_data)
-        requested_data["attendance_clock_out"] = (
-            None
-            if requested_data["attendance_clock_out"] == "None"
-            else requested_data["attendance_clock_out"]
-        )
-        requested_data["attendance_clock_out_date"] = (
-            None
-            if requested_data["attendance_clock_out_date"] == "None"
-            else requested_data["attendance_clock_out_date"]
-        )
+        for key, value in requested_data.items():
+            if value in ("None", ""):
+                requested_data[key] = None
         Attendance.objects.filter(id=attendance_id).update(**requested_data)
         # DUE TO AFFECT THE OVERTIME CALCULATION ON SAVE METHOD, SAVE THE INSTANCE ONCE MORE
         attendance = Attendance.objects.select_for_update().get(id=attendance_id)
@@ -714,16 +707,9 @@ def bulk_approve_attendance_request(request):
         attendance.save()
         if attendance.requested_data is not None:
             requested_data = json.loads(attendance.requested_data)
-            requested_data["attendance_clock_out"] = (
-                None
-                if requested_data["attendance_clock_out"] == "None"
-                else requested_data["attendance_clock_out"]
-            )
-            requested_data["attendance_clock_out_date"] = (
-                None
-                if requested_data["attendance_clock_out_date"] == "None"
-                else requested_data["attendance_clock_out_date"]
-            )
+            for key, value in requested_data.items():
+                if value in ("None", ""):
+                    requested_data[key] = None
             Attendance.objects.filter(id=attendance_id).update(**requested_data)
             # DUE TO AFFECT THE OVERTIME CALCULATION ON SAVE METHOD, SAVE THE INSTANCE ONCE MORE
             attendance = Attendance.objects.select_for_update().get(id=attendance_id)

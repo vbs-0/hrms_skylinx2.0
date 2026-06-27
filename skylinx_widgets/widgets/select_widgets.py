@@ -75,7 +75,10 @@ class SkylinxMultiSelectWidget(forms.Widget):
                 initial = list(value.values_list("id", flat=True))
             except AttributeError:
                 # If that fails, try to convert to list directly:
-                initial = list(value)
+                try:
+                    initial = list(value)
+                except TypeError:
+                    initial = [value]
                 # Now clean this list if it has model instances or string ids:
                 cleaned = []
                 for item in initial:
