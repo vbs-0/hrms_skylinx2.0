@@ -171,8 +171,8 @@ class ProjectsList(SkylinxListView):
             queryset = task_filter | project_filter
         return queryset.distinct()
 
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
+    def setup(self, request, *args, **kwargs) -> None:
+        super().setup(request, *args, **kwargs)
         self.search_url = reverse("project-list-view")
         if is_platform_owner(request.user):
             self.action_method = "actions"
