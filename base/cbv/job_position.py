@@ -14,6 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from base.filters import DepartmentViewFilter
 from base.forms import JobPositionForm
 from base.models import Department, JobPosition
+from base.rbac import current_company, is_platform_owner
 from skylinx_views.cbv_methods import login_required, permission_required
 from skylinx_views.generic.cbv.views import (
     SkylinxFormView,
@@ -48,6 +49,15 @@ class JobPositionListView(SkylinxListView):
     model = Department
     filter_class = DepartmentViewFilter
     show_toggle_form = False
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if is_platform_owner(self.request.user):
+            return queryset
+        company = current_company(self.request)
+        if not company:
+            return queryset.none()
+        return queryset.filter(company_id=company)
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)

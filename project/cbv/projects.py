@@ -174,7 +174,7 @@ class ProjectsList(SkylinxListView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.search_url = reverse("project-list-view")
-        if self.is_platform_owner(request.user):
+        if is_platform_owner(request.user):
             self.action_method = "actions"
 
     @cached_property

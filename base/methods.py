@@ -18,7 +18,7 @@ from django.core.paginator import Paginator
 from django.db import models
 from django.db.models import ForeignKey, ManyToManyField, OneToOneField, Q
 from django.db.models.functions import Lower
-from django.forms.models import ModelChoiceField
+from django.forms.models import ModelChoiceField, ModelMultipleChoiceField
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.utils.translation import gettext as _
@@ -1002,7 +1002,7 @@ def reload_queryset(fields):
     }
 
     for field in fields.values():
-        if not isinstance(field, ModelChoiceField):
+        if not isinstance(field, (ModelChoiceField, ModelMultipleChoiceField)):
             continue
 
         model = field.queryset.model
@@ -1012,7 +1012,15 @@ def reload_queryset(fields):
             field.queryset = field.queryset.filter(id=selected_company)
         elif (filters := model_filters.get(model_name)) is not None:
             field.queryset = field.queryset.filter(**filters)
-            
+        elif selected_company and selected_company != "all":
+            try:
+                company_field = model._meta.get_field("company_id")
+            except Exception:
+                company_field = None
+
+            if company_field is not None:
+                field.queryset = field.queryset.filter(company_id=selected_company)
+
         if model_name == "Employee":
             field.queryset = field.queryset.exclude(employee_user_id__is_superuser=True)
             if selected_company and selected_company != "all":
