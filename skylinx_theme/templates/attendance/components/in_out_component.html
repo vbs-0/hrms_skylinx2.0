@@ -84,8 +84,8 @@
 
 {% if enabled_timerunner %}
 <script>
-    var at_work_seconds = $(".at_work_seconds").data("at-work-seconds");
-    var run = $(".at_work_seconds").data("run");
+    var at_work_seconds = {{ get_forecasted_at_work.forecasted_at_work_seconds|default:0 }};
+    var run = {% if request.user|is_clocked_in and get_forecasted_at_work.has_attendance %}{{ run|default:1 }}{% else %}0{% endif %};
     var whiteLabelCompany = $("#whiteLabelCompany").data("company");
 
     // time-runner

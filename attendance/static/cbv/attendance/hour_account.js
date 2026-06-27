@@ -1,4 +1,6 @@
-tickCheckboxes();
+if (typeof tickCheckboxes === "function") {
+    tickCheckboxes();
+}
 function makeListUnique(list) {
     return Array.from(new Set(list));
 }
