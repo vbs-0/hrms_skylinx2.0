@@ -692,7 +692,23 @@ def login_user(request):
         query_params.pop("next", None)
         params = urlencode(query_params)
 
+        logger.info(
+            "Login attempt username=%s has_password=%s next=%s path=%s",
+            username,
+            bool(password),
+            next_url,
+            request.path,
+        )
+
         user = authenticate(request, username=username, password=password)
+        logger.info(
+            "Login authenticate result username=%s user_id=%s is_active=%s has_employee=%s is_new_employee=%s",
+            username,
+            getattr(user, "id", None),
+            getattr(user, "is_active", None) if user else None,
+            bool(getattr(user, "employee_get", None)) if user else None,
+            getattr(user, "is_new_employee", None) if user else None,
+        )
 
         if not user:
             user_object = SkylinxUser.objects.filter(username=username).first()
@@ -719,6 +735,12 @@ def login_user(request):
             return redirect("login")
 
         login(request, user)
+        logger.info(
+            "Login success user_id=%s employee_id=%s redirect_target=%s",
+            user.id,
+            getattr(getattr(user, "employee_get", None), "id", None),
+            next_url,
+        )
 
         if "accept_terms" in request.POST or request.POST.get("accept_terms") in ["on", "true", "1"]:
             user.accepted_terms = True
