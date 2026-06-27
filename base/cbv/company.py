@@ -97,7 +97,7 @@ class CompanyListView(SkylinxListView):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        if self.is_platform_owner(request.user):
+        if is_platform_owner(self.request.user):
             return queryset
         employee = getattr(self.request.user, "employee_get", None)
         company = getattr(getattr(employee, "employee_work_info", None), "company_id", None)
