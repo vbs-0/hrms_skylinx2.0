@@ -847,7 +847,11 @@ class JobPositionMultiForm(ModelForm):
             positions = []
 
             for dep_id in department_ids:
-                dep = Department.objects.get(id=dep_id)
+                if not dep_id:
+                    continue
+                dep = Department.objects.filter(id=dep_id).first()
+                if not dep:
+                    continue
                 if JobPosition.objects.filter(
                     department_id=dep, job_position=job_position
                 ).exists():

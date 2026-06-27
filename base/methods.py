@@ -1385,11 +1385,16 @@ def eval_validate(value):
     Method to validate the dynamic value
     """
     import json
+    if not isinstance(value, str):
+        return value
     try:
         value = json.loads(value)
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, TypeError):
         import ast
-        value = json.loads(value)
+        try:
+            value = ast.literal_eval(value)
+        except Exception:
+            pass
     return value
 
 

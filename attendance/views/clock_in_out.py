@@ -470,7 +470,10 @@ def clock_out(request):
             if request.__dict__.get("date"):
                 date_today = request.date
             day = date_today.strftime("%A").lower()
-            day, _ = EmployeeShiftDay.objects.get_or_create(day=day)
+            day_obj = EmployeeShiftDay.objects.filter(day=day).first()
+            if not day_obj:
+                day_obj = EmployeeShiftDay.objects.create(day=day)
+            day = day_obj
             attendance = (
                 Attendance.objects.filter(employee_id=employee)
                 .order_by("id", "attendance_date")
