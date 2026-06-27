@@ -507,28 +507,28 @@ def monthly_computation(employee, wage, start_date, end_date, *args, **kwargs):
     contract = employee.contract_set.filter(
         is_active=True, contract_status="active"
     ).first()
-    unpaid_leaves = abs(leave_data["unpaid_leaves"] - unpaid_half_leaves)
-    paid_days = month_data[0]["working_days_on_period"] - unpaid_leaves
-    daily_computed_salary = get_daily_salary(wage=wage, wage_date=start_date)[
-        "day_wage"
-    ]
+    unpaid_leaves = Decimal(str(abs(leave_data["unpaid_leaves"] - unpaid_half_leaves)))
+    paid_days = Decimal(str(month_data[0]["working_days_on_period"])) - unpaid_leaves
+    daily_computed_salary = Decimal(
+        str(get_daily_salary(wage=wage, wage_date=start_date)["day_wage"])
+    )
     if contract.calculate_daily_leave_amount:
         loss_of_pay = unpaid_leaves * daily_computed_salary
     else:
-        fixed_penalty = contract.deduction_for_one_leave_amount
+        fixed_penalty = Decimal(str(contract.deduction_for_one_leave_amount))
         loss_of_pay = unpaid_leaves * fixed_penalty
 
     # Partial deduction for custom payment_type leaves (tracked separately for payslip display)
     custom_leave_dates = leave_data.get("custom_leave_dates", [])
-    custom_leave_deduction = 0.0
+    custom_leave_deduction = Decimal("0")
     for _leave_date, pct in custom_leave_dates:
-        deductible_fraction = 1.0 - (pct / 100.0)
+        deductible_fraction = Decimal("1") - (Decimal(str(pct)) / Decimal("100"))
         if contract.calculate_daily_leave_amount:
             custom_leave_deduction += daily_computed_salary * deductible_fraction
         else:
-            custom_leave_deduction += (
-                contract.deduction_for_one_leave_amount * deductible_fraction
-            )
+            custom_leave_deduction += Decimal(
+                str(contract.deduction_for_one_leave_amount)
+            ) * deductible_fraction
     loss_of_pay += custom_leave_deduction
 
     if contract.deduct_leave_from_basic_pay:
