@@ -1,3 +1,7 @@
+if (typeof gettext === 'undefined') {
+    window.gettext = function(text) { return text; };
+}
+
 if (typeof i18nMessages === 'undefined') {
     var i18nMessages = {
         // General dialog buttons

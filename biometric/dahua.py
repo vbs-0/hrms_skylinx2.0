@@ -7,10 +7,11 @@ and interacting with attendance logs. It communicates with Dahua devices via HTT
 and supports basic operations such as system reboot, setting time, and language configuration.
 """
 
+from __future__ import annotations
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import requests
 from requests.auth import HTTPDigestAuth
