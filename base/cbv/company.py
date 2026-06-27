@@ -30,8 +30,14 @@ from skylinx_views.generic.cbv.views import (
 def _company_is_user_company(request, instance, *_args, **_kwargs):
     if not request or not instance:
         return False
+    if is_platform_owner(request.user):
+        return True
     company = current_company(request)
-    return bool(company and getattr(instance, "id", None) == company.id)
+    if company and getattr(instance, "id", None) == company.id:
+        return True
+    employee = getattr(request.user, "employee_get", None)
+    user_company = getattr(getattr(employee, "employee_work_info", None), "company_id", None)
+    return bool(user_company and getattr(instance, "id", None) == user_company.id)
 
 
 @method_decorator(login_required, name="dispatch")
