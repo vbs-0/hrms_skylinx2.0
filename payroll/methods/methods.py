@@ -617,9 +617,12 @@ def calculate_employer_contribution(data):
                         id=deduction.get("deduction_id")
                     ).first()
                     if object:
-                        amount = pay_head_data.get(object.based_on)
+                        try:
+                            amount = Decimal(str(pay_head_data.get(object.based_on) or 0))
+                        except (TypeError, ValueError, InvalidOperation):
+                            amount = Decimal("0")
                         employer_contribution_amount = (
-                            amount * object.employer_rate
+                            amount * Decimal(str(object.employer_rate or 0))
                         ) / 100
                         deduction["based_on"] = object.based_on
                         deduction["employer_contribution_amount"] = (
