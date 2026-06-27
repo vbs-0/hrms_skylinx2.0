@@ -1242,7 +1242,7 @@ class BonusPoint(SkylinxModel):
         return get_diff(self)
 
     @receiver(post_save, sender=Employee)
-    def bonus_post_save(sender, instance, **_kwargs):
+    def bonus_post_save(sender, instance, created=False, **_kwargs):
         """
         Creates a BonusPoint instance for a newly created Employee if one doesn't already exist.
 
@@ -1250,10 +1250,15 @@ class BonusPoint(SkylinxModel):
             sender (Employee): The model class (Employee) sending the signal.
             instance (Employee): The instance of the Employee model triggering the
                                 post-save signal.
+            created (bool): Indicates if a new record was created.
             **_kwargs: Additional keyword arguments passed by the signal.
         """
-        if not BonusPoint.objects.filter(employee_id__id=instance.id).exists():
-            BonusPoint.objects.create(employee_id=instance)
+        if created:
+            try:
+                from django.db import IntegrityError
+                BonusPoint.objects.get_or_create(employee_id=instance)
+            except IntegrityError:
+                pass
 
 
 class Actiontype(SkylinxModel):
