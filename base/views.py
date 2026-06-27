@@ -1053,7 +1053,11 @@ def change_password(request):
             return redirect("/")
         return render(request, "base/auth/password_change_form.html", {"form": form})
 
-    return render(request, "base/auth/password_change.html", {"form": form})
+    return render(
+        request,
+        "base/auth/password_change.html",
+        {"form": form, "is_new_employee": getattr(user, "is_new_employee", False)},
+    )
 
 
 @login_required
