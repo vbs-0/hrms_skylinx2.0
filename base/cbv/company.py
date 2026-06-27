@@ -42,8 +42,8 @@ class CompanyListView(SkylinxListView):
     list view for company in settings
     """
 
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
+    def setup(self, request, *args, **kwargs) -> None:
+        super().setup(request, *args, **kwargs)
         self.search_url = reverse("company-list")
         self.actions = []
         if self.is_platform_owner(request.user):
@@ -170,8 +170,8 @@ class CompanyNavView(SkylinxNavView):
     nav bar of the department view
     """
 
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
+    def setup(self, request, *args, **kwargs) -> None:
+        super().setup(request, *args, **kwargs)
         self.search_url = reverse("company-list")
         if self.is_platform_owner(request.user):
             self.create_attrs = f"""
