@@ -735,6 +735,15 @@ def login_user(request):
             return redirect("login")
 
         login(request, user)
+        user_company = getattr(getattr(employee, "employee_work_info", None), "company_id", None)
+        if user_company:
+            request.session["selected_company"] = str(user_company.id)
+            request.session["selected_company_instance"] = {
+                "company": user_company.company if (user_company.company and "skylinx" not in user_company.company.lower()) else "EMPLINX",
+                "icon": getattr(getattr(user_company, "icon", None), "url", "/static/skylinx_theme/assets/img/skylinx-logo.png"),
+                "text": "My Company",
+                "id": user_company.id,
+            }
         logger.warning(
             "Login success user_id=%s employee_id=%s redirect_target=%s",
             user.id,
