@@ -198,6 +198,9 @@ class AttendanceRequestListTab(AttendancesRequestListView):
             employee_id__employee_user_id=self.request.user,
             is_validate_request=True,
         )
+        from base.rbac import exclude_higher_tier
+
+        queryset = exclude_higher_tier(self.request, queryset)
         return queryset
 
 

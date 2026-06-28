@@ -80,6 +80,22 @@ def higher_tier_user_ids(viewer):
     return list(ids)
 
 
+def exclude_higher_tier(request, queryset, user_path="employee_id__employee_user_id"):
+    """Drop rows whose owning user outranks the viewer.
+
+    Mirrors the employee-directory rule for request lists: a CEO's requests are
+    hidden from HR + employees, an HR's from employees. ``user_path`` is the ORM
+    path from the row to the owning auth user. No-op for CEO/owner viewers.
+    """
+    user = getattr(request, "user", None)
+    if user is None:
+        return queryset
+    hidden = higher_tier_user_ids(user)
+    if hidden:
+        queryset = queryset.exclude(**{f"{user_path}__id__in": hidden})
+    return queryset
+
+
 def strip_name(name: str) -> str:
     """Display label without the tenant prefix."""
     return name.split(SEP, 1)[-1] if name else name

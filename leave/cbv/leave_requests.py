@@ -91,6 +91,10 @@ class LeaveRequestsListView(SkylinxListView):
         queryset = filter_conditional_leave_request(self.request)
         qs = data.filter(id__in=queryset.values_list("id", flat=True))
         data = filtersubordinates(self.request, data, "employee.change_employee") | qs
+        # hierarchy: hide higher-tier people's requests (CEO from HR/employees)
+        from base.rbac import exclude_higher_tier
+
+        data = exclude_higher_tier(self.request, data)
         return data.distinct()
 
     filter_class = LeaveRequestFilter

@@ -80,6 +80,9 @@ class LeaveRequestsToApprove(LeaveRequestsListView):
         queryset = filtersubordinates(
             self.request, queryset, "leave.change_leaverequest"
         )
+        from base.rbac import exclude_higher_tier
+
+        queryset = exclude_higher_tier(self.request, queryset)
         return queryset
 
 
