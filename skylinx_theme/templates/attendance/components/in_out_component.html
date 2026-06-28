@@ -33,7 +33,7 @@
                     </button>
                     <span class="at_work_seconds"
                         data-at-work-seconds="{{ get_forecasted_at_work.forecasted_at_work_seconds|default:0 }}"
-                        data-run="{{ run|default:1 }}">
+                        data-run="1">
                     </span>
 
                 {% else %}
@@ -64,7 +64,7 @@
                     </button>
                     <span class="at_work_seconds"
                         data-at-work-seconds="{{ get_forecasted_at_work.forecasted_at_work_seconds|default:0 }}"
-                        data-run="{{ run|default:0 }}">
+                        data-run="0">
                     </span>
 
                     {% if enabled_timerunner %}
