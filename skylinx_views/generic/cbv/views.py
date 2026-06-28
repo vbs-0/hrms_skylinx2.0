@@ -180,7 +180,10 @@ class SkylinxListView(ListView):
 
     def get_queryset(self, queryset=None, filtered=False, *args, **kwargs):
         if not self.queryset:
-            self.queryset = super().get_queryset() if not queryset else queryset
+            # NOTE: test `is None`, not truthiness — an *empty* scoped queryset
+            # (e.g. an employee who owns no payslips) is falsy, and falling back
+            # to super().get_queryset() there leaked ALL records to that user.
+            self.queryset = super().get_queryset() if queryset is None else queryset
             self._saved_filters = QueryDict("", mutable=True)
             if self.filter_class:
                 query_dict = self.request.GET
