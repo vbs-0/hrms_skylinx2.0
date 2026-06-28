@@ -271,9 +271,15 @@ def timerunner_enabled(request):
     """
     Check weather resignation_request enabled of not in offboarding
     """
-    cache_key = "timerunner_enabled"
+    # AttendanceGeneralSetting is company-scoped, so the cache key MUST be too —
+    # a global key let the first tenant's time_runner value leak to every tenant
+    # (and froze the timer for all if any one company had it off).
+    from base.rbac import current_company
+
+    company = current_company(request)
+    cache_key = f"timerunner_enabled_{getattr(company, 'id', 'none')}"
     enabled_timerunner = cache.get(cache_key)
-    
+
     if enabled_timerunner is None:
         first = None
         enabled_timerunner = True
@@ -293,9 +299,15 @@ def intial_notice_period(request):
     """
     Check weather resignation_request enabled of not in offboarding
     """
-    cache_key = "initial_notice_period"
+    # PayrollGeneralSetting has company_id but a plain manager, so filter
+    # explicitly by company and key the cache per company (global key + global
+    # .first() leaked one tenant's notice period to all).
+    from base.rbac import current_company
+
+    company = current_company(request)
+    cache_key = f"initial_notice_period_{getattr(company, 'id', 'none')}"
     initial = cache.get(cache_key)
-    
+
     if initial is None:
         initial = 30
         first = None
@@ -303,7 +315,14 @@ def intial_notice_period(request):
             PayrollGeneralSetting = get_skylinx_model_class(
                 app_label="payroll", model="payrollgeneralsetting"
             )
-            first = PayrollGeneralSetting.objects.first()
+            if company:
+                first = PayrollGeneralSetting.objects.filter(
+                    company_id=company
+                ).first()
+            else:
+                first = PayrollGeneralSetting.objects.filter(
+                    company_id__isnull=True
+                ).first()
         if first:
             initial = first.notice_period
         cache.set(cache_key, initial, CACHE_TIMEOUT)
@@ -384,9 +403,14 @@ def get_initial_prefix(request):
     """
     This method is used to get the initial prefix
     """
-    cache_key = "initial_prefix"
+    # EmployeeGeneralSetting is company-scoped — key per company so one tenant's
+    # badge prefix doesn't leak to others.
+    from base.rbac import current_company
+
+    company = current_company(request)
+    cache_key = f"initial_prefix_{getattr(company, 'id', 'none')}"
     cached_data = cache.get(cache_key)
-    
+
     if cached_data is None:
         settings = EmployeeGeneralSetting.objects.first()
         instance_id = None
@@ -435,9 +459,13 @@ def enable_late_come_early_out_tracking(request):
 def enable_profile_edit(request):
     from accessibility.accessibility import ACCESSBILITY_FEATURE
 
-    cache_key = "profile_edit_enabled"
+    # ProfileEditFeature is company-scoped — key per company.
+    from base.rbac import current_company
+
+    company = current_company(request)
+    cache_key = f"profile_edit_enabled_{getattr(company, 'id', 'none')}"
     enable = cache.get(cache_key)
-    
+
     if enable is None:
         profile_edit = ProfileEditFeature.objects.filter().first()
         enable = False if profile_edit and profile_edit.is_enabled else True
