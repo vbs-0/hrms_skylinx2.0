@@ -23,6 +23,7 @@ from asset.filters import (
 )
 from asset.forms import AssetAllocationForm, AssetReassignForm, AssetRequestForm
 from asset.models import Asset, AssetAssignment, AssetRequest, ReturnImages
+from asset.views import filter_pagination_asset_request_allocation
 from base.methods import filtersubordinates
 from employee.models import Employee
 from skylinx.skylinx_middlewares import _thread_locals
@@ -50,6 +51,20 @@ class RequestAndAllocationView(TemplateView):
     """
 
     template_name = "cbv/request_and_allocation/request_and_allocation.html"
+
+    def get(self, request, *args, **kwargs):
+        if request.META.get("HTTP_HX_REQUEST"):
+            context = filter_pagination_asset_request_allocation(request)
+            template = "request_allocation/asset_request_allocation_list.html"
+            if (
+                request.GET.get("request_field") != ""
+                and request.GET.get("request_field") is not None
+                or request.GET.get("allocation_field") != ""
+                and request.GET.get("allocation_field") is not None
+            ):
+                template = "request_allocation/group_by.html"
+            return render(request, template, context)
+        return super().get(request, *args, **kwargs)
 
 
 @method_decorator(login_required, name="dispatch")

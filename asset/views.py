@@ -1139,6 +1139,12 @@ def asset_request_allocation_view(request):
     ):
         template = "request_allocation/group_by.html"
 
+    if request.headers.get("HX-Request"):
+        fragment = "request_allocation/asset_request_allocation_list.html"
+        if template.endswith("group_by.html"):
+            fragment = template
+        return render(request, fragment, context)
+
     return render(request, template, context)
 
 

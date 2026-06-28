@@ -3,7 +3,9 @@ This page is handling the cbv methods of shift request page.
 """
 
 import contextlib
+import json
 from typing import Any
+from urllib.parse import parse_qs
 
 from django import forms
 from django.contrib import messages
@@ -14,7 +16,7 @@ from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 
-from base.filters import ShiftRequestFilter
+from base.filters import ShiftRequestFilter, ShiftRequestReGroup
 from base.forms import (
     EmployeeShiftForm,
     ShiftAllocationForm,
@@ -23,6 +25,7 @@ from base.forms import (
 )
 from base.methods import choosesubordinates, filtersubordinates, is_reportingmanager
 from base.models import EmployeeShift, ShiftRequest
+from base.methods import get_key_instances, paginator_qry
 from base.views import include_employee_instance
 from employee.models import Employee
 from skylinx.http.response import SkylinxRedirect
@@ -49,6 +52,76 @@ class ShiftRequestView(TemplateView):
     """
 
     template_name = "cbv/shift_request/shift_request.html"
+
+    def get(self, request, *args, **kwargs):
+        if request.META.get("HTTP_HX_REQUEST"):
+            previous_data = request.GET.urlencode()
+            employee = Employee.objects.filter(employee_user_id=request.user).first()
+            shift_requests = filtersubordinates(
+                request,
+                ShiftRequest.objects.filter(reallocate_to__isnull=True),
+                "base.view_shiftrequest",
+            )
+            shift_requests = shift_requests | ShiftRequest.objects.filter(
+                employee_id=employee
+            )
+            shift_requests = shift_requests.filter(employee_id__is_active=True)
+
+            allocated_shift_requests = filtersubordinates(
+                request,
+                ShiftRequest.objects.filter(reallocate_to__isnull=False),
+                "base.view_shiftrequest",
+            )
+            allocated_requests = ShiftRequest.objects.filter(reallocate_to__isnull=False)
+            if not request.user.has_perm("base.view_shiftrequest"):
+                allocated_requests = allocated_requests.filter(
+                    Q(reallocate_to=employee) | Q(employee_id=employee)
+                )
+            allocated_shift_requests = allocated_shift_requests | allocated_requests
+
+            requests_ids = json.dumps(
+                [
+                    instance.id
+                    for instance in paginator_qry(
+                        shift_requests, request.GET.get("page")
+                    ).object_list
+                ]
+            )
+            allocated_ids = json.dumps(
+                [
+                    instance.id
+                    for instance in paginator_qry(
+                        allocated_shift_requests, request.GET.get("page")
+                    ).object_list
+                ]
+            )
+            f = ShiftRequestFilter(request.GET, queryset=shift_requests)
+            data_dict = parse_qs(previous_data)
+            get_key_instances(ShiftRequest, data_dict)
+            form = ShiftRequestForm()
+            form = choosesubordinates(
+                request,
+                form,
+                "base.add_shiftrequest",
+            )
+            form = include_employee_instance(request, form)
+            return render(
+                request,
+                "shift_request/htmx/requests.html",
+                {
+                    "allocated_data": paginator_qry(
+                        allocated_shift_requests, request.GET.get("page")
+                    ),
+                    "data": paginator_qry(f.qs, request.GET.get("page")),
+                    "f": f,
+                    "form": form,
+                    "filter_dict": data_dict,
+                    "requests_ids": requests_ids,
+                    "allocated_ids": allocated_ids,
+                    "gp_fields": ShiftRequestReGroup.fields,
+                },
+            )
+        return super().get(request, *args, **kwargs)
 
 
 @method_decorator(login_required, name="dispatch")

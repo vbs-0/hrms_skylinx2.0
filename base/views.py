@@ -5183,6 +5183,23 @@ def shift_request_view(request):
         "base.add_shiftrequest",
     )
     form = include_employee_instance(request, form)
+    if request.META.get("HTTP_HX_REQUEST"):
+        return render(
+            request,
+            "shift_request/htmx/requests.html",
+            {
+                "allocated_data": paginator_qry(
+                    allocated_shift_requests, request.GET.get("page")
+                ),
+                "data": paginator_qry(f.qs, request.GET.get("page")),
+                "f": f,
+                "form": form,
+                "filter_dict": data_dict,
+                "requests_ids": requests_ids,
+                "allocated_ids": allocated_ids,
+                "gp_fields": ShiftRequestReGroup.fields,
+            },
+        )
     return render(
         request,
         "shift_request/shift_request_view.html",
