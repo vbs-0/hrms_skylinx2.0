@@ -80,9 +80,17 @@ def scope_employee_queryset_to_client(request, queryset):
     if not selected_company or selected_company == "all":
         return queryset.none()
 
-    return queryset.filter(
+    queryset = queryset.filter(
         employee_work_info__company_id=selected_company
     ).exclude(employee_user_id__is_superuser=True)
+    # Hierarchy: hide higher-tier people (CEO from HR/employees, HR from
+    # employees). is_platform_owner already returned above.
+    from base.rbac import higher_tier_user_ids
+
+    hidden = higher_tier_user_ids(request.user)
+    if hidden:
+        queryset = queryset.exclude(employee_user_id__id__in=hidden)
+    return queryset
 
 
 @method_decorator(login_required, name="dispatch")

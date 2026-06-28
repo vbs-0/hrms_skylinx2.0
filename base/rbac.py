@@ -19,6 +19,67 @@ def is_platform_owner(user) -> bool:
     )
 
 
+def hierarchy_rank(user) -> int:
+    """Tenant hierarchy tier (lower = higher authority).
+
+    0 = platform owner, 1 = client admin / CEO (Company Admin group),
+    2 = HR Manager, 3 = everyone else (Manager / Employee).
+
+    Used to hide higher-tier people and their requests from lower tiers:
+    the CEO is invisible to HR + employees, HR is invisible to employees.
+    """
+    if not user or not getattr(user, "is_authenticated", False):
+        return 3
+    if is_platform_owner(user):
+        return 0
+    # cache per user object — called per row when scoping lists
+    cached = getattr(user, "_hierarchy_rank", None)
+    if cached is not None:
+        return cached
+    names = set(user.groups.values_list("name", flat=True))
+    if "Company Admin" in names:
+        rank = 1
+    elif any(n.endswith(SEP + "HR Manager") for n in names):
+        rank = 2
+    else:
+        rank = 3
+    try:
+        user._hierarchy_rank = rank
+    except Exception:
+        pass
+    return rank
+
+
+def higher_tier_user_ids(viewer):
+    """User ids strictly above ``viewer`` in the hierarchy (to exclude from lists).
+
+    A CEO (rank 1) sees everyone below. An HR Manager (rank 2) must not see the
+    CEO. An employee (rank 3) must not see CEO or HR.
+    """
+    from django.contrib.auth.models import Group
+
+    viewer_rank = hierarchy_rank(viewer)
+    if viewer_rank <= 1:  # owner / CEO see everyone
+        return []
+    names = []
+    if viewer_rank >= 2:  # below CEO -> hide CEO
+        names.append("Company Admin")
+    ids = set(
+        Group.objects.filter(name__in=names).values_list(
+            "user__id", flat=True
+        )
+    )
+    if viewer_rank >= 3:  # plain employee -> also hide HR Managers
+        ids |= set(
+            Group.objects.filter(name__endswith=SEP + "HR Manager").values_list(
+                "user__id", flat=True
+            )
+        )
+    ids.discard(None)
+    ids.discard(getattr(viewer, "id", None))  # never hide self
+    return list(ids)
+
+
 def strip_name(name: str) -> str:
     """Display label without the tenant prefix."""
     return name.split(SEP, 1)[-1] if name else name
