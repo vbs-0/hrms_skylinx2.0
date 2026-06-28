@@ -67,59 +67,9 @@
                         data-run="0">
                     </span>
 
-                    {% if enabled_timerunner %}
-                        <script>
-                            $(document).ready(function () {
-                                $('.at-work-seconds').html(secondsToDuration({{get_forecasted_at_work.forecasted_at_work_seconds}}))
-                            });
-                            run = 0
-                        </script>
-                    {% endif %}
                 {% endif %}
             {% endif %}
         {% endif %}
 
     {% endwith %}
-{% endif %}
-
-{% if enabled_timerunner and request.user.employee_get %}
-{% with get_forecasted_at_work=request.user.employee_get.get_forecasted_at_work %}
-<script>
-    var at_work_seconds = {{ get_forecasted_at_work.forecasted_at_work_seconds|default:0 }};
-    var run = {% if request.user|is_clocked_in and get_forecasted_at_work.has_attendance %}{{ run|default:1 }}{% else %}0{% endif %};
-    var whiteLabelCompany = $("#whiteLabelCompany").data("company");
-
-    // time-runner
-    function secondsToDuration(seconds) {
-        if (seconds < 0){
-            seconds = 0
-        }
-        var hours = Math.floor(seconds / 3600);
-        var minutes = Math.floor((seconds % 3600) / 60);
-        var remainingSeconds = Math.floor(seconds % 60);
-
-        var formattedHours = (hours < 10) ? "0" + hours : hours;
-        var formattedMinutes = (minutes < 10) ? "0" + minutes : minutes;
-        var formattedSeconds = (remainingSeconds < 10) ? "0" + remainingSeconds : remainingSeconds;
-
-        return formattedHours + ":" + formattedMinutes + ":" + formattedSeconds;
-    }
-
-    if (window.timeRunnerInterval) {
-        clearInterval(window.timeRunnerInterval);
-    }
-
-    // Show the elapsed time on the in-app toolbar pill only. We deliberately do
-    // NOT hijack the browser tab <title> — that made the timer appear to "run in
-    // the header" and lingered after clock-out.
-    $("div.time-runner").html(secondsToDuration(at_work_seconds));
-
-    if (run) {
-        window.timeRunnerInterval = setInterval(() => {
-            at_work_seconds = parseInt(at_work_seconds) + 1;
-            $("div.time-runner").html(secondsToDuration(at_work_seconds));
-        }, 1000);
-    }
-</script>
-{% endwith %}
 {% endif %}
