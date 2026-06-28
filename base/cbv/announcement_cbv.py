@@ -13,7 +13,7 @@ from django.utils.translation import gettext_lazy as _
 
 from base.forms import AnnouncementForm
 from base.methods import closest_numbers
-from base.models import Announcement, AnnouncementView, Attachment
+from base.models import Announcement, AnnouncementView, Attachment, Company
 from employee.models import Employee
 from skylinx.http.response import SkylinxRedirect
 from skylinx_auth.models import SkylinxUser
@@ -68,9 +68,18 @@ class AnnouncementFormView(SkylinxFormView):
             employees = form.cleaned_data["employees"]
             departments = form.cleaned_data["department"]
             job_positions = form.cleaned_data["job_position"]
-            company = form.cleaned_data.get(
-                "company_id", [self.request.user.employee_get.get_company()]
-            )
+            # company_id may be present-but-empty in cleaned_data (.get default
+            # won't kick in), so fall back to the creator's own company. Without
+            # this the company-scoped manager hides the announcement from everyone.
+            company = form.cleaned_data.get("company_id")
+            if not company:
+                emp = self.request.user.employee_get
+                own = emp.get_company() if emp else None
+                company = (
+                    Company.objects.filter(id=own.id)
+                    if own
+                    else Company.objects.none()
+                )
 
             if not (employees or departments or job_positions):
                 employees = Employee.objects.filter(
@@ -102,6 +111,7 @@ class AnnouncementFormView(SkylinxFormView):
             anou.attachments.set(safe_attachment_ids)  # IMPORTANT FIX
             anou.department.set(departments)
             anou.job_position.set(job_positions)
+            anou.company_id.set(company)  # scope to company or it stays hidden
 
             emp_dep = SkylinxUser.objects.filter(
                 employee_get__employee_work_info__department_id__in=departments
