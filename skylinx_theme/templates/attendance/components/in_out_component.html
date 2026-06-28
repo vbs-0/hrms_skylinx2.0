@@ -82,7 +82,8 @@
     {% endwith %}
 {% endif %}
 
-{% if enabled_timerunner %}
+{% if enabled_timerunner and request.user.employee_get %}
+{% with get_forecasted_at_work=request.user.employee_get.get_forecasted_at_work %}
 <script>
     var at_work_seconds = {{ get_forecasted_at_work.forecasted_at_work_seconds|default:0 }};
     var run = {% if request.user|is_clocked_in and get_forecasted_at_work.has_attendance %}{{ run|default:1 }}{% else %}0{% endif %};
@@ -119,4 +120,5 @@
         }, 1000);
     }
 </script>
+{% endwith %}
 {% endif %}
