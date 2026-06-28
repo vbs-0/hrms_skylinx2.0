@@ -1259,8 +1259,11 @@ def home(request):
     is_payroll_time = get_count_or_zero('payroll', 'Payslip') == 0
 
     unread_notifications_count = 0
+    recent_notifications = []
     try:
-        unread_notifications_count = request.user.notifications.unread().count()
+        unread = request.user.notifications.unread()
+        unread_notifications_count = unread.count()
+        recent_notifications = list(unread[:5])
     except Exception:
         pass
 
@@ -1271,6 +1274,7 @@ def home(request):
         "employee_add_alert": employee_add_alert,
         "is_payroll_time": is_payroll_time,
         "unread_notifications_count": unread_notifications_count,
+        "recent_notifications": recent_notifications,
         "tasks_active": tasks_active,
     }
 
@@ -8582,7 +8586,7 @@ def edit_home_announcement(request):
         else:
             latest_announcement = Announcement.objects.create(title=title, description=description)
             from base.models import Company
-            company = Company.objects.filter(hq=True).first()
+            company = current_company(request) or Company.objects.filter(hq=True).first()
             if company:
                 latest_announcement.company_id.add(company)
         return render(request, "home_announcement.html", {"latest_announcement": latest_announcement, "edit_mode": False})

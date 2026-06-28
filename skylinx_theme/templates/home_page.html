@@ -452,17 +452,17 @@
           </a>
         {% endif %}
 
-        <!-- Notification task -->
-        {% if unread_notifications_count > 0 %}
-          <a href="/notifications/" class="hp-task-item">
+        <!-- Notification tasks: list the actual recent unread notifications -->
+        {% for note in recent_notifications %}
+          <a href="{{ note.data.redirect|default:'/notifications/' }}" class="hp-task-item">
             <ion-icon name="notifications-outline" style="font-size: 1.1rem; flex-shrink: 0;"></ion-icon>
-            <span>
-              {% blocktrans count count=unread_notifications_count %}
-                You have 1 unread notification
-              {% plural %}
-                You have {{ count }} unread notifications
-              {% endblocktrans %}
-            </span>
+            <span>{{ note.verb }}</span>
+          </a>
+        {% endfor %}
+        {% if unread_notifications_count > recent_notifications|length %}
+          <a href="/notifications/" class="hp-task-item" style="color:#64748b;">
+            <ion-icon name="ellipsis-horizontal-outline" style="font-size: 1.1rem; flex-shrink: 0;"></ion-icon>
+            <span>{% blocktrans count count=unread_notifications_count %}View all (1 unread){% plural %}View all ({{ count }} unread){% endblocktrans %}</span>
           </a>
         {% endif %}
 

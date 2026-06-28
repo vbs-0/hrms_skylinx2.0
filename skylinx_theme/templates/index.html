@@ -333,16 +333,15 @@
                             return formattedHours + ":" + formattedMinutes + ":" + formattedSeconds;
                         }
 
-                        // Immediately refresh the displayed timer
+                        // Immediately refresh the displayed timer (toolbar pill only,
+                        // not the browser tab title).
                         $("div.time-runner").not("title").html(secondsToDuration(at_work_seconds));
-                        $("title.time-runner").html(` ${whiteLabelCompany} | ` + secondsToDuration(at_work_seconds));
                         $(".at-work-seconds").html(secondsToDuration(at_work_seconds));
 
                         if (run) {
                             window.timeRunnerInterval = setInterval(() => {
                                 at_work_seconds = parseInt(at_work_seconds) + 1;
                                 $("div.time-runner").html(secondsToDuration(at_work_seconds));
-                                $("title").html(` ${whiteLabelCompany} | ` + secondsToDuration(at_work_seconds));
                             }, 1000);
                         }
                     }

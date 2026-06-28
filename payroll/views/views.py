@@ -77,9 +77,18 @@ def _payslip_queryset_for_request(request):
     company = current_company(request)
     if company:
         qs = qs.filter(employee_id__employee_work_info__company_id=company)
-    if request.user.has_perm("payroll.add_payslip") or request.user.has_perm("payroll.change_payslip"):
+    user = request.user
+    employee = getattr(user, "employee_get", None)
+    # Company-wide payslip access is for management tiers only. A plain employee
+    # only ever sees their OWN payslip, even if the payslip perm was granted to
+    # their role (granting view/change must not leak peers' salaries).
+    from base.rbac import hierarchy_rank
+
+    is_mgmt = hierarchy_rank(user) <= 2 or (employee and employee.reporting_manager.exists())
+    if is_mgmt and (
+        user.has_perm("payroll.add_payslip") or user.has_perm("payroll.change_payslip")
+    ):
         return qs
-    employee = getattr(request.user, "employee_get", None)
     return qs.filter(employee_id=employee) if employee else qs.none()
 
 # Create your views here.

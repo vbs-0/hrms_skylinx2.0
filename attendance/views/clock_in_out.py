@@ -524,8 +524,10 @@ def clock_out(request):
 
             # Refresh employee from DB so template re-evaluates is_clocked_in correctly
             employee.refresh_from_db()
+            # run=0: after clocking OUT the timer must stop (passing run=1 here was
+            # the "timer starts on check-out" reversal bug).
             return render(
-                request, "attendance/components/in_out_component.html", {"run": 1}
+                request, "attendance/components/in_out_component.html", {"run": 0}
             )
         return HttpResponse(
             _(

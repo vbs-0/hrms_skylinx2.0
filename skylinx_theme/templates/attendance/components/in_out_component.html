@@ -109,14 +109,15 @@
         clearInterval(window.timeRunnerInterval);
     }
 
-    $(".time-runner").not("title").html(secondsToDuration(at_work_seconds));
-    $("title.time-runner").html(` ${whiteLabelCompany} | ` + secondsToDuration(at_work_seconds));
+    // Show the elapsed time on the in-app toolbar pill only. We deliberately do
+    // NOT hijack the browser tab <title> — that made the timer appear to "run in
+    // the header" and lingered after clock-out.
+    $("div.time-runner").html(secondsToDuration(at_work_seconds));
 
     if (run) {
         window.timeRunnerInterval = setInterval(() => {
             at_work_seconds = parseInt(at_work_seconds) + 1;
             $("div.time-runner").html(secondsToDuration(at_work_seconds));
-            $("title").html(` ${whiteLabelCompany} | ` + secondsToDuration(at_work_seconds));
         }, 1000);
     }
 </script>
