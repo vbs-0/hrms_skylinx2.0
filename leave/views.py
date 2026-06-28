@@ -1067,6 +1067,16 @@ def leave_request_approve(request, id, emp_id=None):
         )
     employee_id = leave_request.employee_id
     leave_type_id = leave_request.leave_type_id
+    # Hierarchy: only the CEO/owner tier may approve their OWN leave. HR and
+    # employees must have theirs approved by someone above them (commit 1d27ddfd
+    # had dropped this guard entirely, letting anyone self-approve).
+    from base.rbac import hierarchy_rank
+
+    if hierarchy_rank(request.user) > 1 and employee_id == request.user.employee_get:
+        messages.error(request, _("You cannot approve your own leave request."))
+        if emp_id is not None:
+            return redirect(f"/employee/employee-view/{emp_id}/")
+        return SkylinxRedirect(request)
     try:
         available_leave = AvailableLeave.objects.get(
             leave_type_id=leave_type_id, employee_id=employee_id
