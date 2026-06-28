@@ -23,14 +23,6 @@
                         <span class="hr-Check-In-out-text" {% if enabled_timerunner %} style="display: none;" {% endif %}>{% trans "Check-In" %}</span>
                         <div class="at-work-seconds"></div>
                     </button>
-                    {% if enabled_timerunner %}
-                        <script>
-                            $(document).ready(function () {
-                            $('.at-work-seconds').html(secondsToDuration({{get_forecasted_at_work.forecasted_at_work_seconds}}))
-                            });
-                            run = 0
-                        </script>
-                    {% endif %}
                 {% endif %}
             {% endif %}
         {% endif %}

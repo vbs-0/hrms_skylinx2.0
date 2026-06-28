@@ -306,15 +306,12 @@
                 if (b) b.click();
             });
 
-            // HTMX does not execute <script> tags in swapped content by default.
-            // This listens for swaps on the attendance container and manually initializes the timer.
             document.body.addEventListener("htmx:afterSwap", function (event) {
                 if (event.detail.target && event.detail.target.id === "attendance-activity-container") {
-                    var el = event.detail.target.querySelector("[data-run]");
+                    var el = event.detail.target.querySelector(".at_work_seconds[data-run]");
                     if (el) {
                         var run = parseInt(el.getAttribute("data-run")) || 0;
                         var at_work_seconds = parseInt(el.getAttribute("data-at-work-seconds")) || 0;
-                        var whiteLabelCompany = $("#whiteLabelCompany").data("company") || "";
 
                         if (window.timeRunnerInterval) {
                             clearInterval(window.timeRunnerInterval);
@@ -333,10 +330,7 @@
                             return formattedHours + ":" + formattedMinutes + ":" + formattedSeconds;
                         }
 
-                        // Immediately refresh the displayed timer (toolbar pill only,
-                        // not the browser tab title).
-                        $("div.time-runner").not("title").html(secondsToDuration(at_work_seconds));
-                        $(".at-work-seconds").html(secondsToDuration(at_work_seconds));
+                        $("div.time-runner").html(secondsToDuration(at_work_seconds));
 
                         if (run) {
                             window.timeRunnerInterval = setInterval(() => {
