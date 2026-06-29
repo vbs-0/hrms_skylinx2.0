@@ -403,9 +403,19 @@ class PolicyAcceptanceMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        try:
+            from django.urls import reverse
+
+            # The gate + accept endpoints MUST be excluded by their real (app-prefixed)
+            # paths, or the gate redirects to itself forever (ERR_TOO_MANY_REDIRECTS).
+            gate_path = reverse("policy-gate").rstrip("/")
+            accept_path = reverse("accept-policy").rstrip("/")
+        except Exception:
+            return self.get_response(request)
+
         excluded_paths = [
-            "/policy-gate",
-            "/accept-policy",
+            gate_path,
+            accept_path,
             "/login",
             "/logout",
             "/change-password",
@@ -437,7 +447,7 @@ class PolicyAcceptanceMiddleware:
 
                 employee = getattr(user, "employee_get", None)
                 if employee and pending_mandatory_policies(employee).exists():
-                    return redirect("policy-gate")
+                    return redirect(gate_path)
         except Exception:
             pass
 
