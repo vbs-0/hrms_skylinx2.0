@@ -5726,6 +5726,7 @@ def shift_request_approve(request, id):
         work_info = shift_request.employee_id.employee_work_info
     except Exception:
         work_info = None
+    applied = False
     if work_info and (
         shift_request.is_permanent_shift
         or (_rd and _rd <= today_date and (_rt is None or today_date <= _rt))
@@ -5733,17 +5734,37 @@ def shift_request_approve(request, id):
         work_info.shift_id = shift_request.shift_id
         work_info.save()
         shift_request.shift_changed = True
+        applied = True
     shift_request.approved = True
     shift_request.canceled = False
 
     if shift_request.reallocate_to:
-        shift_request.reallocate_to.employee_work_info.shift_id = (
-            shift_request.previous_shift_id
-        )
-        shift_request.reallocate_to.employee_work_info.save()
+        try:
+            reallocate_wi = shift_request.reallocate_to.employee_work_info
+            reallocate_wi.shift_id = shift_request.previous_shift_id
+            reallocate_wi.save()
+        except Exception:
+            pass
 
     shift_request.save()
-    messages.success(request, _("Shift has been approved."))
+    # Tell the approver what actually happened instead of always claiming success.
+    if work_info is None:
+        messages.warning(
+            request,
+            _(
+                "Shift request approved, but %(emp)s has no work information yet, "
+                "so the shift could not be assigned. Add the employee's work "
+                "information to apply it."
+            )
+            % {"emp": shift_request.employee_id},
+        )
+    elif not applied:
+        messages.info(
+            request,
+            _("Shift request approved. The shift will take effect on the requested date."),
+        )
+    else:
+        messages.success(request, _("Shift has been approved."))
 
     recipients = [shift_request.employee_id.employee_user_id]
     if shift_request.reallocate_to:
