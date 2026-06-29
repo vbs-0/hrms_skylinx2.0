@@ -545,10 +545,13 @@ class MobileAdminSettingsAPIView(APIView):
         payload = request.data
         
         if company:
-            gf, created = GeoFencing.objects.get_or_create(
-                company_id=company, 
-                defaults={"latitude": 0.0, "longitude": 0.0, "radius_in_meters": 100}
-            )
+            # Don't get_or_create with (0,0) defaults: GeoFencing.clean() live
+            # reverse-geocodes coords, and (0.0, 0.0) fails validation before the
+            # real lat/lng from the payload are ever applied. Build/fetch first,
+            # apply payload, then save once with valid coordinates.
+            gf = GeoFencing.objects.filter(company_id=company).first()
+            if gf is None:
+                gf = GeoFencing(company_id=company, latitude=0.0, longitude=0.0, radius_in_meters=100)
             if "geofenceRadiusMeters" in payload:
                 gf.radius_in_meters = int(payload["geofenceRadiusMeters"])
             if "officeLat" in payload:

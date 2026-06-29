@@ -139,26 +139,34 @@ class MobileCheckInAPIView(APIView):
         date_today = date.today()
         attendance_date = date_today
         day_name = date_today.strftime("%A").lower()
-        day = EmployeeShiftDay.objects.filter(day=day_name).first()
-        
-        if not day:
-            # Fallback to general Mon-Sun days
-            day = EmployeeShiftDay.objects.first()
+        # Day-of-week rows are global lookup data; the company M2M may not be linked
+        # for this tenant, so fall back to the unscoped row to avoid a None day.
+        day = (
+            EmployeeShiftDay.objects.filter(day=day_name).first()
+            or EmployeeShiftDay.objects.entire().filter(day=day_name).first()
+            or EmployeeShiftDay.objects.entire().first()
+        )
 
         now_str = timezone.now().strftime("%H:%M")
         now_sec = strtime_seconds(now_str)
         mid_day_sec = strtime_seconds("12:00")
-        
-        minimum_hour, start_time_sec, end_time_sec = shift_schedule_today(
-            day=day, shift=shift
-        )
+
+        if day:
+            minimum_hour, start_time_sec, end_time_sec = shift_schedule_today(
+                day=day, shift=shift
+            )
+        else:
+            minimum_hour, start_time_sec, end_time_sec = "00:00", 0, 0
         
         # Handle night shift logic
         if start_time_sec > end_time_sec:
             if mid_day_sec > now_sec:
                 date_yesterday = date_today - timedelta(days=1)
                 day_yesterday_name = date_yesterday.strftime("%A").lower()
-                day_yesterday = EmployeeShiftDay.objects.filter(day=day_yesterday_name).first()
+                day_yesterday = (
+                    EmployeeShiftDay.objects.filter(day=day_yesterday_name).first()
+                    or EmployeeShiftDay.objects.entire().filter(day=day_yesterday_name).first()
+                )
                 if day_yesterday:
                     minimum_hour, start_time_sec, end_time_sec = shift_schedule_today(
                         day=day_yesterday, shift=shift

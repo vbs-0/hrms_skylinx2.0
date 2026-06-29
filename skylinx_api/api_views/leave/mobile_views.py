@@ -464,7 +464,7 @@ class MobileHolidaysAPIView(APIView):
         }, status=200)
 
     def post(self, request):
-        if not (is_platform_owner(request.user) or request.user.groups.filter(name="Admin").exists()):
+        if not (is_platform_owner(request.user) or request.user.groups.filter(name__endswith="Admin").exists() or request.user.has_perm("leave.view_leaverequest")):
             return Response({
                 "success": False,
                 "message": "Only admins can create holidays"
@@ -526,7 +526,7 @@ class MobileAdminLeaveListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        if not (is_platform_owner(request.user) or request.user.groups.filter(name="Admin").exists()):
+        if not (is_platform_owner(request.user) or request.user.groups.filter(name__endswith="Admin").exists() or request.user.has_perm("leave.view_leaverequest")):
             return Response({
                 "success": False,
                 "message": "Only admins can view leave list",
@@ -594,7 +594,7 @@ class MobileAdminLeaveReviewAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk):
-        if not (is_platform_owner(request.user) or request.user.groups.filter(name="Admin").exists()):
+        if not (is_platform_owner(request.user) or request.user.groups.filter(name__endswith="Admin").exists() or request.user.has_perm("leave.change_leaverequest")):
             return Response({
                 "success": False,
                 "message": "Only admins can review leave requests"
@@ -680,7 +680,7 @@ class MobileAdminHolidayDeleteAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk):
-        if not (is_platform_owner(request.user) or request.user.groups.filter(name="Admin").exists()):
+        if not (is_platform_owner(request.user) or request.user.groups.filter(name__endswith="Admin").exists() or request.user.has_perm("leave.view_leaverequest")):
             return Response({
                 "success": False,
                 "message": "Only admins can delete holidays"
