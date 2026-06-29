@@ -416,6 +416,7 @@ class PolicyAcceptanceMiddleware:
         excluded_paths = [
             gate_path,
             accept_path,
+            "/api",
             "/login",
             "/logout",
             "/change-password",

@@ -1645,14 +1645,16 @@ class EmployeeShiftScheduleForm(ModelForm):
         if not self.instance.pk:
             shift_id = self.data.get("shift_id")
             for day in self.data.getlist("day"):
-                # ponytail: skip (shift, day) pairs that already exist instead of
-                # letting the unique_together raise an unhandled IntegrityError (500).
-                # The unique constraint is GLOBAL on (shift, day), so the check must
-                # bypass the company-scoped manager with .entire() or it misses the
-                # existing row and crashes anyway.
-                if EmployeeShiftSchedule.objects.entire().filter(
+                # The unique constraint is GLOBAL on (shift, day). If the row already
+                # exists (possibly with no company, or another company), don't crash
+                # and don't silently no-op: link THIS company to it so it shows up in
+                # their list. Use .entire() to see rows outside the company scope.
+                existing = EmployeeShiftSchedule.objects.entire().filter(
                     shift_id=shift_id, day_id=day
-                ).exists():
+                ).first()
+                if existing:
+                    if company:
+                        existing.company_id.add(company)
                     continue
                 data_copy = self.data.copy()
                 data_copy.update({"day": str(day)})

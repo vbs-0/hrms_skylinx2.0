@@ -5717,7 +5717,10 @@ def shift_request_approve(request, id):
 
     today_date = datetime.today().date()
     if not shift_request.is_permanent_shift:
-        if shift_request.requested_date <= today_date <= shift_request.requested_till:
+        # requested_till can be null (open-ended request) -> guard the comparison.
+        _rd = shift_request.requested_date
+        _rt = shift_request.requested_till
+        if _rd and _rd <= today_date and (_rt is None or today_date <= _rt):
             shift_request.employee_id.employee_work_info.shift_id = (
                 shift_request.shift_id
             )
