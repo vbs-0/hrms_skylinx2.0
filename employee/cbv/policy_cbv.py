@@ -40,7 +40,7 @@ class PolicyFormView(SkylinxFormView):
                 message = _("Policy saved")
             else:
                 message = _("Policy updated")
-            policy = form.save()
+            policy, _attachments = form.save()
             if is_new:
                 from base.models import Company
                 selected_company = self.request.session.get("selected_company")

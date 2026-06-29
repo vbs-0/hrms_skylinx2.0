@@ -1643,8 +1643,14 @@ class EmployeeShiftScheduleForm(ModelForm):
         request = getattr(_thread_locals, "request", None)
         company = current_company(request) if request else None
         if not self.instance.pk:
+            shift_id = self.data.get("shift_id")
             for day in self.data.getlist("day"):
-                # if int(day) != int(instance.day.id):
+                # ponytail: skip (shift, day) pairs that already exist instead of
+                # letting the unique_together raise an unhandled IntegrityError (500).
+                if EmployeeShiftSchedule.objects.filter(
+                    shift_id=shift_id, day_id=day
+                ).exists():
+                    continue
                 data_copy = self.data.copy()
                 data_copy.update({"day": str(day)})
                 shift_schedule = EmployeeShiftScheduleUpdateForm(data_copy).save(

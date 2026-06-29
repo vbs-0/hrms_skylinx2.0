@@ -479,7 +479,9 @@ def clock_out(request):
             if request.__dict__.get("date"):
                 date_today = request.date
             day = date_today.strftime("%A").lower()
-            day_obj = EmployeeShiftDay.objects.filter(day=day).first()
+            # ponytail: days are shared config; query/create unscoped so a
+            # company-scoped miss doesn't spawn a duplicate row on every clock-in.
+            day_obj = EmployeeShiftDay.objects.entire().filter(day=day).first()
             if not day_obj:
                 day_obj = EmployeeShiftDay.objects.create(day=day)
             day = day_obj
@@ -491,7 +493,9 @@ def clock_out(request):
             if attendance is not None:
                 if not attendance.attendance_day:
                     day_name = attendance.attendance_date.strftime("%A").lower()
-                    attendance.attendance_day, _ = EmployeeShiftDay.objects.get_or_create(day=day_name)
+                    attendance.attendance_day = EmployeeShiftDay.objects.entire().filter(
+                        day=day_name
+                    ).first() or EmployeeShiftDay.objects.create(day=day_name)
                     attendance.save(update_fields=["attendance_day"])
                 day = attendance.attendance_day
             now = timezone.now().strftime("%H:%M")
