@@ -120,12 +120,35 @@ class MobileCheckInAPIView(APIView):
                 pass
 
         # 4. Perform check-in (Sync with EMPLINX Core Shift/Attendance logic)
-        if request.user.employee_get.check_online():
-            return Response({
-                "success": False,
-                "message": "Already checked-in",
-                "errorCode": "ALREADY_CHECKED_IN"
-            }, status=400)
+        # Canonical clock state = an OPEN AttendanceActivity (the same thing the app
+        # shows from /attendance/my/). check_online() instead looked at a 2-day
+        # Attendance window, so a forgotten checkout YESTERDAY blocked today's
+        # check-in while the app's today-only view said "not checked in" -> the
+        # reported "already checked in but home says not checked in" mismatch.
+        open_activity = AttendanceActivity.objects.filter(
+            employee_id=employee, clock_out__isnull=True
+        ).order_by("-id").first()
+        if open_activity:
+            if open_activity.attendance_date >= date.today():
+                return Response({
+                    "success": False,
+                    "message": "Already checked-in",
+                    "errorCode": "ALREADY_CHECKED_IN"
+                }, status=400)
+            # Stale open activity from a previous day (forgot to check out) ->
+            # auto-close it so the user isn't locked out, then check in fresh today.
+            try:
+                clock_out(AttendanceRequest(
+                    user=request.user,
+                    date=open_activity.attendance_date,
+                    time=timezone.now().time(),
+                    datetime=timezone.now(),
+                ))
+            except Exception:
+                open_activity.clock_out = timezone.now()
+                open_activity.clock_out_date = date.today()
+                open_activity.out_datetime = timezone.now()
+                open_activity.save()
 
         work_info = employee.employee_work_info if hasattr(employee, "employee_work_info") else None
         if not work_info or not work_info.shift_id:
@@ -246,7 +269,12 @@ class MobileCheckOutAPIView(APIView):
                 "errorCode": "NOT_AN_EMPLOYEE"
             }, status=400)
 
-        if not request.user.employee_get.check_online():
+        # Allow checkout only when there is an OPEN AttendanceActivity (the real
+        # clock state shown in the app), not check_online()'s 2-day window.
+        open_activity = AttendanceActivity.objects.filter(
+            employee_id=employee, clock_out__isnull=True
+        ).order_by("-id").first()
+        if not open_activity:
             return Response({
                 "success": False,
                 "message": "Already checked-out",
