@@ -55,7 +55,7 @@ class AttendanceActivity(SkylinxModel):
 
     employee_id = models.ForeignKey(
         Employee,
-        on_delete=models.SET_NULL, null=True,
+        on_delete=models.CASCADE,
         related_name="employee_attendance_activities",
         verbose_name=_("Employee"),
     )
@@ -210,7 +210,8 @@ class Attendance(SkylinxModel):
 
     employee_id = models.ForeignKey(
         Employee,
-        on_delete=models.SET_NULL, null=True,
+        on_delete=models.CASCADE,
+        null=True,
         related_name="employee_attendances",
         verbose_name=_("Employee"),
     )
@@ -970,7 +971,7 @@ class AttendanceRequestComment(SkylinxModel):
     objects = SkylinxCompanyManager()
 
     request_id = models.ForeignKey(Attendance, on_delete=models.CASCADE)
-    employee_id = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True)
+    employee_id = models.ForeignKey(Employee, on_delete=models.CASCADE)
     files = models.ManyToManyField(AttendanceRequestFile, blank=True)
     comment = models.TextField(null=True, verbose_name=_("Comment"), max_length=255)
 
@@ -985,7 +986,7 @@ class AttendanceOverTime(SkylinxModel):
 
     employee_id = models.ForeignKey(
         Employee,
-        on_delete=models.SET_NULL, null=True,
+        on_delete=models.CASCADE,
         related_name="employee_overtime",
         verbose_name=_("Employee"),
     )
@@ -1590,7 +1591,7 @@ class WorkRecords(models.Model):
     record_name = models.CharField(max_length=250, null=True, blank=True)
     work_record_type = models.CharField(max_length=10, null=True, choices=choices)
     employee_id = models.ForeignKey(
-        Employee, on_delete=models.SET_NULL, null=True, verbose_name=_("Employee")
+        Employee, on_delete=models.CASCADE, verbose_name=_("Employee")
     )
     date = models.DateField(null=True, blank=True)
     at_work = models.CharField(

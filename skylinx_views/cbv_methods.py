@@ -294,9 +294,15 @@ def hx_request_required(function):
     def _function(request, *args, **kwargs):
         key = "HTTP_HX_REQUEST"
         if key not in request.META.keys():
-            if request.method == "GET" and request.user.is_authenticated:
-                from skylinx.http import SkylinxRedirect
-                return SkylinxRedirect(request)
+            if request.method == "GET":
+                # Direct/refresh/deep-link/bookmark of an htmx-only fragment.
+                # Authenticated -> bounce into the SPA shell; logged-out -> login
+                # (not a dead 405). ponytail: GET is the only browser-navigable verb.
+                if request.user.is_authenticated:
+                    from skylinx.http import SkylinxRedirect
+                    return SkylinxRedirect(request)
+                from django.contrib.auth.views import redirect_to_login
+                return redirect_to_login(request.get_full_path())
             return render(request, "405.html", status=405)
         return function(request, *args, **kwargs)
 

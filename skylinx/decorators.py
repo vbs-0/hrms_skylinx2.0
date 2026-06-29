@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 from django.apps import apps
 from django.contrib import messages
 from django.http import HttpResponse
+from django.contrib.auth.views import redirect_to_login
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.datastructures import MultiValueDictKeyError
@@ -271,8 +272,13 @@ def hx_request_required(view_func):
     def wrapped_view(request, *args, **kwargs):
         key = "HTTP_HX_REQUEST"
         if key not in request.META.keys():
-            if request.method == "GET" and request.user.is_authenticated:
-                return SkylinxRedirect(request)
+            if request.method == "GET":
+                # Direct/refresh/deep-link/bookmark of an htmx-only fragment.
+                # Authenticated -> bounce into the SPA shell; logged-out -> login
+                # (not a dead 405). ponytail: GET is the only browser-navigable verb.
+                if request.user.is_authenticated:
+                    return SkylinxRedirect(request)
+                return redirect_to_login(request.get_full_path())
             return render(request, "405.html", status=405)
         return view_func(request, *args, **kwargs)
 
