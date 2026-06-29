@@ -437,6 +437,18 @@ class MobileHolidaysAPIView(APIView):
         if not weekends:
             weekends = [6, 7]
 
+        # Exact calendar dates of company off-days this month (supports rules
+        # like "2nd Saturday"), so the app can shade them precisely.
+        company_leave_dates = []
+        if company_leaves.exists():
+            try:
+                from leave.methods import company_leave_dates_list
+                for dt in company_leave_dates_list(company_leaves, month_start):
+                    if dt.month == month and dt.year == year:
+                        company_leave_dates.append(dt.isoformat())
+            except Exception:
+                pass
+
         return Response({
             "success": True,
             "message": "Holidays and leaves loaded",
@@ -447,6 +459,7 @@ class MobileHolidaysAPIView(APIView):
                 "holidays": holidays_list,
                 "leaves": leaves_list,
                 "weekends": weekends,
+                "companyLeaves": company_leave_dates,
             }
         }, status=200)
 

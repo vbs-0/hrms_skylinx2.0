@@ -1539,7 +1539,23 @@ def generate_payslip_pdf(template_path, context, html=False):
         return response
     except OSError as e:
         if "wkhtmltopdf" in str(e):
-            # Fallback to HTML if wkhtmltopdf is not installed
+            # Fallback to pure-Python xhtml2pdf when the wkhtmltopdf binary
+            # isn't installed; render the same HTML to a real PDF stream.
+            try:
+                from xhtml2pdf import pisa
+                import io
+
+                result = io.BytesIO()
+                pisa_status = pisa.CreatePDF(html_content, dest=result)
+                if not pisa_status.err:
+                    response = HttpResponse(
+                        result.getvalue(), content_type="application/pdf"
+                    )
+                    response["Content-Disposition"] = "inline; filename=payslip.pdf"
+                    return response
+            except Exception:
+                pass
+            # Last resort: serve the HTML directly
             return HttpResponse(html_content, content_type="text/html")
         return HttpResponse(f"Error generating PDF: {str(e)}", status=500)
     except Exception as e:
