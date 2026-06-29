@@ -888,8 +888,9 @@ class AvailableLeave(SkylinxModel):
     # Setting the reset date for carryforward leaves
 
     def set_reset_date(self, assigned_date, available_leave):
-        if available_leave.leave_type_id.reset_based == "monthly":
-            reset_day = available_leave.leave_type_id.reset_day
+        lt = available_leave.leave_type_id
+        if lt.reset_based == "monthly":
+            reset_day = lt.reset_day
             if reset_day == "last day":
                 temp_date = assigned_date + relativedelta(months=0, day=31)
                 if assigned_date < temp_date:
@@ -898,18 +899,26 @@ class AvailableLeave(SkylinxModel):
                     reset_date = assigned_date + relativedelta(months=1, day=31)
 
             else:
-                temp_date = assigned_date + relativedelta(months=0, day=int(reset_day))
+                try:
+                    day_val = int(reset_day) if reset_day is not None else 1
+                except (ValueError, TypeError):
+                    day_val = 1
+                temp_date = assigned_date + relativedelta(months=0, day=day_val)
                 if assigned_date < temp_date:
                     reset_date = temp_date
                 else:
                     reset_date = assigned_date + relativedelta(
-                        months=1, day=int(reset_day)
+                        months=1, day=day_val
                     )
 
-        elif available_leave.leave_type_id.reset_based == "weekly":
+        elif lt.reset_based == "weekly":
+            try:
+                weekend_val = int(lt.reset_weekend) if lt.reset_weekend is not None else 0
+            except (ValueError, TypeError):
+                weekend_val = 0
             temp = 7 - (
                 assigned_date.isoweekday()
-                - int(available_leave.leave_type_id.reset_weekend)
+                - weekend_val
                 - 1
             )
             if temp != 7:
@@ -917,8 +926,11 @@ class AvailableLeave(SkylinxModel):
             else:
                 reset_date = assigned_date + relativedelta(days=7)
         else:
-            reset_month = int(available_leave.leave_type_id.reset_month)
-            reset_day = available_leave.leave_type_id.reset_day
+            try:
+                reset_month = int(lt.reset_month) if lt.reset_month is not None else 1
+            except (ValueError, TypeError):
+                reset_month = 1
+            reset_day = lt.reset_day
 
             if reset_day == "last day":
                 temp_date = assigned_date + relativedelta(
@@ -931,15 +943,18 @@ class AvailableLeave(SkylinxModel):
                         years=1, month=reset_month, day=31
                     )
             else:
+                try:
+                    day_val = int(reset_day) if reset_day is not None else 1
+                except (ValueError, TypeError):
+                    day_val = 1
                 temp_date = assigned_date + relativedelta(
-                    years=0, month=reset_month, day=int(reset_day)
+                    years=0, month=reset_month, day=day_val
                 )
                 if assigned_date < temp_date:
                     reset_date = temp_date
                 else:
-                    # nth_day = int(reset_day)
                     reset_date = assigned_date + relativedelta(
-                        years=1, month=reset_month, day=int(reset_day)
+                        years=1, month=reset_month, day=day_val
                     )
 
         return reset_date

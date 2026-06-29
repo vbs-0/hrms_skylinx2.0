@@ -80,7 +80,13 @@ def late_come(attendance, start_time, end_time, shift):
     if not enable_late_come_early_out_tracking(None).get("tracking"):
         return
     request = getattr(_thread_locals, "request", None)
-    now_sec = strtime_seconds(attendance.attendance_clock_in.strftime("%H:%M"))
+    clock_in_time = attendance.attendance_clock_in
+    if isinstance(clock_in_time, str):
+        try:
+            clock_in_time = datetime.strptime(clock_in_time, "%H:%M:%S")
+        except ValueError:
+            clock_in_time = datetime.strptime(clock_in_time, "%H:%M")
+    now_sec = strtime_seconds(clock_in_time.strftime("%H:%M"))
     mid_day_sec = strtime_seconds("12:00")
 
     # Checking gracetime allowance before creating late come
@@ -403,7 +409,10 @@ def early_out(attendance, start_time, end_time, shift):
 
     clock_out_time = attendance.attendance_clock_out
     if isinstance(clock_out_time, str):
-        clock_out_time = datetime.strptime(clock_out_time, "%H:%M:%S")
+        try:
+            clock_out_time = datetime.strptime(clock_out_time, "%H:%M:%S")
+        except ValueError:
+            clock_out_time = datetime.strptime(clock_out_time, "%H:%M")
 
     now_sec = strtime_seconds(clock_out_time.strftime("%H:%M"))
     mid_day_sec = strtime_seconds("12:00")

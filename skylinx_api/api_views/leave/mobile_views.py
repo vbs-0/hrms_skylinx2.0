@@ -25,12 +25,14 @@ class MobileLeaveApplyAPIView(APIView):
                 "errorCode": "NOT_AN_EMPLOYEE"
             }, status=400)
 
-        leave_type_id    = request.data.get("leaveTypeId")
-        leave_type_name  = request.data.get("leaveType")
-        start_date_str   = request.data.get("startDate")
-        start_date_breakdown = request.data.get("startDateBreakdown", "full_day")
-        end_date_str     = request.data.get("endDate")
-        end_date_breakdown   = request.data.get("endDateBreakdown", "full_day")
+        # Accept both camelCase (default) and snake_case field names; under
+        # multipart uploads Flutter may send either.
+        leave_type_id    = request.data.get("leaveTypeId") or request.data.get("leave_type_id")
+        leave_type_name  = request.data.get("leaveType") or request.data.get("leave_type")
+        start_date_str   = request.data.get("startDate") or request.data.get("start_date")
+        start_date_breakdown = request.data.get("startDateBreakdown") or request.data.get("start_date_breakdown") or "full_day"
+        end_date_str     = request.data.get("endDate") or request.data.get("end_date")
+        end_date_breakdown   = request.data.get("endDateBreakdown") or request.data.get("end_date_breakdown") or "full_day"
         reason           = request.data.get("reason", "")
         attachment_file  = request.FILES.get("attachment")
 
@@ -63,7 +65,10 @@ class MobileLeaveApplyAPIView(APIView):
         # ── Leave type lookup ─────────────────────────────────────────────────
         leave_type = None
         if leave_type_id:
-            leave_type = LeaveType.objects.filter(id=leave_type_id).first()
+            try:
+                leave_type = LeaveType.objects.filter(id=int(leave_type_id)).first()
+            except (ValueError, TypeError):
+                leave_type = LeaveType.objects.filter(id=leave_type_id).first()
         if not leave_type and leave_type_name:
             leave_type = LeaveType.objects.filter(name__icontains=leave_type_name).first()
 
@@ -345,16 +350,31 @@ class MobileHolidaysAPIView(APIView):
         month_start = date(year, month, 1)
         month_end = date(year, month, num_days)
 
-        # 1. Fetch holidays from leave.Holiday overlapping this month
-        qs1 = Holiday.objects.filter(
+        # Resolve the selected company so we can include global (company_id NULL)
+        # holidays without leaking other tenants' data. The default scoped manager
+        # filters on strict company_id equality, which silently drops globals.
+        from skylinx.skylinx_middlewares import get_selected_company
+        company = get_selected_company()
+        if company == "all":
+            company_filter = Q()  # platform owner: all tenants
+        elif company:
+            company_filter = Q(company_id=company) | Q(company_id__isnull=True)
+        else:
+            company_filter = Q(company_id__isnull=True)  # no tenant leak: globals only
+
+        overlap_filter = (
             (Q(start_date__lte=month_end) & Q(end_date__gte=month_start)) |
             (Q(end_date__isnull=True) & Q(start_date__lte=month_end) & Q(start_date__gte=month_start))
+        )
+
+        # 1. Fetch holidays from leave.Holiday overlapping this month (incl. globals)
+        qs1 = Holiday.objects.entire().filter(company_filter).filter(
+            overlap_filter
         ).order_by("start_date")
 
-        # 2. Fetch holidays from base.Holidays overlapping this month
-        qs2 = Holidays.objects.filter(
-            (Q(start_date__lte=month_end) & Q(end_date__gte=month_start)) |
-            (Q(end_date__isnull=True) & Q(start_date__lte=month_end) & Q(start_date__gte=month_start))
+        # 2. Fetch holidays from base.Holidays overlapping this month (incl. globals)
+        qs2 = Holidays.objects.entire().filter(company_filter).filter(
+            overlap_filter
         ).order_by("start_date")
 
         holidays_list = []
@@ -402,6 +422,21 @@ class MobileHolidaysAPIView(APIView):
                 "totalDays": float(l.requested_days or 1.0)
             })
 
+        # Dynamic weekend (off-day) mapping from CompanyLeaves, matching the web
+        # holiday calendar. Python weekday 0-6 -> Dart/ISO 1-7. Default Sat/Sun.
+        from base.models import CompanyLeaves
+        company_leaves = CompanyLeaves.objects.entire().filter(company_filter)
+        weekends = []
+        for cl in company_leaves:
+            try:
+                val = int(cl.based_on_week_day) + 1
+                if val not in weekends:
+                    weekends.append(val)
+            except (ValueError, TypeError):
+                pass
+        if not weekends:
+            weekends = [6, 7]
+
         return Response({
             "success": True,
             "message": "Holidays and leaves loaded",
@@ -411,6 +446,7 @@ class MobileHolidaysAPIView(APIView):
                 "monthName": calendar.month_name[month],
                 "holidays": holidays_list,
                 "leaves": leaves_list,
+                "weekends": weekends,
             }
         }, status=200)
 
