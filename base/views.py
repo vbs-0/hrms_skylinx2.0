@@ -1252,11 +1252,24 @@ def home(request):
         except Exception:
             return 0
 
-    pending_leaves_count = get_count_or_zero('leave', 'LeaveRequest', {'status': 'requested'})
-    onboarding_candidates_count = get_count_or_zero('onboarding', 'OnboardingCandidate')
+    # These are APPROVER/admin tasks. Gate each behind the relevant permission so
+    # a regular employee doesn't see (or get a count of) other people's pending
+    # approvals, onboarding, or payroll status on their home card. has_perm()
+    # already returns True for superusers/owner.
+    user = request.user
+    can_approve_leave = user.has_perm("leave.view_leaverequest") or user.has_perm("leave.change_leaverequest")
+    can_onboard = user.has_perm("recruitment.view_candidate") or user.has_perm("employee.add_employee")
+    can_view_payroll = user.has_perm("payroll.view_payslip") or user.has_perm("payroll.add_payslip")
+
+    pending_leaves_count = (
+        get_count_or_zero('leave', 'LeaveRequest', {'status': 'requested'}) if can_approve_leave else 0
+    )
+    onboarding_candidates_count = (
+        get_count_or_zero('onboarding', 'OnboardingCandidate') if can_onboard else 0
+    )
 
     employee_add_alert = onboarding_candidates_count > 0
-    is_payroll_time = get_count_or_zero('payroll', 'Payslip') == 0
+    is_payroll_time = can_view_payroll and get_count_or_zero('payroll', 'Payslip') == 0
 
     unread_notifications_count = 0
     recent_notifications = []
