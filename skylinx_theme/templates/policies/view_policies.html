@@ -4,7 +4,7 @@
 {% block content %}
     <div hx-get="{% url 'policy-nav' %}" hx-trigger="load"></div>
 
-    {% if perms.employee.view_policy %}
+    {% if perms.employee.add_policy %}
         <div style="text-align:right;margin:8px 0;">
             <a href="{% url 'policy-acceptance-status' %}" class="oh-btn oh-btn--secondary">
                 <ion-icon name="checkmark-done-outline"></ion-icon> {% trans "Acceptance status" %}

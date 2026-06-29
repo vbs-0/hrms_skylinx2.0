@@ -558,18 +558,34 @@ def policy_gate(request):
 
 
 @login_required
-@permission_required("employee.view_policy")
+@permission_required("employee.add_policy")
 def policy_acceptance_status(request):
-    """HR/CEO view: per mandatory policy, who accepted vs who is still pending."""
+    """HR/CEO view: per mandatory policy, who accepted vs who is still pending.
+    Strictly scoped to the viewer's own company so one company never sees
+    another company's policies or employees."""
+    viewer = getattr(request.user, "employee_get", None)
+    company = getattr(
+        getattr(viewer, "employee_work_info", None), "company_id", None
+    )
     rows = []
-    for policy in Policy.objects.filter(mandatory=True):
-        accepted = policy.accepted_employees.all()
+    if not company:
+        return render(request, "policies/acceptance_status.html", {"rows": rows})
+
+    # Only policies explicitly tied to this company (excludes orphan/shared rows).
+    policies = Policy.objects.filter(mandatory=True, company_id=company).distinct()
+    company_employees = Employee.objects.filter(
+        employee_work_info__company_id=company
+    )
+    for policy in policies:
+        accepted = policy.accepted_employees.filter(
+            employee_work_info__company_id=company
+        )
         if policy.is_visible_to_all:
-            applicable = Employee.objects.filter(
-                employee_work_info__company_id__in=policy.company_id.all()
-            ).distinct()
+            applicable = company_employees
         else:
-            applicable = policy.specific_employees.all()
+            applicable = policy.specific_employees.filter(
+                employee_work_info__company_id=company
+            )
         accepted_ids = list(accepted.values_list("id", flat=True))
         rows.append(
             {
@@ -578,6 +594,4 @@ def policy_acceptance_status(request):
                 "pending": applicable.exclude(id__in=accepted_ids),
             }
         )
-    return render(
-        request, "policies/acceptance_status.html", {"rows": rows}
-    )
+    return render(request, "policies/acceptance_status.html", {"rows": rows})
