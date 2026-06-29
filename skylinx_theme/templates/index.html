@@ -326,7 +326,9 @@
                     var el = document.querySelector(".at_work_seconds[data-run]");
                     enabled = !!(el && el.hasAttribute("data-timer-on"));
                     if (!enabled) { running = false; return; }
-                    base = parseInt(el.getAttribute("data-at-work-seconds")) || 0;
+                    // clamp >= 0: a negative server base (e.g. a TZ glitch) must
+                    // not freeze the pill at 00:00:00 for hours.
+                    base = Math.max(0, parseInt(el.getAttribute("data-at-work-seconds")) || 0);
                     running = (parseInt(el.getAttribute("data-run")) || 0) === 1;
                     startMs = Date.now();
                 }

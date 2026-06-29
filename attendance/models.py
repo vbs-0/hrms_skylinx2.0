@@ -603,7 +603,11 @@ class Attendance(SkylinxModel):
             attendance_date=self.attendance_date, employee_id=self.employee_id
         ).order_by("clock_in")
         at_work_seconds = 0
-        now = timezone.now()
+        # clock_in is stored in local time (in_datetime = timezone.localtime()),
+        # so "now" must also be local — comparing a local clock_in against a UTC
+        # now made the open-activity diff negative by the TZ offset (e.g. -5:30
+        # for IST), which froze the navbar work-timer at 00:00:00.
+        now = timezone.localtime(timezone.now())
         for activity in activities:
             out_time = activity.clock_out
             if out_time is None:
