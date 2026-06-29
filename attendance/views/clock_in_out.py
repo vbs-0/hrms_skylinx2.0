@@ -265,8 +265,12 @@ def clock_in(request):
                 date_today = request.date
             attendance_date = date_today
             day = date_today.strftime("%A").lower()
-            day, _ = EmployeeShiftDay.objects.get_or_create(day=day)
-            now = timezone.now().strftime("%H:%M")
+            day = EmployeeShiftDay.objects.entire().filter(day=day).first() or (
+                EmployeeShiftDay.objects.create(day=day)
+            )
+            # ponytail: clock_in time is stored/displayed as-is; use local (IST),
+            # not UTC, or the check-in timestamp shows ~5.5h off.
+            now = timezone.localtime().strftime("%H:%M")
             if request.__dict__.get("time"):
                 now = request.time.strftime("%H:%M")
             now_sec = strtime_seconds(now)
@@ -285,7 +289,9 @@ def clock_in(request):
 
                     date_yesterday = date_today - timedelta(days=1)
                     day_yesterday = date_yesterday.strftime("%A").lower()
-                    day_yesterday, _ = EmployeeShiftDay.objects.get_or_create(day=day_yesterday)
+                    day_yesterday = EmployeeShiftDay.objects.entire().filter(
+                        day=day_yesterday
+                    ).first() or EmployeeShiftDay.objects.create(day=day_yesterday)
                     minimum_hour, start_time_sec, end_time_sec = shift_schedule_today(
                         day=day_yesterday, shift=shift
                     )
@@ -498,7 +504,7 @@ def clock_out(request):
                     ).first() or EmployeeShiftDay.objects.create(day=day_name)
                     attendance.save(update_fields=["attendance_day"])
                 day = attendance.attendance_day
-            now = timezone.now().strftime("%H:%M")
+            now = timezone.localtime().strftime("%H:%M")
             if request.__dict__.get("time"):
                 now = request.time.strftime("%H:%M")
             minimum_hour, start_time_sec, end_time_sec = shift_schedule_today(
