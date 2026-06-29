@@ -5716,15 +5716,19 @@ def shift_request_approve(request, id):
         return JsonResponse({"result": False}) if is_ajax else SkylinxRedirect(request)
 
     today_date = datetime.today().date()
-    if not shift_request.is_permanent_shift:
-        # requested_till can be null (open-ended request) -> guard the comparison.
-        _rd = shift_request.requested_date
-        _rt = shift_request.requested_till
-        if _rd and _rd <= today_date and (_rt is None or today_date <= _rt):
-            shift_request.employee_id.employee_work_info.shift_id = (
-                shift_request.shift_id
-            )
-            shift_request.employee_id.employee_work_info.save()
+    # Apply the shift to the employee NOW if the request is permanent, or its
+    # (date-ranged) window is active today. Future-dated requests are applied by
+    # the switch_shift scheduler when their start date arrives. requested_till
+    # can be null (open-ended) -> guard the comparison.
+    _rd = shift_request.requested_date
+    _rt = shift_request.requested_till
+    if shift_request.is_permanent_shift or (
+        _rd and _rd <= today_date and (_rt is None or today_date <= _rt)
+    ):
+        work_info = shift_request.employee_id.employee_work_info
+        work_info.shift_id = shift_request.shift_id
+        work_info.save()
+        shift_request.shift_changed = True
     shift_request.approved = True
     shift_request.canceled = False
 

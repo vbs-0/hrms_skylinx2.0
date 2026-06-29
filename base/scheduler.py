@@ -258,13 +258,27 @@ def switch_shift():
     """
     This method change employees shift information regards to the shift request
     """
+    from django.db.models import Q
+
     from base.models import ShiftRequest
     from skylinx_auth.models import SkylinxUser
 
     today = date.today()
 
-    shift_requests = ShiftRequest.objects.filter(
-        canceled=False, approved=True, requested_date__exact=today, shift_changed=False
+    # Apply every approved request whose start date has arrived but isn't applied
+    # yet (requested_date <= today, not just == today) so a late approval or a day
+    # the scheduler didn't run never strands a request. Skip date-ranged requests
+    # whose window already ended (undo_shift handles those). .entire() so the
+    # background job (no request context) sees every company's requests.
+    shift_requests = ShiftRequest.objects.entire().filter(
+        canceled=False,
+        approved=True,
+        shift_changed=False,
+        requested_date__lte=today,
+    ).filter(
+        Q(is_permanent_shift=True)
+        | Q(requested_till__isnull=True)
+        | Q(requested_till__gte=today)
     )
     if shift_requests:
         for request in shift_requests:
@@ -300,8 +314,9 @@ def undo_shift():
     from skylinx_auth.models import SkylinxUser
 
     today = date.today()
-    # here will get all the active shift requests
-    shift_requests = ShiftRequest.objects.filter(
+    # here will get all the active shift requests (.entire() so the background job
+    # sees every company's requests, not just the scoped default)
+    shift_requests = ShiftRequest.objects.entire().filter(
         canceled=False,
         approved=True,
         requested_till__lt=today,
