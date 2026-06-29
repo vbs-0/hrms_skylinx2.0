@@ -1,0 +1,55 @@
+{% load static i18n %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% trans "Policy Acceptance Required" %}</title>
+    <link rel="stylesheet" href="{% static 'build/css/style.css' %}" />
+    <style>
+        body { background:#f3f4f6; margin:0; font-family:sans-serif; }
+        .pg-wrap { max-width:760px; margin:40px auto; padding:0 16px; }
+        .pg-card { background:#fff; border-radius:10px; box-shadow:0 1px 6px rgba(0,0,0,.08); padding:28px; }
+        .pg-head { font-size:22px; font-weight:700; margin-bottom:6px; }
+        .pg-sub { color:#6b7280; margin-bottom:22px; }
+        .pg-policy { border:1px solid #e5e7eb; border-radius:8px; padding:16px; margin-bottom:16px; }
+        .pg-policy h3 { margin:0 0 8px; font-size:17px; }
+        .pg-body { color:#374151; white-space:pre-wrap; }
+        .pg-att a { display:inline-block; margin-top:8px; color:#2563eb; }
+        .pg-accept { margin-top:18px; }
+        .pg-btn { background:#2563eb; color:#fff; border:0; border-radius:8px; padding:12px 22px; font-size:15px; cursor:pointer; }
+        .pg-btn:disabled { background:#9ca3af; cursor:not-allowed; }
+        .pg-check { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+    </style>
+</head>
+<body>
+<div class="pg-wrap">
+    <div class="pg-card">
+        <div class="pg-head">{% trans "Please review and accept the following" %}</div>
+        <div class="pg-sub">{% trans "You must accept these company policies before continuing to the HRMS." %}</div>
+
+        {% for policy in policies %}
+            <div class="pg-policy">
+                <h3>{{ policy.title }}</h3>
+                <div class="pg-body">{{ policy.body|safe }}</div>
+                {% for att in policy.attachments.all %}
+                    <div class="pg-att"><a href="{{ att.attachment.url }}" target="_blank">{% trans "View attachment" %}</a></div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+
+        <form method="post" action="{% url 'policy-gate' %}">
+            {% csrf_token %}
+            <div class="pg-check">
+                <input type="checkbox" id="agree" onchange="document.getElementById('pgSubmit').disabled = !this.checked;" />
+                <label for="agree">{% trans "I have read and accept all of the above policies." %}</label>
+            </div>
+            <div class="pg-accept">
+                <button type="submit" id="pgSubmit" class="pg-btn" disabled>{% trans "Accept and continue" %}</button>
+                <a href="{% url 'logout' %}" style="margin-left:16px;color:#6b7280;">{% trans "Log out" %}</a>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>

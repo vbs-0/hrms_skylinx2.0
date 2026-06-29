@@ -191,6 +191,7 @@ MIDDLEWARE = [
     "subscriptions.middleware.SubscriptionMiddleware",
     "base.middleware.CompanyMiddleware",
     "base.middleware.ForcePasswordChangeMiddleware",
+    "base.middleware.PolicyAcceptanceMiddleware",
     "base.middleware.TwoFactorAuthMiddleware",
     "base.middleware.HTMXSecurityMiddleware",
     "accessibility.middlewares.AccessibilityMiddleware",

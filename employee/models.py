@@ -1186,6 +1186,11 @@ class Policy(SkylinxModel):
     title = models.CharField(max_length=50)
     body = models.TextField()
     is_visible_to_all = models.BooleanField(default=True)
+    mandatory = models.BooleanField(
+        default=False,
+        verbose_name=_("Mandatory"),
+        help_text=_("Employees must accept this before accessing the HRMS."),
+    )
     specific_employees = models.ManyToManyField(Employee, blank=True, editable=False)
     attachments = models.ManyToManyField(PolicyMultipleFile, blank=True)
     company_id = models.ManyToManyField(Company, blank=True, verbose_name=_("Company"))

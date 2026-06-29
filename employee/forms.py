@@ -954,7 +954,7 @@ class PolicyForm(ModelForm):
     PolicyForm
     """
 
-    cols = {"title": 12, "body": 12, "is_visible_to_all": 12, "company_id": 12}
+    cols = {"title": 12, "body": 12, "is_visible_to_all": 12, "mandatory": 12, "company_id": 12}
 
     class Meta:
         model = Policy

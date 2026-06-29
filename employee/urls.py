@@ -427,6 +427,12 @@ urlpatterns = [
     path("policy-nav/", policy_cbv.PoliciesNav.as_view(), name="policy-nav"),
     path("view-policy/", policies.view_policy, name="view-policy"),
     path("accept-policy/", policies.accept_policy, name="accept-policy"),
+    path("policy-gate/", policies.policy_gate, name="policy-gate"),
+    path(
+        "policy-acceptance-status/",
+        policies.policy_acceptance_status,
+        name="policy-acceptance-status",
+    ),
     path(
         "add-attachment-policy/", policies.add_attachment, name="add-attachment-policy"
     ),

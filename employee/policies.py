@@ -521,3 +521,63 @@ def accept_policy(request):
                 {"policy": policy, "request": request}
             )
     return HttpResponse("Invalid request", status=400)
+
+
+def pending_mandatory_policies(employee):
+    """Mandatory policies visible to this employee that they haven't accepted yet.
+    Fail-open: returns none on any missing data so a glitch never locks anyone out."""
+    from django.db.models import Q
+
+    if not employee:
+        return Policy.objects.none()
+    qs = Policy.objects.filter(mandatory=True)
+    company = getattr(
+        getattr(employee, "employee_work_info", None), "company_id", None
+    )
+    if company:
+        qs = qs.filter(company_id=company)
+    qs = qs.filter(
+        Q(is_visible_to_all=True) | Q(specific_employees=employee)
+    ).distinct()
+    return qs.exclude(accepted_employees=employee)
+
+
+@login_required
+def policy_gate(request):
+    """Blocking page: employee must accept all pending mandatory policies to proceed."""
+    employee = getattr(request.user, "employee_get", None)
+    pending = pending_mandatory_policies(employee)
+    if request.method == "POST":
+        if employee:
+            for policy in pending:
+                policy.accepted_employees.add(employee)
+        return redirect("/")
+    if not pending:
+        return redirect("/")
+    return render(request, "policies/policy_gate.html", {"policies": pending})
+
+
+@login_required
+@permission_required("employee.view_policy")
+def policy_acceptance_status(request):
+    """HR/CEO view: per mandatory policy, who accepted vs who is still pending."""
+    rows = []
+    for policy in Policy.objects.filter(mandatory=True):
+        accepted = policy.accepted_employees.all()
+        if policy.is_visible_to_all:
+            applicable = Employee.objects.filter(
+                employee_work_info__company_id__in=policy.company_id.all()
+            ).distinct()
+        else:
+            applicable = policy.specific_employees.all()
+        accepted_ids = list(accepted.values_list("id", flat=True))
+        rows.append(
+            {
+                "policy": policy,
+                "accepted": accepted,
+                "pending": applicable.exclude(id__in=accepted_ids),
+            }
+        )
+    return render(
+        request, "policies/acceptance_status.html", {"rows": rows}
+    )

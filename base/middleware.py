@@ -393,6 +393,57 @@ class ForcePasswordChangeMiddleware:
         return self.get_response(request)
 
 
+class PolicyAcceptanceMiddleware:
+    """
+    Force employees to accept their company's mandatory policies before using the HRMS.
+    Fail-open: any error just lets the request through (never lock people out).
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        excluded_paths = [
+            "/policy-gate",
+            "/accept-policy",
+            "/login",
+            "/logout",
+            "/change-password",
+            "/two-factor",
+            "/notifications",
+            "/inbox/notifications",
+            "/reload-messages",
+            "/jsi18n",
+            "/get-skylinx-installed-apps",
+            "/subscription",
+            "/media",
+            "/static",
+        ]
+        path = request.path.rstrip("/")
+        for excluded_path in excluded_paths:
+            if path == excluded_path or path.startswith(excluded_path + "/"):
+                return self.get_response(request)
+
+        try:
+            user = getattr(request, "user", None)
+            if (
+                user
+                and user.is_authenticated
+                and not user.is_superuser
+                and request.method == "GET"
+                and not request.headers.get("HX-Request")
+            ):
+                from employee.policies import pending_mandatory_policies
+
+                employee = getattr(user, "employee_get", None)
+                if employee and pending_mandatory_policies(employee).exists():
+                    return redirect("policy-gate")
+        except Exception:
+            pass
+
+        return self.get_response(request)
+
+
 class TwoFactorAuthMiddleware:
     """
     Middleware to enforce two-factor authentication for specific users.
