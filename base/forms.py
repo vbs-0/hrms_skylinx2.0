@@ -1647,7 +1647,10 @@ class EmployeeShiftScheduleForm(ModelForm):
             for day in self.data.getlist("day"):
                 # ponytail: skip (shift, day) pairs that already exist instead of
                 # letting the unique_together raise an unhandled IntegrityError (500).
-                if EmployeeShiftSchedule.objects.filter(
+                # The unique constraint is GLOBAL on (shift, day), so the check must
+                # bypass the company-scoped manager with .entire() or it misses the
+                # existing row and crashes anyway.
+                if EmployeeShiftSchedule.objects.entire().filter(
                     shift_id=shift_id, day_id=day
                 ).exists():
                     continue
