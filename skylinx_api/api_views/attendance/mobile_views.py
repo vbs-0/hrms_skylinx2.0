@@ -76,31 +76,35 @@ class MobileCheckInAPIView(APIView):
         if face_config and face_config.start:
             baseline = EmployeeFaceDetection.objects.filter(employee_id=employee).first()
             if not baseline or not baseline.image:
-                return Response({
-                    "success": False,
-                    "message": "Face verification is required, but you do not have a baseline photo enrolled. Please contact your administrator.",
-                    "errorCode": "FACE_NOT_ENROLLED"
-                }, status=400)
-            
-            # Temporary save selfie to run verification
-            temp_path = default_storage.save("temp/verification_selfie.jpg", selfie_file)
-            temp_full_path = default_storage.path(temp_path)
-            
-            # Get path of baseline image
-            baseline_path = baseline.image.path
-            
-            matched, similarity = compare_faces(baseline_path, temp_full_path)
-            
-            # Clean up temp file
-            if os.path.exists(temp_full_path):
-                os.remove(temp_full_path)
-                
-            if not matched:
-                return Response({
-                    "success": False,
-                    "message": "Face verification failed. Please take a clear photo of your face.",
-                    "errorCode": "FACE_VERIFICATION_FAILED"
-                }, status=400)
+                # First check-in with face enabled: auto-enroll this selfie as the
+                # employee's baseline instead of rejecting. Later check-ins compare
+                # against it.
+                if baseline is None:
+                    baseline = EmployeeFaceDetection(employee_id=employee)
+                baseline.image = selfie_file
+                baseline.save()
+                # rewind so the same upload can still be stored as the attendance selfie
+                selfie_file.seek(0)
+            else:
+                # Temporary save selfie to run verification
+                temp_path = default_storage.save("temp/verification_selfie.jpg", selfie_file)
+                temp_full_path = default_storage.path(temp_path)
+
+                # Get path of baseline image
+                baseline_path = baseline.image.path
+
+                matched, similarity = compare_faces(baseline_path, temp_full_path)
+
+                # Clean up temp file
+                if os.path.exists(temp_full_path):
+                    os.remove(temp_full_path)
+
+                if not matched:
+                    return Response({
+                        "success": False,
+                        "message": "Face verification failed. Please take a clear photo of your face.",
+                        "errorCode": "FACE_VERIFICATION_FAILED"
+                    }, status=400)
 
         # 3. Check Geofencing boundary
         within_geofence = True
@@ -316,31 +320,34 @@ class MobileCheckOutAPIView(APIView):
         if face_config and face_config.start:
             baseline = EmployeeFaceDetection.objects.filter(employee_id=employee).first()
             if not baseline or not baseline.image:
-                return Response({
-                    "success": False,
-                    "message": "Face verification is required, but you do not have a baseline photo enrolled. Please contact your administrator.",
-                    "errorCode": "FACE_NOT_ENROLLED"
-                }, status=400)
-            
-            # Temporary save selfie to run verification
-            temp_path = default_storage.save("temp/verification_checkout_selfie.jpg", selfie_file)
-            temp_full_path = default_storage.path(temp_path)
-            
-            # Get path of baseline image
-            baseline_path = baseline.image.path
-            
-            matched, similarity = compare_faces(baseline_path, temp_full_path)
-            
-            # Clean up temp file
-            if os.path.exists(temp_full_path):
-                os.remove(temp_full_path)
-                
-            if not matched:
-                return Response({
-                    "success": False,
-                    "message": "Face verification failed. Please take a clear photo of your face.",
-                    "errorCode": "FACE_VERIFICATION_FAILED"
-                }, status=400)
+                # No baseline yet (face enabled after this employee's first check-in):
+                # auto-enroll instead of blocking check-out.
+                if baseline is None:
+                    baseline = EmployeeFaceDetection(employee_id=employee)
+                baseline.image = selfie_file
+                baseline.save()
+                # rewind so the same upload can still be stored as the attendance selfie
+                selfie_file.seek(0)
+            else:
+                # Temporary save selfie to run verification
+                temp_path = default_storage.save("temp/verification_checkout_selfie.jpg", selfie_file)
+                temp_full_path = default_storage.path(temp_path)
+
+                # Get path of baseline image
+                baseline_path = baseline.image.path
+
+                matched, similarity = compare_faces(baseline_path, temp_full_path)
+
+                # Clean up temp file
+                if os.path.exists(temp_full_path):
+                    os.remove(temp_full_path)
+
+                if not matched:
+                    return Response({
+                        "success": False,
+                        "message": "Face verification failed. Please take a clear photo of your face.",
+                        "errorCode": "FACE_VERIFICATION_FAILED"
+                    }, status=400)
 
         # Check Geofencing boundary
         within_geofence = True
