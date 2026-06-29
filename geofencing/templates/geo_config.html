@@ -1,56 +1,25 @@
 <form hx-post="{% url 'geo-config' %}" hx-swap="none" hx-on-htmx-after-request="$('#reloadMessagesButton').click();">
     {% csrf_token %}
     {{form.as_p}}
-    
+
     <div class="mt-2">
-        <button type="button" id="get-location-btn" class="oh-btn oh-btn--info">
+        {% comment %} Inline onclick: htmx does NOT run <script> tags in swapped content,
+        so the geolocation logic must live in the attribute to work inside the modal. {% endcomment %}
+        <button type="button" id="get-location-btn" class="oh-btn oh-btn--info"
+            onclick="if(!navigator.geolocation){alert('Geolocation is not supported by this browser.');return;}
+                this.disabled=true;var b=this;
+                navigator.geolocation.getCurrentPosition(
+                    function(p){
+                        var la=document.getElementById('id_latitude'),lo=document.getElementById('id_longitude');
+                        if(la&&lo){la.value=p.coords.latitude;lo.value=p.coords.longitude;}
+                        else{alert('Latitude and Longitude input fields not found in the form.');}
+                        b.disabled=false;
+                    },
+                    function(e){alert('Failed to retrieve location: '+e.message);b.disabled=false;},
+                    {enableHighAccuracy:true,timeout:10000}
+                );">
             <span class="oh-btn__icon"><i class="fa fa-map-marker-alt"></i></span>
             Get My Current Location
         </button>
     </div>
 </form>
-
-<script>
-    (function() {
-        const btn = document.getElementById('get-location-btn');
-        if (!btn) return;
-        btn.addEventListener('click', function() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    function(position) {
-                        const latInput = document.getElementById('id_latitude');
-                        const lonInput = document.getElementById('id_longitude');
-                        if (latInput && lonInput) {
-                            latInput.value = position.coords.latitude;
-                            lonInput.value = position.coords.longitude;
-                            alert("Location retrieved successfully!");
-                        } else {
-                            alert("Latitude and Longitude input fields not found in the form.");
-                        }
-                    },
-                    function(error) {
-                        let msg = "Failed to retrieve location: ";
-                        switch(error.code) {
-                            case error.PERMISSION_DENIED:
-                                msg += "User denied the request for Geolocation.";
-                                break;
-                            case error.POSITION_UNAVAILABLE:
-                                msg += "Location information is unavailable.";
-                                break;
-                            case error.TIMEOUT:
-                                msg += "The request to get user location timed out.";
-                                break;
-                            case error.UNKNOWN_ERROR:
-                                msg += "An unknown error occurred.";
-                                break;
-                        }
-                        alert(msg);
-                    }
-                );
-            } else {
-                alert("Geolocation is not supported by this browser.");
-            }
-        });
-    })();
-</script>
-
