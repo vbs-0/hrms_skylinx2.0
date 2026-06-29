@@ -5722,10 +5722,14 @@ def shift_request_approve(request, id):
     # can be null (open-ended) -> guard the comparison.
     _rd = shift_request.requested_date
     _rt = shift_request.requested_till
-    if shift_request.is_permanent_shift or (
-        _rd and _rd <= today_date and (_rt is None or today_date <= _rt)
-    ):
+    try:
         work_info = shift_request.employee_id.employee_work_info
+    except Exception:
+        work_info = None
+    if work_info and (
+        shift_request.is_permanent_shift
+        or (_rd and _rd <= today_date and (_rt is None or today_date <= _rt))
+    ):
         work_info.shift_id = shift_request.shift_id
         work_info.save()
         shift_request.shift_changed = True

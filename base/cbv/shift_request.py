@@ -42,6 +42,37 @@ from skylinx_views.generic.cbv.views import (
 from notifications.signals import notify
 
 
+def _shift_request_approvers(employee):
+    """Users who should be notified of a new shift request: the employee's
+    reporting manager plus everyone in the same company who can approve/change
+    shift requests (HR/admins). Deduped; resilient to missing work info."""
+    recipients = set()
+    try:
+        rm = employee.employee_work_info.reporting_manager_id
+        if rm and rm.employee_user_id:
+            recipients.add(rm.employee_user_id)
+    except Exception:
+        pass
+    try:
+        from employee.models import Employee
+
+        company = employee.get_company()
+        approvers = Employee.objects.filter(
+            employee_work_info__company_id=company,
+            employee_user_id__isnull=False,
+        )
+        for emp in approvers:
+            user = emp.employee_user_id
+            if user and (
+                user.has_perm("base.approve_shiftrequest")
+                or user.has_perm("base.change_shiftrequest")
+            ):
+                recipients.add(user)
+    except Exception:
+        pass
+    return list(recipients)
+
+
 @method_decorator(login_required, name="dispatch")
 class ShiftRequestView(TemplateView):
     """
@@ -524,24 +555,24 @@ class ShiftRequestFormView(SkylinxFormView):
             else:
                 instance = form.save()
                 message = _("Shift request added Successfully")
-                with contextlib.suppress(Exception):
-                    notify.send(
-                        instance.employee_id,
-                        recipient=(
-                            instance.employee_id.employee_work_info.reporting_manager_id.employee_user_id
-                        ),
-                        verb=f"You have new shift request to approve \
-                            for {instance.employee_id}",
-                        verb_ar=f"لديك طلب وردية جديد للموافقة عليه لـ {instance.employee_id}",
-                        verb_de=f"Sie müssen eine neue Schichtanfrage \
-                            für {instance.employee_id} genehmigen",
-                        verb_es=f"Tiene una nueva solicitud de turno para \
-                            aprobar para {instance.employee_id}",
-                        verb_fr=f"Vous avez une nouvelle demande de quart de\
-                            travail à approuver pour {instance.employee_id}",
-                        icon="information",
-                        redirect=reverse("shift-request-view") + f"?id={instance.id}",
-                    )
+                recipients = _shift_request_approvers(instance.employee_id)
+                if recipients:
+                    with contextlib.suppress(Exception):
+                        notify.send(
+                            instance.employee_id,
+                            recipient=recipients,
+                            verb=f"You have new shift request to approve \
+                                for {instance.employee_id}",
+                            verb_ar=f"لديك طلب وردية جديد للموافقة عليه لـ {instance.employee_id}",
+                            verb_de=f"Sie müssen eine neue Schichtanfrage \
+                                für {instance.employee_id} genehmigen",
+                            verb_es=f"Tiene una nueva solicitud de turno para \
+                                aprobar para {instance.employee_id}",
+                            verb_fr=f"Vous avez une nouvelle demande de quart de\
+                                travail à approuver pour {instance.employee_id}",
+                            icon="information",
+                            redirect=reverse("shift-request-view") + f"?id={instance.id}",
+                        )
             messages.success(self.request, message)
             return self.HttpResponse()
         return super().form_valid(form)

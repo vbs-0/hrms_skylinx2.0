@@ -282,7 +282,12 @@ def switch_shift():
     )
     if shift_requests:
         for request in shift_requests:
-            work_info = request.employee_id.employee_work_info
+            # An employee without work info can't receive a shift; skip instead of
+            # raising RelatedObjectDoesNotExist, which would abort the whole batch.
+            try:
+                work_info = request.employee_id.employee_work_info
+            except Exception:
+                continue
             # updating requested shift to the employee work information.
             work_info.shift_id = request.shift_id
             work_info.save()
