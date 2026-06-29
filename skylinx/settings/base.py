@@ -270,7 +270,10 @@ AUTH_PASSWORD_VALIDATORS = [
 
 AUTH_USER_MODEL = "skylinx_auth.SkylinxUser"
 
-X_FRAME_OPTIONS = env("X_FRAME_OPTIONS", default="DENY")
+# SAMEORIGIN (not DENY): the app frames its own pages/PDFs (e.g. the /terms/
+# legal-document viewer). DENY blocks even same-origin framing -> "refused to
+# connect". External sites are still blocked, so clickjacking protection holds.
+X_FRAME_OPTIONS = env("X_FRAME_OPTIONS", default="SAMEORIGIN")
 
 # ========================================
 # TEMPLATES
