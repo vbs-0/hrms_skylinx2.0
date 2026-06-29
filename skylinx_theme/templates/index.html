@@ -319,15 +319,16 @@
                 }
                 window.secondsToDuration = fmt;
                 var base = 0, startMs = 0, running = false, enabled = false;
-                function resync() {
+                // Anchor = snapshot the server's base seconds + the wall-clock moment.
+                // Called ONLY when run-state flips (check-in/out) or on swap/load — NEVER
+                // every tick — so the elapsed counter can't be reset out from under itself.
+                function anchor() {
                     var el = document.querySelector(".at_work_seconds[data-run]");
                     enabled = !!(el && el.hasAttribute("data-timer-on"));
-                    if (!enabled) return;
-                    var b = parseInt(el.getAttribute("data-at-work-seconds")) || 0;
-                    var r = (parseInt(el.getAttribute("data-run")) || 0) === 1;
-                    // Re-anchor only when the server state actually changes, so the
-                    // seconds keep counting smoothly between ticks.
-                    if (r !== running || b !== base) { base = b; startMs = Date.now(); running = r; }
+                    if (!enabled) { running = false; return; }
+                    base = parseInt(el.getAttribute("data-at-work-seconds")) || 0;
+                    running = (parseInt(el.getAttribute("data-run")) || 0) === 1;
+                    startMs = Date.now();
                 }
                 function render() {
                     if (!enabled) return;
@@ -336,15 +337,23 @@
                     $c.find("div.time-runner").html(t);
                     $c.find(".at-work-seconds").html(t);
                 }
-                // back-compat / instant update on swap
-                window.startTimeRunner = function () { resync(); render(); };
+                window.startTimeRunner = function () { anchor(); render(); };
                 $(function () {
-                    resync(); render();
-                    setInterval(function () { resync(); render(); }, 1000);
+                    anchor(); render();
+                    // Per-second tick only RENDERS; it re-anchors solely on a run-state
+                    // flip (self-heals if an afterSwap was ever missed).
+                    setInterval(function () {
+                        var el = document.querySelector(".at_work_seconds[data-run]");
+                        if (el && el.hasAttribute("data-timer-on")) {
+                            var r = (parseInt(el.getAttribute("data-run")) || 0) === 1;
+                            if (r !== running) { anchor(); }
+                        }
+                        render();
+                    }, 1000);
                 });
                 document.body.addEventListener("htmx:afterSwap", function (event) {
                     if (event.detail.target && event.detail.target.id === "attendance-activity-container") {
-                        resync(); render();
+                        anchor(); render();
                     }
                 });
             })();
