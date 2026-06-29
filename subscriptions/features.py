@@ -29,12 +29,22 @@ PAID_FEATURES = {
         "prefixes": ["/biometric/"],
         "app": "biometric",
     },
+    # Attendance sub-features: flag-only (no module URL / sidebar entry). Checked
+    # via subscription.has_feature(<key>) inside attendance flows (mobile
+    # live-location, selfie login, geofence enforcement). prefixes=[] so
+    # feature_for_path never blocks a URL; app=None so no sidebar item is added.
+    "geofencing": {"label": "Geo-fencing", "prefixes": [], "app": None},
+    "live_location": {"label": "Live Location Tracking", "prefixes": [], "app": None},
+    "selfie_login": {"label": "Selfie Login", "prefixes": [], "app": None},
 }
 
 ALL_FEATURE_KEYS = list(PAID_FEATURES.keys())
 
-# sidebar app label -> feature key, for fast nav filtering
-APP_TO_FEATURE = {meta["app"]: key for key, meta in PAID_FEATURES.items()}
+# sidebar app label -> feature key, for fast nav filtering. Skip flag-only
+# features (app is None) so they don't collide on a shared None key.
+APP_TO_FEATURE = {
+    meta["app"]: key for key, meta in PAID_FEATURES.items() if meta.get("app")
+}
 
 
 def feature_for_path(path):
