@@ -40,7 +40,11 @@ class Plan(models.Model):
 
     name = models.CharField(max_length=80, unique=True)
     slug = models.SlugField(max_length=80, unique=True)
+    # `price` is the MONTHLY price; `yearly_price` is the (optional) annual price
+    # shown when the client toggles to yearly billing. 0 yearly_price => no yearly
+    # option offered for this tier (e.g. the free plan).
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    yearly_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     billing_cycle = models.CharField(
         max_length=10, choices=BILLING_CYCLES, default="monthly"
     )

@@ -647,6 +647,9 @@ def client_plans(request):
             "billing_on": billing.configured(),
             "client_id": client_id,
             "support_email": getattr(settings, "SUPPORT_EMAIL", ""),
+            # Platform owner gets inline plan management (create/edit/delete) on
+            # this page; regular client admins only see selection.
+            "is_owner": is_platform_owner(request.user),
         },
     )
 
@@ -842,10 +845,27 @@ def plans_list(request):
 def plan_edit(request, plan_id=None):
     from django import forms
 
+    feature_choices = [(k, m["label"]) for k, m in PAID_FEATURES.items()]
+
     class PlanForm(forms.ModelForm):
+        # Render feature keys as checkboxes instead of a raw JSON textarea.
+        features = forms.MultipleChoiceField(
+            choices=feature_choices,
+            required=False,
+            widget=forms.CheckboxSelectMultiple,
+        )
+
         class Meta:
             model = Plan
-            fields = "__all__"
+            fields = [
+                "name", "slug", "price", "yearly_price", "billing_cycle",
+                "seat_limit", "trial_days", "features", "is_active",
+            ]
+            help_texts = {
+                "price": "Monthly price (₹). 0 = free plan.",
+                "yearly_price": "Annual price (₹). 0 = no yearly option for this tier.",
+                "seat_limit": "Max employees. Blank = unlimited.",
+            }
 
     if plan_id:
         plan = get_object_or_404(Plan, id=plan_id)
@@ -862,3 +882,36 @@ def plan_edit(request, plan_id=None):
         form = PlanForm(instance=plan)
 
     return render(request, "subscriptions/plan_form.html", {"form": form, "plan": plan})
+
+
+@login_required
+@superuser_required
+def plan_delete(request, plan_id):
+    """Delete a plan. Companies on it move to the next-higher plan by price (else
+    next-lower, else any remaining); blocked only if it's the last plan while
+    companies are subscribed. Owner can re-assign company plans anytime after."""
+    plan = get_object_or_404(Plan, id=plan_id)
+    if request.method != "POST":
+        return redirect("subscriptions-plans")
+
+    fallback = (
+        Plan.objects.filter(is_active=True, price__gt=plan.price).exclude(id=plan.id).order_by("price").first()
+        or Plan.objects.filter(is_active=True, price__lt=plan.price).exclude(id=plan.id).order_by("-price").first()
+        or Plan.objects.exclude(id=plan.id).order_by("price").first()
+    )
+
+    affected = Subscription.objects.filter(plan=plan)
+    moved = affected.count()
+    if moved and not fallback:
+        messages.error(request, "Can't delete the only remaining plan while companies are subscribed to it.")
+        return redirect("subscriptions-plans")
+
+    if moved:
+        affected.update(plan=fallback)
+    name = plan.name
+    plan.delete()
+    if moved:
+        messages.success(request, f"Deleted '{name}'. Moved {moved} company(ies) to '{fallback.name}'.")
+    else:
+        messages.success(request, f"Deleted '{name}'.")
+    return redirect("subscriptions-plans")

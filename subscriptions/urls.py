@@ -16,4 +16,5 @@ urlpatterns = [
     path("plans/", views.plans_list, name="subscriptions-plans"),
     path("plans/new/", views.plan_edit, name="subscriptions-plan-new"),
     path("plans/<int:plan_id>/edit/", views.plan_edit, name="subscriptions-plan-edit"),
+    path("plans/<int:plan_id>/delete/", views.plan_delete, name="subscriptions-plan-delete"),
 ]
