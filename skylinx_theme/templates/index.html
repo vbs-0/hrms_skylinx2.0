@@ -310,40 +310,15 @@
             // This listens for swaps on the attendance container and manually initializes the timer.
             document.body.addEventListener("htmx:afterSwap", function (event) {
                 if (event.detail.target && event.detail.target.id === "attendance-activity-container") {
+                    // The swapped-in component defines window.startTimeRunner; reuse it
+                    // so check-in/out restarts the same single epoch-based ticker.
+                    if (typeof window.startTimeRunner === "function") {
+                        window.startTimeRunner();
+                    }
                     var el = event.detail.target.querySelector("[data-run]");
-                    if (el) {
-                        var run = parseInt(el.getAttribute("data-run")) || 0;
-                        var at_work_seconds = parseInt(el.getAttribute("data-at-work-seconds")) || 0;
-                        var whiteLabelCompany = $("#whiteLabelCompany").data("company") || "";
-
-                        if (window.timeRunnerInterval) {
-                            clearInterval(window.timeRunnerInterval);
-                        }
-
-                        function secondsToDuration(seconds) {
-                            if (seconds < 0) seconds = 0;
-                            var hours = Math.floor(seconds / 3600);
-                            var minutes = Math.floor((seconds % 3600) / 60);
-                            var remainingSeconds = Math.floor(seconds % 60);
-
-                            var formattedHours = (hours < 10) ? "0" + hours : hours;
-                            var formattedMinutes = (minutes < 10) ? "0" + minutes : minutes;
-                            var formattedSeconds = (remainingSeconds < 10) ? "0" + remainingSeconds : remainingSeconds;
-
-                            return formattedHours + ":" + formattedMinutes + ":" + formattedSeconds;
-                        }
-
-                        // Immediately refresh the displayed timer (toolbar pill only,
-                        // not the browser tab title).
-                        $("div.time-runner").not("title").html(secondsToDuration(at_work_seconds));
-                        $(".at-work-seconds").html(secondsToDuration(at_work_seconds));
-
-                        if (run) {
-                            window.timeRunnerInterval = setInterval(() => {
-                                at_work_seconds = parseInt(at_work_seconds) + 1;
-                                $("div.time-runner").html(secondsToDuration(at_work_seconds));
-                            }, 1000);
-                        }
+                    if (el && window.secondsToDuration) {
+                        var base = parseInt(el.getAttribute("data-at-work-seconds")) || 0;
+                        $(".at-work-seconds").html(window.secondsToDuration(base));
                     }
                 }
             });

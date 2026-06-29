@@ -83,43 +83,33 @@
 {% endif %}
 
 {% if enabled_timerunner and request.user.employee_get %}
-{% with get_forecasted_at_work=request.user.employee_get.get_forecasted_at_work %}
 <script>
-    var at_work_seconds = {{ get_forecasted_at_work.forecasted_at_work_seconds|default:0 }};
-    var run = {% if request.user|is_clocked_in and get_forecasted_at_work.has_attendance %}{{ run|default:1 }}{% else %}0{% endif %};
-    var whiteLabelCompany = $("#whiteLabelCompany").data("company");
-
-    // time-runner
-    function secondsToDuration(seconds) {
-        if (seconds < 0){
-            seconds = 0
-        }
-        var hours = Math.floor(seconds / 3600);
-        var minutes = Math.floor((seconds % 3600) / 60);
-        var remainingSeconds = Math.floor(seconds % 60);
-
-        var formattedHours = (hours < 10) ? "0" + hours : hours;
-        var formattedMinutes = (minutes < 10) ? "0" + minutes : minutes;
-        var formattedSeconds = (remainingSeconds < 10) ? "0" + remainingSeconds : remainingSeconds;
-
-        return formattedHours + ":" + formattedMinutes + ":" + formattedSeconds;
-    }
-
-    if (window.timeRunnerInterval) {
-        clearInterval(window.timeRunnerInterval);
-    }
-
-    // Show the elapsed time on the in-app toolbar pill only. We deliberately do
-    // NOT hijack the browser tab <title> — that made the timer appear to "run in
-    // the header" and lingered after clock-out.
-    $("div.time-runner").html(secondsToDuration(at_work_seconds));
-
-    if (run) {
-        window.timeRunnerInterval = setInterval(() => {
-            at_work_seconds = parseInt(at_work_seconds) + 1;
-            $("div.time-runner").html(secondsToDuration(at_work_seconds));
+    // Single epoch-based ticker shared by full-page load and HTMX swaps.
+    // Reads the current state from the [data-run]/[data-at-work-seconds] span so
+    // it always reflects the latest server value, and ticks off wall-clock time
+    // (base + elapsed) so a missed/throttled tick self-corrects instead of
+    // freezing. ponytail: one function, both code paths call it.
+    window.secondsToDuration = function (seconds) {
+        if (seconds < 0) seconds = 0;
+        var h = Math.floor(seconds / 3600);
+        var m = Math.floor((seconds % 3600) / 60);
+        var s = Math.floor(seconds % 60);
+        return (h < 10 ? "0" + h : h) + ":" + (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
+    };
+    window.startTimeRunner = function () {
+        if (window.timeRunnerInterval) clearInterval(window.timeRunnerInterval);
+        var el = document.querySelector(".at_work_seconds[data-run]");
+        var base = el ? (parseInt(el.getAttribute("data-at-work-seconds")) || 0) : 0;
+        var run = el ? (parseInt(el.getAttribute("data-run")) || 0) : 0;
+        // Toolbar pill only — never the browser tab <title> (that lingered after clock-out).
+        $("div.time-runner").html(window.secondsToDuration(base));
+        if (!run) return;
+        var start = Date.now();
+        window.timeRunnerInterval = setInterval(function () {
+            var elapsed = Math.floor((Date.now() - start) / 1000);
+            $("div.time-runner").html(window.secondsToDuration(base + elapsed));
         }, 1000);
-    }
+    };
+    $(window.startTimeRunner);
 </script>
-{% endwith %}
 {% endif %}
