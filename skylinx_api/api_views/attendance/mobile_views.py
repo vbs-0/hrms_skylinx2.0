@@ -516,23 +516,11 @@ class MobileAttendanceHistoryAPIView(APIView):
         events = []
         for act in activities:
             detail = getattr(act, "mobile_detail", None)
-            
-            # Map Check In event
-            if act.in_datetime:
-                events.append({
-                    "id": f"{act.id}_in",
-                    "userId": str(request.user.id),
-                    "eventType": "check_in",
-                    "selfieUrl": request.build_absolute_uri(detail.check_in_selfie.url) if (detail and detail.check_in_selfie) else None,
-                    "latitude": detail.check_in_lat if detail else None,
-                    "longitude": detail.check_in_lng if detail else None,
-                    "withinGeofence": detail.within_geofence if detail else True,
-                    "gpsEnabled": True,
-                    "capturedAt": act.in_datetime.isoformat(),
-                    "createdAt": act.created_at.isoformat()
-                })
-            
-            # Map Check Out event
+
+            # Reverse-chronological WITHIN an activity: emit Check Out BEFORE Check
+            # In so the app's "latest event" (_todayEvents.first) is the check-out
+            # once you've clocked out. Emitting check-in first made the home screen
+            # read "Checked In" even after a completed checkout (the clumsy state).
             if act.out_datetime:
                 events.append({
                     "id": f"{act.id}_out",
@@ -545,6 +533,20 @@ class MobileAttendanceHistoryAPIView(APIView):
                     "gpsEnabled": True,
                     "capturedAt": act.out_datetime.isoformat(),
                     "createdAt": act.out_datetime.isoformat()
+                })
+
+            if act.in_datetime:
+                events.append({
+                    "id": f"{act.id}_in",
+                    "userId": str(request.user.id),
+                    "eventType": "check_in",
+                    "selfieUrl": request.build_absolute_uri(detail.check_in_selfie.url) if (detail and detail.check_in_selfie) else None,
+                    "latitude": detail.check_in_lat if detail else None,
+                    "longitude": detail.check_in_lng if detail else None,
+                    "withinGeofence": detail.within_geofence if detail else True,
+                    "gpsEnabled": True,
+                    "capturedAt": act.in_datetime.isoformat(),
+                    "createdAt": act.created_at.isoformat()
                 })
 
         return Response({
