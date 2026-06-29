@@ -1257,7 +1257,10 @@ def home(request):
     # approvals, onboarding, or payroll status on their home card. has_perm()
     # already returns True for superusers/owner.
     user = request.user
-    can_approve_leave = user.has_perm("leave.view_leaverequest") or user.has_perm("leave.change_leaverequest")
+    # Approving is change_leaverequest, NOT view_leaverequest — ordinary employees
+    # hold view_leaverequest to see their OWN leave, and must not see the
+    # company-wide pending-approval count on their home card.
+    can_approve_leave = user.has_perm("leave.change_leaverequest")
     can_onboard = user.has_perm("recruitment.view_candidate") or user.has_perm("employee.add_employee")
     can_view_payroll = user.has_perm("payroll.view_payslip") or user.has_perm("payroll.add_payslip")
 
