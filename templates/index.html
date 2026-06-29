@@ -327,20 +327,7 @@
 
                 return formattedHours + ":" + formattedMinutes + ":" + formattedSeconds;
             }
-            // accessing initial worked hours from the user
-            $(".time-runner").not("title").html(secondsToDuration(at_work_seconds));
-            $("title.time-runner").html("{{white_label_company_name}} | " + secondsToDuration(at_work_seconds));
-            setInterval(() => {
-                if (run) {
-                    at_work_seconds = parseInt(at_work_seconds) + 1;
-                    $("div.time-runner").html(secondsToDuration(at_work_seconds));
-                    $("title").html("{{white_label_company_name}} | " + secondsToDuration(at_work_seconds));
-                }
-            }, 1000);
-
-            // After HTMX swaps the check-in/out component, read data attributes
-            // to update run and at_work_seconds. HTMX does not execute <script>
-            // tags in swapped content, so the inline `run = 1` never fires.
+            $("div.time-runner").html(secondsToDuration(at_work_seconds));
             document.body.addEventListener("htmx:afterSwap", function (event) {
                 if (
                     event.detail.target &&
@@ -350,13 +337,20 @@
                     if (el) {
                         run = parseInt(el.getAttribute("data-run")) || 0;
                         at_work_seconds = parseInt(el.getAttribute("data-at-work-seconds")) || 0;
-                        // Immediately refresh the displayed timer
                         $("div.time-runner").html(secondsToDuration(at_work_seconds));
-                        $("title").html("{{white_label_company_name}} | " + secondsToDuration(at_work_seconds));
                         $(".at-work-seconds").html(secondsToDuration(at_work_seconds));
                     }
                 }
             });
+            if (window.timeRunnerInterval) {
+                clearInterval(window.timeRunnerInterval);
+            }
+            window.timeRunnerInterval = setInterval(() => {
+                if (run) {
+                    at_work_seconds = parseInt(at_work_seconds) + 1;
+                    $("div.time-runner").html(secondsToDuration(at_work_seconds));
+                }
+            }, 1000);
 
             function switchTab(e) {
                 let parentContainerEl = e.target.closest(".oh-tabs");
