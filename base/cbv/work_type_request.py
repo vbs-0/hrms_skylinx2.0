@@ -34,6 +34,34 @@ from skylinx_views.generic.cbv.views import (
 from notifications.signals import notify
 
 
+def _work_type_request_approvers(employee):
+    """Reporting manager + same-company HR/approvers (approve/change
+    worktyperequest perm). Deduped; resilient to missing work info/manager."""
+    recipients = set()
+    try:
+        rm = employee.employee_work_info.reporting_manager_id
+        if rm and rm.employee_user_id:
+            recipients.add(rm.employee_user_id)
+    except Exception:
+        pass
+    try:
+        from employee.models import Employee
+
+        company = employee.get_company()
+        for emp in Employee.objects.filter(
+            employee_work_info__company_id=company, employee_user_id__isnull=False
+        ):
+            user = emp.employee_user_id
+            if user and (
+                user.has_perm("base.approve_worktyperequest")
+                or user.has_perm("base.change_worktyperequest")
+            ):
+                recipients.add(user)
+    except Exception:
+        pass
+    return list(recipients)
+
+
 @method_decorator(login_required, name="dispatch")
 class WorkRequestView(TemplateView):
     """
@@ -427,12 +455,11 @@ class WorkTypeFormView(SkylinxFormView):
             else:
                 instance = form.save()
                 message = _("Work type Request Created")
+                recipients = _work_type_request_approvers(instance.employee_id)
                 with contextlib.suppress(Exception):
                     notify.send(
                         instance.employee_id,
-                        recipient=(
-                            instance.employee_id.employee_work_info.reporting_manager_id.employee_user_id
-                        ),
+                        recipient=recipients,
                         verb=f"You have new work type request to \
                             validate for {instance.employee_id}",
                         verb_ar=f"لديك طلب نوع وظيفة جديد للتحقق من \

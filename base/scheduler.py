@@ -330,7 +330,10 @@ def undo_shift():
     )
     if shift_requests:
         for request in shift_requests:
-            work_info = request.employee_id.employee_work_info
+            try:
+                work_info = request.employee_id.employee_work_info
+            except Exception:
+                continue
             work_info.shift_id = request.previous_shift_id
             work_info.save()
             # making the instance in-active
@@ -357,18 +360,30 @@ def switch_work_type():
     """
     This method change employees work type information regards to the work type request
     """
+    from django.db.models import Q
+
     from base.models import WorkTypeRequest
     from skylinx_auth.models import SkylinxUser
 
     today = date.today()
-    work_type_requests = WorkTypeRequest.objects.filter(
+    # Same hardening as switch_shift: catch up on past-due approved requests
+    # (requested_date <= today), skip ended windows, see every company (.entire()).
+    work_type_requests = WorkTypeRequest.objects.entire().filter(
         canceled=False,
         approved=True,
-        requested_date__exact=today,
         work_type_changed=False,
+        requested_date__lte=today,
+    ).filter(
+        Q(is_permanent_work_type=True)
+        | Q(requested_till__isnull=True)
+        | Q(requested_till__gte=today)
     )
     for request in work_type_requests:
-        work_info = request.employee_id.employee_work_info
+        # skip employees with no work info instead of aborting the whole batch
+        try:
+            work_info = request.employee_id.employee_work_info
+        except Exception:
+            continue
         # updating requested work type to the employee work information.
         work_info.work_type_id = request.work_type_id
         work_info.save()
@@ -400,8 +415,8 @@ def undo_work_type():
     from skylinx_auth.models import SkylinxUser
 
     today = date.today()
-    # here will get all the active work type requests
-    work_type_requests = WorkTypeRequest.objects.filter(
+    # here will get all the active work type requests (.entire() for background scope)
+    work_type_requests = WorkTypeRequest.objects.entire().filter(
         canceled=False,
         approved=True,
         requested_till__lt=today,
@@ -409,7 +424,10 @@ def undo_work_type():
         work_type_changed=True,
     )
     for request in work_type_requests:
-        work_info = request.employee_id.employee_work_info
+        try:
+            work_info = request.employee_id.employee_work_info
+        except Exception:
+            continue
         # updating employee work information's work type to previous work type
         work_info.work_type_id = request.previous_work_type_id
         work_info.save()
