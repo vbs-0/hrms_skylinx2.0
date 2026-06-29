@@ -306,22 +306,48 @@
                 if (b) b.click();
             });
 
-            // HTMX does not execute <script> tags in swapped content by default.
-            // This listens for swaps on the attendance container and manually initializes the timer.
-            document.body.addEventListener("htmx:afterSwap", function (event) {
-                if (event.detail.target && event.detail.target.id === "attendance-activity-container") {
-                    // The swapped-in component defines window.startTimeRunner; reuse it
-                    // so check-in/out restarts the same single epoch-based ticker.
-                    if (typeof window.startTimeRunner === "function") {
-                        window.startTimeRunner();
-                    }
-                    var el = event.detail.target.querySelector("[data-run]");
-                    if (el && window.secondsToDuration) {
-                        var base = parseInt(el.getAttribute("data-at-work-seconds")) || 0;
-                        $(".at-work-seconds").html(window.secondsToDuration(base));
-                    }
+            // Work timer — ONE self-healing ticker, defined here (always loaded) and
+            // never inside swapped content (htmx does not run swapped <script> tags).
+            // Every second it re-reads the attendance pill's data attributes, so a
+            // check-in/out htmx swap is picked up automatically with no dependency on
+            // afterSwap firing or any function being defined in the swapped HTML.
+            (function () {
+                function fmt(s) {
+                    if (s < 0) s = 0;
+                    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = Math.floor(s % 60);
+                    return (h < 10 ? "0" + h : h) + ":" + (m < 10 ? "0" + m : m) + ":" + (x < 10 ? "0" + x : x);
                 }
-            });
+                window.secondsToDuration = fmt;
+                var base = 0, startMs = 0, running = false, enabled = false;
+                function resync() {
+                    var el = document.querySelector(".at_work_seconds[data-run]");
+                    enabled = !!(el && el.hasAttribute("data-timer-on"));
+                    if (!enabled) return;
+                    var b = parseInt(el.getAttribute("data-at-work-seconds")) || 0;
+                    var r = (parseInt(el.getAttribute("data-run")) || 0) === 1;
+                    // Re-anchor only when the server state actually changes, so the
+                    // seconds keep counting smoothly between ticks.
+                    if (r !== running || b !== base) { base = b; startMs = Date.now(); running = r; }
+                }
+                function render() {
+                    if (!enabled) return;
+                    var t = fmt(running ? base + Math.floor((Date.now() - startMs) / 1000) : base);
+                    var $c = $("#attendance-activity-container");
+                    $c.find("div.time-runner").html(t);
+                    $c.find(".at-work-seconds").html(t);
+                }
+                // back-compat / instant update on swap
+                window.startTimeRunner = function () { resync(); render(); };
+                $(function () {
+                    resync(); render();
+                    setInterval(function () { resync(); render(); }, 1000);
+                });
+                document.body.addEventListener("htmx:afterSwap", function (event) {
+                    if (event.detail.target && event.detail.target.id === "attendance-activity-container") {
+                        resync(); render();
+                    }
+                });
+            })();
         </script>
     </body>
 </html>
