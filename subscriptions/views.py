@@ -56,6 +56,8 @@ COMPANY_ADMIN_APPS = [
     "helpdesk",
     "biometric",
     "skylinx_documents",
+    "geofencing",
+    "facedetection",
 ]
 
 
