@@ -74,5 +74,4 @@
 
     {% endwith %}
 {% endif %}
-{# Work-timer ticker lives once in index.html (always loaded). htmx does not run
-   swapped <script> tags, so defining it here was unreliable on check-in swaps. #}
+{% comment %}Work-timer ticker lives once in index.html (always loaded); not here, because htmx does not execute scripts in swapped content.{% endcomment %}
