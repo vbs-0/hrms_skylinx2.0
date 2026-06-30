@@ -1339,7 +1339,9 @@ class ScheduleInterviewForm(BaseModelForm):
             self.add_error("interview_date", _("Interview date cannot be in the past."))
 
         if not instance.pk and interview_time:
-            now = timezone.now().time()
+            # ponytail: interview_time is entered in IST; compare against localtime, not
+            # UTC, or up to 5.5h of past times slip through validation.
+            now = timezone.localtime().time()
             if (
                 not instance.pk
                 and interview_date == date.today()

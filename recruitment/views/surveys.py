@@ -15,7 +15,7 @@ from django.core import serializers
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import ProtectedError
-from django.http import HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils.translation import gettext_lazy as _
 
@@ -98,12 +98,19 @@ def survey_preview(request, pk=None):
 
 
 @login_required
+# ponytail: was @login_required only — reordering survey questions is a manager
+# action (siblings require it). .objects is company-scoped so this isn't cross-tenant,
+# but any logged-in user could reorder their own company's survey without this.
+@is_recruitment_manager(perm="recruitment.change_recruitmentsurvey")
 def question_order_update(request):
     if request.method == "POST":
         # Extract data from the request
         question_id = request.POST.get("question_id")
-        new_position = int(request.POST.get("new_position"))
-        qs = RecruitmentSurvey.objects.get(id=question_id)
+        try:
+            new_position = int(request.POST.get("new_position"))
+            qs = RecruitmentSurvey.objects.get(id=question_id)
+        except (TypeError, ValueError, RecruitmentSurvey.DoesNotExist):
+            return HttpResponse(status=400)
 
         if qs.sequence > new_position:
             new_position = new_position
@@ -457,7 +464,10 @@ def single_survey(request, survey_id):
     """
     This view method is used to single view of question template
     """
-    question = RecruitmentSurvey.objects.get(id=survey_id)
+    try:
+        question = RecruitmentSurvey.objects.get(id=survey_id)
+    except RecruitmentSurvey.DoesNotExist:
+        raise Http404("Survey not found.")
     requests_ids_json = request.GET.get("instances_ids")
     context = {"question": question}
     if requests_ids_json:
@@ -504,10 +514,12 @@ def delete_template(request):
     This method is used to delete the survey template group
     """
     title = request.GET.get("title")
-    SurveyTemplate.objects.filter(title=str(title)).delete()
+    # ponytail: delete only in the else branch — the original deleted first, then said
+    # "cannot be deleted", so the protected "None" group was wiped anyway.
     if title == "None":
         messages.info(request, "This template group cannot be deleted")
     else:
+        SurveyTemplate.objects.filter(title=str(title)).delete()
         messages.success(request, "Template group deleted")
 
     if request.META.get("HTTP_HX_REQUEST") == "true":

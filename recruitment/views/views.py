@@ -4189,7 +4189,12 @@ def candidate_add_notes(request, cand_id):
 @login_required
 @hx_request_required
 def employee_profile_interview_tab(request):
-    employee = request.user.employee_get
+    # ponytail: employee_get is a reverse 1-1 that RAISES for a user with no Employee
+    # (superuser). getattr(...,None) would NOT catch it — must except DoesNotExist.
+    try:
+        employee = request.user.employee_get
+    except Employee.DoesNotExist:
+        return render(request, "tabs/scheduled_interview.html", {"interviews": []})
 
     interviews = employee.interviewschedule_set.annotate(
         is_today=Case(
