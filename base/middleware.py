@@ -225,7 +225,6 @@ class CompanyMiddleware:
         return bool(
             request.user.is_authenticated
             and is_platform_owner(request.user)
-            and request.user.username == "skylinx"
         )
 
     def _get_company_obj(self, request, com_id=None):

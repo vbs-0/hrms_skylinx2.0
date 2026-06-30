@@ -33,6 +33,11 @@ MANUAL = [
     ("2026-06-21", "evening", "Feature", "Subscriptions", "#7 notify_trial_ending command: emails admins at 7/3/1 days before trial end", "subscriptions/management/commands/notify_trial_ending.py"),
     ("2026-06-21", "evening", "Feature", "Subscriptions", "#30 Multi-admin / account recovery: company_admins view + admins.html + route + profile link; promote/revoke admin, blocks removing last admin", "subscriptions/views.py, templates/subscriptions/admins.html"),
     ("2026-06-21", "evening", "Feature", "Ops/Infra", "Daily worklog generator -> docs/worklog.xlsx", "scripts/worklog.py"),
+    # 2026-06-30 — geofence enforcement + shift-day lookup hardening (uncommitted)
+    ("2026-06-30", "evening", "Feature", "Geofencing", "Added GeoFencing.enforce BooleanField (default False, opt-in) so out-of-zone check-in/out can be hard-blocked instead of just flagged + admin-notified", "geofencing/models.py"),
+    ("2026-06-30", "evening", "Feature", "Attendance/Mobile", "MobileCheckInAPIView and MobileCheckOutAPIView now return 400 OUTSIDE_GEOFENCE (with distanceFromCenterMeters) when within_geofence is False and geofence.enforce is True", "skylinx_api/api_views/attendance/mobile_views.py"),
+    ("2026-06-30", "evening", "Fix", "Attendance", "Removed stray `from datetime import timezone` in views.py that was shadowing django.utils.timezone and silently breaking .now()/.localtime() calls in this file", "skylinx_api/api_views/attendance/views.py"),
+    ("2026-06-30", "evening", "Fix", "Attendance", "ClockInAPIView day-row lookup (today + yesterday) no longer raises DoesNotExist when EmployeeShiftDay's company M2M is unlinked for the tenant: falls back through company-scoped filter -> entire() -> create(day=...)", "skylinx_api/api_views/attendance/views.py"),
 ]
 
 

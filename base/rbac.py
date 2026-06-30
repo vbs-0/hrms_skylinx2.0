@@ -11,12 +11,10 @@ group; the prefix is stripped for display (see base.apps).
 SEP = "::"
 
 def is_platform_owner(user) -> bool:
-    return bool(
-        user
-        and user.is_authenticated
-        and user.is_superuser
-        and user.username == "skylinx"
-    )
+    # The platform owner is the superuser. Tenants are always non-superuser
+    # Company Admins, so is_superuser is the operator marker. (Was hardcoded to
+    # username=="skylinx", which broke when the owner was renamed to "emplinx".)
+    return bool(user and user.is_authenticated and user.is_superuser)
 
 
 def hierarchy_rank(user) -> int:
