@@ -831,7 +831,7 @@ def form_shift_dynamic_data(request):
             attendance_clock_out_date = attendance_date + timedelta(days=1)
     worked_hour = minimum_hour
     if attendance_date == date(day=today.day, month=today.month, year=today.year):
-        shift_end_time = timezone.now().strftime("%H:%M")
+        shift_end_time = timezone.localtime().strftime("%H:%M")
         worked_hour = "00:00"
 
     minimum_hour = attendance_day_checking(str(attendance_date), minimum_hour)
@@ -1750,7 +1750,7 @@ def update_fields_based_shift(request):
         attendance_clock_out_date = attendance_date.strftime("%Y-%m-%d")
 
     if attendance_date == datetime.today().date():
-        shift_end_time = timezone.now().time()
+        shift_end_time = timezone.localtime().time()
         worked_hour = "00:00"
     else:
         worked_hour = minimum_hour

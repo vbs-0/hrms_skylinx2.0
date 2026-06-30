@@ -92,7 +92,7 @@ class ClockInAPIView(APIView):
                 attendance_date = date_today
                 day = date_today.strftime("%A").lower()
                 day = EmployeeShiftDay.objects.get(day=day)
-                now = timezone.now().strftime("%H:%M")
+                now = timezone.localtime().strftime("%H:%M")
                 if request.__dict__.get("time"):
                     now = request.time.strftime("%H:%M")
                 now_sec = strtime_seconds(now)
@@ -162,7 +162,7 @@ class ClockOutAPIView(APIView):
             pass
         if request.user.employee_get.check_online():
             current_date = date.today()
-            current_time = timezone.now().time()
+            current_time = timezone.localtime().time()
             current_datetime = timezone.now()
 
             try:

@@ -158,7 +158,7 @@ class AttendanceActivity(SkylinxModel):
 
         if not self.clock_out or not self.clock_out_date:
             self.clock_out_date = datetime.today().date()
-            self.clock_out = timezone.now().time()
+            self.clock_out = timezone.localtime().time()
 
         clock_in_datetime = datetime.combine(self.clock_in_date, self.clock_in)
         clock_out_datetime = datetime.combine(self.clock_out_date, self.clock_out)
@@ -922,7 +922,7 @@ class Attendance(SkylinxModel):
 
     def clean(self, *args, **kwargs):
         super().clean(*args, **kwargs)
-        now = timezone.now().time()
+        now = timezone.localtime().time()
         today = datetime.today().date()
 
         # Convert to time if it's a string

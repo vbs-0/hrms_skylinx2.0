@@ -27,7 +27,7 @@ def block_unblock_disciplinary():
     from skylinx_auth.models import SkylinxUser
 
     today = date.today()
-    now = timezone.now().time()
+    now = timezone.localtime().time()
 
     dis_actions = DisciplinaryAction.objects.select_related("action").prefetch_related(
         "employee_id"

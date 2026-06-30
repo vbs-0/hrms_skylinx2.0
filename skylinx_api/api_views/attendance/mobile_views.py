@@ -145,7 +145,7 @@ class MobileCheckInAPIView(APIView):
                 clock_out(AttendanceRequest(
                     user=request.user,
                     date=open_activity.attendance_date,
-                    time=timezone.now().time(),
+                    time=timezone.localtime().time(),
                     datetime=timezone.now(),
                 ))
             except Exception:

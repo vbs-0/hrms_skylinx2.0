@@ -78,10 +78,10 @@ def work_type_rotate_weekend(rotating_work_type):
     """
     This method for rotate work type based on weekend
     """
-    date_today = timezone.now()
+    date_today = timezone.localtime()
     switch_date = rotating_work_type.next_change_date
     if switch_date.strftime("%Y-%m-%d") == date_today.strftime("%Y-%m-%d"):
-        day = timezone.now().strftime("%A").lower()
+        day = timezone.localtime().strftime("%A").lower()
         switch_day = rotating_work_type.rotate_every_weekend
         if day == switch_day:
             new_date = date_today + timedelta(days=7)
@@ -227,7 +227,7 @@ def rotate_shift():
     from base.models import RotatingShiftAssign
 
     rotating_shifts = RotatingShiftAssign.objects.filter(is_active=True)
-    today = timezone.now().date()
+    today = timezone.localtime().date()
     r_shifts = rotating_shifts.filter(start_date__lte=today)
     rotating_shifts_modified = rotating_shifts.none()
     for r_shift in r_shifts:

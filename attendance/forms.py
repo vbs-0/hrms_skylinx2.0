@@ -1229,7 +1229,7 @@ class BulkAttendanceRequestForm(BaseModelForm):
         minimum_hour = cleaned_data.get("minimum_hour")
         attendance_clock_out = cleaned_data.get("attendance_clock_out")
         employee_id = cleaned_data.get("employee_id")
-        now = timezone.now().time()
+        now = timezone.localtime().time()
         today = datetime.datetime.today().date()
         validate_time_format(attendance_worked_hour)
         validate_time_format(minimum_hour)
