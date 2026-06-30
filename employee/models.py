@@ -631,7 +631,7 @@ class Employee(models.Model):
                     not hasattr(request, "working_employees")
                     or request.working_employees is None
                 ):
-                    today = timezone.now().date()
+                    today = timezone.localtime().date()
                     yesterday = today - timedelta(days=1)
                     working_employees = Attendance.objects.filter(
                         attendance_date__gte=yesterday,

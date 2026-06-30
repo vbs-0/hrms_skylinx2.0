@@ -155,11 +155,16 @@ class DocumentCreateForm(SkylinxFormView):
             employee = Employee.objects.get(id=employee_id)
         except Employee.DoesNotExist:
             return render(request, "no_perm.html")
-        current = request.user.employee_get
+        # ponytail: employee_get is a reverse 1-1; it RAISES (not returns None) for a
+        # user with no Employee (e.g. a superuser). Keep perm-based access working.
+        try:
+            current = request.user.employee_get
+        except Employee.DoesNotExist:
+            current = None
         is_authorized = (
             request.user.has_perm("employee.change_employee")
-            or current == employee
-            or check_manager(current, employee)
+            or (current is not None and current == employee)
+            or (current is not None and check_manager(current, employee))
         )
         if not is_authorized:
             return render(request, "no_perm.html")

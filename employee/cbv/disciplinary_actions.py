@@ -7,7 +7,7 @@ from typing import Any
 
 from django import forms
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
@@ -122,6 +122,10 @@ class DisciplinaryActionsNav(SkylinxNavView):
     search_swap_target = "#listContainer"
 
 
+# ponytail: this is the base of the inline dynamic-create widget; the standalone
+# ActionTypeFormView subclass adds full perms. Guard login here so the dynamic-create
+# route can't be hit anonymously (perm left to the subclass to not break inline use).
+@method_decorator(login_required, name="dispatch")
 class DynamicActionTypeFormView(SkylinxFormView):
 
     model = Actiontype
@@ -216,7 +220,10 @@ class DisciplinaryActionsFormDuplicate(SkylinxFormView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        original_object = DisciplinaryAction.objects.get(id=self.kwargs["pk"])
+        try:
+            original_object = DisciplinaryAction.objects.get(id=self.kwargs["pk"])
+        except DisciplinaryAction.DoesNotExist:
+            raise Http404(_("Disciplinary action not found."))
         form = self.form_class(instance=original_object)
         for field_name, field in form.fields.items():
             if isinstance(field, forms.CharField):

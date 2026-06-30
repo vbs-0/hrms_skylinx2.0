@@ -753,7 +753,12 @@ def document_create(request, emp_id):
     if request.method == "POST":
         form = DocumentForm(request.POST, request.FILES)
         if form.is_valid():
-            form.save()
+            # ponytail: force the owner from the URL-validated emp_id; employee_id is a
+            # hidden form field, so trusting the POST value is an IDOR (upload to anyone).
+            doc = form.save(commit=False)
+            doc.employee_id = employee_id
+            doc.save()
+            form.save_m2m()
             messages.success(request, _("Document created successfully."))
             return SkylinxRedirect(request)
 
@@ -3146,7 +3151,7 @@ def birthday():
     """
     This method is used to find upcoming birthday and returns the queryset
     """
-    today = timezone.now().date()
+    today = timezone.localtime().date()
     last_day_of_month = calendar.monthrange(today.year, today.month)[1]
     employees = Employee.objects.filter(
         is_active=True,
