@@ -1,5 +1,8 @@
 import json
 from datetime import datetime, timedelta
+
+from django.core.exceptions import ObjectDoesNotExist
+from django.utils import timezone
 from urllib.parse import parse_qs, urlparse
 
 from django.apps import apps
@@ -1003,7 +1006,16 @@ def delete_resignation_request(request):
     This method is used to delete resignation letter instance
     """
     ids = request.GET.getlist("letter_ids")
-    ResignationLetter.objects.filter(id__in=ids).delete()
+    letters = ResignationLetter.objects.filter(id__in=ids)
+    # ponytail: a regular user may only delete their OWN resignation letters; deleting by
+    # id let anyone remove a colleague's. Staff with the perm can delete any.
+    if not request.user.has_perm("offboarding.delete_resignationletter"):
+        try:
+            employee = request.user.employee_get
+        except ObjectDoesNotExist:
+            employee = None
+        letters = letters.filter(employee_id=employee)
+    letters.delete()
     messages.success(request, _("Resignation letter deleted"))
     if request.META.get("HTTP_REFERER") and request.META.get("HTTP_REFERER").endswith(
         "employee-profile/"
@@ -1074,14 +1086,18 @@ def update_status(request):
     )
 
     if offboarding_id:
-        offboarding = Offboarding.objects.get(id=offboarding_id)
+        offboarding = Offboarding.objects.filter(id=offboarding_id).first()
+        if not offboarding:
+            messages.error(request, _("Offboarding record not found."))
+            return redirect(reverse("resignation-request-view"))
         notice_period_starts = request.GET.get("notice_period_starts")
         notice_period_ends = request.GET.get("notice_period_ends", None)
         if notice_period_starts:
             notice_period_starts = datetime.strptime(
                 notice_period_starts, "%Y-%m-%d"
             ).date()
-        today = datetime.today()
+        # ponytail: local (IST) date, not naive server time, for notice-period math.
+        today = timezone.localtime().date()
         if notice_period_ends:
             notice_period_ends = datetime.strptime(
                 notice_period_ends, "%Y-%m-%d"
@@ -1110,8 +1126,12 @@ def update_status(request):
             messages.success(
                 request, f"Resignation request has been {letter.get_status_display()}"
             )
+            try:
+                sender = request.user.employee_get
+            except ObjectDoesNotExist:
+                sender = None
             notify.send(
-                request.user.employee_get,
+                sender,
                 recipient=letter.employee_id.employee_user_id,
                 verb=f"Resignation request has been {letter.get_status_display()}",
                 verb_ar=f"تم {letter.get_status_display()} طلب الاستقالة",
