@@ -1239,7 +1239,10 @@ def leave_request_bulk_approve(request):
         request_ids = request.POST.getlist("ids")
         filtered_ids = []
         for request_id in request_ids:
-            leave_request = LeaveRequest.objects.get(id=int(request_id))
+            try:
+                leave_request = LeaveRequest.objects.get(id=int(request_id))
+            except (ValueError, LeaveRequest.DoesNotExist):
+                continue
             # Exclude requests where the employee is the current user
             if leave_request.employee_id != request.user.employee_get:
                 filtered_ids.append(request_id)
@@ -1289,9 +1292,14 @@ def leave_bulk_reject(request):
     request_ids = request.POST.getlist("request_ids")
 
     for request_id in request_ids:
-        leave_request = (
-            LeaveRequest.objects.get(id=int(request_id)) if request_id else None
-        )
+        try:
+            leave_request = (
+                LeaveRequest.objects.get(id=int(request_id)) if request_id else None
+            )
+        except (ValueError, LeaveRequest.DoesNotExist):
+            continue
+        if leave_request is None:
+            continue
         leave_request_cancel(request, leave_request.id)
 
     return SkylinxRedirect(request)
@@ -1426,7 +1434,10 @@ def user_leave_cancel(request, id):
     GET :  it returns to the default my leave request view template.
 
     """
-    leave_request = LeaveRequest.objects.get(id=id)
+    try:
+        leave_request = LeaveRequest.objects.get(id=id)
+    except LeaveRequest.DoesNotExist:
+        return SkylinxRedirect(request, message=_("Leave request not found."))
     employee_id = leave_request.employee_id
     if employee_id.employee_user_id.id == request.user.id:
         current_date = date.today()
@@ -4145,6 +4156,10 @@ def user_request_bulk_delete(request):
     for leave_request_id in ids:
         try:
             leave_request = LeaveRequest.objects.get(id=leave_request_id)
+            # ponytail: owner-only, mirroring user_request_delete. Without this any
+            # authenticated user could delete others' pending requests by id (IDOR).
+            if leave_request.employee_id != request.user.employee_get:
+                continue
             status = leave_request.status
             if leave_request.status == "requested":
                 leave_request.delete()
