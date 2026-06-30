@@ -1540,7 +1540,7 @@ class EmployeeShiftScheduleForm(ModelForm):
     cols = {"day": 12}
 
     day = forms.ModelMultipleChoiceField(
-        queryset=EmployeeShiftDay.objects.all(),
+        queryset=EmployeeShiftDay.objects.entire(),
     )
 
     class Meta:
@@ -1565,7 +1565,7 @@ class EmployeeShiftScheduleForm(ModelForm):
         )
         if self.instance.pk:
             self.fields["day"] = forms.ModelChoiceField(
-                queryset=EmployeeShiftDay.objects.all(),
+                queryset=EmployeeShiftDay.objects.entire(),
                 widget=forms.Select(
                     attrs={
                         "class": "oh-select oh-select2 w-100",
