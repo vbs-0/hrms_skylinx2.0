@@ -1363,7 +1363,9 @@ def payslip_export(request):
     response["Content-Disposition"] = f'attachment; filename="{file_name}"'
 
     writer = pd.ExcelWriter(response, engine="xlsxwriter")
-    data_frame.style.map(lambda x: "text-align: center").to_excel(
+    # ponytail: Styler.map is pandas>=2.1; server runs 2.0.3 which only has applymap
+    style_fn = getattr(data_frame.style, "map", data_frame.style.applymap)
+    style_fn(lambda x: "text-align: center").to_excel(
         writer, index=False, sheet_name="Sheet1"
     )
     worksheet = writer.sheets["Sheet1"]

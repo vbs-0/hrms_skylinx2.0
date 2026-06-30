@@ -88,7 +88,9 @@ def generate_error_report(error_list, error_data, file_name):
     for key in keys_to_remove:
         del error_data[key]
     data_frame = pd.DataFrame(error_data, columns=error_data.keys())
-    styled_data_frame = data_frame.style.map(
+    # ponytail: Styler.map is pandas>=2.1; server runs 2.0.3 which only has applymap
+    style_fn = getattr(data_frame.style, "map", data_frame.style.applymap)
+    styled_data_frame = style_fn(
         lambda x: "text-align: center", subset=pd.IndexSlice[:, :]
     )
     response = HttpResponse(content_type="application/ms-excel")

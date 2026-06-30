@@ -6128,8 +6128,12 @@ def all_notifications(request):
 @login_required
 def notification_sound(request):
     employee = request.user.employee_get
-    sound, created = NotificationSound.objects.get_or_create(employee=employee)
-    if not created:
+    # NotificationSound is company-scoped but unique per employee; the scoped get
+    # can miss an existing row (other/no company) and 500 on the unique employee_id.
+    sound = NotificationSound.objects.entire().filter(employee=employee).first()
+    if sound is None:
+        NotificationSound.objects.create(employee=employee)
+    else:
         sound.sound_enabled = not sound.sound_enabled
         sound.save()
 
@@ -7823,7 +7827,9 @@ def generate_error_report(error_list, error_data, file_name):
         del error_data[key]
 
     data_frame = pd.DataFrame(error_data, columns=error_data.keys())
-    styled_data_frame = data_frame.style.map(
+    # ponytail: Styler.map is pandas>=2.1; server runs 2.0.3 which only has applymap
+    style_fn = getattr(data_frame.style, "map", data_frame.style.applymap)
+    styled_data_frame = style_fn(
         lambda x: "text-align: center", subset=pd.IndexSlice[:, :]
     )
 
