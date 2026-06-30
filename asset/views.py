@@ -12,6 +12,7 @@ from urllib.parse import parse_qs
 import pandas as pd
 from django.conf import settings
 from django.contrib import messages
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage
 from django.core.paginator import Paginator
@@ -1019,14 +1020,19 @@ def filter_pagination_asset_request_allocation(request):
     allocation_field = request.GET.get("allocation_field")
     if asset_request_allocation_search is None:
         asset_request_allocation_search = ""
-    employee = request.user.employee_get
+    # ponytail: employee_get is a reverse 1-1 that raises for users with no Employee
+    # (superuser/owner); resolve once and reuse. None filters to an empty asset list.
+    try:
+        employee = request.user.employee_get
+    except ObjectDoesNotExist:
+        employee = None
     asset_assignment = AssetAssignment.objects.all()
     asset_request = filtersubordinates(
         request=request,
         perm="asset.view_assetrequest",
         queryset=AssetRequest.objects.all(),
         field="requested_employee_id",
-    ) | AssetRequest.objects.filter(requested_employee_id=request.user.employee_get)
+    ) | AssetRequest.objects.filter(requested_employee_id=employee)
     asset_request = asset_request.distinct()
     if request.GET.get("assign_sortby"):
         asset_assignment = sortby(request, asset_assignment, "assign_sortby")
@@ -1712,7 +1718,10 @@ def asset_count_update(request):
     if request.method == "POST":
         category_id = request.POST.get("asset_category_id")
         if category_id is not None:
-            category = AssetCategory.objects.get(id=category_id)
+            try:
+                category = AssetCategory.objects.get(id=category_id)
+            except AssetCategory.DoesNotExist:
+                return HttpResponse("0")
             asset_count = category.asset_set.count()
             return HttpResponse(asset_count)
     return HttpResponse("error")

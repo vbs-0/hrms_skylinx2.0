@@ -410,7 +410,8 @@ class AssetAssignment(SkylinxModel):
         verbose_name=_("Return Status"),
     )
     return_request = models.BooleanField(default=False)
-    objects = SkylinxCompanyManager("asset_id__asset_lot_number_id__company_id")
+    # ponytail: dead duplicate removed — a second `objects =` below (scoped by
+    # assigned_to_employee_id) overrode this line, so it never took effect.
     return_images = models.ManyToManyField(
         ReturnImages, blank=True, related_name="return_images"
     )
