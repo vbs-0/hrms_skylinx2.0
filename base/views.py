@@ -5532,8 +5532,9 @@ def shift_request_cancel(request, id):
     today_date = datetime.today().date()
     if (
         shift_request.approved
-        and shift_request.requested_date <= today_date <= shift_request.requested_till
         and not shift_request.is_permanent_shift
+        and shift_request.requested_till is not None
+        and shift_request.requested_date <= today_date <= shift_request.requested_till
     ):
         shift_request.employee_id.employee_work_info.shift_id = (
             shift_request.previous_shift_id
