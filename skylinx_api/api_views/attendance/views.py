@@ -1,5 +1,7 @@
 from django.utils import timezone
-from datetime import date, datetime, timedelta, timezone
+# ponytail: do NOT re-import `timezone` from datetime here — it shadows
+# django.utils.timezone and breaks .now()/.localtime() across this file.
+from datetime import date, datetime, timedelta
 
 from django import template
 from django.conf import settings
@@ -91,7 +93,13 @@ class ClockInAPIView(APIView):
                     date_today = request.date
                 attendance_date = date_today
                 day = date_today.strftime("%A").lower()
-                day = EmployeeShiftDay.objects.get(day=day)
+                # ponytail: day rows are global lookup data; company-scoped .get()
+                # raises DoesNotExist when the tenant M2M is unlinked -> use entire().
+                day = (
+                    EmployeeShiftDay.objects.filter(day=day).first()
+                    or EmployeeShiftDay.objects.entire().filter(day=day).first()
+                    or EmployeeShiftDay.objects.create(day=day)
+                )
                 now = timezone.localtime().strftime("%H:%M")
                 if request.__dict__.get("time"):
                     now = request.time.strftime("%H:%M")
@@ -111,7 +119,13 @@ class ClockInAPIView(APIView):
 
                         date_yesterday = date_today - timedelta(days=1)
                         day_yesterday = date_yesterday.strftime("%A").lower()
-                        day_yesterday = EmployeeShiftDay.objects.get(day=day_yesterday)
+                        day_yesterday = (
+                            EmployeeShiftDay.objects.filter(day=day_yesterday).first()
+                            or EmployeeShiftDay.objects.entire()
+                            .filter(day=day_yesterday)
+                            .first()
+                            or EmployeeShiftDay.objects.create(day=day_yesterday)
+                        )
                         minimum_hour, start_time_sec, end_time_sec = (
                             shift_schedule_today(day=day_yesterday, shift=shift)
                         )

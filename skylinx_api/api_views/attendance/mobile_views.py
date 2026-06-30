@@ -123,6 +123,14 @@ class MobileCheckInAPIView(APIView):
                 print(f"Geopy calculation error: {e}")
                 pass
 
+            if not within_geofence and geofence.enforce:
+                return Response({
+                    "success": False,
+                    "message": "You are outside the allowed check-in zone.",
+                    "errorCode": "OUTSIDE_GEOFENCE",
+                    "data": {"distanceFromCenterMeters": distance_meters},
+                }, status=400)
+
         # 4. Perform check-in (Sync with EMPLINX Core Shift/Attendance logic)
         # Canonical clock state = an OPEN AttendanceActivity (the same thing the app
         # shows from /attendance/my/). check_online() instead looked at a 2-day
@@ -363,6 +371,14 @@ class MobileCheckOutAPIView(APIView):
                     within_geofence = False
             except Exception:
                 pass
+
+            if not within_geofence and geofence.enforce:
+                return Response({
+                    "success": False,
+                    "message": "You are outside the allowed check-out zone.",
+                    "errorCode": "OUTSIDE_GEOFENCE",
+                    "data": {"distanceFromCenterMeters": distance_meters},
+                }, status=400)
 
         # Perform checkout
         current_date = date.today()

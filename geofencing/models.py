@@ -16,6 +16,12 @@ class GeoFencing(models.Model):
         null=True,
     )
     start = models.BooleanField(default=False)
+    # ponytail: when False (default) an out-of-zone check-in is recorded + flagged +
+    # admins notified (no lockout). When True the mobile API rejects it outright.
+    enforce = models.BooleanField(
+        default=False,
+        help_text="Block mobile check-in/out when outside the geofence (instead of just flagging it).",
+    )
 
     def clean(self):
         if self.company_id is None:
