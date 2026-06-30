@@ -974,7 +974,9 @@ def calculate_based_on_overtime(*_args, **kwargs):
         attendance_overtime_approve=True,
     )
     overtime = sum(attendance.overtime_second for attendance in attendances)
-    amount_per_hour = component.amount_per_one_hr
+    # ponytail: amount_per_one_hr is optional on the component; default to 0 so a
+    # blank rate yields 0 overtime pay instead of a TypeError mid-payslip-run.
+    amount_per_hour = component.amount_per_one_hr or 0
     amount_per_second = amount_per_hour / (60 * 60)
     amount = overtime * amount_per_second
     amount = round(amount, 2)

@@ -756,7 +756,7 @@ def dashboard_employee_chart(request):
     payroll dashboard employee chart data
     """
 
-    date = request.GET.get("period", timezone.now().strftime("%Y-%m"))
+    date = request.GET.get("period", timezone.localtime().strftime("%Y-%m"))
     year, month = date.split("-")
     dataset = []
     employee_label = []
@@ -841,7 +841,7 @@ def payslip_details(request):
     payroll dashboard payslip details data
     """
 
-    date = request.GET.get("period", timezone.now().strftime("%Y-%m"))
+    date = request.GET.get("period", timezone.localtime().strftime("%Y-%m"))
     year, month = date.split("-")
     employee_list = []
     employee_list = Payslip.objects.filter(
@@ -865,7 +865,7 @@ def dashboard_department_chart(request):
     payroll dashboard department chart data
     """
 
-    date = request.GET.get("period", timezone.now().strftime("%Y-%m"))
+    date = request.GET.get("period", timezone.localtime().strftime("%Y-%m"))
     year, month = date.split("-")
     dataset = [
         {
@@ -1140,8 +1140,8 @@ def payslip_export(request):
     contract_end = Contract.objects.all()
     if not start_date and not end_date:
         contract_end = contract_end.filter(
-            Q(contract_end_date__month=timezone.now().month)
-            & Q(contract_end_date__year=timezone.now().year)
+            Q(contract_end_date__month=timezone.localtime().month)
+            & Q(contract_end_date__year=timezone.localtime().year)
         )
     if end_date:
         contract_end = contract_end.filter(contract_end_date__lte=end_date)

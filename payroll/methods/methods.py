@@ -197,7 +197,7 @@ def hourly_computation(employee, wage, start_date, end_date):
 
     # to find wage per second
     # wage_per_second = wage_per_hour / total_seconds_in_hour
-    wage_in_second = wage / 3600
+    wage_in_second = (wage or 0) / 3600
     basic_pay = Decimal(f"{(wage_in_second * total_worked_hour_in_second):.2f}")
 
     return {

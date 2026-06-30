@@ -1668,7 +1668,7 @@ def delete_loan(request):
 
 
 @login_required
-@permission_required("payroll.view_loanaccount")
+@permission_required("payroll.change_loanaccount")
 def edit_installment_amount(request):
     loan_id = request.GET.get("loan_id")
     ded_id = request.GET.get("ded_id")

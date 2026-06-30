@@ -82,7 +82,7 @@ class TaxBracketCreateForm(SkylinxFormView):
             self.form_class.verbose_name = _("Update Tax Bracket")
         else:
             filing_status_id = self.kwargs.get("filing_status_id")
-            filling = FilingStatus.objects.get(id=filing_status_id)
+            filling = FilingStatus.objects.filter(id=filing_status_id).first()
             self.form.fields["filing_status_id"].initial = filling
             context["is_create"] = True
 
