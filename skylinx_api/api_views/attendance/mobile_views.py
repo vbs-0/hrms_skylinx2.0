@@ -174,7 +174,7 @@ class MobileCheckInAPIView(APIView):
             or EmployeeShiftDay.objects.entire().first()
         )
 
-        now_str = timezone.now().strftime("%H:%M")
+        now_str = timezone.localtime().strftime("%H:%M")
         now_sec = strtime_seconds(now_str)
         mid_day_sec = strtime_seconds("12:00")
 
@@ -366,7 +366,7 @@ class MobileCheckOutAPIView(APIView):
 
         # Perform checkout
         current_date = date.today()
-        current_time = timezone.now().time()
+        current_time = timezone.localtime().time()
         current_datetime = timezone.now()
 
         # Call Django Core check-out
