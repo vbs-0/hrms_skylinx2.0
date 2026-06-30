@@ -251,12 +251,20 @@ def self_info_update(request):
     This method is used to update own profile of an employee.
     """
     user = request.user
-    employee = Employee.objects.filter(employee_user_id=user).first()
+    # employee_get = unscoped reverse 1-1; Employee.objects is company-scoped and
+    # returns None for a superuser with no company selected (crash on .badge_id).
+    try:
+        employee = user.employee_get
+    except Employee.DoesNotExist:
+        employee = None
+    if employee is None:
+        messages.error(request, _("No employee profile is linked to your account."))
+        return redirect("/")
     badge_id = employee.badge_id
     bank_form = EmployeeBankDetailsForm(
         instance=EmployeeBankDetails.objects.filter(employee_id=employee).first()
     )
-    form = EmployeeForm(instance=Employee.objects.filter(employee_user_id=user).first())
+    form = EmployeeForm(instance=employee)
     if request.POST:
         if request.POST.get("employee_first_name") is not None:
             instance = Employee.objects.filter(employee_user_id=request.user).first()

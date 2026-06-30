@@ -972,7 +972,9 @@ def export_data(request, model, form_class, filter_class, file_name, perm=None):
                 data_export[verbose_name].append(value)
 
     data_frame = pd.DataFrame(data=data_export)
-    styled_data_frame = data_frame.style.map(
+    # ponytail: Styler.map is pandas>=2.1; server runs 2.0.3 which only has applymap
+    style_fn = getattr(data_frame.style, "map", data_frame.style.applymap)
+    styled_data_frame = style_fn(
         lambda x: "text-align: center", subset=pd.IndexSlice[:, :]
     )
 

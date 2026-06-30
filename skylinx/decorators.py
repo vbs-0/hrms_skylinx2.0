@@ -301,7 +301,10 @@ def owner_can_enter(
     """
 
     def _function(request, *args, **kwargs):
-        instance_id = kwargs[list(kwargs.keys())[0]]
+        # some views (e.g. add_note) carry no URL kwarg and resolve the target
+        # from GET/POST themselves; None -> employee stays None -> allowed below.
+        keys = list(kwargs.keys())
+        instance_id = kwargs[keys[0]] if keys else None
         if model == Employee:
             employee = Employee.objects.filter(id=instance_id).first()
         else:

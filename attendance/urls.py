@@ -321,11 +321,11 @@ urlpatterns = [
     #     views.late_come_early_out_bulk_delete,
     #     name="late-come-early-out-bulk-delete",
     # ),
-    # path(
-    #     "late-come-early-out-info-export/",
-    #     views.late_come_early_out_export,
-    #     name="late-come-early-out-info-export",
-    # ),
+    path(
+        "late-come-early-out-info-export/",
+        views.late_come_early_out_export,
+        name="late-come-early-out-info-export",
+    ),
     path(
         "validation-condition-create/",
         views.validation_condition_create,
