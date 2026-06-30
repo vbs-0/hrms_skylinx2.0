@@ -171,9 +171,16 @@ def create_attendance_setting(sender, instance, created, raw, **kwargs):
     whenever a new Company is created. This does NOT skip creation during
     loaddata, so the object will also be created when fixture data is loaded.
     """
-    AttendanceGeneralSetting.objects.get_or_create(company_id=None)
-    if created:
-        AttendanceGeneralSetting.objects.get_or_create(company_id=instance)
+    # .entire() bypasses company scoping. With the scoped manager the get inside
+    # get_or_create can't see the existing null-company row (it's filtered out by
+    # the active company), so it created a NEW duplicate every time — and once two
+    # null rows exist, get_or_create raised MultipleObjectsReturned and broke
+    # company creation entirely.
+    AGS = AttendanceGeneralSetting.objects
+    if not AGS.entire().filter(company_id__isnull=True).exists():
+        AGS.create(company_id=None)
+    if created and not AGS.entire().filter(company_id=instance).exists():
+        AGS.create(company_id=instance)
 
 
 # @receiver(post_migrate)
