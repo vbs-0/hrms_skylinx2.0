@@ -9,7 +9,9 @@ from urllib.parse import parse_qs, urlparse
 import pandas as pd
 from django.contrib import messages
 from django.core import serializers
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404, HttpResponse, JsonResponse
+from django.utils import timezone
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -1005,16 +1007,25 @@ def task_stage_change(request):
         messages.error(request, _("Task not found"))
         return JsonResponse({"error": "Task not found"}, status=404)
     project = task.project
+    # ponytail: employee_get is a reverse 1-1 that raises for users with no Employee.
+    try:
+        employee = request.user.employee_get
+    except ObjectDoesNotExist:
+        employee = None
     if not (
         request.user.has_perm("project.change_task")
         or request.user.has_perm("project.change_project")
-        or request.user.employee_get in task.task_managers.all()
-        or request.user.employee_get in task.task_members.all()
-        or request.user.employee_get in project.managers.all()
-        or request.user.employee_get in project.members.all()
+        or (employee and employee in task.task_managers.all())
+        or (employee and employee in task.task_members.all())
+        or (employee and employee in project.managers.all())
+        or (employee and employee in project.members.all())
     ):
         messages.info(request, _("You dont have permission."))
         return JsonResponse({"error": "Permission denied"}, status=403)
+    # ponytail: prevent moving a task into a stage that belongs to another project.
+    if stage.project_id != project.id:
+        messages.error(request, _("Stage does not belong to this project"))
+        return JsonResponse({"error": "Invalid stage for this project"}, status=400)
     Task.objects.filter(id=task_id).update(stage=stage)
     return JsonResponse(
         {
@@ -1104,21 +1115,31 @@ def drag_and_drop_task(request):
         messages.error(request, _("Task not found"))
         return JsonResponse({"error": "Task not found"}, status=404)
 
-    if task.end_date and task.end_date < date.today():
+    if task.end_date and task.end_date < timezone.localtime().date():
         messages.warning(request, _("Cannot update status. Task has already expired."))
         return JsonResponse({"change": True})
 
     project = task.project
+    try:
+        employee = request.user.employee_get
+    except ObjectDoesNotExist:
+        employee = None
     if (
         request.user.has_perm("project.change_task")
         or request.user.has_perm("project.change_project")
-        or request.user.employee_get in task.task_managers.all()
-        or request.user.employee_get in task.task_members.all()
-        or request.user.employee_get in project.managers.all()
-        or request.user.employee_get in project.members.all()
+        or (employee and employee in task.task_managers.all())
+        or (employee and employee in task.task_members.all())
+        or (employee and employee in project.managers.all())
+        or (employee and employee in project.members.all())
     ):
         if previous_stage_id != updated_stage_id:
-            task.stage = ProjectStage.objects.get(id=updated_stage_id)
+            # ponytail: guard bad id (500) + block moving into another project's stage.
+            new_stage = ProjectStage.objects.filter(id=updated_stage_id).first()
+            if not new_stage or new_stage.project_id != project.id:
+                return JsonResponse(
+                    {"error": "Invalid stage for this project"}, status=400
+                )
+            task.stage = new_stage
             task.save()
             change = True
         sequence = json.loads(request.POST["sequence"])
@@ -1197,17 +1218,21 @@ def update_project_task_status(request, task_id):
         return SkylinxRedirect(request, message=_("Task not found"))
 
     project = task.project
+    try:
+        employee = request.user.employee_get
+    except ObjectDoesNotExist:
+        employee = None
     if not (
         request.user.has_perm("project.change_task")
         or request.user.has_perm("project.change_project")
-        or request.user.employee_get in task.task_managers.all()
-        or request.user.employee_get in task.task_members.all()
-        or request.user.employee_get in project.managers.all()
-        or request.user.employee_get in project.members.all()
+        or (employee and employee in task.task_managers.all())
+        or (employee and employee in task.task_members.all())
+        or (employee and employee in project.managers.all())
+        or (employee and employee in project.members.all())
     ):
         return render(request, "no_perm.html")
 
-    if task.end_date and task.end_date < date.today():
+    if task.end_date and task.end_date < timezone.localtime().date():
         messages.warning(request, _("Cannot update status. Task has already expired."))
         return HttpResponse("<script>$('#reloadMessagesButton').click();</script>")
 
