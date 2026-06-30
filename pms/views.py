@@ -49,6 +49,7 @@ from skylinx.decorators import (
 from skylinx.group_by import group_by_queryset
 from skylinx.http.response import SkylinxRedirect
 from skylinx.methods import handle_no_permission
+from django.core.exceptions import ObjectDoesNotExist
 from skylinx_auth.models import SkylinxUser
 from skylinx_automations.methods.methods import generate_choices
 from skylinx_automations.methods.serialize import serialize_form
@@ -828,10 +829,20 @@ def objective_detailed_view_activity(request, id):
         it will return history,comment object to objective_detailed_view_activity.
     """
 
-    objective = EmployeeObjective.objects.get(id=id)
+    try:
+        objective = EmployeeObjective.objects.get(id=id)
+    except EmployeeObjective.DoesNotExist:
+        messages.info(request, _("Objective not found."))
+        return SkylinxRedirect(request)
+    # ponytail: employee_get is a reverse 1-1 that RAISES for a user with no Employee
+    # (superuser); resolve once, guard the manager check against None.
+    try:
+        employee = request.user.employee_get
+    except ObjectDoesNotExist:
+        employee = None
     if (
-        request.user.employee_get == objective.employee_id
-        or request.user.employee_get in objective.objective_id.managers.all()
+        employee == objective.employee_id
+        or (employee is not None and employee in objective.objective_id.managers.all())
         or request.user.has_perm("pms.view_comment")
     ):
         key_result_history = objective_history(id)
@@ -1969,12 +1980,13 @@ def feedback_answer_get(request, id, **kwargs):
         messages.info(request, _("You are not allowed to answer"))
         return redirect(reverse("feedback-view"))
 
-    # Employee does not have an answer object
-    for employee in feedback_employees:
-        has_answer = Answer.objects.filter(
-            employee_id=employee, feedback_id=feedback
-        ).exists()
-    if has_answer:
+    # ponytail: close only when EVERY participant has answered. The original loop
+    # overwrote has_answer each pass, so the last participant alone decided closure.
+    all_answered = all(
+        Answer.objects.filter(employee_id=emp, feedback_id=feedback).exists()
+        for emp in feedback_employees
+    )
+    if all_answered:
         feedback.status = "Closed"
         feedback.save()
 
@@ -2009,6 +2021,17 @@ def feedback_answer_post(request, id):
 
     user = request.user
     employee = Employee.objects.filter(employee_user_id=user).first()
+    # ponytail: mirror feedback_answer_get's participant gate — the GET checked it but
+    # POST didn't, letting any logged-in user submit answers for a feedback they're not in.
+    feedback_employees = (
+        [feedback.employee_id]
+        + [feedback.manager_id]
+        + list(feedback.colleague_id.all())
+        + list(feedback.subordinate_id.all())
+        + list(feedback.others_id.all())
+    )
+    if employee not in feedback_employees:
+        return handle_no_permission(request)
     question_template = feedback.question_template_id
     questions = question_template.question.all()
 
