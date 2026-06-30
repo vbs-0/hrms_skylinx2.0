@@ -1,3 +1,7 @@
+# ponytail: server runs Python 3.8; this makes PEP585/604 hints (list[dict], X | None)
+# lazy strings so they don't blow up at import time.
+from __future__ import annotations
+
 from typing import Any
 
 from django.http import HttpResponse
