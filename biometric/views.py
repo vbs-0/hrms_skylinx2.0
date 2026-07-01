@@ -799,7 +799,7 @@ def test_dahua_connection(device):
 
 def test_etimeoffice_connection(device):
     """Test connection for e-TimeOffice device."""
-    now = timezone.now()
+    now = django_timezone.now()
     etimeoffice = ETimeOfficeAPI(
         username=device.bio_username,
         password=device.bio_password,
@@ -1891,7 +1891,9 @@ def add_dahua_biometric_user(request, device_id):
             except Employee.DoesNotExist:
                 messages.error(request, _("Employee not found."))
                 return render(
-                    request, "biometric_users/dahua/add_dahua_user.html", context
+                    request,
+                    "biometric_users/dahua/add_dahua_user.html",
+                    {"form": form, "device_id": device_id},
                 )
 
             dahua = DahuaAPI(
@@ -2559,7 +2561,7 @@ def etimeoffice_biometric_attendance_logs(device):
     """
     Retrieves and processes attendance logs from an eTimeOffice biometric device.
     """
-    now = timezone.now()
+    now = django_timezone.now()
     etimeoffice = ETimeOfficeAPI(
         username=device.bio_username,
         password=device.bio_password,

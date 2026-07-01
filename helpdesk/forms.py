@@ -27,6 +27,7 @@ from typing import Any
 
 from django import forms
 from django.template.loader import render_to_string
+from django.utils.translation import gettext_lazy as _
 
 from base.forms import ModelForm
 from base.methods import filtersubordinatesemployeemodel, is_reportingmanager
@@ -181,10 +182,8 @@ class TicketForm(ModelForm):
             if self.instance and self.instance.pk:
                 if not (
                     user.has_perm("helpdesk.change_ticket")
-                    or user.has_perm(
-                        "helpdesk.add_ticket"
-                        or self.instance.employee_id == user.employee_get
-                    )
+                    or user.has_perm("helpdesk.add_ticket")
+                    or self.instance.employee_id == user.employee_get
                 ):
                     raise forms.ValidationError(
                         _("Deadline should be greater than today")

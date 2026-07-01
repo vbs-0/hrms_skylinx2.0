@@ -1466,7 +1466,7 @@ def approve_claim_request(request, req_id):
     if not (
         request.user.has_perm("helpdesk.change_claimrequest")
         or request.user.has_perm("helpdesk.change_ticket")
-        or is_department_manager(request, ticket)
+        or is_department_manager(request, claim_request.ticket_id)
     ):
         handle_no_permission(request)
 

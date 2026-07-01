@@ -37,6 +37,7 @@ from base.methods import (
 
 # from skylinx.http import SkylinxRedirect
 from skylinx.filters import FilterSet
+from skylinx.config import import_method
 from skylinx.group_by import group_by_queryset
 from skylinx.skylinx_middlewares import _thread_locals
 from skylinx.http.response import SkylinxRedirect
