@@ -28,7 +28,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from datetime import timedelta
 
-from base.models import Company
+from base.models import Company, Department
 from employee.models import Employee, EmployeeWorkInformation
 
 from . import billing
@@ -168,6 +168,11 @@ def create_tenant(company_name, username, email, password, plan, trial_days=None
         company = Company.objects.create(company=company_name)
         # seed default roles (HR Manager / Manager / Employee) for this tenant
         seed_company_groups(company)
+        # seed default departments — everything not accounting-specific falls
+        # under Operations by default; admin can add more later.
+        for dept_name in ("Operations", "Accounting"):
+            dept = Department.objects.create(department=dept_name)
+            dept.company_id.add(company)
         user = User.objects.create_user(
             username=username, email=email, password=password
         )

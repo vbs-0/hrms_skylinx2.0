@@ -422,6 +422,13 @@ class EmployeeWorkInformationForm(ModelForm):
                 employee_work_info__company_id=selected_company,
                 is_active=True,
             ).exclude(employee_user_id__is_superuser=True)
+            # can't report to yourself or to someone who already reports to
+            # you — that's a reporting loop.
+            current_employee = getattr(self.instance, "employee_id", None)
+            if current_employee:
+                manager_qs = manager_qs.exclude(pk=current_employee.pk).exclude(
+                    employee_work_info__reporting_manager_id=current_employee
+                )
             if "reporting_manager_id" in self.fields:
                 self.fields["reporting_manager_id"].queryset = manager_qs
             if "employee_work_info__reporting_manager_id" in self.fields:
@@ -595,6 +602,13 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
                 employee_work_info__company_id=selected_company,
                 is_active=True,
             ).exclude(employee_user_id__is_superuser=True)
+            # can't report to yourself or to someone who already reports to
+            # you — that's a reporting loop.
+            current_employee = getattr(self.instance, "employee_id", None)
+            if current_employee:
+                manager_qs = manager_qs.exclude(pk=current_employee.pk).exclude(
+                    employee_work_info__reporting_manager_id=current_employee
+                )
             if "reporting_manager_id" in self.fields:
                 self.fields["reporting_manager_id"].queryset = manager_qs
             if "employee_work_info__reporting_manager_id" in self.fields:
