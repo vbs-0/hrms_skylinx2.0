@@ -1447,6 +1447,16 @@ class EmployeeShiftForm(ModelForm):
         fields = "__all__"
         exclude = ["days", "is_active", "weekly_full_time", "full_time"]
 
+    def save(self, commit=True):
+        # company_id is M2M-scoped; without this a tenant-created shift has an
+        # empty company set and the scoped list hides it. Mirror DepartmentForm.
+        instance = super().save(commit=commit)
+        request = getattr(_thread_locals, "request", None)
+        company = current_company(request) if request else None
+        if company and not self.cleaned_data.get("company_id"):
+            instance.company_id.add(company)
+        return instance
+
 
 class EmployeeShiftScheduleUpdateForm(ModelForm):
     """
