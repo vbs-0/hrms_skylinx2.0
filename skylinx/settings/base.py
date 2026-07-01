@@ -554,7 +554,9 @@ DEFAULT_LDAP_CONFIG = {
 
 AUTHENTICATION_BACKENDS = [
     "base.auth_backends.IdentifierBackend",
-    "django.contrib.auth.backends.ModelBackend",
+    # ModelBackend intentionally NOT included - it authenticates on raw
+    # `username`, which would silently bypass the username-login block above.
+    # "django.contrib.auth.backends.ModelBackend",
     # "django_auth_ldap.backend.LDAPBackend",
 ]
 
