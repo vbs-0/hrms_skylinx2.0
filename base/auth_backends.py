@@ -2,9 +2,9 @@
 Login identifier flexibility.
 
 By default a new employee's username is their email and password is their phone
-(see employee.models.Employee.save). Clients expect to hand staff a simple
-"username + phone" though, so accept the username, the personal email, the work
-email, OR the phone number as the login identifier.
+(see employee.models.Employee.save). Username-based login is intentionally NOT
+accepted here (client requirement) - only the personal email, work email, or
+phone number are valid login identifiers.
 """
 
 from django.contrib.auth.backends import ModelBackend
@@ -33,7 +33,7 @@ def _dedupe_users(querysets):
 
 
 class IdentifierBackend(ModelBackend):
-    """Authenticate by username / email / work-email / phone, then password."""
+    """Authenticate by email / work-email / phone (NOT username), then password."""
 
     def authenticate(self, request, username=None, password=None, **kwargs):
         if not username or not password:
@@ -42,7 +42,6 @@ class IdentifierBackend(ModelBackend):
         phone_ident = _phone_key(ident)
         users = _dedupe_users(
             [
-                SkylinxUser.objects.filter(username__iexact=ident),
                 SkylinxUser.objects.filter(email__iexact=ident),
                 SkylinxUser.objects.filter(employee_get__employee_work_info__email__iexact=ident),
                 SkylinxUser.objects.filter(employee_get__email__iexact=ident),
