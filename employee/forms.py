@@ -374,13 +374,6 @@ class EmployeeWorkInformationForm(ModelForm):
     Form for EmployeeWorkInformation model
     """
 
-    # Basic % of CTC (stored in salary_components JSON). Monthly basic pay =
-    # (CTC / 12) * basic% — fed into the contract wage / pay register.
-    basic_pct = forms.IntegerField(
-        label=_("Basic (%)"), required=False, min_value=0, max_value=100,
-        widget=forms.NumberInput(attrs={"class": "oh-input w-100", "onchange": "updateSalaryComponents()"}),
-    )
-
     class Meta:
         """
         Meta class to add the additional info
@@ -390,7 +383,7 @@ class EmployeeWorkInformationForm(ModelForm):
         fields = "__all__"
         exclude = (
             "employee_id", "additional_info", "experience", "tags",
-            "salary_hour", "salary_components",
+            "salary_hour", "salary_components", "ctc",
         )
 
         widgets = {
@@ -427,9 +420,7 @@ class EmployeeWorkInformationForm(ModelForm):
             if "employee_work_info__reporting_manager_id" in self.fields:
                 self.fields["employee_work_info__reporting_manager_id"].queryset = manager_qs
 
-        # Seed the basic % from the stored JSON (default 50).
-        components = (self.instance.salary_components or {}) if self.instance else {}
-        self.fields["basic_pct"].initial = components.get("basic", 50)
+
 
         self.fields["job_position_id"].widget.attrs.update(
             {
@@ -511,12 +502,6 @@ class EmployeeWorkInformationForm(ModelForm):
         # __isnull clause), so default to the acting user's company.
         if instance.company_id is None:
             instance.company_id = _default_company_id()
-        # Persist the basic % into the salary_components JSON.
-        current_basic = (instance.salary_components or {}).get("basic", 50)
-        basic_pct = self.cleaned_data.get("basic_pct")
-        instance.salary_components = {
-            "basic": current_basic if basic_pct is None else basic_pct
-        }
         if commit:
             instance.save()
             self.save_m2m()
@@ -548,13 +533,6 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
     Form for EmployeeWorkInformation model
     """
 
-    # Basic % of CTC (stored in salary_components JSON). Monthly basic pay =
-    # (CTC / 12) * basic% — fed into the contract wage / pay register.
-    basic_pct = forms.IntegerField(
-        label=_("Basic (%)"), required=False, min_value=0, max_value=100,
-        widget=forms.NumberInput(attrs={"class": "oh-input w-100", "onchange": "updateSalaryComponents()"}),
-    )
-
     class Meta:
         """
         Meta class to add the additional info
@@ -564,7 +542,7 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
         fields = "__all__"
         exclude = (
             "employee_id", "experience", "additional_info", "tags",
-            "salary_hour", "salary_components",
+            "salary_hour", "salary_components", "ctc",
         )
 
         widgets = {
@@ -617,20 +595,54 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
                 "hx-get": "/employee/get-job-roles-hx",
             }
         )
-        # Seed the basic % from the stored JSON (default 50).
-        components = (self.instance.salary_components or {}) if self.instance else {}
-        self.fields["basic_pct"].initial = components.get("basic", 50)
+
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        current_basic = (instance.salary_components or {}).get("basic", 50)
-        basic_pct = self.cleaned_data.get("basic_pct")
-        instance.salary_components = {
-            "basic": current_basic if basic_pct is None else basic_pct
-        }
         if commit:
             instance.save()
             self.save_m2m()
+        return instance
+
+class EmployeeCompensationForm(ModelForm):
+    """
+    Form for EmployeeWorkInformation compensation details (CTC, Basic %)
+    """
+
+    basic_pct = forms.IntegerField(
+        label=_("Basic (%)"),
+        required=False,
+        min_value=0,
+        max_value=100,
+        widget=forms.NumberInput(
+            attrs={
+                "class": "oh-input w-100",
+                "onchange": "updateSalaryComponentsUpdate()",
+            }
+        ),
+    )
+
+    class Meta:
+        model = EmployeeWorkInformation
+        fields = ("ctc",)
+        labels = {
+            "ctc": _("CTC"),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        components = (self.instance.salary_components or {}) if self.instance else {}
+        self.fields["basic_pct"].initial = components.get("basic", 50)
+        self.fields["ctc"].widget.attrs["placeholder"] = self.fields["ctc"].label
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        basic_pct = self.cleaned_data.get("basic_pct")
+        if basic_pct is None:
+            basic_pct = 50
+        instance.salary_components = {"basic": basic_pct}
+        if commit:
+            instance.save()
         return instance
 
     def as_p(self, *args, **kwargs):

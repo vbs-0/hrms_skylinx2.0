@@ -73,6 +73,14 @@
                     document.getElementById("id_work_type").dispatchEvent(change)
                     $("#id_wage").val(data.wage);
                     document.getElementById("id_wage").dispatchEvent(change)
+                    $("#id_ctc").val(data.ctc);
+                    if (document.getElementById("id_ctc")) {
+                        document.getElementById("id_ctc").dispatchEvent(change);
+                    }
+                    $("#id_basic_pct").val(data.basic_pct);
+                    if (document.getElementById("id_basic_pct")) {
+                        document.getElementById("id_basic_pct").dispatchEvent(change);
+                    }
                     $("#id_contract_start_date").val(data.contract_start_date);
                     document.getElementById("id_contract_start_date").dispatchEvent(change)
                     $("#id_contract_end_date").val(data.contract_end_date);
@@ -83,6 +91,18 @@
                 }
             });
         }
+
+        function updateWageFromCompensation() {
+            var b = parseInt($('#id_basic_pct').val()) || 0;
+            var ctc = parseInt($('#id_ctc').val()) || 0;
+            var monthlyBasic = ctc ? Math.round(ctc / 12 * b / 100) : 0;
+            $('#id_wage').val(monthlyBasic);
+            const change = new Event("change");
+            if (document.getElementById("id_wage")) {
+                document.getElementById("id_wage").dispatchEvent(change);
+            }
+        }
+        $(document).on('change keyup', '#id_ctc, #id_basic_pct', updateWageFromCompensation);
 
         $(document).ready(function () {
             $("[type=checkbox]").change(function (e) {

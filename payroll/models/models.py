@@ -386,6 +386,26 @@ class Contract(SkylinxModel):
         else:
             return _("No")
 
+    def ctc_col(self):
+        """
+        Return the CTC of the employee associated with this contract.
+        """
+        if self.employee_id:
+            work_info = getattr(self.employee_id, "employee_work_info", None)
+            if work_info:
+                return work_info.ctc
+        return 0
+
+    def basic_pct_col(self):
+        """
+        Return the Basic (%) of the employee associated with this contract.
+        """
+        if self.employee_id:
+            work_info = getattr(self.employee_id, "employee_work_info", None)
+            if work_info:
+                return f"{(work_info.salary_components or {}).get('basic', 50)}%"
+        return "50%"
+
     def __str__(self) -> str:
         return f"{self.contract_name} -{self.contract_start_date} - {self.contract_end_date}"
 

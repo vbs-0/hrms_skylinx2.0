@@ -92,6 +92,16 @@
             </div>
             <div class="oh-timeoff-modal__stats-container mt-3 mb-3">
                 <div class="oh-timeoff-modal__stat">
+                    <span class="oh-timeoff-modal__stat-title">{% trans "CTC" %}</span>
+                    <span class="oh-timeoff-modal__stat-count">{{contract.ctc_col}}</span>
+                </div>
+                <div class="oh-timeoff-modal__stat" style="margin-left: 20px;">
+                    <span class="oh-timeoff-modal__stat-title">{% trans "Basic (%)" %}</span>
+                    <span class="oh-timeoff-modal__stat-count">{{contract.basic_pct_col}}</span>
+                </div>
+            </div>
+            <div class="oh-timeoff-modal__stats-container mt-3 mb-3">
+                <div class="oh-timeoff-modal__stat">
                     {% if contract.calculate_daily_leave_amount %}
                         <span class="oh-timeoff-modal__stat-title">{% trans "Calculate Leave Amount" %}</span>
                         <span class="oh-timeoff-modal__stat-count">{{contract.calculate_daily_leave_amount|yes_no}}</span>
