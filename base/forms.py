@@ -984,6 +984,16 @@ class WorkTypeForm(ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    def save(self, commit=True):
+        # company_id is excluded from the form, so without this the row has an
+        # empty company set and the scoped list hides it. Mirror DepartmentForm.
+        instance = super().save(commit=commit)
+        request = getattr(_thread_locals, "request", None)
+        company = current_company(request) if request else None
+        if company and not instance.company_id.exists():
+            instance.company_id.add(company)
+        return instance
+
 
 class RotatingWorkTypeForm(ModelForm):
     """
@@ -1431,6 +1441,16 @@ class EmployeeTypeForm(ModelForm):
         model = EmployeeType
         fields = "__all__"
         exclude = ["is_active"]
+
+    def save(self, commit=True):
+        # company_id is M2M-scoped; without this a tenant-created type has an
+        # empty company set and the scoped list hides it. Mirror DepartmentForm.
+        instance = super().save(commit=commit)
+        request = getattr(_thread_locals, "request", None)
+        company = current_company(request) if request else None
+        if company and not self.cleaned_data.get("company_id"):
+            instance.company_id.add(company)
+        return instance
 
 
 class EmployeeShiftForm(ModelForm):
