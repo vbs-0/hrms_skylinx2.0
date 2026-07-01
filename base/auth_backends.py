@@ -40,17 +40,21 @@ class IdentifierBackend(ModelBackend):
             return None
         ident = username.strip()
         phone_ident = _phone_key(ident)
-        users = _dedupe_users(
-            [
-                SkylinxUser.objects.filter(email__iexact=ident),
-                SkylinxUser.objects.filter(employee_get__employee_work_info__email__iexact=ident),
-                SkylinxUser.objects.filter(employee_get__email__iexact=ident),
+        querysets = [
+            SkylinxUser.objects.filter(email__iexact=ident),
+            SkylinxUser.objects.filter(employee_get__employee_work_info__email__iexact=ident),
+            SkylinxUser.objects.filter(employee_get__email__iexact=ident),
+        ]
+        # phone_ident is '' for a non-numeric ident (e.g. an email/username) -
+        # matching on an empty string would false-match every blank-phone employee.
+        if phone_ident:
+            querysets.append(
                 SkylinxUser.objects.filter(
                     Q(employee_get__phone__iexact=ident)
                     | Q(employee_get__phone=phone_ident)
-                ),
-            ]
-        )
+                )
+            )
+        users = _dedupe_users(querysets)
         logger.warning(
             "Auth backend lookup ident=%s candidate_count=%s",
             ident,
