@@ -1,52 +1,87 @@
-{% load i18n %} {% load basefilters %}{% load widget_tweaks %}
+{% load i18n basefilters widget_tweaks static %}
 {{ form.non_field_errors }}
-
-  <div class="row">
-    {% for field in form %}
-      {% if field.label != "Employee profile" and field.label != 'Country' and field.label != 'State' and field.label != 'Address' and field.label != 'Employee ID' %}
-        <div class="col-lg-6">
-          <div class="oh-input__group">
-            <label
-              class="oh-label {% if field.field.required %}required-star{% endif %}"
-              for="id_{{ field.name }}"
-              title="{{ field.help_text }}"
-            >
-              {% trans field.label %}
+<div class="row">
+    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+        <div class="oh-input__group">
+            <label class="oh-label {% if form.any_other_code1.field.required %}required-star{% endif %}" for="{{ form.any_other_code1.id_for_label }}" title="{{ form.any_other_code1.help_text }}">
+                {% trans "IFSC Code" %}
             </label>
-
-            {% if field.field.widget.input_type == 'checkbox' %}
-              <div class="oh-switch" style="width: 30px;">{{ field|add_class:'oh-switch__checkbox' }}</div>
-            {% else %}
-              {{ field|add_class:'form-control' }}
-            {% endif %}
-
-            {{ field.errors }}
-          </div>
-      {% elif field.label == 'Country' %}
-        <div class="row">
-            <div class="col-lg-6">
-              <label class="oh-label" for="country">{% trans "Country" %}</label>
-              <select name="country" style="border:1px solid #cdd5df;" class="w-100 oh-select oh-select-2" id="country">
-                <option value="{{form.instance.country}}" selected>{{form.instance.country}}</option>
-              </select>
-              {{form.country.errors}}
-              <span class="dropdown-wrapper" aria-hidden="true"></span>
-              </span>
-            </div>
-            <div class="col-lg-6">
-              <label class="oh-label d-block" for="state">{% trans "State" %}</label>
-              <select name="state" style="border:1px solid #cdd5df;" class="w-100 oh-select oh-select-2" id="state">
-                <option value="{{form.instance.state}}" selected>{{form.instance.state}}</option>
-
-              </select>
-              {{form.state.errors}}
-            </div>
+            {{ form.any_other_code1|add_class:"oh-input w-100" }}
+            {{ form.any_other_code1.errors }}
         </div>
-      {% endif %}
-    {% endfor %}
-  </div>
+    </div>
 
-{% load static %}
+    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+        <div class="oh-input__group">
+            <label class="oh-label {% if form.bank_name.field.required %}required-star{% endif %}" for="{{ form.bank_name.id_for_label }}" title="{{ form.bank_name.help_text }}">
+                {% trans "Account Name" %}
+            </label>
+            {{ form.bank_name|add_class:"oh-input w-100" }}
+            {{ form.bank_name.errors }}
+        </div>
+    </div>
+
+    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+        <div class="oh-input__group">
+            <label class="oh-label {% if form.branch.field.required %}required-star{% endif %}" for="{{ form.branch.id_for_label }}" title="{{ form.branch.help_text }}">
+                {% trans "Branch" %}
+            </label>
+            {{ form.branch|add_class:"oh-input w-100" }}
+            {{ form.branch.errors }}
+        </div>
+    </div>
+
+    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+        <div class="oh-input__group">
+            <label class="oh-label {% if form.account_type.field.required %}required-star{% endif %}" for="{{ form.account_type.id_for_label }}" title="{{ form.account_type.help_text }}">
+                {% trans "Bank Account Type" %}
+            </label>
+            {{ form.account_type|add_class:"oh-select w-100" }}
+            {{ form.account_type.errors }}
+        </div>
+    </div>
+
+    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+        <div class="oh-input__group">
+            <label class="oh-label {% if form.account_number.field.required %}required-star{% endif %}" for="{{ form.account_number.id_for_label }}" title="{{ form.account_number.help_text }}">
+                {% trans "Account Number" %}
+            </label>
+            {{ form.account_number|add_class:"oh-input w-100" }}
+            {{ form.account_number.errors }}
+        </div>
+    </div>
+
+    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+        <div class="oh-input__group">
+            <label class="oh-label {% if form.city.field.required %}required-star{% endif %}" for="{{ form.city.id_for_label }}" title="{{ form.city.help_text }}">
+                {% trans "City" %}
+            </label>
+            {{ form.city|add_class:"oh-input w-100" }}
+            {{ form.city.errors }}
+        </div>
+    </div>
+
+    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+        <div class="oh-input__group">
+            <label class="oh-label" for="id_country">{% trans "Country" %}</label>
+            <select name="country" id="id_country" class="w-100 oh-select" data-selected="{{ form.country.value|default:'' }}">
+                <option value="{{ form.instance.country }}" selected>{{ form.instance.country }}</option>
+            </select>
+            {{ form.country.errors }}
+        </div>
+    </div>
+
+    <div class="col-12 col-sm-12 col-md-12 col-lg-6 mb-3">
+        <div class="oh-input__group">
+            <label class="oh-label d-block" for="id_state">{% trans "State" %}</label>
+            <select name="state" id="id_state" class="w-100 oh-select" data-selected="{{ form.state.value|default:'' }}">
+                <option value="{{ form.instance.state }}" selected>{{ form.instance.state }}</option>
+            </select>
+            {{ form.state.errors }}
+        </div>
+    </div>
+</div>
+
 <script src="{% static '/index/country.js' %}"></script>
 <script>
     $(document).ready(function() {
@@ -135,6 +170,3 @@
         });
     }
 </script>
-
-
-
