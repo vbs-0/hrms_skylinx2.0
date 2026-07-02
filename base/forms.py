@@ -1628,9 +1628,9 @@ class EmployeeShiftScheduleForm(ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         if apps.is_installed("attendance"):
-            auto_punch_out_enabled = self.cleaned_data["is_auto_punch_out_enabled"]
-            auto_punch_out_time = self.cleaned_data["auto_punch_out_time"]
-            end_time = self.cleaned_data["end_time"]
+            auto_punch_out_enabled = cleaned_data.get("is_auto_punch_out_enabled")
+            auto_punch_out_time = cleaned_data.get("auto_punch_out_time")
+            end_time = cleaned_data.get("end_time")
             if auto_punch_out_enabled:
                 if not auto_punch_out_time:
                     raise ValidationError(
