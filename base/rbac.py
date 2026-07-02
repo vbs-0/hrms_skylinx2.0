@@ -94,6 +94,57 @@ def exclude_higher_tier(request, queryset, user_path="employee_id__employee_user
     return queryset
 
 
+# Org-chart eligibility: who is allowed to be picked as someone's reporting
+# manager. Finer-grained than hierarchy_rank() above (splits Manager out from
+# plain Employee) so an Employee can report to a Manager, a Manager to an HR
+# Manager, an HR Manager to the CEO, and the CEO to no one.
+CEO_RANK, HR_MANAGER_RANK, MANAGER_RANK, EMPLOYEE_RANK = 1, 2, 3, 4
+
+
+def org_rank(user) -> int:
+    """4-tier rank for reporting-manager eligibility (lower = more senior)."""
+    if not user or not getattr(user, "is_authenticated", False):
+        return EMPLOYEE_RANK
+    if is_platform_owner(user):
+        return 0
+    names = set(user.groups.values_list("name", flat=True))
+    if "Company Admin" in names:
+        return CEO_RANK
+    if any(n.endswith(SEP + "HR Manager") for n in names):
+        return HR_MANAGER_RANK
+    if any(n.endswith(SEP + "Manager") for n in names):
+        return MANAGER_RANK
+    return EMPLOYEE_RANK
+
+
+def senior_user_ids(target_user):
+    """User ids strictly more senior than ``target_user`` — valid reporting-manager
+    candidates. A brand-new employee (target_user=None) defaults to the lowest
+    tier, so every existing role outranks them."""
+    from django.contrib.auth.models import Group
+
+    target_rank = org_rank(target_user) if target_user else EMPLOYEE_RANK
+    if target_rank <= CEO_RANK:
+        return []  # CEO/owner: no one outranks them
+    ids = set(
+        Group.objects.filter(name="Company Admin").values_list("user__id", flat=True)
+    )
+    if target_rank > HR_MANAGER_RANK:
+        ids |= set(
+            Group.objects.filter(name__endswith=SEP + "HR Manager").values_list(
+                "user__id", flat=True
+            )
+        )
+    if target_rank > MANAGER_RANK:
+        ids |= set(
+            Group.objects.filter(name__endswith=SEP + "Manager").values_list(
+                "user__id", flat=True
+            )
+        )
+    ids.discard(None)
+    return list(ids)
+
+
 def strip_name(name: str) -> str:
     """Display label without the tenant prefix."""
     return name.split(SEP, 1)[-1] if name else name

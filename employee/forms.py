@@ -21,7 +21,7 @@ class YourForm(forms.Form):
         # Custom validation logic goes here
         pass
 """
-from base.rbac import is_platform_owner
+from base.rbac import is_platform_owner, senior_user_ids
 
 
 import logging
@@ -417,13 +417,14 @@ class EmployeeWorkInformationForm(ModelForm):
             manager_qs = manager_qs.filter(
                 employee_work_info__company_id=selected_company
             )
-        # can't report to yourself or to someone who already reports to
-        # you — that's a reporting loop.
+        # Only strictly more senior roles (org chart: Employee < Manager <
+        # HR Manager < CEO) can be picked as a reporting manager — also rules
+        # out self and any subordinate-loop by construction.
         current_employee = getattr(self.instance, "employee_id", None)
-        if current_employee:
-            manager_qs = manager_qs.exclude(pk=current_employee.pk).exclude(
-                employee_work_info__reporting_manager_id=current_employee
-            )
+        target_user = getattr(current_employee, "employee_user_id", None)
+        manager_qs = manager_qs.filter(
+            employee_user_id__id__in=senior_user_ids(target_user)
+        )
         if "reporting_manager_id" in self.fields:
             self.fields["reporting_manager_id"].queryset = manager_qs
         if "employee_work_info__reporting_manager_id" in self.fields:
@@ -582,13 +583,14 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
             manager_qs = manager_qs.filter(
                 employee_work_info__company_id=selected_company
             )
-        # can't report to yourself or to someone who already reports to
-        # you — that's a reporting loop.
+        # Only strictly more senior roles (org chart: Employee < Manager <
+        # HR Manager < CEO) can be picked as a reporting manager — also rules
+        # out self and any subordinate-loop by construction.
         current_employee = getattr(self.instance, "employee_id", None)
-        if current_employee:
-            manager_qs = manager_qs.exclude(pk=current_employee.pk).exclude(
-                employee_work_info__reporting_manager_id=current_employee
-            )
+        target_user = getattr(current_employee, "employee_user_id", None)
+        manager_qs = manager_qs.filter(
+            employee_user_id__id__in=senior_user_ids(target_user)
+        )
         if "reporting_manager_id" in self.fields:
             self.fields["reporting_manager_id"].queryset = manager_qs
         if "employee_work_info__reporting_manager_id" in self.fields:
