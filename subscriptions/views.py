@@ -77,10 +77,11 @@ def _company_admin_group():
         content_type__app_label__in=COMPANY_ADMIN_APPS
     )
     group.permissions.add(*app_perms)
-    # always ensure group/permission management is available (safe to re-add)
+    # group/permission VIEW only — creating/renaming/deleting user groups is
+    # reserved for the platform owner (superuser), not client company admins.
     group_perms = Permission.objects.filter(
         content_type__app_label="auth",
-        codename__in=["add_group", "change_group", "delete_group", "view_group", "view_permission"],
+        codename__in=["view_group", "view_permission"],
     )
     group.permissions.add(*group_perms)
     return group
@@ -88,10 +89,12 @@ def _company_admin_group():
 
 # Default per-company roles seeded on company creation. Keys are display labels;
 # names are stored tenant-scoped (c<id>::Label) so each company owns its own.
-# Perms that let a role manage its company's user groups + assign permissions
-# (the "Employee Permissions" settings page is gated by auth.view_permission).
+# Perms let a role VIEW its company's user groups + assign permissions to
+# members (the "Employee Permissions" settings page is gated by
+# auth.view_permission) — but NOT create/rename/delete groups; that stays
+# owner-only.
 GROUP_ADMIN_CODENAMES = [
-    "add_group", "change_group", "delete_group", "view_group", "view_permission",
+    "view_group", "view_permission",
 ]
 
 DEFAULT_COMPANY_ROLES = {
