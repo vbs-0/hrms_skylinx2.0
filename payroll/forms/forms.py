@@ -32,6 +32,30 @@ class ContractForm(ModelForm):
     verbose_name = _("Pay Register")
     contract_start_date = forms.DateField()
     contract_end_date = forms.DateField(required=False)
+    ctc = forms.IntegerField(
+        label=_("CTC"),
+        required=False,
+        widget=forms.NumberInput(
+            attrs={
+                "class": "oh-input w-100",
+                "placeholder": _("CTC"),
+                "id": "id_ctc",
+            }
+        ),
+    )
+    basic_pct = forms.IntegerField(
+        label=_("Basic (%)"),
+        required=False,
+        min_value=0,
+        max_value=100,
+        widget=forms.NumberInput(
+            attrs={
+                "class": "oh-input w-100",
+                "placeholder": _("Basic (%)"),
+                "id": "id_basic_pct",
+            }
+        ),
+    )
 
     class Meta:
         """
@@ -78,6 +102,47 @@ class ContractForm(ModelForm):
                     "hx-swap": "beforebegin",
                 }
             )
+        if self.instance and self.instance.pk and self.instance.employee_id:
+            from employee.models import EmployeeWorkInformation
+            work_info = EmployeeWorkInformation.objects.filter(
+                employee_id=self.instance.employee_id
+            ).first()
+            if work_info:
+                self.fields["ctc"].initial = work_info.ctc
+                self.fields["basic_pct"].initial = (
+                    work_info.salary_components or {}
+                ).get("basic", 50)
+        field_order = [
+            "employee_id",
+            "contract_start_date",
+            "contract_end_date",
+            "wage_type",
+            "ctc",
+            "basic_pct",
+            "wage",
+            "filing_status",
+            "contract_status",
+            "department",
+            "job_position",
+            "job_role",
+            "shift",
+            "work_type",
+            "pay_frequency",
+            "notice_period_in_days",
+            "contract_document",
+            "deduct_leave_from_basic_pay",
+            "calculate_daily_leave_amount",
+            "deduction_for_one_leave_amount",
+            "note",
+        ]
+        reordered_fields = {}
+        for field_name in field_order:
+            if field_name in self.fields:
+                reordered_fields[field_name] = self.fields[field_name]
+        for field_name, field in self.fields.items():
+            if field_name not in reordered_fields:
+                reordered_fields[field_name] = field
+        self.fields = reordered_fields
         first = PayrollGeneralSetting.objects.first()
         if first and self.instance.pk is None:
             self.initial["notice_period_in_days"] = first.notice_period
@@ -97,7 +162,25 @@ class ContractForm(ModelForm):
         instance = super().save(commit=False)
         if not instance.contract_name:
             instance.contract_name = f"{instance.employee_id}'s Pay Register"
-        if commit:
+        if instance.employee_id:
+            from employee.models import EmployeeWorkInformation
+            work_info = EmployeeWorkInformation.objects.filter(
+                employee_id=instance.employee_id
+            ).first()
+            if work_info:
+                ctc = self.cleaned_data.get("ctc")
+                basic_pct = self.cleaned_data.get("basic_pct")
+                if ctc is not None:
+                    work_info.ctc = ctc
+                if basic_pct is not None:
+                    work_info.salary_components = {"basic": basic_pct}
+                instance.wage = work_info.basic_salary
+                if commit:
+                    instance.save()
+                    work_info.save()
+            elif commit:
+                instance.save()
+        elif commit:
             instance.save()
         return instance
 

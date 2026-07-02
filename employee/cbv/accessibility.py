@@ -197,3 +197,20 @@ def project_accessibility(
     ):
         return True
     return False
+
+
+def compensation_accessibility(
+    request, instance: object = None, user_perms: PermWrapper = [], *args, **kwargs
+) -> bool:
+    """
+    accessibility for compensation/salary tab
+    """
+    employee = Employee.objects.get(id=instance.pk)
+    if (
+        request.user == employee.employee_user_id
+        or request.user.has_perm("employee.view_employee")
+        or request.user.has_perm("employee.change_employee")
+        or check_manager(request.user.employee_get, instance)
+    ):
+        return True
+    return False

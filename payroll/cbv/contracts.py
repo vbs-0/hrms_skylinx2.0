@@ -254,6 +254,8 @@ class ContractsDetailView(SkylinxDetailedView):
         (_("Start Date"), "contract_start_date"),
         (_("End Date"), "contract_end_date"),
         (_("Wage Type"), "get_wage_type_display"),
+        (_("CTC"), "ctc_col"),
+        (_("Basic (%)"), "basic_pct_col"),
         (_("Basic Salary"), "wage"),
         (_("Deduct From Basic Pay"), "deduct_leave_from_basic_pay_col"),
         (_("Department"), "department"),

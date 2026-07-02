@@ -426,6 +426,35 @@ def about_tab(request, pk, **kwargs):
 
 @login_required
 @hx_request_required
+def compensation_tab(request, pk, **kwargs):
+    """
+    This method is used to view compensation details of an employee.
+    """
+    employee = Employee.objects.filter(id=pk).first()
+    if not can_view_employee_profile(request, employee):
+        return render(request, "no_perm.html")
+
+    from employee.cbv.accessibility import compensation_accessibility
+    if not compensation_accessibility(request, employee):
+        return render(request, "no_perm.html")
+
+    work_info = EmployeeWorkInformation.objects.filter(employee_id=employee).first()
+    components = (work_info.salary_components or {}) if work_info else {}
+    basic_pct = components.get("basic", 50)
+
+    return render(
+        request,
+        "tabs/compensation_tab.html",
+        {
+            "employee": employee,
+            "work_info": work_info,
+            "basic_pct": basic_pct,
+        },
+    )
+
+
+@login_required
+@hx_request_required
 def allowances_deductions_tab(request, pk=None, emp_id=None):
     """
     Retrieve and render the allowances and deductions applicable to an employee.
@@ -1763,7 +1792,7 @@ def employee_view_update(request, obj_id, **kwargs):
                     messages.success(request, _("Employee work information updated."))
                 # work_form = EmployeeWorkInformationForm(
                 #     instance=EmployeeWorkInformation.objects.filter(
-                #         employee_id=employee
+                 #         employee_id=employee
                 #     ).first()
                 # )
             elif request.POST.get("form") == "bank":
@@ -1796,6 +1825,7 @@ def employee_view_update(request, obj_id, **kwargs):
                 "form": form,
                 "work_form": work_form,
                 "bank_form": bank_form,
+                "compensation_form": None,
                 "work_info_history": work_info_history,
                 "container_mode": container_mode,
                 "active_tab": active_tab,

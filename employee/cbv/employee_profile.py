@@ -165,6 +165,7 @@ EmployeeProfileView.add_tab(
             "view": views.document_tab,
             "accessibility": "employee.cbv.accessibility.document_accessibility",
         },
+
         # ponytail: Mail Log & History tabs removed from profile UI; backend/urls intact
     ]
 )

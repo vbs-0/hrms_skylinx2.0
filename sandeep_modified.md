@@ -1,50 +1,33 @@
 # Documentation of Customized Changes in Skylinx HRMS (Modified by Sandeep)
 
-This document lists all active modifications made to personalize the homepage layout, hide the Shift Roster menu item, and delegate branding/announcement administration to company admins.
+This document lists the active modifications made to personalize the HRMS application.
 
 ---
 
-### 1. Primary Hero Button Rename
-- **File:** skylinx_theme/templates/home_page.html
-- **Change:** Renamed the dashboard's hero section main CTA button to **"Overview and Analytics"**.
-- **Impact:** Aligns dashboard visual entry point with primary reporting modules.
-
----
-
-### 2. Shift Roster Menu Removal (UI only)
-- **File:** employee/sidebar.py
-- **Change:** Hardcoded `shift_roster_accessibility` function to return `False`.
-- **Impact:** Safely removes the **Shift Roster** option from the sidebar navigation menu globally across all user types without affecting backend scheduling models or core business logic.
-
----
-
-### 3. Scoped Branding Management (Logo & Social Links)
+### 1. Decoupling and Migration of Employee Compensation Data (CTC & Basic %)
 - **Files Modified:**
-  - **Template:** skylinx_theme/templates/home_logo_card.html
-  - **Controller/Views:** base/views.py
-- **Change:**
-  - Enforced RBAC check (`request.user.is_superuser or request.user.has_perm("base.change_company")`) instead of a strict `is_superuser` restriction.
-  - Exposes the hover-to-upload card and editable name/links form to authorized company admins and superusers, while hiding them from normal employees.
-  - Added a direct edit/pencil button next to the LinkedIn, Facebook, and Instagram social media icons for company admins.
-  - Re-routed the local social media link storage file (`base/company_social_links.json`) to write and load links using the logged-in user's company ID key:
-    ```json
-    {
-      "1": {
-        "linkedin": "https://linkedin.com/company/company1",
-        "facebook": "...",
-        "instagram": "..."
-      }
-    }
-    ```
-- **Impact:** Individual company admins can upload their company logo, rename their company, and save their social profile links via the edit button, which are loaded dynamically for their employees. Root admin maintains global access.
+  - **Employee CBV/Views:**
+    - [employee_profile.py](file:///e:/HRMS13/hrms_skylinx2.0-13.0.0.beta/hrms_skylinx2.0-13.0.0.beta/employee/cbv/employee_profile.py)
+    - [views.py (Employee)](file:///e:/HRMS13/hrms_skylinx2.0-13.0.0.beta/hrms_skylinx2.0-13.0.0.beta/employee/views.py)
+  - **Employee Templates:**
+    - [form_view.html](file:///e:/HRMS13/hrms_skylinx2.0-13.0.0.beta/hrms_skylinx2.0-13.0.0.beta/skylinx_theme/templates/employee/update_form/form_view.html)
+    - [form_view_fragment.html](file:///e:/HRMS13/hrms_skylinx2.0-13.0.0.beta/hrms_skylinx2.0-13.0.0.beta/skylinx_theme/templates/employee/update_form/form_view_fragment.html)
+  - **Payroll Controller/Forms/Models:**
+    - [forms.py](file:///e:/HRMS13/hrms_skylinx2.0-13.0.0.beta/hrms_skylinx2.0-13.0.0.beta/payroll/forms/forms.py)
+    - [views.py (Payroll)](file:///e:/HRMS13/hrms_skylinx2.0-13.0.0.beta/hrms_skylinx2.0-13.0.0.beta/payroll/views/views.py)
+    - [contracts.py](file:///e:/HRMS13/hrms_skylinx2.0-13.0.0.beta/hrms_skylinx2.0-13.0.0.beta/payroll/cbv/contracts.py)
+    - [models.py](file:///e:/HRMS13/hrms_skylinx2.0-13.0.0.beta/hrms_skylinx2.0-13.0.0.beta/payroll/models/models.py)
+  - **Payroll Templates:**
+    - [form.html](file:///e:/HRMS13/hrms_skylinx2.0-13.0.0.beta/hrms_skylinx2.0-13.0.0.beta/payroll/templates/payroll/common/form.html)
+    - [form_fragment.html](file:///e:/HRMS13/hrms_skylinx2.0-13.0.0.beta/hrms_skylinx2.0-13.0.0.beta/payroll/templates/payroll/common/form_fragment.html)
+    - [contract_single_view.html](file:///e:/HRMS13/hrms_skylinx2.0-13.0.0.beta/hrms_skylinx2.0-13.0.0.beta/payroll/templates/payroll/contract/contract_single_view.html)
 
----
+- **Change Details:**
+  - **UI Access Restricting**: Removed the "Compensation" tab from the general Employee Profile view and profile-updating logic, restricting financial editing access.
+  - **Form Gating**: Migrated the editing of sensitive parameters (`ctc` and `basic_pct`) into the permission-gated `ContractForm` (Pay Register).
+  - **Auto-Population & Live Wage Calculation**: Added fields to the AJAX contract helper view and templates so that selecting an employee pre-fills their individual CTC and Basic % on the fly. Included a live Javascript calculation to automatically set the monthly basic salary:
+    $$\text{Monthly Wage} = \text{round}\left(\frac{\text{CTC}}{12} \times \frac{\text{Basic \%}}{100}\right)$$
+  - **Database Persistence**: Form saving is sequenced to save the contract instance first, then update the employee's `EmployeeWorkInformation` model (where `ctc` and `salary_components` JSON are stored), avoiding signal collisions.
+  - **Detailed views**: Exposed CTC and Basic % in `ContractsDetailView` attributes list and the detailed single contract view modal.
 
-### 4. Scoped Company Announcement Board
-- **Files Modified:**
-  - **Template:** skylinx_theme/templates/home_announcement.html
-  - **Controller/Views:** base/views.py
-- **Change:**
-  - Allowed superusers and company admins with `base.change_announcement` permissions to click and edit the horizontal scrolling announcement banner.
-  - Updates are scoped to the current tenant's active announcement instance.
-- **Impact:** Regular employees view their company-specific announcements in read-only mode, while company admins have full update privileges.
+- **Impact:** Gates sensitive financial data (CTC and Basic %) within the Payroll module under the `payroll.view_contract` and `payroll.change_contract` permissions. Maintains dynamic, customized salary structure calculations per employee.
