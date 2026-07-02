@@ -713,7 +713,12 @@ class EmployeeBankDetailsForm(ModelForm):
         if self.instance and self.instance.country:
             self.initial["country"] = self.instance.country
 
-
+    def as_p(self, *args, **kwargs):
+        # same template as the Update form — it carries the IFSC autofill
+        # script; Django's default as_p rendered bare fields without it,
+        # which is how IFSC lookup silently broke on the Bank Info tab.
+        context = {"form": self}
+        return render_to_string("employee/update_form/bank_info_as_p.html", context)
 
     def clean_any_other_code1(self):
         ifsc = self.cleaned_data.get("any_other_code1")

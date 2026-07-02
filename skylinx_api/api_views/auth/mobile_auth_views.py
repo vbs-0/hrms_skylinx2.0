@@ -158,9 +158,16 @@ def get_mobile_user_data(user):
         except Exception:
             pass
 
+    # Employee record holds the real name; auth User's first/last are usually
+    # blank and username is the email — which then showed as the profile title.
+    display_name = ""
+    if employee:
+        display_name = employee.get_full_name().strip()
+    if not display_name:
+        display_name = f"{user.first_name} {user.last_name}".strip() or user.username
     return {
         "id": str(user.id),
-        "name": f"{user.first_name} {user.last_name}".strip() or user.username,
+        "name": display_name,
         "email": user.email,
         "phone": getattr(employee, "phone", None) if employee else None,
         "role": role,
