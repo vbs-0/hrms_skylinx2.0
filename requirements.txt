@@ -39,6 +39,7 @@ lxml
 numpy
 oauthlib
 openpyxl
+opencv-python-headless
 oscrypto
 pandas
 pdfkit
