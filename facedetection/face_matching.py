@@ -18,20 +18,31 @@ except ImportError:
 
 def _crop_to_face(image_path):
     """Detect the largest face with OpenCV's Haar cascade and crop to it.
-    Falls back to the full image if OpenCV is unavailable or no face is found —
-    without this, NCC compares whole photos (background, clothing, framing
-    included), which tanks the score on any camera-angle/lighting difference
-    even for the same person."""
+    Returns (image, face_found). If OpenCV is unavailable, face_found is
+    always True (no detection capability — can't tell), so callers only treat
+    face_found=False as a hard reject when OpenCV IS available and genuinely
+    found nothing (e.g. a photo of a wall)."""
     img = Image.open(image_path).convert("L")
     if _FACE_CASCADE is None:
-        return img
+        return img, True
     arr = np.array(img)
     faces = _FACE_CASCADE.detectMultiScale(arr, scaleFactor=1.1, minNeighbors=5)
     if len(faces) == 0:
-        return img
+        return img, False
     # largest detected face (closest to camera)
     x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
-    return img.crop((x, y, x + w, y + h))
+    return img.crop((x, y, x + w, y + h)), True
+
+
+def has_face(image_path):
+    """True if a face is detectable in the image (or detection is unavailable,
+    in which case we can't rule it out and let comparison decide)."""
+    try:
+        _, found = _crop_to_face(image_path)
+        return found
+    except Exception as e:
+        print(f"Error in face detection: {e}")
+        return True
 
 
 def compare_faces_fallback(image_path_1, image_path_2, threshold=0.6):
@@ -41,8 +52,14 @@ def compare_faces_fallback(image_path_1, image_path_2, threshold=0.6):
     Returns (is_match, similarity_score).
     """
     try:
-        img1 = _crop_to_face(image_path_1).resize((128, 128))
-        img2 = _crop_to_face(image_path_2).resize((128, 128))
+        cropped1, found1 = _crop_to_face(image_path_1)
+        cropped2, found2 = _crop_to_face(image_path_2)
+        if not found1 or not found2:
+            # No face detected in one or both images (e.g. a wall) — reject
+            # outright rather than falling back to a whole-photo comparison.
+            return False, 0.0
+        img1 = cropped1.resize((128, 128))
+        img2 = cropped2.resize((128, 128))
 
         arr1 = np.array(img1, dtype=np.float32)
         arr2 = np.array(img2, dtype=np.float32)

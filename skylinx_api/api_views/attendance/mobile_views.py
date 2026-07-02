@@ -18,7 +18,7 @@ from attendance.methods.utils import (
     Request as AttendanceRequest
 )
 from facedetection.models import FaceDetection, EmployeeFaceDetection
-from facedetection.face_matching import compare_faces
+from facedetection.face_matching import compare_faces, has_face
 from geofencing.models import GeoFencing
 
 
@@ -76,11 +76,25 @@ class MobileCheckInAPIView(APIView):
         if face_config and face_config.start:
             baseline = EmployeeFaceDetection.objects.filter(employee_id=employee).first()
             if not baseline or not baseline.image:
-                # First check-in with face enabled: auto-enroll this selfie as the
-                # employee's baseline instead of rejecting. Later check-ins compare
-                # against it.
+                # First check-in with face enabled: auto-enroll this selfie as
+                # the employee's baseline — but only if it actually contains a
+                # face, otherwise a wall/blank photo becomes the permanent
+                # baseline and every future check-in trivially "matches" it.
+                temp_path = default_storage.save("temp/enroll_selfie.jpg", selfie_file)
+                temp_full_path = default_storage.path(temp_path)
+                face_present = has_face(temp_full_path)
+                if os.path.exists(temp_full_path):
+                    os.remove(temp_full_path)
+                if not face_present:
+                    return Response({
+                        "success": False,
+                        "message": "No face detected in the photo. Please take a clear photo of your face.",
+                        "errorCode": "NO_FACE_DETECTED"
+                    }, status=400)
+
                 if baseline is None:
                     baseline = EmployeeFaceDetection(employee_id=employee)
+                selfie_file.seek(0)
                 baseline.image = selfie_file
                 baseline.save()
                 # rewind so the same upload can still be stored as the attendance selfie
