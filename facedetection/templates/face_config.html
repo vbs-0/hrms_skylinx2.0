@@ -21,6 +21,7 @@
                 <thead>
                     <tr>
                         <th style="font-weight:bold; font-size:15px; color:black;">Employee</th>
+                        <th style="font-weight:bold; font-size:15px; color:black;">Enrolled Face</th>
                         <th style="font-weight:bold; font-size:15px; color:black;">Status</th>
                         <th style="font-weight:bold; font-size:15px; color:black; text-align: right;">Action</th>
                     </tr>
@@ -29,6 +30,15 @@
                     {% for employee in employees %}
                     <tr>
                         <td class="employee-name">{{ employee.get_full_name }}</td>
+                        <td>
+                            {% if employee.face_detection and employee.face_detection.image %}
+                                <img src="{{ employee.face_detection.image.url }}" alt="Enrolled face"
+                                     style="width:48px; height:48px; object-fit:cover; border-radius:6px; border:1px solid #e2e3e5; cursor:pointer;"
+                                     onclick="window.open(this.src, '_blank');" title="Click to view full size">
+                            {% else %}
+                                <span class="text-muted" style="font-size:0.85rem;">—</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if employee.face_detection %}
                                 <span class="badge badge-success text-success" style="font-size: 0.9rem; background-color: #d4edda; padding: 5px 10px; border-radius: 4px; border: 1px solid #c3e6cb;">Enrolled</span>

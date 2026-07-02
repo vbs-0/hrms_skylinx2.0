@@ -128,7 +128,41 @@ class EmployeeFaceDetectionGetPostAPIView(APIView):
 
     def post(self, request):
         if self.get_facedetection(request).start:
-            employee_id = request.user.employee_get.id
+            current_employee = request.user.employee_get
+            # HR/CEO can (re)enroll another employee's face from their own phone
+            # (back camera / gallery); everyone else may only enroll themselves.
+            target_employee_id = request.data.get("employee_id")
+            if target_employee_id and str(target_employee_id) != str(current_employee.id):
+                if not (is_platform_owner(request.user) or request.user.has_perm(
+                    "facedetection.change_employeefacedetection"
+                )):
+                    return Response(
+                        {"error": "Permission denied to enroll another employee's face"},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+                employee_id = target_employee_id
+            else:
+                employee_id = current_employee.id
+
+            # Reject photos with no detectable face (e.g. a wall) so a bad
+            # baseline can't be enrolled.
+            selfie = request.FILES.get("image")
+            if selfie:
+                from django.core.files.storage import default_storage
+                from facedetection.face_matching import has_face
+                import os
+                temp_path = default_storage.save("temp/enroll_check.jpg", selfie)
+                temp_full = default_storage.path(temp_path)
+                face_present = has_face(temp_full)
+                if os.path.exists(temp_full):
+                    os.remove(temp_full)
+                if not face_present:
+                    return Response(
+                        {"error": "No face detected in the photo. Please provide a clear photo of the face."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                selfie.seek(0)
+
             data = request.data
             if isinstance(data, QueryDict):
                 data = data.dict()

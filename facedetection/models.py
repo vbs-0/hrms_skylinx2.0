@@ -48,7 +48,10 @@ class EmployeeFaceDetection(models.Model):
     employee_id = models.OneToOneField(
         "employee.Employee", related_name="face_detection", on_delete=models.CASCADE
     )
-    image = models.ImageField(validators=[SafeMimeValidator()])
+    # under facedetection/ so protected_media gates it behind
+    # facedetection.view_employeefacedetection (+ own-resource check); without
+    # upload_to it landed in media root, servable to any logged-in user.
+    image = models.ImageField(upload_to="facedetection/", validators=[SafeMimeValidator()])
 
 
 @receiver(post_delete, sender=EmployeeFaceDetection)
