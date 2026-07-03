@@ -77,11 +77,9 @@ def _company_admin_group():
         content_type__app_label__in=COMPANY_ADMIN_APPS
     )
     group.permissions.add(*app_perms)
-    # group/permission VIEW only — creating/renaming/deleting user groups is
-    # reserved for the platform owner (superuser), not client company admins.
     group_perms = Permission.objects.filter(
         content_type__app_label="auth",
-        codename__in=["view_group", "view_permission"],
+        codename__in=GROUP_ADMIN_CODENAMES,
     )
     group.permissions.add(*group_perms)
     return group
@@ -94,7 +92,14 @@ def _company_admin_group():
 # auth.view_permission) — but NOT create/rename/delete groups; that stays
 # owner-only.
 GROUP_ADMIN_CODENAMES = [
-    "view_group", "view_permission",
+    # add_group/change_group are (mis)reused by Horilla for day-to-day
+    # membership actions too (assign employee to a role, remove a member,
+    # toggle a role's permission checkboxes) — NOT just create/rename.
+    # Tenants need those, so the "owner-only: create/rename/delete new
+    # groups" rule is enforced explicitly in base/views.py instead of by
+    # withholding these permissions. Only delete_group is withheld here
+    # (deleting a group has no legitimate everyday tenant use).
+    "view_group", "add_group", "change_group", "view_permission",
 ]
 
 DEFAULT_COMPANY_ROLES = {

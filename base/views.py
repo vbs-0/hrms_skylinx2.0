@@ -1513,6 +1513,9 @@ def user_group_table(request):
             )
         permissions.append({"app": django_apps.get_app_config(app_name).verbose_name, "app_label": app_name, "app_models": app_models})
     if request.method == "POST":
+        if not is_platform_owner(request.user):
+            messages.error(request, _("Only the platform owner can create user groups."))
+            return SkylinxRedirect(request)
         company = current_company(request)
         post = request.POST.copy()
         if company:
@@ -1564,6 +1567,10 @@ def update_group_permission(
         messages.success(request, _("Updated the permissions"))
         return JsonResponse({})
     if request.POST.get("name_update"):
+        if not is_platform_owner(request.user):
+            return JsonResponse(
+                {"message": "Only the platform owner can rename user groups.", "type": "danger"}
+            )
         name = request.POST["name"]
         if len(name) > 3:
             instance.name = scoped_name(company.id, name) if scope else name
