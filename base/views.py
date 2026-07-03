@@ -8651,6 +8651,27 @@ def edit_home_announcement(request):
             company = current_company(request) or Company.objects.filter(hq=True).first()
             if company:
                 latest_announcement.company_id.add(company)
+
+        # This quick-edit widget bypasses AnnouncementFormView entirely, so it
+        # needs its own notify.send() — otherwise saving here never notifies
+        # anyone (in-app or push), unlike the full create/edit announcement page.
+        companies = latest_announcement.company_id.all()
+        recipients = SkylinxUser.objects.filter(
+            employee_get__employee_work_info__company_id__in=companies
+        ).distinct() if companies.exists() else SkylinxUser.objects.filter(
+            employee_get__isnull=False
+        ).distinct()
+        notify.send(
+            request.user,
+            recipient=recipients,
+            verb="A new announcement was posted.",
+            verb_ar="تم نشر إعلان جديد.",
+            verb_de="Eine neue Ankündigung wurde veröffentlicht.",
+            verb_es="Se publicó un nuevo anuncio.",
+            verb_fr="Une nouvelle annonce a été publiée.",
+            redirect="/",
+            icon="chatbox-ellipses",
+        )
         return render(request, "home_announcement.html", {"latest_announcement": latest_announcement, "edit_mode": False})
         
     return render(request, "home_announcement.html", {"latest_announcement": latest_announcement, "edit_mode": True})
