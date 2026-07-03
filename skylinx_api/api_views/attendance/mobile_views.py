@@ -204,9 +204,11 @@ class MobileCheckInAPIView(APIView):
             minimum_hour, start_time_sec, end_time_sec = shift_schedule_today(
                 day=day, shift=shift
             )
+            has_schedule_today = day.day_schedule.filter(shift_id=shift).exists()
         else:
             minimum_hour, start_time_sec, end_time_sec = "00:00", 0, 0
-        
+            has_schedule_today = False
+
         # Handle night shift logic
         if start_time_sec > end_time_sec:
             if mid_day_sec > now_sec:
@@ -222,6 +224,14 @@ class MobileCheckInAPIView(APIView):
                     )
                     attendance_date = date_yesterday
                     day = day_yesterday
+                    has_schedule_today = day.day_schedule.filter(shift_id=shift).exists()
+
+        if not has_schedule_today:
+            return Response({
+                "success": False,
+                "message": "You are not scheduled to work today",
+                "errorCode": "NO_SHIFT_SCHEDULED_TODAY"
+            }, status=400)
 
         # Create Core Attendance Activity
         datetime_now = timezone.now()

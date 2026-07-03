@@ -40,6 +40,9 @@ numpy
 oauthlib
 openpyxl
 opencv-python-headless
+# dlib builds from source - needs `apt install cmake build-essential` on the box first
+dlib
+face_recognition
 oscrypto
 pandas
 pdfkit
