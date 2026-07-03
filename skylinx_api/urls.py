@@ -5,6 +5,7 @@ from drf_yasg.views import get_schema_view
 from rest_framework import permissions
 
 from skylinx_api.schema import OrderedTagSchemaGenerator
+from skylinx_api.api_views.notifications.views import DeviceTokenView
 
 # Create schema view for Swagger and ReDoc
 schema_view = get_schema_view(
@@ -56,4 +57,6 @@ urlpatterns = [
     path("v1/employee/", include("skylinx_api.api_urls.employee.mobile_urls")),
     path("v1/base/", include("skylinx_api.api_urls.base.mobile_urls")),
     path("v1/admin/", include("skylinx_api.api_urls.admin.mobile_urls")),
+    # FCM push token registration — the Flutter app posts here on login.
+    path("v1/notifications/device-token/", DeviceTokenView.as_view()),
 ]
