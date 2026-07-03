@@ -129,6 +129,24 @@ class AnnouncementFormView(SkylinxFormView):
 
             anou.employees.add(*employees)
 
+            # employees is Employee rows (not Users); notify.send needs Users.
+            # This is the general "announce to all/selected employees" case —
+            # emp_dep/emp_jobs below only cover department/job-position
+            # targeting and miss it, so it silently created zero notifications
+            # for a plain company-wide announcement.
+            emp_users = SkylinxUser.objects.filter(employee_get__in=employees)
+            notify.send(
+                self.request.user.employee_get,
+                recipient=emp_users,
+                verb="A new announcement was posted.",
+                verb_ar="تم نشر إعلان جديد.",
+                verb_de="Eine neue Ankündigung wurde veröffentlicht.",
+                verb_es="Se publicó un nuevo anuncio.",
+                verb_fr="Une nouvelle annonce a été publiée.",
+                redirect="/",
+                icon="chatbox-ellipses",
+            )
+
             notify.send(
                 self.request.user.employee_get,
                 recipient=emp_dep,
