@@ -59,4 +59,8 @@ urlpatterns = [
     path("v1/admin/", include("skylinx_api.api_urls.admin.mobile_urls")),
     # FCM push token registration — the Flutter app posts here on login.
     path("v1/notifications/device-token/", DeviceTokenView.as_view()),
+    # Back-compat alias: builds <=1.1.2 have a URL bug that drops the slash
+    # after v1, so they POST to /api/v1notifications/device-token/. Accept it
+    # here so already-installed apps register for push without a reinstall.
+    path("v1notifications/device-token/", DeviceTokenView.as_view()),
 ]
