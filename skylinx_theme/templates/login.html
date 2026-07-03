@@ -20,12 +20,6 @@
             href="{% if white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/favicon-32x32.png' %}{% endif %}"
         />
         <link
-            rel="icon"
-            type="image/png"
-            sizes="16x16"
-            href="{% if white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/favicon-16x16.png' %}{% endif %}"
-        />
-        <link
             rel="stylesheet"
             href="/static/skylinx_theme/assets/css/global.css"
         />
@@ -35,8 +29,90 @@
         />
         <script src="{% static "skylinx_theme/assets/js/tailwindcdn.js" %}"></script>
         <script src="{% static '/jquery/jquery.min.js' %}"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+        <style>
+            :root{
+                --ex-purple:#6b58b5; --ex-purple-light:#9b6fd5; --ex-gold:#da8e0b;
+                --ex-blue:#5b8dee; --ex-bg:#f7f6ff; --ex-navy:#141d33;
+                --ex-text:#1b1a2e; --ex-muted:#6b6a80; --ex-border:#e7e4f5;
+            }
+            *{box-sizing:border-box;}
+            body{margin:0;font-family:'Inter',sans-serif;color:var(--ex-text);
+                background:var(--ex-bg);}
+            .ex-wrap{min-height:100vh;display:grid;grid-template-columns:1.05fr 0.95fr;}
+            /* radial glows on the page background */
+            .ex-wrap::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+                background:
+                  radial-gradient(680px 480px at 12% 20%, rgba(107,88,181,.10), transparent 60%),
+                  radial-gradient(600px 520px at 85% 85%, rgba(218,142,11,.08), transparent 60%);}
+            .ex-left,.ex-right{position:relative;z-index:1;}
+            /* ---- left branding ---- */
+            .ex-left{padding:56px 6vw;display:flex;flex-direction:column;justify-content:center;}
+            .ex-brand{display:flex;align-items:center;margin-bottom:auto;}
+            .ex-brand img{height:34px;}
+            .ex-eyebrow{letter-spacing:.28em;font-size:12px;font-weight:600;
+                color:var(--ex-purple-light);margin:0 0 18px;text-transform:uppercase;}
+            .ex-h1{font-size:clamp(34px,3.6vw,52px);line-height:1.06;font-weight:800;
+                letter-spacing:-.02em;margin:0 0 22px;max-width:12ch;}
+            .ex-h1 .grad{background:linear-gradient(115deg,#6b58b5 0%,#9b6fd5 40%,#da8e0b 100%);
+                -webkit-background-clip:text;background-clip:text;color:transparent;font-style:italic;}
+            .ex-lead{font-size:16px;line-height:1.7;color:var(--ex-muted);max-width:46ch;margin:0 0 30px;}
+            .ex-cards{display:flex;flex-direction:column;gap:12px;max-width:430px;}
+            .ex-card{background:rgba(255,255,255,.72);border:1px solid var(--ex-border);
+                border-radius:16px;padding:15px 18px;font-size:14px;font-weight:600;color:#37354d;
+                display:flex;align-items:center;gap:12px;backdrop-filter:blur(6px);
+                box-shadow:0 10px 30px -18px rgba(80,60,150,.35);}
+            .ex-card:nth-child(2){margin-left:40px;}
+            .ex-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+            .ex-live{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ex-muted);
+                margin:16px 0 0 2px;font-weight:500;}
+            .ex-foot{display:flex;align-items:center;gap:14px;margin-top:34px;font-size:13px;color:var(--ex-muted);}
+            .ex-foot span{height:1px;width:56px;background:var(--ex-border);}
+            /* ---- right login card ---- */
+            .ex-right{display:flex;align-items:center;justify-content:center;padding:40px 5vw;}
+            .ex-card-login{background:#fff;border:1px solid var(--ex-border);border-radius:24px;
+                padding:40px;width:100%;max-width:430px;
+                box-shadow:0 30px 70px -30px rgba(80,60,150,.35);}
+            .ex-card-login .logo{display:block;height:30px;margin:0 auto 18px;}
+            .ex-title{font-size:26px;font-weight:800;text-align:center;margin:0 0 6px;letter-spacing:-.01em;}
+            .ex-sub{text-align:center;color:var(--ex-muted);font-size:14px;margin:0 0 26px;}
+            .ex-label{font-size:13px;font-weight:600;color:#3a384f;margin-bottom:7px;display:block;}
+            .ex-input{width:100%;padding:13px 15px;border:1px solid var(--ex-border);border-radius:12px;
+                font-size:14px;background:#fbfaff;color:var(--ex-text);transition:.2s;outline:none;}
+            .ex-input::placeholder{color:#b3b0c7;}
+            .ex-input:focus{border-color:var(--ex-purple);background:#fff;
+                box-shadow:0 0 0 4px rgba(107,88,181,.12);}
+            .ex-field{margin-bottom:18px;}
+            .ex-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;}
+            .ex-forgot{font-size:13px;font-weight:600;color:var(--ex-gold);text-decoration:none;}
+            .ex-forgot:hover{text-decoration:underline;}
+            .ex-pass{position:relative;}
+            .ex-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);
+                background:none;border:0;cursor:pointer;color:#9a97b3;display:flex;font-size:20px;}
+            .ex-btn{width:100%;padding:14px;border:0;border-radius:12px;background:var(--ex-navy);
+                color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:.2s;
+                display:flex;align-items:center;justify-content:center;gap:8px;
+                box-shadow:0 14px 30px -12px rgba(20,29,51,.6);}
+            .ex-btn:hover{background:#1e2b4d;transform:translateY(-1px);}
+            .ex-note{text-align:center;font-size:13px;color:var(--ex-muted);margin:18px 0 0;}
+            .ex-note a{color:var(--ex-purple);font-weight:600;text-decoration:none;}
+            .ex-note a:hover{text-decoration:underline;}
+            .ex-terms{display:flex;align-items:flex-start;gap:9px;margin:2px 0 18px;transition:opacity .3s ease;}
+            .ex-terms input{width:16px;height:16px;margin-top:2px;cursor:pointer;flex-shrink:0;accent-color:var(--ex-purple);}
+            .ex-terms label{font-size:12px;margin:0;cursor:pointer;line-height:1.45;color:var(--ex-muted);}
+            .ex-terms a{color:var(--ex-gold);font-weight:700;text-decoration:underline;}
+            .ex-init{display:flex;gap:8px;margin-top:16px;}
+            .oh-alert-container{position:fixed;top:18px;right:18px;z-index:50;}
+            @media (max-width:960px){
+                .ex-wrap{grid-template-columns:1fr;}
+                .ex-left{display:none;}
+                .ex-right{padding:28px 20px;}
+            }
+        </style>
     </head>
-    <body class="bg-[{{theme_obj.primary_50}}] font-[Inter,_sans-serif]">
+    <body>
         <div class="oh-alert-container">
             {% for message in messages %}
             <div class="oh-alert oh-alert--animated {{ message.tags }}">
@@ -45,157 +121,124 @@
             {% endfor %}
         </div>
 
-        <div class="h-screen w-full flex items-center justify-center">
-            <div
-                class="bg-[{{theme_obj.primary_200}}] p-[50px] rounded-2xl [box-shadow:0px_0px_25px_#a1a1a1] w-[450px]"
-            >
-                <img
-                    src="{% if white_label_company.icon %}{{white_label_company.icon.url}}{% else %}{% static 'skylinx_theme/assets/img/logo.svg' %}{% endif %}"
-                    alt=""
-                    class="m-auto mb-4"
-                    width="80"
-                />
-                <h1 class="text-3xl font-bold mb-2 text-center">
-                    {% trans "Welcome to" %} {{white_label_company_name}} {% trans "HR" %}
-                </h1>
-                <p class="mb-5 text-center text-sm text-color-600">
-                    {% trans "Please login to access the dashboard." %}
-                </p>
-                <form method="post" class="oh-form-group" autocomplete="off">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="username" class="text-sm text-color-600"
-                            >{% trans "Username" %}</label
-                        >
-                        <input
-                            type="text"
-                            id="username"
-                            name="username"
-                            autocomplete="off"
-                            placeholder="e.g. adam.luis@emplinx.com"
-                            class="text-color-600 w-full border border-dark-50 rounded-md p-3 mt-1 focus-visible:outline-0 placeholder:text-[#00000041] placeholder:font-medium text-xs [transition:.3s] {% if theme_obj %} focus:border-[{{theme_obj.primary_700}}] {% else %} focus:border-primary-600 {% endif %}"
-                        />
-                    </div>
-                    <label for="password" class="text-sm text-color-600"
-                        >{% trans "Password" %}</label
-                    >
-                    <div class="oh-password-input-container relative">
-                        <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            autocomplete="new-password"
-                            placeholder="Enter Password"
-                            class="oh-input--password text-color-600 p-3 pr-[40px] w-full border border-dark-50 rounded-md mt-1 focus-visible:outline-0 placeholder:text-[#00000041] placeholder:font-medium text-xs [transition:.3s] {% if theme_obj %} focus:border-[{{theme_obj.primary_700}}] {% else %} focus:border-primary-600 {% endif %}"
-                        />
-                        <span
-                            type="button"
-                            class="oh-btn oh-btn--transparent oh-password-input--toggle"
-                        >
-                            <ion-icon
-                                class="oh-password-input__show-icon"
-                                title="{% trans 'Show Password' %}"
-                                name="eye-outline"
-                            ></ion-icon>
-                            <ion-icon
-                                class="oh-password-input__hide-icon hidden"
-                                title="{% trans 'Hide Password' %}"
-                                name="eye-off-outline"
-                            ></ion-icon>
-                        </span>
-                    </div>
-                    {% if not initialize_database %}
-                    <div class="flex justify-end">
-                        <a
-                            href="{% url 'password-reset-otp' %}"
-                            class="text-sm text-right font-medium text-[red] mb-3 mt-2 cursor-pointer"
-                        >
-                            {% trans "Forgot Password ?" %}
-                        </a>
-                    </div>
-                    {% endif %}
-                    <div id="termsContainer" style="display:flex; align-items:flex-start; gap:8px; margin:14px 0 4px; transition: opacity 0.3s ease;">
-                        <input type="checkbox" id="acceptTerms" name="accept_terms" required
-                            style="width:16px; height:16px; margin-top:2px; cursor:pointer; flex-shrink:0;">
-                        <label for="acceptTerms" style="font-size:12px; margin:0; cursor:pointer; line-height:1.45; color:var(--sx-text-muted,#555);">
-                            {% trans "I accept the" %}
-                            <a href="{% url 'terms-view' %}" target="_blank"
-                                style="color:#e76955; font-weight:700; text-decoration:underline;">{% trans "Terms &amp; Conditions" %}</a>
-                            {% trans "and" %}
-                            <a href="{% url 'terms-view' %}" target="_blank"
-                                style="color:#e76955; font-weight:700; text-decoration:underline;">{% trans "Privacy Policy" %}</a>.
-                        </label>
-                    </div>
-                    <button
-                        type="submit"
-                        class="p-3 mt-3 {% if theme_obj %} bg-[{{theme_obj.primary_600}}] hover:bg-[{{theme_obj.primary_800}}] {% else %} bg-primary-600 hover:bg-primary-800 {% endif %}  w-full flex gap-3 justify-center rounded-md text-[white] [transition:.3s]"
-                    >
-                        <img src="{% static "skylinx_theme/assets/icons/sign.svg" %}" alt="" /> {% trans "Sign In" %}
-                    </button>
-                </form>
-                {% if initialize_database %}
-                <div>
-                    <div class="d-flex gap-2">
-                        <a
-                            href="{% url 'initialize-database' %}"
-                            class="oh-btn oh-onboarding-card__button mt-4 oh-btn--shadow w-full mb-4"
-                            role="button"
-                            style="
-                                background-color: rgba(229, 79, 56, 0.1);
-                                color: hsl(204, 73%, 43%);
-                            "
-                        >
+        <div class="ex-wrap">
+            <!-- ── Left: branding ── -->
+            <div class="ex-left">
+                <div class="ex-brand">
+                    <img src="{% static 'skylinx_theme/assets/img/emplinx_wordmark.png' %}" alt="{{white_label_company_name}}" />
+                </div>
+                <p class="ex-eyebrow">{% trans "Welcome back" %}</p>
+                <h1 class="ex-h1">{% trans "Welcome back to a" %} <span class="grad">{% trans "better" %}</span> {% trans "workday." %}</h1>
+                <p class="ex-lead">{% trans "From approvals and attendance to payroll and day-to-day HR work, your team's workspace is ready to pick up where the day left off — in one connected place built for clarity and calm." %}</p>
+                <div class="ex-cards">
+                    <div class="ex-card"><span class="ex-dot" style="background:#22c55e;"></span>{% trans "Today's workspace is ready" %}</div>
+                    <div class="ex-card"><span class="ex-dot" style="background:#6b58b5;"></span>{% trans "Approvals, attendance, and payroll in one flow" %}</div>
+                    <div class="ex-card"><span class="ex-dot" style="background:#da8e0b;"></span>{% trans "Pick up where your team left off" %}</div>
+                </div>
+                <div class="ex-live"><span class="ex-dot" style="background:#22c55e;"></span>{% trans "Your workspace · Live" %}</div>
+                <div class="ex-foot"><span></span>{% trans "One connected place for the work behind your team" %}</div>
+            </div>
+
+            <!-- ── Right: login ── -->
+            <div class="ex-right">
+                <div class="ex-card-login">
+                    <img
+                        class="logo"
+                        src="{% if white_label_company.icon %}{{white_label_company.icon.url}}{% else %}{% static 'skylinx_theme/assets/img/emplinx_wordmark.png' %}{% endif %}"
+                        alt="{{white_label_company_name}}"
+                    />
+                    <h2 class="ex-title">{% trans "Welcome back" %}</h2>
+                    <p class="ex-sub">{% trans "Sign in to your" %} {{white_label_company_name}} {% trans "workspace" %}</p>
+
+                    <form method="post" class="oh-form-group" autocomplete="off">
+                        {% csrf_token %}
+                        <div class="ex-field">
+                            <label for="username" class="ex-label">{% trans "Work Email" %}</label>
+                            <input
+                                type="text"
+                                id="username"
+                                name="username"
+                                autocomplete="off"
+                                placeholder="name@company.com"
+                                class="ex-input"
+                            />
+                        </div>
+                        <div class="ex-field">
+                            <div class="ex-row">
+                                <label for="password" class="ex-label" style="margin-bottom:0;">{% trans "Password" %}</label>
+                                {% if not initialize_database %}
+                                <a href="{% url 'password-reset-otp' %}" class="ex-forgot">{% trans "Forgot password?" %}</a>
+                                {% endif %}
+                            </div>
+                            <div class="ex-pass oh-password-input-container">
+                                <input
+                                    type="password"
+                                    id="password"
+                                    name="password"
+                                    autocomplete="new-password"
+                                    placeholder="{% trans 'Enter password' %}"
+                                    class="ex-input oh-input--password"
+                                    style="padding-right:44px;"
+                                />
+                                <span type="button" class="ex-toggle oh-password-input--toggle">
+                                    <ion-icon class="oh-password-input__show-icon" title="{% trans 'Show Password' %}" name="eye-outline"></ion-icon>
+                                    <ion-icon class="oh-password-input__hide-icon hidden" title="{% trans 'Hide Password' %}" name="eye-off-outline"></ion-icon>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div id="termsContainer" class="ex-terms">
+                            <input type="checkbox" id="acceptTerms" name="accept_terms" required>
+                            <label for="acceptTerms">
+                                {% trans "I accept the" %}
+                                <a href="{% url 'terms-view' %}" target="_blank">{% trans "Terms &amp; Conditions" %}</a>
+                                {% trans "and" %}
+                                <a href="{% url 'terms-view' %}" target="_blank">{% trans "Privacy Policy" %}</a>.
+                            </label>
+                        </div>
+
+                        <button type="submit" class="ex-btn">{% trans "Sign In" %}</button>
+                    </form>
+
+                    {% if initialize_database %}
+                    <div class="ex-init">
+                        <a href="{% url 'initialize-database' %}"
+                            class="oh-btn oh-onboarding-card__button mt-4 oh-btn--shadow w-full mb-4" role="button"
+                            style="background-color: rgba(229, 79, 56, 0.1); color: hsl(204, 73%, 43%);">
                             {% trans "Initialize Database" %}
-                            <ion-icon
-                                class="ms-2"
-                                name="arrow-forward-outline"
-                            ></ion-icon>
+                            <ion-icon class="ms-2" name="arrow-forward-outline"></ion-icon>
                         </a>
-                        <a
-                            onclick="$('#dataLoadAuthentication').toggleClass('oh-modal--show');"
+                        <a onclick="$('#dataLoadAuthentication').toggleClass('oh-modal--show');"
                             class="oh-btn oh-onboarding-card__button mt-4 oh-btn--shadow w-full mb-4"
-                            style="background-color: #31b46e1f; color: #1fad61"
-                            role="button"
-                        >
+                            style="background-color: #31b46e1f; color: #1fad61" role="button">
                             {% trans "Load Demo Data" %}
-                            <ion-icon
-                                class="ms-2"
-                                name="arrow-forward-outline"
-                            ></ion-icon>
+                            <ion-icon class="ms-2" name="arrow-forward-outline"></ion-icon>
                         </a>
                     </div>
-                </div>
-                <div
-                    class="oh-modal"
-                    id="dataLoadAuthentication"
-                    role="dialog"
-                    aria-labelledby="dataLoadAuthenticationLabel"
-                    style="backdrop-filter: blur(8px)"
-                >
-                    <div class="oh-modal__dialog">
-                        {% include "demo_database/auth_load_data.html" %}
+                    <div class="oh-modal" id="dataLoadAuthentication" role="dialog"
+                        aria-labelledby="dataLoadAuthenticationLabel" style="backdrop-filter: blur(8px)">
+                        <div class="oh-modal__dialog">
+                            {% include "demo_database/auth_load_data.html" %}
+                        </div>
                     </div>
+                    {% else %}
+                    <p class="ex-note">{% trans "Need access?" %} <a href="{% url 'terms-view' %}">{% trans "Contact administrator" %}</a></p>
+                    {% endif %}
                 </div>
-                {% endif %}
             </div>
         </div>
 
-        <script type="module"  src="{% static 'images/ionicons/ui_icons/ionicons/ionicons.esm.js' %}"></script>
+        <script type="module" src="{% static 'images/ionicons/ui_icons/ionicons/ionicons.esm.js' %}"></script>
         <script>
             document.querySelectorAll('.oh-password-input--toggle').forEach(toggle => {
                 toggle.addEventListener('click', function (e) {
-                    console.log("ppppppppppppppp")
                     e.preventDefault();
                     const container = this.closest('.oh-password-input-container');
-
                     if (!container) return;
-
                     const passwordInput = container.querySelector('.oh-input--password');
                     const showIcon = container.querySelector('.oh-password-input__show-icon, .oh-passowrd-input__show-icon');
                     const hideIcon = container.querySelector('.oh-password-input__hide-icon, .oh-passowrd-input__hide-icon');
-
                     if (!passwordInput || !showIcon || !hideIcon) return;
-
                     if (passwordInput.type === 'password') {
                         passwordInput.type = 'text';
                         showIcon.classList.add('hidden', 'd-none');
@@ -253,21 +296,13 @@
                 });
                 usernameInput.addEventListener('change', checkTermsAcceptance);
                 usernameInput.addEventListener('blur', checkTermsAcceptance);
-
-                // Run immediately on page load
                 document.addEventListener('DOMContentLoaded', checkTermsAcceptance);
-                window.addEventListener('load', () => {
-                    setTimeout(checkTermsAcceptance, 100);
-                });
-
-                // Periodic check for 3 seconds to catch browser password manager autofills
+                window.addEventListener('load', () => { setTimeout(checkTermsAcceptance, 100); });
                 let checksCount = 0;
                 const autofillInterval = setInterval(() => {
                     checkTermsAcceptance();
                     checksCount++;
-                    if (checksCount > 15) {
-                        clearInterval(autofillInterval);
-                    }
+                    if (checksCount > 15) { clearInterval(autofillInterval); }
                 }, 200);
             }
         </script>
