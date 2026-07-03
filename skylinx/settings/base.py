@@ -150,7 +150,12 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    # ponytail: mobile app has no refresh-token flow, so the access token IS
+    # the session — 60min was logging everyone out hourly. Long-lived instead
+    # so the app stays signed in until the user manually logs out. Upgrade
+    # path if this ever needs revocation: implement a real refresh flow on
+    # mobile + shorten this back down.
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=30),
 }
 
 SWAGGER_SETTINGS = {
