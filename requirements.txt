@@ -41,7 +41,13 @@ numpy
 oauthlib
 openpyxl
 opencv-python-headless
-# dlib builds from source - needs `apt install cmake build-essential` on the box first
+# Primary face matcher. insightface pulls opencv-python as a dep which shadows
+# headless and breaks cv2 — after install run:
+#   pip uninstall -y opencv-python && pip install --force-reinstall --no-deps opencv-python-headless
+insightface
+onnxruntime
+# dlib/face_recognition: degraded fallback only (unreliable on similar faces).
+# Builds from source - needs `apt install cmake build-essential` on the box.
 dlib
 face_recognition
 oscrypto

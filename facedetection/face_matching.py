@@ -1,6 +1,58 @@
 import numpy as np
 from PIL import Image
 
+# Primary matcher: InsightFace (ArcFace/buffalo_l). dlib and pixel-NCC both
+# fail to separate similar-looking faces (proven on real data: dlib scored two
+# different people at 0.24 while a genuine pair scored 0.57 — impostor closer
+# than genuine). InsightFace gives clean separation (0.9 same / 0.18 different).
+# The dlib/NCC path below is kept ONLY as a degraded fallback if InsightFace
+# can't load, so a library hiccup doesn't hard-crash check-in.
+# ponytail: cosine >= FACE_MATCH_THRESHOLD == same person. 0.4 gives a wide
+# margin over impostors (~0.2) without false-rejecting genuine users (~0.5-0.9);
+# raise toward 0.5 if impostors ever slip through.
+FACE_MATCH_THRESHOLD = 0.4
+
+_INSIGHT_APP = None
+_INSIGHT_TRIED = False
+
+
+def _get_insight_app():
+    """Lazily build a single FaceAnalysis app per process (model load is slow
+    and ~300MB, so it must be reused, not rebuilt per request)."""
+    global _INSIGHT_APP, _INSIGHT_TRIED
+    if _INSIGHT_TRIED:
+        return _INSIGHT_APP
+    _INSIGHT_TRIED = True
+    try:
+        from insightface.app import FaceAnalysis
+
+        app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
+        app.prepare(ctx_id=-1, det_size=(640, 640))
+        _INSIGHT_APP = app
+    except Exception as e:
+        print(f"InsightFace unavailable, falling back to dlib/NCC: {e}")
+        _INSIGHT_APP = None
+    return _INSIGHT_APP
+
+
+def _insight_embedding(image_path):
+    """Largest-face normalized embedding, or None if no face / lib unavailable."""
+    app = _get_insight_app()
+    if app is None:
+        return None
+    import cv2
+
+    img = cv2.imread(image_path)
+    if img is None:
+        return None
+    faces = app.get(img)
+    if not faces:
+        return None
+    # largest face (closest to camera)
+    face = max(faces, key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]))
+    return face.normed_embedding
+
+
 try:
     import face_recognition
     USE_FACE_RECOGNITION = True
@@ -37,6 +89,15 @@ def _crop_to_face(image_path):
 def has_face(image_path):
     """True if a face is detectable in the image (or detection is unavailable,
     in which case we can't rule it out and let comparison decide)."""
+    app = _get_insight_app()
+    if app is not None:
+        try:
+            import cv2
+
+            img = cv2.imread(image_path)
+            return img is not None and len(app.get(img)) > 0
+        except Exception as e:
+            print(f"InsightFace detection error, falling back: {e}")
     try:
         _, found = _crop_to_face(image_path)
         return found
@@ -92,9 +153,23 @@ def compare_faces_fallback(image_path_1, image_path_2, threshold=0.6):
 
 def compare_faces(image_path_1, image_path_2):
     """
-    Active face matching using face_recognition package (if installed)
-    with a Pillow + NumPy normalized correlation fallback.
+    Face matching. Primary path: InsightFace ArcFace embeddings + cosine
+    similarity (the only method that reliably separates similar-looking
+    faces). Falls back to dlib, then pixel-NCC, only if InsightFace is
+    unavailable. Returns (is_match, similarity_score).
     """
+    emb1 = _insight_embedding(image_path_1)
+    emb2 = _insight_embedding(image_path_2)
+    if emb1 is not None and emb2 is not None:
+        similarity = float(np.dot(emb1, emb2))  # both are L2-normalized
+        return similarity >= FACE_MATCH_THRESHOLD, similarity
+    if emb1 is not None or emb2 is not None:
+        # InsightFace loaded and found a face in one image but not the other
+        # (e.g. a wall / no face) — that's a genuine non-match, don't fall
+        # through to the weaker matchers and risk a false accept.
+        if _get_insight_app() is not None:
+            return False, 0.0
+
     if USE_FACE_RECOGNITION:
         try:
             img1 = face_recognition.load_image_file(image_path_1)
