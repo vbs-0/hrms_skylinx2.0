@@ -16,3 +16,7 @@ class Config(AppConfig):
         import notifications.signals
 
         notifications.notify = notifications.signals.notify
+
+        from . import push
+
+        push._connect()

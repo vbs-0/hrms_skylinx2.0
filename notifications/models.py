@@ -1,7 +1,19 @@
+from django.conf import settings
 from django.db import models
 from swapper import swappable_setting
 
 from .base.models import AbstractNotification
+
+
+class DeviceToken(models.Model):
+    """FCM device token registered by a mobile client, for push notifications."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="device_tokens"
+    )
+    token = models.CharField(max_length=255, unique=True)
+    platform = models.CharField(max_length=20, default="android")
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class Notification(AbstractNotification):
