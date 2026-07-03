@@ -19,14 +19,8 @@
             sizes="32x32"
             href="{% if white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/favicon-32x32.png' %}{% endif %}"
         />
-        <link
-            rel="stylesheet"
-            href="/static/skylinx_theme/assets/css/global.css"
-        />
-        <link
-            rel="stylesheet"
-            href="/static/skylinx_theme/assets/css/v1_styles.css"
-        />
+        <link rel="stylesheet" href="/static/skylinx_theme/assets/css/global.css" />
+        <link rel="stylesheet" href="/static/skylinx_theme/assets/css/v1_styles.css" />
         <script src="{% static "skylinx_theme/assets/js/tailwindcdn.js" %}"></script>
         <script src="{% static '/jquery/jquery.min.js' %}"></script>
         <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,134 +28,159 @@
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
             :root{
-                --ex-purple:#6b58b5; --ex-purple-light:#9b6fd5; --ex-gold:#da8e0b;
-                --ex-blue:#5b8dee; --ex-bg:#f7f6ff; --ex-navy:#141d33;
-                --ex-text:#1b1a2e; --ex-muted:#6b6a80; --ex-border:#e7e4f5;
+                --ex-purple:#6b58b5; --ex-gold:#da8e0b; --ex-blue:#5b8dee;
+                --ex-bg:#f7f6ff; --ex-navy:#0d2157; --ex-text:#0f0b22;
             }
             *{box-sizing:border-box;}
             body{margin:0;font-family:'Inter',sans-serif;color:var(--ex-text);
-                background:var(--ex-bg);}
-            .ex-wrap{min-height:100vh;display:grid;grid-template-columns:1.05fr 0.95fr;}
-            /* radial glows on the page background */
-            .ex-wrap::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
-                background:
-                  radial-gradient(680px 480px at 12% 20%, rgba(107,88,181,.10), transparent 60%),
-                  radial-gradient(600px 520px at 85% 85%, rgba(218,142,11,.08), transparent 60%);}
-            .ex-left,.ex-right{position:relative;z-index:1;}
-            /* ---- left branding ---- */
-            .ex-left{padding:56px 6vw;display:flex;flex-direction:column;justify-content:center;}
-            .ex-brand{display:flex;align-items:center;margin-bottom:auto;}
-            .ex-brand img{height:34px;}
-            .ex-eyebrow{letter-spacing:.28em;font-size:12px;font-weight:600;
-                color:var(--ex-purple-light);margin:0 0 18px;text-transform:uppercase;}
-            .ex-h1{font-size:clamp(34px,3.6vw,52px);line-height:1.06;font-weight:800;
-                letter-spacing:-.02em;margin:0 0 22px;max-width:12ch;}
-            .ex-h1 .grad{background:linear-gradient(115deg,#6b58b5 0%,#9b6fd5 40%,#da8e0b 100%);
+                background:var(--ex-bg);overflow-x:hidden;}
+            .ex-wrap{min-height:100dvh;display:flex;position:relative;overflow:hidden;}
+            /* ---------- animations ---------- */
+            @keyframes float{0%,100%{transform:translateY(0) scale(1);}33%{transform:translateY(-28px) scale(1.04);}66%{transform:translateY(14px) scale(.98);}}
+            @keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+            @keyframes exUp{from{opacity:0;transform:translateY(28px);}to{opacity:1;transform:translateY(0);}}
+            @keyframes exDown{from{opacity:0;transform:translateY(-16px);}to{opacity:1;transform:translateY(0);}}
+            @keyframes exPulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+            @keyframes exSpin{to{transform:rotate(360deg);}}
+            /* ambient background blobs */
+            .blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:.55;z-index:0;
+                animation:float 18s ease-in-out infinite;pointer-events:none;}
+            .blob-delayed{animation:float 22s ease-in-out infinite 3s;opacity:.45;}
+            .blob-bloom{filter:blur(50px);opacity:.6;animation:float 14s ease-in-out infinite 1s;}
+            /* ---------- left branding ---------- */
+            .ex-left{position:relative;z-index:2;width:55%;display:flex;flex-direction:column;
+                padding:56px 6vw;overflow:hidden;}
+            .ex-brand{margin-bottom:auto;animation:exDown .7s ease both;}
+            .ex-brand img{height:38px;}
+            .ex-copy{max-width:460px;margin:auto 0;animation:exUp .7s ease .15s both;}
+            .ex-eyebrow{letter-spacing:.24em;font-size:11px;font-weight:600;
+                color:rgba(107,88,181,.55);margin:0 0 22px;text-transform:uppercase;}
+            .ex-h1{font-size:clamp(2.3rem,3.8vw,3rem);line-height:1.13;font-weight:800;
+                letter-spacing:-.025em;margin:0 0 26px;}
+            .ex-h1 .grad{background:linear-gradient(115deg,#6B58B5 0%,#9B6FD5 40%,#DA8E0B 100%);
                 -webkit-background-clip:text;background-clip:text;color:transparent;font-style:italic;}
-            .ex-lead{font-size:16px;line-height:1.7;color:var(--ex-muted);max-width:46ch;margin:0 0 30px;}
-            .ex-cards{display:flex;flex-direction:column;gap:12px;max-width:430px;}
-            .ex-card{background:rgba(255,255,255,.72);border:1px solid var(--ex-border);
-                border-radius:16px;padding:15px 18px;font-size:14px;font-weight:600;color:#37354d;
-                display:flex;align-items:center;gap:12px;backdrop-filter:blur(6px);
-                box-shadow:0 10px 30px -18px rgba(80,60,150,.35);}
-            .ex-card:nth-child(2){margin-left:40px;}
-            .ex-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
-            .ex-live{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ex-muted);
-                margin:16px 0 0 2px;font-weight:500;}
-            .ex-foot{display:flex;align-items:center;gap:14px;margin-top:34px;font-size:13px;color:var(--ex-muted);}
-            .ex-foot span{height:1px;width:56px;background:var(--ex-border);}
-            /* ---- right login card ---- */
-            .ex-right{display:flex;align-items:center;justify-content:center;padding:40px 5vw;}
-            .ex-card-login{background:#fff;border:1px solid var(--ex-border);border-radius:24px;
-                padding:40px;width:100%;max-width:430px;
-                box-shadow:0 30px 70px -30px rgba(80,60,150,.35);}
-            .ex-card-login .logo{display:block;height:30px;margin:0 auto 18px;}
-            .ex-title{font-size:26px;font-weight:800;text-align:center;margin:0 0 6px;letter-spacing:-.01em;}
-            .ex-sub{text-align:center;color:var(--ex-muted);font-size:14px;margin:0 0 26px;}
-            .ex-label{font-size:13px;font-weight:600;color:#3a384f;margin-bottom:7px;display:block;}
-            .ex-input{width:100%;padding:13px 15px;border:1px solid var(--ex-border);border-radius:12px;
-                font-size:14px;background:#fbfaff;color:var(--ex-text);transition:.2s;outline:none;}
+            .ex-lead{font-size:.97rem;line-height:1.92;color:rgba(15,11,34,.46);max-width:370px;margin:0 0 40px;}
+            .ex-foot{display:flex;align-items:center;gap:16px;}
+            .ex-foot .bar{height:1px;width:56px;flex-shrink:0;border-radius:2px;
+                background:linear-gradient(to right,rgba(107,88,181,.55),transparent);}
+            .ex-foot p{margin:0;font-size:12.5px;color:rgba(15,11,34,.52);letter-spacing:.018em;font-weight:500;}
+            /* floating cue cards */
+            .ex-cards{position:absolute;right:6%;top:50%;transform:translateY(-52%);
+                width:256px;display:flex;flex-direction:column;z-index:2;}
+            .ex-card{border-radius:18px;padding:18px 20px;
+                background:rgba(255,255,255,.72);backdrop-filter:blur(20px) saturate(1.4);
+                -webkit-backdrop-filter:blur(20px) saturate(1.4);border:1px solid rgba(255,255,255,.85);
+                box-shadow:0 20px 48px -8px rgba(107,88,181,.14),0 4px 12px -4px rgba(0,0,0,.06),
+                    inset 0 1px 0 rgba(255,255,255,.95);
+                display:flex;align-items:flex-start;gap:14px;}
+            .ex-card p{margin:0;font-size:13.5px;font-weight:600;line-height:1.5;color:rgba(15,11,34,.72);}
+            .ex-card:nth-child(1){animation:bob 5s ease-in-out infinite;}
+            .ex-card:nth-child(2){margin:20px 0 0 48px;animation:bob 6s ease-in-out infinite 1.5s;}
+            .ex-card:nth-child(3){margin:20px 0 0 16px;animation:bob 7s ease-in-out infinite .7s;}
+            .ex-dot{width:9px;height:9px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+            .ex-live{display:flex;align-items:center;gap:8px;margin:24px 0 0 4px;animation:bob 6s ease-in-out infinite 1.5s;}
+            .ex-live .p{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:#34d399;
+                box-shadow:0 0 6px 2px rgba(52,211,153,.45);animation:exPulse 2s ease-in-out infinite;}
+            .ex-live span{font-size:10px;color:rgba(15,11,34,.38);letter-spacing:.08em;font-weight:500;}
+            /* ---------- right login ---------- */
+            .ex-right{width:45%;display:flex;align-items:center;justify-content:center;padding:40px 4vw;
+                position:relative;z-index:3;}
+            .ex-card-login{background:#fff;border:1px solid rgba(0,0,0,.055);border-radius:24px;
+                padding:40px;width:100%;max-width:420px;animation:exUp .7s ease .3s both;
+                box-shadow:0 32px 80px -16px rgba(107,88,181,.12),0 8px 24px -8px rgba(0,0,0,.06),
+                    inset 0 1px 0 rgba(255,255,255,1);}
+            .ex-card-login .logo{display:block;height:32px;margin:0 auto 26px;}
+            .ex-title{font-size:1.45rem;font-weight:800;text-align:center;margin:0 0 8px;letter-spacing:-.01em;}
+            .ex-sub{text-align:center;color:rgba(15,11,34,.45);font-size:13.5px;margin:0 0 30px;}
+            .ex-label{font-size:13px;font-weight:500;color:rgba(15,11,34,.6);margin-bottom:8px;display:block;}
+            .ex-input{width:100%;height:48px;padding:0 16px;border:1px solid rgba(107,88,181,.12);
+                border-radius:12px;font-size:14px;background:rgba(247,246,255,.8);color:var(--ex-text);
+                transition:.2s;outline:none;font-family:inherit;}
             .ex-input::placeholder{color:#b3b0c7;}
-            .ex-input:focus{border-color:var(--ex-purple);background:#fff;
-                box-shadow:0 0 0 4px rgba(107,88,181,.12);}
-            .ex-field{margin-bottom:18px;}
-            .ex-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;}
-            .ex-forgot{font-size:13px;font-weight:600;color:var(--ex-gold);text-decoration:none;}
-            .ex-forgot:hover{text-decoration:underline;}
+            .ex-input:focus{border-color:rgba(107,88,181,.5);box-shadow:0 0 0 3px rgba(107,88,181,.10);}
+            .ex-field{margin-bottom:20px;}
+            .ex-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+            .ex-forgot{font-size:12px;font-weight:600;color:var(--ex-gold);text-decoration:none;transition:.2s;}
+            .ex-forgot:hover{color:rgba(218,142,11,.7);}
             .ex-pass{position:relative;}
-            .ex-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);
-                background:none;border:0;cursor:pointer;color:#9a97b3;display:flex;font-size:20px;}
-            .ex-btn{width:100%;padding:14px;border:0;border-radius:12px;background:var(--ex-navy);
-                color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:.2s;
-                display:flex;align-items:center;justify-content:center;gap:8px;
-                box-shadow:0 14px 30px -12px rgba(20,29,51,.6);}
-            .ex-btn:hover{background:#1e2b4d;transform:translateY(-1px);}
-            .ex-note{text-align:center;font-size:13px;color:var(--ex-muted);margin:18px 0 0;}
-            .ex-note a{color:var(--ex-purple);font-weight:600;text-decoration:none;}
-            .ex-note a:hover{text-decoration:underline;}
-            .ex-terms{display:flex;align-items:flex-start;gap:9px;margin:2px 0 18px;transition:opacity .3s ease;}
+            .ex-toggle{position:absolute;right:14px;top:50%;transform:translateY(-50%);
+                background:none;border:0;cursor:pointer;color:rgba(15,11,34,.35);display:flex;font-size:20px;transition:.2s;}
+            .ex-toggle:hover{color:rgba(15,11,34,.6);}
+            .ex-btn{width:100%;height:48px;border:1.5px solid rgba(91,141,238,.7);border-radius:999px;
+                background:var(--ex-navy);color:#fff;font-size:15px;font-weight:600;cursor:pointer;
+                transition:transform .3s,box-shadow .3s;display:flex;align-items:center;justify-content:center;gap:8px;
+                box-shadow:0 0 10px 2px rgba(91,141,238,.45),0 0 24px 4px rgba(91,141,238,.2);font-family:inherit;}
+            .ex-btn:hover{transform:scale(1.018);}
+            .ex-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+            .ex-btn .sp{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;
+                border-radius:50%;animation:exSpin .7s linear infinite;display:none;}
+            .ex-btn.loading .sp{display:inline-block;}
+            .ex-note{text-align:center;font-size:12px;color:rgba(15,11,34,.35);margin:24px 0 0;letter-spacing:.01em;}
+            .ex-note a{color:rgba(107,88,181,.55);font-weight:500;text-decoration:none;transition:.2s;}
+            .ex-note a:hover{color:rgba(107,88,181,.85);}
+            .ex-terms{display:flex;align-items:flex-start;gap:9px;margin:2px 0 20px;transition:opacity .3s ease;}
             .ex-terms input{width:16px;height:16px;margin-top:2px;cursor:pointer;flex-shrink:0;accent-color:var(--ex-purple);}
-            .ex-terms label{font-size:12px;margin:0;cursor:pointer;line-height:1.45;color:var(--ex-muted);}
+            .ex-terms label{font-size:12px;margin:0;cursor:pointer;line-height:1.45;color:rgba(15,11,34,.5);}
             .ex-terms a{color:var(--ex-gold);font-weight:700;text-decoration:underline;}
             .ex-init{display:flex;gap:8px;margin-top:16px;}
             .oh-alert-container{position:fixed;top:18px;right:18px;z-index:50;}
+            @media (max-width:1024px){.ex-cards{display:none;}}
             @media (max-width:960px){
-                .ex-wrap{grid-template-columns:1fr;}
+                .ex-wrap{flex-direction:column;}
                 .ex-left{display:none;}
-                .ex-right{padding:28px 20px;}
+                .ex-right{width:100%;padding:28px 20px;}
             }
         </style>
     </head>
     <body>
         <div class="oh-alert-container">
             {% for message in messages %}
-            <div class="oh-alert oh-alert--animated {{ message.tags }}">
-                {{ message }}
-            </div>
+            <div class="oh-alert oh-alert--animated {{ message.tags }}">{{ message }}</div>
             {% endfor %}
         </div>
 
         <div class="ex-wrap">
+            <!-- ambient blobs -->
+            <div class="blob" style="top:-20%;left:-15%;width:60vw;height:60vw;background:radial-gradient(circle,rgba(107,88,181,.18) 0%,transparent 70%);"></div>
+            <div class="blob blob-delayed" style="bottom:-10%;right:-15%;width:48vw;height:48vw;background:radial-gradient(circle,rgba(218,142,11,.10) 0%,transparent 70%);"></div>
+            <div class="blob blob-bloom" style="top:32%;left:38%;width:26vw;height:26vw;background:radial-gradient(circle,rgba(107,88,181,.10) 0%,transparent 70%);"></div>
+
             <!-- ── Left: branding ── -->
             <div class="ex-left">
                 <div class="ex-brand">
                     <img src="{% static 'skylinx_theme/assets/img/emplinx_wordmark.png' %}" alt="{{white_label_company_name}}" />
                 </div>
-                <p class="ex-eyebrow">{% trans "Welcome back" %}</p>
-                <h1 class="ex-h1">{% trans "Welcome back to a" %} <span class="grad">{% trans "better" %}</span> {% trans "workday." %}</h1>
-                <p class="ex-lead">{% trans "From approvals and attendance to payroll and day-to-day HR work, your team's workspace is ready to pick up where the day left off — in one connected place built for clarity and calm." %}</p>
-                <div class="ex-cards">
-                    <div class="ex-card"><span class="ex-dot" style="background:#22c55e;"></span>{% trans "Today's workspace is ready" %}</div>
-                    <div class="ex-card"><span class="ex-dot" style="background:#6b58b5;"></span>{% trans "Approvals, attendance, and payroll in one flow" %}</div>
-                    <div class="ex-card"><span class="ex-dot" style="background:#da8e0b;"></span>{% trans "Pick up where your team left off" %}</div>
+                <div class="ex-copy">
+                    <p class="ex-eyebrow">{% trans "Welcome back" %}</p>
+                    <h1 class="ex-h1">{% trans "Welcome back to" %}<br>{% trans "a" %} <span class="grad">{% trans "better" %}</span> {% trans "workday." %}</h1>
+                    <p class="ex-lead">{% trans "From approvals and attendance to payroll and day-to-day HR work, your team's workspace is ready to pick up where the day left off — in one connected place built for clarity and calm." %}</p>
+                    <div class="ex-foot"><span class="bar"></span><p>{% trans "One connected place for the work behind your team" %}</p></div>
                 </div>
-                <div class="ex-live"><span class="ex-dot" style="background:#22c55e;"></span>{% trans "Your workspace · Live" %}</div>
-                <div class="ex-foot"><span></span>{% trans "One connected place for the work behind your team" %}</div>
+
+                <!-- floating cue cards -->
+                <div class="ex-cards">
+                    <div class="ex-card"><span class="ex-dot" style="background:#34d399;box-shadow:0 0 0 2px rgba(52,211,153,.4),0 0 12px 3px rgba(52,211,153,.4);"></span><p>{% trans "Today's workspace is ready" %}</p></div>
+                    <div class="ex-card"><span class="ex-dot" style="background:#6B58B5;box-shadow:0 0 0 2px rgba(107,88,181,.35),0 0 12px 3px rgba(107,88,181,.35);"></span><p>{% trans "Approvals, attendance, and payroll in one flow" %}</p></div>
+                    <div class="ex-card"><span class="ex-dot" style="background:#DA8E0B;box-shadow:0 0 0 2px rgba(218,142,11,.35),0 0 12px 3px rgba(218,142,11,.35);"></span><p>{% trans "Pick up where your team left off" %}</p></div>
+                    <div class="ex-live"><span class="p"></span><span>{% trans "Your workspace · Live" %}</span></div>
+                </div>
             </div>
 
             <!-- ── Right: login ── -->
             <div class="ex-right">
                 <div class="ex-card-login">
-                    <img
-                        class="logo"
+                    <img class="logo"
                         src="{% if white_label_company.icon %}{{white_label_company.icon.url}}{% else %}{% static 'skylinx_theme/assets/img/emplinx_wordmark.png' %}{% endif %}"
-                        alt="{{white_label_company_name}}"
-                    />
+                        alt="{{white_label_company_name}}" />
                     <h2 class="ex-title">{% trans "Welcome back" %}</h2>
                     <p class="ex-sub">{% trans "Sign in to your" %} {{white_label_company_name}} {% trans "workspace" %}</p>
 
-                    <form method="post" class="oh-form-group" autocomplete="off">
+                    <form method="post" class="oh-form-group" autocomplete="off" id="exLoginForm">
                         {% csrf_token %}
                         <div class="ex-field">
                             <label for="username" class="ex-label">{% trans "Work Email" %}</label>
-                            <input
-                                type="text"
-                                id="username"
-                                name="username"
-                                autocomplete="off"
-                                placeholder="name@company.com"
-                                class="ex-input"
-                            />
+                            <input type="text" id="username" name="username" autocomplete="off"
+                                placeholder="name@company.com" class="ex-input" />
                         </div>
                         <div class="ex-field">
                             <div class="ex-row">
@@ -171,15 +190,8 @@
                                 {% endif %}
                             </div>
                             <div class="ex-pass oh-password-input-container">
-                                <input
-                                    type="password"
-                                    id="password"
-                                    name="password"
-                                    autocomplete="new-password"
-                                    placeholder="{% trans 'Enter password' %}"
-                                    class="ex-input oh-input--password"
-                                    style="padding-right:44px;"
-                                />
+                                <input type="password" id="password" name="password" autocomplete="new-password"
+                                    placeholder="••••••••" class="ex-input oh-input--password" style="padding-right:44px;" />
                                 <span type="button" class="ex-toggle oh-password-input--toggle">
                                     <ion-icon class="oh-password-input__show-icon" title="{% trans 'Show Password' %}" name="eye-outline"></ion-icon>
                                     <ion-icon class="oh-password-input__hide-icon hidden" title="{% trans 'Hide Password' %}" name="eye-off-outline"></ion-icon>
@@ -197,7 +209,9 @@
                             </label>
                         </div>
 
-                        <button type="submit" class="ex-btn">{% trans "Sign In" %}</button>
+                        <button type="submit" class="ex-btn" id="exSubmit">
+                            <span class="sp"></span><span class="lbl">{% trans "Sign In" %}</span>
+                        </button>
                     </form>
 
                     {% if initialize_database %}
@@ -217,9 +231,7 @@
                     </div>
                     <div class="oh-modal" id="dataLoadAuthentication" role="dialog"
                         aria-labelledby="dataLoadAuthenticationLabel" style="backdrop-filter: blur(8px)">
-                        <div class="oh-modal__dialog">
-                            {% include "demo_database/auth_load_data.html" %}
-                        </div>
+                        <div class="oh-modal__dialog">{% include "demo_database/auth_load_data.html" %}</div>
                     </div>
                     {% else %}
                     <p class="ex-note">{% trans "Need access?" %} <a href="{% url 'terms-view' %}">{% trans "Contact administrator" %}</a></p>
@@ -230,6 +242,7 @@
 
         <script type="module" src="{% static 'images/ionicons/ui_icons/ionicons/ionicons.esm.js' %}"></script>
         <script>
+            // password show/hide
             document.querySelectorAll('.oh-password-input--toggle').forEach(toggle => {
                 toggle.addEventListener('click', function (e) {
                     e.preventDefault();
@@ -251,6 +264,20 @@
                 });
             });
 
+            // submit loading state (spinner + "Signing in...")
+            (function(){
+                const form = document.getElementById('exLoginForm');
+                const btn = document.getElementById('exSubmit');
+                if (form && btn) {
+                    form.addEventListener('submit', function(){
+                        btn.classList.add('loading');
+                        btn.disabled = true;
+                        const lbl = btn.querySelector('.lbl');
+                        if (lbl) lbl.textContent = '{% trans "Signing in..." %}';
+                    });
+                }
+            })();
+
             // Dynamically check terms acceptance based on username
             const usernameInput = document.getElementById('username');
             const termsContainer = document.getElementById('termsContainer');
@@ -263,7 +290,6 @@
                 const username = usernameInput.value.trim();
                 if (username === lastCheckedUsername) return;
                 lastCheckedUsername = username;
-
                 if (username) {
                     fetch(`/check-terms/?username=${encodeURIComponent(username)}`)
                         .then(response => response.json())
