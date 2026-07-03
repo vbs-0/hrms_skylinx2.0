@@ -233,6 +233,25 @@ class MobileCheckInAPIView(APIView):
                 "errorCode": "NO_SHIFT_SCHEDULED_TODAY"
             }, status=400)
 
+        # Enforce the shift time window: check-in is allowed from
+        # (shift start - grace) until shift end, and blocked outside it.
+        # ponytail: 30-min grace before start; bump GRACE_SECS if HR wants a
+        # wider early-clock-in window.
+        GRACE_SECS = 30 * 60
+        start_with_grace = start_time_sec - GRACE_SECS
+        if start_time_sec > end_time_sec:
+            # night shift wraps midnight: valid in the evening (>= start-grace)
+            # OR in the early hours before shift end (<= end).
+            in_shift_window = now_sec >= start_with_grace or now_sec <= end_time_sec
+        else:
+            in_shift_window = start_with_grace <= now_sec <= end_time_sec
+        if not in_shift_window:
+            return Response({
+                "success": False,
+                "message": "Check-in is only allowed during your shift hours.",
+                "errorCode": "OUTSIDE_SHIFT_HOURS",
+            }, status=400)
+
         # Create Core Attendance Activity
         datetime_now = timezone.now()
         clock_in_attendance_and_activity(
