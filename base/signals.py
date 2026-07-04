@@ -29,10 +29,16 @@ def create_default_work_employee_types(sender, instance, created, **kwargs):
     if not created:
         return
     for work_type in DEFAULT_WORK_TYPES:
-        wt, _ = WorkType.objects.entire().get_or_create(work_type=work_type)
+        wt = WorkType.objects.entire().filter(work_type__iexact=work_type).first()
+        if wt is None:
+            wt = WorkType.objects.entire().create(work_type=work_type)
         wt.company_id.add(instance)
     for employee_type in DEFAULT_EMPLOYEE_TYPES:
-        et, _ = EmployeeType.objects.entire().get_or_create(employee_type=employee_type)
+        et = EmployeeType.objects.entire().filter(
+            employee_type__iexact=employee_type
+        ).first()
+        if et is None:
+            et = EmployeeType.objects.entire().create(employee_type=employee_type)
         et.company_id.add(instance)
 
 
