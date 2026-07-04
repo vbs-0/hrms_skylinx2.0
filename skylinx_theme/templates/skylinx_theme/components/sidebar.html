@@ -800,6 +800,9 @@ function removeId(element, storeKey = "selectedInstances") {
           swap: "innerHTML show:window:top",
           headers: {"HX-Sidebar-Nav": "true"},
         });
+        // Auto-close the submenu panel after picking an item — don't make
+        // the user click elsewhere to dismiss it.
+        closeAll({ force: true });
       }, true);
 
       navContainer.addEventListener("click", function (e) {
