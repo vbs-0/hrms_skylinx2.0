@@ -1239,16 +1239,32 @@
                     } else {
                         item.parentNode.insertBefore(dragEl, item);
                     }
+                    persistCustomizeState();
                 }
             });
         });
 
-        // Toggle visibility
+        // Toggle visibility — apply + persist immediately, no Save needed
         listEl.querySelectorAll('.md-cust-item__toggle').forEach(btn => {
             btn.addEventListener('click', e => {
                 e.stopPropagation();
                 btn.classList.toggle('md-cust-item__toggle--on');
+                persistCustomizeState();
             });
+        });
+    }
+
+    function persistCustomizeState() {
+        const prefs = getCustomizeState();
+        savePrefs(prefs);
+        applyPrefs(prefs);
+        fetch("{% url 'dashboard-save-prefs' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
+            },
+            body: JSON.stringify({ prefs: prefs }),
         });
     }
 

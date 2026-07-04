@@ -74,6 +74,14 @@ class TaxBracketForm(ModelForm):
 
 from payroll.models.tax_models import Form16Document
 from django.core.validators import FileExtensionValidator
+from datetime import date
+
+
+def financial_year_choices():
+    """Indian FY runs Apr-Mar; include next FY and go back a few years."""
+    current = date.today().year + (1 if date.today().month >= 4 else 0)
+    return [(f"{y}-{y + 1}", f"{y}-{y + 1}") for y in range(current, current - 6, -1)]
+
 
 class Form16DocumentForm(ModelForm):
     """Form for manually uploading a Form 16 document for an employee."""
@@ -86,18 +94,22 @@ class Form16DocumentForm(ModelForm):
         widgets = {
             "employee": forms.Select(attrs={"class": "form-control select2"}),
         }
-        
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["document"].validators = [FileExtensionValidator(allowed_extensions=['pdf'])]
+        self.fields["financial_year"] = forms.ChoiceField(
+            choices=financial_year_choices(),
+            widget=forms.Select(attrs={"class": "form-control"}),
+            label=self.fields["financial_year"].label,
+        )
 
 class Form16BulkUploadForm(forms.Form):
     """Form for bulk uploading Form 16 documents via a ZIP file."""
-    
-    financial_year = forms.CharField(
-        max_length=9, 
-        help_text="e.g., 2023-2024",
-        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "2023-2024"})
+
+    financial_year = forms.ChoiceField(
+        choices=financial_year_choices,
+        widget=forms.Select(attrs={"class": "form-control"}),
     )
     zip_file = forms.FileField(
         validators=[FileExtensionValidator(allowed_extensions=['zip'])],

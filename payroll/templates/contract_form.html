@@ -8,9 +8,17 @@
           {{ form.verbose_name }}
       </div>
     </div>
-    <div class="oh-payslip__header-right">
+    <div class="oh-payslip__header-right" style="min-width: 160px;">
           {{ form.contract_status }}
     </div>
+    <style>
+      /* status select was squeezed to ~60px and its open dropdown got
+         clipped at the card edge */
+      .oh-payslip__header-right select,
+      .oh-payslip__header-right .select2-container { min-width: 160px !important; }
+      .oh-payslip__header { overflow: visible; }
+      .oh-profile-section, .oh-profile-section__card { overflow: visible; }
+    </style>
   </div>
   <div class="oh-profile-section__card">
     <div class="row">

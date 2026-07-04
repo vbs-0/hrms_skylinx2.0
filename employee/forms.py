@@ -417,14 +417,11 @@ class EmployeeWorkInformationForm(ModelForm):
             manager_qs = manager_qs.filter(
                 employee_work_info__company_id=selected_company
             )
-        # Only strictly more senior roles (org chart: Employee < Manager <
-        # HR Manager < CEO) can be picked as a reporting manager — also rules
-        # out self and any subordinate-loop by construction.
+        # HR can pick any active employee as a reporting manager (peer-level
+        # managers allowed) — only self is excluded to avoid a self-loop.
         current_employee = getattr(self.instance, "employee_id", None)
-        target_user = getattr(current_employee, "employee_user_id", None)
-        manager_qs = manager_qs.filter(
-            employee_user_id__id__in=senior_user_ids(target_user)
-        )
+        if current_employee and getattr(current_employee, "pk", None):
+            manager_qs = manager_qs.exclude(pk=current_employee.pk)
         if "reporting_manager_id" in self.fields:
             self.fields["reporting_manager_id"].queryset = manager_qs
         if "employee_work_info__reporting_manager_id" in self.fields:
@@ -583,14 +580,11 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
             manager_qs = manager_qs.filter(
                 employee_work_info__company_id=selected_company
             )
-        # Only strictly more senior roles (org chart: Employee < Manager <
-        # HR Manager < CEO) can be picked as a reporting manager — also rules
-        # out self and any subordinate-loop by construction.
+        # HR can pick any active employee as a reporting manager (peer-level
+        # managers allowed) — only self is excluded to avoid a self-loop.
         current_employee = getattr(self.instance, "employee_id", None)
-        target_user = getattr(current_employee, "employee_user_id", None)
-        manager_qs = manager_qs.filter(
-            employee_user_id__id__in=senior_user_ids(target_user)
-        )
+        if current_employee and getattr(current_employee, "pk", None):
+            manager_qs = manager_qs.exclude(pk=current_employee.pk)
         if "reporting_manager_id" in self.fields:
             self.fields["reporting_manager_id"].queryset = manager_qs
         if "employee_work_info__reporting_manager_id" in self.fields:

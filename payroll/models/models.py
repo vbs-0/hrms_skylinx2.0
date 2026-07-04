@@ -2319,11 +2319,10 @@ class Reimbursement(SkylinxModel):
     expense_categories = [
         ("travel", _("Travel & Conveyance")),
         ("fuel", _("Fuel / Mileage")),
-        ("mobile", _("Mobile & Internet")),
         ("medical", _("Medical")),
         ("food", _("Food & Meals")),
         ("books", _("Books & Professional Development")),
-        ("entertainment", _("Client Entertainment")),
+        ("others", _("Others")),
     ]
     category = models.CharField(
         choices=expense_categories,

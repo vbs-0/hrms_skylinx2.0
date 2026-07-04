@@ -34,32 +34,6 @@
     {% endif %}
   </div>
 
-  <!-- current subscription -->
-  <div class="bg-white rounded-md shadow-card p-5 mb-5">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <div class="text-xs uppercase text-gray-400">{% trans "Current plan" %}</div>
-        <div class="text-xl font-bold">{{ sub.plan.name|default:"—" }}</div>
-        <div class="text-sm text-gray-500">
-          {% trans "Status" %}:
-          <span class="font-semibold">{{ sub.get_status_display|default:"—" }}</span>
-          {% if sub.expires_on %} · {% trans "Renews/expires" %} {{ sub.expires_on }}{% endif %}
-          {% if sub.trial_ends_on and sub.status == 'trial' %} · {% trans "Trial ends" %} {{ sub.trial_ends_on }}{% endif %}
-        </div>
-      </div>
-      <div class="text-right">
-        <div class="text-xs uppercase text-gray-400">{% trans "Seats" %}</div>
-        <div class="text-lg font-semibold">
-          {{ sub.seats_used }}{% if sub.seat_limit %} / {{ sub.seat_limit }}{% else %} / ∞{% endif %}
-        </div>
-        {% if sub.seat_limit %}<div class="text-xs text-gray-400">{% trans "For more, contact us" %}</div>{% endif %}
-      </div>
-    </div>
-    {% if not billing_on %}
-    <p class="text-xs text-amber-600 mt-3">{% trans "Online payment is not enabled yet — paid upgrades are activated manually after you request them." %}</p>
-    {% endif %}
-  </div>
-
   <!-- billing cycle toggle -->
   <div class="flex justify-center mb-5">
     <div class="inline-flex bg-gray-100 rounded-full p-1 text-sm font-medium" id="billing-toggle">
@@ -70,72 +44,142 @@
     </div>
   </div>
 
-  <!-- available plans -->
-  <div class="grid gap-4" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">
-    {% for p in plans %}
-    <div class="relative bg-white rounded-lg shadow-card p-5 flex flex-col {% if sub.plan_id == p.id %}ring-2 ring-primary-500{% endif %}">
-      {% if sub.plan_id == p.id %}
-      <span class="absolute -top-2 right-4 text-[10px] uppercase tracking-wide bg-primary-600 text-white px-2 py-0.5 rounded-full">{% trans "Current" %}</span>
-      {% endif %}
-
-      <div class="font-bold text-lg">{{ p.name }}</div>
-
-      <!-- price: monthly + yearly variants toggled by JS -->
-      <div class="mt-1 h-12">
-        {% if p.price > 0 %}
-          <div class="price-monthly">
-            <span class="text-2xl font-extrabold">₹{{ p.price }}</span>
-            <span class="text-sm font-normal text-gray-400">/{% trans "month" %}</span>
-          </div>
-          <div class="price-yearly" style="display:none">
-            {% if p.yearly_price > 0 %}
-              <span class="text-2xl font-extrabold">₹{{ p.yearly_price }}</span>
-              <span class="text-sm font-normal text-gray-400">/{% trans "year" %}</span>
-            {% else %}
-              <span class="text-sm text-gray-400">{% trans "Yearly not available" %}</span>
+  <!-- plan comparison table -->
+  <div class="bg-white rounded-lg shadow-card overflow-x-auto mb-5">
+    <table class="w-full text-sm" style="min-width: 640px; border-collapse: collapse;">
+      <thead>
+        <tr>
+          <th class="text-left align-bottom p-4" style="width: 30%;">
+            <div class="text-base font-bold">{% trans "Features" %}</div>
+          </th>
+          {% for p in plans %}
+          <th class="p-4 text-center align-top border-l border-gray-100
+                     {% if sub.plan_id == p.id %}bg-orange-50{% endif %}"
+              style="width: {% widthratio 70 plans|length 1 %}%;">
+            {% if sub.plan_id == p.id %}
+            <div class="text-[10px] uppercase tracking-wide text-white bg-orange-500 rounded-full px-2 py-0.5 inline-block mb-1">{% trans "Current plan" %}</div>
             {% endif %}
-          </div>
-        {% else %}
-          <span class="text-2xl font-extrabold">{% trans "Free" %}</span>
-        {% endif %}
-      </div>
+            <div class="font-bold text-base">{{ p.name }}</div>
+            <div class="mt-1">
+              {% if p.price > 0 %}
+                <div class="price-monthly">
+                  <span class="text-xl font-extrabold">₹{{ p.price }}</span><span class="text-xs text-gray-400">/{% trans "month" %}</span>
+                </div>
+                <div class="price-yearly" style="display:none">
+                  {% if p.yearly_price > 0 %}
+                    <span class="text-xl font-extrabold">₹{{ p.yearly_price }}</span><span class="text-xs text-gray-400">/{% trans "year" %}</span>
+                  {% else %}
+                    <span class="text-xs text-gray-400">{% trans "Yearly not available" %}</span>
+                  {% endif %}
+                </div>
+              {% else %}
+                <span class="text-xl font-extrabold">{% trans "Free" %}</span>
+                <div class="text-[11px] text-gray-400">{% trans "No hidden charges" %}</div>
+              {% endif %}
+            </div>
+            <div class="text-[11px] text-gray-500 mt-1">
+              {% if p.seat_limit %}{% blocktrans with limit=p.seat_limit %}Up to {{ limit }} employees{% endblocktrans %}{% else %}{% trans "Unlimited employees" %}{% endif %}
+            </div>
 
-      <div class="text-xs text-gray-500 mt-1">
-        {% if p.seat_limit %}{% blocktrans %}Up to {{ p.seat_limit }} employees{% endblocktrans %}{% else %}{% trans "Unlimited employees" %}{% endif %}
-      </div>
+            {% if sub.plan_id == p.id %}
+              <button class="mt-2 w-full px-3 py-1.5 rounded-md text-xs bg-orange-500 text-white" disabled>{% trans "Current Plan" %}</button>
+              {% if sub.expires_on %}<div class="text-[10px] text-gray-500 mt-1">{% trans "Valid till" %} {{ sub.expires_on }}</div>{% endif %}
+            {% else %}
+              <form method="post" action="{% url 'subscription-choose' %}" class="mt-2">
+                {% csrf_token %}
+                <input type="hidden" name="plan" value="{{ p.id }}" />
+                <button class="w-full px-3 py-1.5 rounded-md text-xs bg-primary-600 text-white">
+                  {% if p.price > 0 %}{% trans "Select Plan" %}{% else %}{% trans "Switch" %}{% endif %}
+                </button>
+              </form>
+            {% endif %}
 
-      <ul class="text-sm text-gray-600 mt-3 space-y-1 flex-1">
+            {% if is_owner %}
+            <div class="mt-2 flex gap-1">
+              <a href="{% url 'subscriptions-plan-edit' p.id %}"
+                 class="flex-1 text-center px-2 py-1 rounded text-[11px] border border-gray-200 text-gray-600 hover:bg-gray-50">{% trans "Edit" %}</a>
+              <form method="post" action="{% url 'subscriptions-plan-delete' p.id %}" class="flex-1"
+                    onsubmit="return confirm('Delete {{ p.name|escapejs }}? Companies on it move to the next-higher plan.');">
+                {% csrf_token %}
+                <button class="w-full px-2 py-1 rounded text-[11px] border border-red-200 text-red-600 hover:bg-red-50">{% trans "Delete" %}</button>
+              </form>
+            </div>
+            {% endif %}
+          </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        <!-- core section: always included -->
+        <tr>
+          <td colspan="{{ plans|length|add:1 }}" class="px-4 pt-4 pb-1">
+            <span class="text-xs font-bold uppercase tracking-wide text-primary-600">{% trans "Core HR (all plans)" %}</span>
+          </td>
+        </tr>
+        <tr class="border-t border-gray-50">
+          <td class="px-4 py-2 text-gray-600">{% trans "Employees, Attendance, Leave, Dashboard, Settings" %}</td>
+          {% for p in plans %}
+          <td class="px-4 py-2 text-center border-l border-gray-100 {% if sub.plan_id == p.id %}bg-orange-50{% endif %}">
+            <span class="text-green-600 font-bold">✓</span>
+          </td>
+          {% endfor %}
+        </tr>
+
+        <!-- gated modules -->
+        <tr>
+          <td colspan="{{ plans|length|add:1 }}" class="px-4 pt-4 pb-1">
+            <span class="text-xs font-bold uppercase tracking-wide text-primary-600">{% trans "Modules & Add-ons" %}</span>
+          </td>
+        </tr>
         {% for key, meta in all_features.items %}
-          {% if key in p.features %}<li>✓ {{ meta.label }}</li>{% endif %}
+        <tr class="border-t border-gray-50 hover:bg-gray-50/50">
+          <td class="px-4 py-2 text-gray-600">{{ meta.label }}</td>
+          {% for p in plans %}
+          <td class="px-4 py-2 text-center border-l border-gray-100 {% if sub.plan_id == p.id %}bg-orange-50{% endif %}">
+            {% if key in p.features %}
+              <span class="text-green-600 font-bold">✓</span>
+            {% else %}
+              <span class="text-red-400 font-bold">✗</span>
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
         {% endfor %}
-        {% if not p.features %}<li class="text-gray-400">{% trans "Core HR only" %}</li>{% endif %}
-      </ul>
+      </tbody>
+    </table>
+  </div>
 
-      {% if sub.plan_id == p.id %}
-        <button class="mt-4 px-4 py-2 rounded-md text-sm bg-gray-100 text-gray-500" disabled>{% trans "Current plan" %}</button>
-      {% else %}
-        <form method="post" action="{% url 'subscription-choose' %}" class="mt-4">
-          {% csrf_token %}
-          <input type="hidden" name="plan" value="{{ p.id }}" />
-          <button class="w-full px-4 py-2 rounded-md text-sm bg-primary-600 text-white">
-            {% if p.price > 0 %}{% trans "Upgrade" %}{% else %}{% trans "Switch" %}{% endif %}
-          </button>
-        </form>
-      {% endif %}
-
-      {% if is_owner %}
-      <div class="mt-2 flex gap-2">
-        <a href="{% url 'subscriptions-plan-edit' p.id %}"
-           class="flex-1 text-center px-3 py-1.5 rounded-md text-xs border border-gray-200 text-gray-600 hover:bg-gray-50">{% trans "Edit" %}</a>
-        <form method="post" action="{% url 'subscriptions-plan-delete' p.id %}" class="flex-1"
-              onsubmit="return confirm('Delete {{ p.name|escapejs }}? Companies on it move to the next-higher plan.');">
-          {% csrf_token %}
-          <button class="w-full px-3 py-1.5 rounded-md text-xs border border-red-200 text-red-600 hover:bg-red-50">{% trans "Delete" %}</button>
-        </form>
+  <!-- plan summary -->
+  <div class="bg-white rounded-md shadow-card p-5 mb-5">
+    <h2 class="text-sm font-bold uppercase tracking-wide text-gray-500 mb-3">{% trans "Plan Summary" %}</h2>
+    <div class="flex flex-wrap gap-8">
+      <div>
+        <div class="text-xs uppercase text-gray-400">{% trans "Current plan" %}</div>
+        <div class="text-lg font-bold">{{ sub.plan.name|default:"—" }}</div>
+        <div class="text-sm text-gray-500">
+          {% trans "Status" %}: <span class="font-semibold">{{ sub.get_status_display|default:"—" }}</span>
+          {% if sub.expires_on %} · {% trans "Renews/expires" %} {{ sub.expires_on }}{% endif %}
+          {% if sub.trial_ends_on and sub.status == 'trial' %} · {% trans "Trial ends" %} {{ sub.trial_ends_on }}{% endif %}
+        </div>
+      </div>
+      <div>
+        <div class="text-xs uppercase text-gray-400">{% trans "Seats" %}</div>
+        <div class="text-lg font-semibold">
+          {{ sub.seats_used }}{% if sub.seat_limit %} / {{ sub.seat_limit }}{% else %} / ∞{% endif %}
+        </div>
+        {% if sub.seat_limit %}<div class="text-xs text-gray-400">{% trans "For more, contact us" %}</div>{% endif %}
+      </div>
+      {% if sub.plan.price > 0 %}
+      <div>
+        <div class="text-xs uppercase text-gray-400">{% trans "Price" %}</div>
+        <div class="text-lg font-semibold">₹{{ sub.plan.price }}<span class="text-xs text-gray-400">/{% trans "month" %}</span></div>
+        {% if sub.plan.yearly_price > 0 %}<div class="text-xs text-gray-400">₹{{ sub.plan.yearly_price }}/{% trans "year" %}</div>{% endif %}
       </div>
       {% endif %}
     </div>
-    {% endfor %}
+    {% if not billing_on %}
+    <p class="text-xs text-amber-600 mt-3">{% trans "Online payment is not enabled yet — paid upgrades are activated manually after you request them." %}</p>
+    {% endif %}
   </div>
 </div>
 
