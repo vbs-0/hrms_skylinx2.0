@@ -8511,10 +8511,18 @@ class EnableIntegrationsView(View):
             return HttpResponse("<script>window.location.reload()</script>")
 
         enabled = request.POST.get("is_enabled") is not None
-        integration_app, created = IntegrationApps.objects.update_or_create(
-            app_label=app_label,
-            defaults={"is_enabled": enabled},
-        )
+        # update_or_create locks with FOR UPDATE, which Postgres rejects on the
+        # scoped manager's DISTINCT queryset — plain fetch-then-save instead.
+        integration_app = IntegrationApps.objects.entire().filter(
+            app_label=app_label
+        ).first()
+        if integration_app is None:
+            integration_app = IntegrationApps.objects.create(
+                app_label=app_label, is_enabled=enabled
+            )
+        else:
+            integration_app.is_enabled = enabled
+            integration_app.save()
         try:
             app_config = apps.get_app_config(app_label)
             app_verbose_name = app_config.verbose_name
