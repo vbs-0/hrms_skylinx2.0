@@ -13,8 +13,27 @@ from django.dispatch import receiver
 from django.http import Http404
 from django.shortcuts import redirect, render
 
-from base.models import Announcement, PenaltyAccounts
+from base.models import Announcement, Company, EmployeeType, PenaltyAccounts, WorkType
 from skylinx.methods import get_skylinx_model_class
+
+DEFAULT_WORK_TYPES = ["Onsite", "Remote", "Hybrid"]
+DEFAULT_EMPLOYEE_TYPES = ["Full Time", "Part Time", "Intern", "Contract"]
+
+
+@receiver(post_save, sender=Company)
+def create_default_work_employee_types(sender, instance, created, **kwargs):
+    """
+    Seed default WorkType/EmployeeType options for every company so new
+    tenants aren't left with empty dropdowns until someone manually adds them.
+    """
+    if not created:
+        return
+    for work_type in DEFAULT_WORK_TYPES:
+        wt, _ = WorkType.objects.entire().get_or_create(work_type=work_type)
+        wt.company_id.add(instance)
+    for employee_type in DEFAULT_EMPLOYEE_TYPES:
+        et, _ = EmployeeType.objects.entire().get_or_create(employee_type=employee_type)
+        et.company_id.add(instance)
 
 
 @receiver(post_save, sender=PenaltyAccounts)
