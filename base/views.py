@@ -1779,7 +1779,7 @@ def group_permissions_table_view(request, group_id):
 
 @login_required
 @hx_request_required
-@permission_required("view_permissions")
+@permission_required("auth.view_permission")
 def user_permission_table_view(request, emp_id):
     """
     Lazy-loads the permission table for a specific employee (user).
@@ -1905,7 +1905,7 @@ def user_group_view(request):
 
 
 @login_required
-@permission_required("change_group")
+@permission_required("auth.change_group")
 @require_http_methods(["POST"])
 def user_group_permission_remove(request, pid, gid):
     """
@@ -1923,7 +1923,7 @@ def user_group_permission_remove(request, pid, gid):
 
 
 @login_required
-@permission_required("change_group")
+@permission_required("auth.change_group")
 @require_http_methods(["POST"])
 def group_remove_user(request, uid, gid):
     """
@@ -5944,7 +5944,7 @@ def shift_request_delete(request, id):
 
 
 @login_required
-@permission_required("delete_shiftrequest")
+@permission_required("base.delete_shiftrequest")
 @require_http_methods(["POST"])
 def shift_request_bulk_delete(request):
     """
