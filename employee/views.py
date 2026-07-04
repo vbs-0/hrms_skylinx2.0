@@ -4296,7 +4296,7 @@ def get_job_roles_hx(request):
 
 
 @login_required
-@permission_required("employee.change_employeetag")
+@permission_required("employee.view_employeetag")
 def employee_tag_view(request):
     """
     This method is used to Employee tags
