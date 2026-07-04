@@ -803,6 +803,10 @@ function removeId(element, storeKey = "selectedInstances") {
         // Auto-close the submenu panel after picking an item — don't make
         // the user click elsewhere to dismiss it.
         closeAll({ force: true });
+        // If the hamburger-expanded sidebar is open, collapse it too.
+        if (document.body.classList.contains('sidebar-toggled')) {
+          window.toggleSidebar();
+        }
       }, true);
 
       navContainer.addEventListener("click", function (e) {
