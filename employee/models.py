@@ -103,11 +103,11 @@ class Employee(models.Model):
         verbose_name=_("User"),
     )
     employee_first_name = models.CharField(
-        max_length=200, null=False, verbose_name=_("First Name"),
+        max_length=60, null=False, verbose_name=_("First Name"),
         validators=[name_validator],
     )
     employee_last_name = models.CharField(
-        max_length=200, null=True, blank=True, verbose_name=_("Last Name"),
+        max_length=60, null=True, blank=True, verbose_name=_("Last Name"),
         validators=[name_validator],
     )
     employee_profile = models.ImageField(
@@ -119,7 +119,10 @@ class Employee(models.Model):
     country = models.CharField(max_length=100, blank=True, null=True, default="India")
     state = models.CharField(max_length=100, null=True, blank=True)
     city = models.CharField(max_length=30, null=True, blank=True)
-    zip = models.CharField(max_length=20, null=True, blank=True, verbose_name=_("PIN Code"))
+    zip = models.CharField(
+        max_length=6, null=True, blank=True, verbose_name=_("PIN Code"),
+        validators=[RegexValidator(regex=r"^\d{6}$", message=_("PIN code must be exactly 6 digits."))],
+    )
     dob = models.DateField(null=True, blank=True, verbose_name=_("Date of Birth"))
     gender = models.CharField(
         max_length=10, null=True, choices=choice_gender, default="male"
