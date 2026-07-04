@@ -227,6 +227,13 @@ class Employee(models.Model):
     def clean_fields(self, exclude=None):
         errors = {}
 
+        # Run Django's standard field validation first — skipping super() here
+        # silently disabled every field validator (phone/name/aadhaar regex).
+        try:
+            super().clean_fields(exclude=exclude)
+        except ValidationError as e:
+            errors.update(e.update_error_dict({}))
+
         # Get the list of fields to exclude from validation
         total_exclude = set(exclude or []).union(getattr(self, "xss_exempt_fields", []))
 
