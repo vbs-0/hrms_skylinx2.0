@@ -79,7 +79,9 @@ from datetime import date
 
 def financial_year_choices():
     """Indian FY runs Apr-Mar; include next FY and go back a few years."""
-    current = date.today().year + (1 if date.today().month >= 4 else 0)
+    # FY label uses the START year: Apr 2026 - Mar 2027 => "2026-2027"
+    today = date.today()
+    current = today.year if today.month >= 4 else today.year - 1
     return [(f"{y}-{y + 1}", f"{y}-{y + 1}") for y in range(current, current - 3, -1)]
 
 
