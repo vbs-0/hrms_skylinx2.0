@@ -21,4 +21,23 @@
 <style>
     .breadcrumb .breadcrumb-collapsed { display: none; }
     .breadcrumb--expanded .breadcrumb-collapsed { display: inline-flex; }
+    /* keep breadcrumbs on one line; long segments get ellipsis instead of
+       wrapping and pushing the page content down */
+    #breadcrumbList {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        overflow: hidden;
+        max-width: 34vw;
+        white-space: nowrap;
+    }
+    #breadcrumbList li { flex-shrink: 0; }
+    #breadcrumbList li a {
+        display: inline-block;
+        max-width: 160px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: bottom;
+    }
 </style>
