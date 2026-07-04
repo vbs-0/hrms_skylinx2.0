@@ -1250,21 +1250,21 @@ class AnonymousFeedback(models.Model):
     )
     employee_id = models.ForeignKey(
         Employee,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         verbose_name=_("Employee"),
     )
     department_id = models.ForeignKey(
         Department,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         verbose_name=_("Department"),
     )
     job_position_id = models.ForeignKey(
         JobPosition,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         verbose_name=_("Job Position"),

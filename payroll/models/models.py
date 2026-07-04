@@ -215,7 +215,7 @@ class Contract(SkylinxModel):
     )
     department = models.ForeignKey(
         Department,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="contracts",
@@ -223,7 +223,7 @@ class Contract(SkylinxModel):
     )
     job_position = models.ForeignKey(
         JobPosition,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="contracts",
@@ -231,7 +231,7 @@ class Contract(SkylinxModel):
     )
     job_role = models.ForeignKey(
         JobRole,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="contracts",
@@ -239,7 +239,7 @@ class Contract(SkylinxModel):
     )
     shift = models.ForeignKey(
         EmployeeShift,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="contracts",
@@ -247,7 +247,7 @@ class Contract(SkylinxModel):
     )
     work_type = models.ForeignKey(
         WorkType,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="contracts",

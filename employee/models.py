@@ -861,30 +861,32 @@ class EmployeeWorkInformation(models.Model):
         related_name="employee_work_info",
         verbose_name=_("Employee"),
     )
+    # SET_NULL, not CASCADE: deleting a department/position/etc must not wipe
+    # the whole work-info row (which makes the employee vanish from HR lists).
     department_id = models.ForeignKey(
         Department,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         verbose_name=_("Department"),
     )
     job_position_id = models.ForeignKey(
         JobPosition,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         verbose_name=_("Designation"),
     )
     job_role_id = models.ForeignKey(
         JobRole,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         verbose_name=_("Job Role"),
     )
     reporting_manager_id = models.ForeignKey(
         Employee,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         blank=True,
         null=True,
         related_name="reporting_manager",
@@ -899,7 +901,7 @@ class EmployeeWorkInformation(models.Model):
     )
     work_type_id = models.ForeignKey(
         WorkType,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         verbose_name=_("Work Mode"),
@@ -907,7 +909,7 @@ class EmployeeWorkInformation(models.Model):
 
     employee_type_id = models.ForeignKey(
         EmployeeType,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         verbose_name=_("Employment Type"),
