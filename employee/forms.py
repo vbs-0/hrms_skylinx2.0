@@ -21,7 +21,7 @@ class YourForm(forms.Form):
         # Custom validation logic goes here
         pass
 """
-from base.rbac import is_platform_owner, senior_user_ids
+from base.rbac import is_platform_owner, manager_candidate_user_ids
 
 
 import logging
@@ -417,9 +417,14 @@ class EmployeeWorkInformationForm(ModelForm):
             manager_qs = manager_qs.filter(
                 employee_work_info__company_id=selected_company
             )
-        # HR can pick any active employee as a reporting manager (peer-level
-        # managers allowed) — only self is excluded to avoid a self-loop.
+        # Org-chart rule: CEO gets no reporting manager, HR may only report to
+        # CEO/other HR, plain employees/managers may report to anyone HR picks
+        # (peers included). Self always excluded.
         current_employee = getattr(self.instance, "employee_id", None)
+        target_user = getattr(current_employee, "employee_user_id", None)
+        candidate_ids = manager_candidate_user_ids(target_user)
+        if candidate_ids is not None:
+            manager_qs = manager_qs.filter(employee_user_id__id__in=candidate_ids)
         if current_employee and getattr(current_employee, "pk", None):
             manager_qs = manager_qs.exclude(pk=current_employee.pk)
         if "reporting_manager_id" in self.fields:
@@ -580,9 +585,14 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
             manager_qs = manager_qs.filter(
                 employee_work_info__company_id=selected_company
             )
-        # HR can pick any active employee as a reporting manager (peer-level
-        # managers allowed) — only self is excluded to avoid a self-loop.
+        # Org-chart rule: CEO gets no reporting manager, HR may only report to
+        # CEO/other HR, plain employees/managers may report to anyone HR picks
+        # (peers included). Self always excluded.
         current_employee = getattr(self.instance, "employee_id", None)
+        target_user = getattr(current_employee, "employee_user_id", None)
+        candidate_ids = manager_candidate_user_ids(target_user)
+        if candidate_ids is not None:
+            manager_qs = manager_qs.filter(employee_user_id__id__in=candidate_ids)
         if current_employee and getattr(current_employee, "pk", None):
             manager_qs = manager_qs.exclude(pk=current_employee.pk)
         if "reporting_manager_id" in self.fields:

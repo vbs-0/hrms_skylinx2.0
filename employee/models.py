@@ -58,8 +58,19 @@ def reporting_manager_validator(value):
 
 
 phone_validator = RegexValidator(
-    regex=r"^\+?[\d\s\-\(\)]{7,20}$",
-    message=_("Enter a valid phone number (7-20 characters, optional +)."),
+    # optional +91 / 0 prefix, then exactly 10 digits starting 6-9
+    regex=r"^(\+91[\-\s]?|0)?[6-9]\d{9}$",
+    message=_("Enter a valid 10-digit mobile number (optional +91 prefix)."),
+)
+
+name_validator = RegexValidator(
+    regex=r"^[A-Za-z][A-Za-z .'\-]*$",
+    message=_("Names may only contain letters, spaces, dots, hyphens."),
+)
+
+aadhaar_validator = RegexValidator(
+    regex=r"^\d{12}$",
+    message=_("Aadhaar must be exactly 12 digits."),
 )
 
 
@@ -92,10 +103,12 @@ class Employee(models.Model):
         verbose_name=_("User"),
     )
     employee_first_name = models.CharField(
-        max_length=200, null=False, verbose_name=_("First Name")
+        max_length=200, null=False, verbose_name=_("First Name"),
+        validators=[name_validator],
     )
     employee_last_name = models.CharField(
-        max_length=200, null=True, blank=True, verbose_name=_("Last Name")
+        max_length=200, null=True, blank=True, verbose_name=_("Last Name"),
+        validators=[name_validator],
     )
     employee_profile = models.ImageField(
         upload_to=upload_path, null=True, blank=True, verbose_name=_("Profile Image"), validators=[SafeMimeValidator()]
@@ -121,7 +134,19 @@ class Employee(models.Model):
         ],
         verbose_name=_("Blood Group"),
     )
-    qualification = models.CharField(max_length=50, blank=True, null=True)
+    QUALIFICATION_CHOICES = [
+        ("undergraduate", _("Undergraduate")),
+        ("graduate", _("Graduate")),
+        ("postgraduate", _("Postgraduate")),
+    ]
+    qualification = models.CharField(
+        max_length=50, blank=True, null=True, choices=QUALIFICATION_CHOICES
+    )
+    qualification_detail = models.CharField(
+        max_length=100, blank=True, null=True,
+        verbose_name=_("Qualification Detail"),
+        help_text=_("e.g. Diploma, Inter, B.Tech CSE, MBA HR"),
+    )
     experience = models.IntegerField(null=True, blank=True)
     marital_status = models.CharField(
         max_length=50,
@@ -133,10 +158,12 @@ class Employee(models.Model):
     )
     children = models.IntegerField(blank=True, null=True)
     emergency_contact = models.CharField(
-        max_length=15, null=True, blank=True, verbose_name=_("Emergency Contact")
+        max_length=15, null=True, blank=True, verbose_name=_("Emergency Contact"),
+        validators=[phone_validator],
     )
     emergency_contact_name = models.CharField(
-        max_length=20, null=True, blank=True, verbose_name=_("Emergency Contact Name")
+        max_length=20, null=True, blank=True, verbose_name=_("Emergency Contact Name"),
+        validators=[name_validator],
     )
     emergency_contact_relation = models.CharField(
         max_length=20,
@@ -169,6 +196,7 @@ class Employee(models.Model):
         max_length=12,
         null=True,
         blank=True,
+        validators=[aadhaar_validator],
         verbose_name=_("Aadhaar Number"),
         help_text=_("12-digit UIDAI Aadhaar number"),
     )

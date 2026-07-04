@@ -145,6 +145,32 @@ def senior_user_ids(target_user):
     return list(ids)
 
 
+def manager_candidate_user_ids(target_user):
+    """Who may be picked as ``target_user``'s reporting manager.
+
+    CEO: no one. HR Manager: only CEO or other HR Managers (never a plain
+    employee). Manager/Employee: anyone, peers included (HR decides).
+    Returns None to mean "no restriction".
+    """
+    from django.contrib.auth.models import Group
+
+    target_rank = org_rank(target_user) if target_user else EMPLOYEE_RANK
+    if target_rank <= CEO_RANK:
+        return []
+    if target_rank == HR_MANAGER_RANK:
+        ids = set(
+            Group.objects.filter(name="Company Admin").values_list("user__id", flat=True)
+        ) | set(
+            Group.objects.filter(name__endswith=SEP + "HR Manager").values_list(
+                "user__id", flat=True
+            )
+        )
+        ids.discard(None)
+        ids.discard(getattr(target_user, "id", None))
+        return list(ids)
+    return None
+
+
 def strip_name(name: str) -> str:
     """Display label without the tenant prefix."""
     return name.split(SEP, 1)[-1] if name else name

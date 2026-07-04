@@ -651,13 +651,64 @@ def client_plans(request):
     sub = subscription_for_company(company)
     # stable, human-friendly client id the client can quote to support
     client_id = f"SKX-{company.id:05d}" if company else None
+
+    # Grouped feature matrix for the comparison table. Each row maps a
+    # marketing label to a real gate key from PAID_FEATURES (None = core,
+    # always included) so the table stays honest and fully plan-driven.
+    feature_groups = [
+        ("Core HRMS", [
+            ("Employee management", None),
+            ("Attendance & shift management", None),
+            ("Leave management", None),
+            ("Organization chart / policies", None),
+            ("Announcements & notifications", None),
+            ("Employee documents", None),
+        ]),
+        ("Payroll & Expenses", [
+            ("Pay register / contracts", "payroll"),
+            ("Allowances & deductions", "payroll"),
+            ("Payslips", "payroll"),
+            ("Expenses / reimbursements", "payroll"),
+            ("Income tax (TDS) / Form 16", "payroll"),
+        ]),
+        ("Smart Attendance", [
+            ("Facial recognition attendance", "biometric"),
+            ("Selfie check-in", "selfie_login"),
+            ("Live location tracking", "live_location"),
+            ("Geo-fencing", "geofencing"),
+        ]),
+        ("Modules", [
+            ("Performance management (PMS)", "pms"),
+            ("Recruitment / ATS & onboarding", "recruitment"),
+            ("Project management", "project"),
+            ("Asset management", "asset"),
+            ("Helpdesk / support tickets", "helpdesk"),
+        ]),
+    ]
+    plans = list(Plan.objects.filter(is_active=True).order_by("price"))
+    plan_colors = ["#16a34a", "#ea580c", "#7c3aed", "#0284c7", "#db2777"]
+    for i, p in enumerate(plans):
+        p.color = plan_colors[i % len(plan_colors)]
+    groups = []
+    for group_label, items in feature_groups:
+        rows = []
+        for label, key in items:
+            cells = [(key is None or key in (p.features or [])) for p in plans]
+            rows.append({"label": label, "cells": cells})
+        counts = []
+        for idx, p in enumerate(plans):
+            got = sum(1 for r in rows if r["cells"][idx])
+            counts.append({"got": got, "total": len(rows), "plan": p.name})
+        groups.append({"label": group_label, "rows": rows, "counts": counts})
+
     return render(
         request,
         "subscriptions/plans.html",
         {
             "company": company,
             "sub": sub,
-            "plans": Plan.objects.filter(is_active=True),
+            "plans": plans,
+            "feature_groups": groups,
             "all_features": PAID_FEATURES,
             "billing_on": billing.configured(),
             "client_id": client_id,

@@ -60,6 +60,12 @@
                         {{form.qualification}} {{form.qualification.errors}}
                     </div>
                     <div class="col-12 col-sm-12 col-md-12 col-lg-6">
+                        <label class="oh-label d-block" for="{{form.qualification_detail.id_for_label}}">
+                            {% trans "Qualification Detail" %}
+                        </label>
+                        {{form.qualification_detail}} {{form.qualification_detail.errors}}
+                    </div>
+                    <div class="col-12 col-sm-12 col-md-12 col-lg-6">
                         <label class="oh-label d-block" for="{{form.experience.id_for_label}}">
                             {% trans "Experience" %}
                         </label>
