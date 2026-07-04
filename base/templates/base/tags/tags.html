@@ -11,9 +11,10 @@
     class="oh-inner-sidebar-content__header d-flex justify-content-between align-items-center"
   >
     <h2 class="oh-inner-sidebar-content__title">{% trans "o/s" %}</h2> {% endcomment %}
-    {% if perms.skylinx_audit.add_audittag %}
+    {# nav/list must load for anyone with view perm, not only add perm #}
       <div hx-get="{% url "audit-tag-navbar" %}" hx-trigger="load">
       </div>
+    {% if perms.skylinx_audit.add_audittag %}
     	{% comment %} <button
     	  class="oh-btn oh-btn--secondary oh-btn--shadow"
     	  data-toggle="oh-modal-toggle"

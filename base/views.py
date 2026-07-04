@@ -4236,7 +4236,7 @@ def employee_permission_assign(request, pk=None):
 
 @login_required
 @hx_request_required
-@permission_required("view_permissions")
+@permission_required("auth.view_permission")
 def employee_permission_search(request, codename=None, uid=None):
     """
     This method renders template to view all instances of user permissions
@@ -8494,7 +8494,10 @@ def delete_penalities(request, penalty_id):
 
 @method_decorator(login_required, name="dispatch")
 @method_decorator(
-    permission_required("skylinx_meet.view_googlecloudcredential"), name="dispatch"
+    # This toggles ANY integration (LinkedIn, Meet, ...), so gate on the
+    # IntegrationApps model it actually writes, not a Meet-specific perm.
+    permission_required("base.change_integrationapps"),
+    name="dispatch",
 )
 class EnableIntegrationsView(View):
     """Handles enabling/disabling Google Meet integration dynamically."""
