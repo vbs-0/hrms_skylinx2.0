@@ -191,6 +191,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "skylinx.skylinx_middlewares.HtmxRedirectMiddleware",
+    "skylinx.skylinx_middlewares.HtmlNoCacheMiddleware",
     # EMPLINX-specific middlewares
     # licensing replaced by per-company subscriptions (SaaS multi-tenant)
     "subscriptions.middleware.SubscriptionMiddleware",

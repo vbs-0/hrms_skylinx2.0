@@ -306,6 +306,30 @@
                 if (b) b.click();
             });
 
+            // Self-heal: if a bad htmx swap / history restore ever leaves the
+            // page without the top bar, force ONE clean reload of the current
+            // URL (server always renders the full page). Guarded per-URL so a
+            // genuinely headerless response can't loop.
+            (function () {
+                function heal() {
+                    var hdr = document.getElementById("header");
+                    var ok = hdr && hdr.innerHTML.trim().length > 0;
+                    if (ok) {
+                        try { sessionStorage.removeItem("hdrHeal"); } catch (e) {}
+                        return;
+                    }
+                    var key;
+                    try { key = sessionStorage.getItem("hdrHeal"); } catch (e) { key = null; }
+                    if (key === location.href) return; // already tried once
+                    try { sessionStorage.setItem("hdrHeal", location.href); } catch (e) {}
+                    window.location.reload();
+                }
+                // document-level listeners survive body swaps (htmx events bubble)
+                document.addEventListener("htmx:afterSettle", function () { setTimeout(heal, 50); });
+                document.addEventListener("htmx:historyRestore", function () { setTimeout(heal, 50); });
+                window.addEventListener("pageshow", function () { setTimeout(heal, 50); });
+            })();
+
             // Work timer — ONE self-healing ticker, defined here (always loaded) and
             // never inside swapped content (htmx does not run swapped <script> tags).
             // Every second it re-reads the attendance pill's data attributes, so a

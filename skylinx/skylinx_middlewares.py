@@ -68,6 +68,28 @@ class MethodNotAllowedMiddleware:
         _thread_locals.request = None
 
 
+class HtmlNoCacheMiddleware:
+    """Never let browsers cache app HTML.
+
+    HTMX fetches many URLs both as full pages and as fragments; without
+    explicit cache headers a browser may replay a stale/partial response on
+    refresh or back-nav, which renders pages with the top bar missing.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        content_type = response.get("Content-Type", "")
+        if content_type.startswith("text/html") and not response.has_header(
+            "Cache-Control"
+        ):
+            response["Cache-Control"] = "no-store, no-cache, must-revalidate"
+            response["Pragma"] = "no-cache"
+        return response
+
+
 class HtmxRedirectMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
