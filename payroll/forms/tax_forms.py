@@ -80,7 +80,7 @@ from datetime import date
 def financial_year_choices():
     """Indian FY runs Apr-Mar; include next FY and go back a few years."""
     current = date.today().year + (1 if date.today().month >= 4 else 0)
-    return [(f"{y}-{y + 1}", f"{y}-{y + 1}") for y in range(current, current - 26, -1)]
+    return [(f"{y}-{y + 1}", f"{y}-{y + 1}") for y in range(current, current - 3, -1)]
 
 
 class Form16DocumentForm(ModelForm):
