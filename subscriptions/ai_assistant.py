@@ -62,10 +62,10 @@ class _Tokenizer:
         return re.sub(r"\[\[[A-Za-z0-9_]+\]\]", "", text)
 
 
-def _employee_context(user):
+def _employee_context(user, tk=None):
     """Only the caller's OWN data. Real values are tokenized before this
     string ever leaves the server."""
-    tk = _Tokenizer()
+    tk = tk or _Tokenizer()
     emp = getattr(user, "employee_get", None)
     if not emp:
         return "The user has no employee profile.", tk
@@ -124,26 +124,28 @@ def _company_context(user, role):
     Counts are aggregate, not individually identifying, so left untokenized;
     the company name is tokenized since it's a real identifier."""
     tk = _Tokenizer()
+    # HR/CEO are employees too — include their own data (name, leave,
+    # attendance, payslips) so personal questions still work for them.
+    own, tk = _employee_context(user, tk)
+    lines = [f"The user is a {role.upper()}.", own]
     company = current_company(user)
-    if not company:
-        return "No company context available.", tk
-    from employee.models import Employee
-    from leave.models import LeaveRequest
+    if company:
+        from employee.models import Employee
+        from leave.models import LeaveRequest
 
-    emp_qs = Employee.objects.filter(
-        is_active=True, employee_work_info__company_id=company
-    )
-    lines = [
-        f"You are helping a {role.upper()} at {tk.tok(company.company, 'COMPANY')}.",
-        f"Active employees: {emp_qs.count()}.",
-    ]
-    try:
-        pending = LeaveRequest.objects.filter(
-            employee_id__employee_work_info__company_id=company, status="requested"
-        ).count()
-        lines.append(f"Pending leave requests: {pending}.")
-    except Exception:
-        pass
+        emp_qs = Employee.objects.filter(
+            is_active=True, employee_work_info__company_id=company
+        )
+        lines.append(f"Company: {tk.tok(company.company, 'COMPANY')}.")
+        lines.append(f"Active employees: {emp_qs.count()}.")
+        try:
+            pending = LeaveRequest.objects.filter(
+                employee_id__employee_work_info__company_id=company,
+                status="requested",
+            ).count()
+            lines.append(f"Pending leave requests: {pending}.")
+        except Exception:
+            pass
     return "\n".join(lines), tk
 
 
