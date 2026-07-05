@@ -192,6 +192,33 @@ def _company_context(user, role):
                     )
         except Exception:
             pass
+        # Payroll aggregates so "did we ever generate payroll / who's eligible"
+        # gets a real answer instead of a shrug. Counts only, no PII.
+        try:
+            from payroll.models.models import Contract, Payslip
+
+            slips = Payslip.objects.filter(
+                employee_id__employee_work_info__company_id=company
+            )
+            slip_count = slips.count()
+            if slip_count:
+                latest = slips.order_by("-end_date").first()
+                lines.append(
+                    f"Payslips generated so far (whole company): {slip_count}; "
+                    f"most recent period ended {tk.tok(latest.end_date, 'DATE')}."
+                )
+            else:
+                lines.append("Payslips generated so far (whole company): 0 — payroll has never been run.")
+            eligible = Contract.objects.filter(
+                contract_status="active",
+                employee_id__employee_work_info__company_id=company,
+            ).count()
+            lines.append(
+                f"Employees with an ACTIVE contract (eligible for payslip generation): {eligible} "
+                f"out of {emp_qs.count()} active employees."
+            )
+        except Exception:
+            pass
     return "\n".join(lines), tk
 
 
@@ -399,7 +426,9 @@ def ai_chat(request):
         "prerequisite listed in the guide (e.g. an active contract before "
         "payslip generation) BEFORE the steps. Never mention the guides "
         "themselves or that you were given a list — just answer naturally "
-        "as if you know the product.\n\n"
+        "as if you know the product. Likewise NEVER say the word 'CONTEXT' "
+        "or refer to 'the provided data/information' — if you don't have "
+        "something, just say \"I don't have that information\" naturally.\n\n"
         + HOWTO_GUIDES + "\n"
         "=== CONTEXT (real data, tokenized for privacy) ===\n" + ctx
     )
