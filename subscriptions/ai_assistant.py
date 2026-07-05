@@ -263,5 +263,12 @@ def ai_chat(request):
             {"error": "The assistant is temporarily unavailable. Try again shortly."},
             status=502,
         )
+    # Server-side output guard: if a prompt-injection got the model to echo
+    # its own instructions/context block, refuse instead of leaking them.
+    if "=== CONTEXT" in raw_answer or "You are Emplinx Assistant, a helper" in raw_answer:
+        return JsonResponse({
+            "reply": "I can't share my internal instructions. Ask me about your "
+                     "leave balance, shifts, payslips, attendance, or how to use Emplinx."
+        })
     answer = tk.detokenize(raw_answer)
     return JsonResponse({"reply": answer})
