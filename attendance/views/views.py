@@ -2966,6 +2966,7 @@ def enable_disable_tracking_late_come_early_out(request):
 
 
 @login_required
+@permission_required("attendance.view_attendancevalidationcondition")
 def check_in_check_out_setting(request):
     """
     Check in check out setting

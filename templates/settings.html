@@ -199,7 +199,7 @@
 													>{% trans "Mail Server" %}</a
 												>
 											</div>
-											{% elif perms.base.view_dynamicemailconfiguration and "outlook_auth"|app_installed %}
+											{% elif perms.outlook_auth.view_azureapi and "outlook_auth"|app_installed %}
 											<div class="oh-input-group">
 													<a
 													id="date"
@@ -210,7 +210,7 @@
 											</div>
 											{% endif %}
 											<div class="oh-input-group">
-												{% if perms.skylinx_backup.view_googledrivebackup %}
+												{% if perms.backup.add_localbackup %}
 													<a
 														id="date"
 														href="{% url 'gdrive' %}"
@@ -476,7 +476,7 @@
 											<div class="row">
 											<div class="col-sm-12 col-md-12 col-lg-12">
 												<div class="oh-input-group">
-													{% if perms.attendance.view_attendancevalidationcondition %}
+													{% if perms.base.view_tracklatecomeearlyout %}
 														<a
 															id="trackLateComeEalryOut"
 															href="{% url 'track-late-come-early-out' %}"
@@ -572,7 +572,7 @@
 										<div class="row">
 											<div class="col-sm-12 col-md-12 col-lg-12">
 												<div class="oh-input-group">
-													{% if perms.leave.add_restrictleave %}
+													{% if perms.leave.view_leavegeneralsetting %}
 														<a
 															id="condition"
 															href="{% url 'employee-past-leave-restriction' %}"
@@ -585,7 +585,7 @@
 											{% if "attendance"|app_installed %}
 												<div class="col-sm-12 col-md-12 col-lg-12">
 													<div class="oh-input-group">
-														{% if perms.attendance.view_attendancevalidationcondition %}
+														{% if perms.leave.view_leavegeneralsetting %}
 															<a
 																id="condition"
 																href="{% url 'compensatory-leave-settings-view' %}"
