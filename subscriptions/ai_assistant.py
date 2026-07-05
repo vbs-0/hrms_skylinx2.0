@@ -245,6 +245,40 @@ def ai_chat(request):
     else:
         ctx, tk = _company_context(request.user, role)
 
+    # Verified navigation flows — written from the actual sidebar/templates.
+    # The model MUST NOT invent UI steps beyond these; hallucinated buttons
+    # ("click Generate Payslip") that don't exist destroy user trust.
+    HOWTO_GUIDES = (
+        "=== VERIFIED EMPLINX HOW-TO GUIDES (the ONLY navigation steps you may state) ===\n"
+        "- Apply for leave: sidebar Leave > Apply Leave > Create button > pick "
+        "leave type + dates > Save. Your manager then approves it under Leave > Leave Approval.\n"
+        "- Approve/reject leave (managers/HR): sidebar Leave > Leave Approval > "
+        "open the request > Approve or Reject.\n"
+        "- Generate payslips (HR/admin): FIRST the employee must have an ACTIVE "
+        "contract (Payroll > Pay Register > Create, set status Active). Then "
+        "sidebar Payroll > Payslips > Actions button (top right) > Generate. "
+        "Pick employees + period > confirm. There is NO standalone 'Generate "
+        "Payslip' button — it is inside the Actions dropdown.\n"
+        "- View own payslips: sidebar Payroll > Payslips (employees see their own).\n"
+        "- Submit an expense/reimbursement: sidebar Payroll > Expenses > Create.\n"
+        "- Form 16: sidebar Payroll > Form 16.\n"
+        "- Check in/out (web): the Check In / Check Out button in the top navbar.\n"
+        "- View attendance: sidebar Attendance > My Attendances (own) or "
+        "Attendances (HR/managers, company-wide).\n"
+        "- Fix a wrong attendance entry: sidebar Attendance > Attendance Requests > Create.\n"
+        "- Request a shift change: sidebar Employee > Shift Requests > Create.\n"
+        "- Add a new employee (HR/admin): sidebar Employee > Employees > Create "
+        "button > fill personal info > then open the employee and complete Work "
+        "Info (department, job position, shift, reporting manager, company).\n"
+        "- View employee list: sidebar Employee > Employees.\n"
+        "- Org chart: sidebar Employee > Organization Chart.\n"
+        "- Raise a helpdesk ticket: sidebar Support > Tickets > Create.\n"
+        "- FAQs: sidebar Support > FAQs.\n"
+        "- Company settings (HR/admin): gear icon (top right) > Settings.\n"
+        "- Update own profile: click your avatar (top right) > My Profile.\n"
+        "=== END GUIDES ===\n"
+    )
+
     system_prompt = (
         "You are Emplinx Assistant, a helper built into the Emplinx HR "
         "software.\n"
@@ -306,7 +340,16 @@ def ai_chat(request):
         "balance, ask their reporting manager/HR about an exception or "
         "unpaid leave, or raise a helpdesk ticket. Never invent employee "
         "data; if CONTEXT truly has nothing on the topic, say so plainly. "
-        "Be concise.\n\n"
+        "Be concise.\n"
+        "NAVIGATION: when giving how-to steps, use ONLY the VERIFIED GUIDES "
+        "below, word-for-word for menu names and button locations. NEVER "
+        "invent a button, menu, or step that is not in the guides — a wrong "
+        "click path is worse than no answer. If the task isn't covered by "
+        "the guides, say you're not sure of the exact clicks and suggest "
+        "the closest guide or raising a helpdesk ticket. Also mention any "
+        "prerequisite listed in the guide (e.g. an active contract before "
+        "payslip generation) BEFORE the steps.\n\n"
+        + HOWTO_GUIDES + "\n"
         "=== CONTEXT (real data, tokenized for privacy) ===\n" + ctx
     )
     try:
