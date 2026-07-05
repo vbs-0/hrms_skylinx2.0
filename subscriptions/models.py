@@ -129,3 +129,38 @@ class Subscription(models.Model):
         if key in (self.feature_overrides or []):
             return True
         return key in self.feature_keys()
+
+
+class AISettings(models.Model):
+    """Platform-wide AI assistant config — owner-managed on /manage.
+
+    One row (singleton). The key never reaches the browser: the chat endpoint
+    proxies server-side. Works with any OpenAI-compatible API (Groq, Mistral,
+    OpenRouter, self-hosted Ollama).
+    """
+
+    enabled = models.BooleanField(default=False)
+    api_base = models.CharField(
+        max_length=255, default="https://api.groq.com/openai/v1"
+    )
+    api_key = models.CharField(max_length=255, blank=True, default="")
+    model_name = models.CharField(
+        max_length=120, default="llama-3.3-70b-versatile"
+    )
+    # role gates: who inside every tenant may use the assistant
+    allow_employee = models.BooleanField(default=True)
+    allow_hr = models.BooleanField(default=True)
+    allow_ceo = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "AI Settings"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1  # singleton
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

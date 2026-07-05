@@ -222,6 +222,33 @@ def _activate_plan(sub, plan):
 
 @login_required
 @superuser_required
+def ai_settings(request):
+    """Owner-only AI assistant config: endpoint, key, model, per-role gates."""
+    from subscriptions.models import AISettings
+
+    cfg = AISettings.load()
+    if request.method == "POST":
+        cfg.enabled = request.POST.get("enabled") == "on"
+        cfg.api_base = request.POST.get("api_base", "").strip() or cfg.api_base
+        posted_key = request.POST.get("api_key", "").strip()
+        if posted_key and posted_key != "********":
+            cfg.api_key = posted_key
+        cfg.model_name = request.POST.get("model_name", "").strip() or cfg.model_name
+        cfg.allow_employee = request.POST.get("allow_employee") == "on"
+        cfg.allow_hr = request.POST.get("allow_hr") == "on"
+        cfg.allow_ceo = request.POST.get("allow_ceo") == "on"
+        cfg.save()
+        messages.success(request, "AI settings saved.")
+        return redirect("subscriptions-ai-settings")
+    return render(
+        request,
+        "subscriptions/ai_settings.html",
+        {"cfg": cfg, "has_key": bool(cfg.api_key)},
+    )
+
+
+@login_required
+@superuser_required
 def console_analytics(request):
     """Owner-side hub: cross-tenant analytics + per-company access (roles/admins).
 
@@ -358,6 +385,7 @@ def console(request):
         companies = companies.filter(subscription__status=status_filter)
 
     companies = companies.order_by("company")
+    total_employees_all = 0
     rows = []
     for c in companies:
         sub = getattr(c, "subscription", None)
@@ -374,6 +402,7 @@ def console(request):
             ).order_by("id")
 
         employee_count = EmployeeWorkInformation.objects.filter(company_id=c).count()
+        total_employees_all += employee_count
         last_login_admin = admins.order_by("-last_login").first() if admins.exists() else None
 
         rows.append(
@@ -395,6 +424,7 @@ def console(request):
         "statuses": ["trial", "active", "past_due", "suspended", "cancelled"],
         "total_companies": Company.objects.count(),
         "live_count": Subscription.objects.filter(status__in=["active", "trial"]).count(),
+        "total_employees_all": total_employees_all,
         "paid_features": PAID_FEATURES,
         "search": search,
         "current_status": status_filter,

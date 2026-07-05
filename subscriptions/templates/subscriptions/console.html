@@ -37,7 +37,28 @@
     <div class="flex gap-2">
       <a href="{% url 'subscriptions-analytics' %}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md text-sm border hover:bg-gray-200">{% trans "Analytics & Access" %}</a>
       <a href="{% url 'subscriptions-plans' %}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md text-sm border hover:bg-gray-200">{% trans "Manage Plans" %}</a>
+      <a href="{% url 'subscriptions-ai-settings' %}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md text-sm border hover:bg-gray-200">🤖 {% trans "AI Settings" %}</a>
       <a href="{% url 'subscriptions-onboard' %}" class="px-4 py-2 bg-primary-600 text-white rounded-md text-sm">+ {% trans "Onboard client" %}</a>
+    </div>
+  </div>
+
+  <!-- summary stat cards -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+    <div class="bg-white rounded-lg shadow-sm border p-4">
+      <div class="text-xs uppercase text-gray-400">{% trans "Companies" %}</div>
+      <div class="text-2xl font-bold">{{ total_companies }}</div>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm border p-4">
+      <div class="text-xs uppercase text-gray-400">{% trans "Active / Trial" %}</div>
+      <div class="text-2xl font-bold text-green-600">{{ live_count }}</div>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm border p-4">
+      <div class="text-xs uppercase text-gray-400">{% trans "Total employees" %}</div>
+      <div class="text-2xl font-bold">{{ total_employees_all }}</div>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm border p-4">
+      <div class="text-xs uppercase text-gray-400">{% trans "Plans" %}</div>
+      <div class="text-2xl font-bold">{{ plans|length }}</div>
     </div>
   </div>
 

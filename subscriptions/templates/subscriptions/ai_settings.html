@@ -1,0 +1,57 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% block content %}
+<div class="oh-wrapper max-w-3xl mx-auto">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h1 class="text-lg font-semibold">{% trans "AI Assistant" %}</h1>
+      <p class="text-sm text-gray-500">{% trans "Configure the AI helper for all tenants. The API key stays on the server and is never exposed to clients." %}</p>
+    </div>
+    <a href="{% url 'subscriptions-console' %}" class="px-4 py-2 bg-gray-100 border rounded-md text-sm hover:bg-gray-200">← {% trans "Back to console" %}</a>
+  </div>
+
+  {% if messages %}{% for m in messages %}
+  <div class="mb-3 p-3 rounded-md text-sm {% if m.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-50 text-green-700{% endif %}">{{ m }}</div>
+  {% endfor %}{% endif %}
+
+  <form method="post" class="bg-white rounded-lg shadow-card p-6 space-y-5">
+    {% csrf_token %}
+
+    <label class="flex items-center gap-3">
+      <input type="checkbox" name="enabled" {% if cfg.enabled %}checked{% endif %} class="w-5 h-5">
+      <span class="font-semibold">{% trans "Enable AI assistant platform-wide" %}</span>
+    </label>
+
+    <div>
+      <label class="block text-sm font-medium mb-1">{% trans "API base URL" %}</label>
+      <input type="url" name="api_base" value="{{ cfg.api_base }}" class="w-full border rounded px-3 py-2 text-sm" placeholder="https://api.groq.com/openai/v1">
+      <p class="text-xs text-gray-500 mt-1">{% trans "Any OpenAI-compatible endpoint: Groq, Mistral, OpenRouter, or self-hosted Ollama (http://localhost:11434/v1)." %}</p>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium mb-1">{% trans "API key" %}</label>
+      <input type="password" name="api_key" value="{% if has_key %}********{% endif %}" class="w-full border rounded px-3 py-2 text-sm" autocomplete="off">
+      <p class="text-xs text-gray-500 mt-1">{% trans "Stored server-side only. Leave the dots as-is to keep the current key." %}</p>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium mb-1">{% trans "Model name" %}</label>
+      <input type="text" name="model_name" value="{{ cfg.model_name }}" class="w-full border rounded px-3 py-2 text-sm" placeholder="llama-3.3-70b-versatile">
+    </div>
+
+    <div class="border-t pt-4">
+      <div class="text-sm font-semibold mb-2">{% trans "Who can use the assistant" %}</div>
+      <div class="space-y-2">
+        <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="allow_employee" {% if cfg.allow_employee %}checked{% endif %}> {% trans "Employees (own data only)" %}</label>
+        <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="allow_hr" {% if cfg.allow_hr %}checked{% endif %}> {% trans "HR managers (company data)" %}</label>
+        <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="allow_ceo" {% if cfg.allow_ceo %}checked{% endif %}> {% trans "CEO / owner (company data)" %}</label>
+      </div>
+      <p class="text-xs text-gray-500 mt-2">{% trans "Data scope is enforced on the server by the caller's role — an employee can never retrieve another person's data, and no data crosses companies." %}</p>
+    </div>
+
+    <div class="flex justify-end">
+      <button class="px-5 py-2 bg-primary-600 text-white rounded-md text-sm">{% trans "Save AI settings" %}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
