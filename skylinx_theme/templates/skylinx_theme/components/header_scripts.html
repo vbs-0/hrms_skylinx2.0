@@ -8,6 +8,16 @@
     btn.addEventListener("click", function (e) {
         e.preventDefault();
 
+        // index.html has a global document-level click listener that forwards
+        // clicks landing anywhere on a button (except its lone inner <a>) into
+        // a synthetic .click() on that <a> — meant for plain nav links. Since
+        // this button wraps exactly one <a>, any click on the button's padding
+        // (not the icon itself) double-fires this handler: once for the real
+        // click, once for the forwarded synthetic click on the <a>. Two toggles
+        // cancel out, so the theme flips and then flips right back. Stop the
+        // event here so it never reaches that document-level listener.
+        e.stopPropagation();
+
         // A page-wide "self-heal" watchdog (index.html) force-reloads on ANY
         // htmx swap settling if the header looks momentarily empty — totally
         // unrelated to this toggle, but its reload can land mid-flight and
