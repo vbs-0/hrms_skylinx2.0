@@ -167,11 +167,41 @@ def _company_context(user, role):
         )
         lines.append(f"Company: {tk.tok(company.company, 'COMPANY')}.")
         lines.append(f"Active employees: {emp_qs.count()}.")
+        # Aggregate breakdown by department and role — counts only, no names,
+        # so "how many employees and their statuses" gets a real answer.
+        try:
+            from django.db.models import Count
+
+            dept_rows = (
+                emp_qs.values("employee_work_info__department_id__department")
+                .annotate(n=Count("id"))
+                .order_by("-n")
+            )
+            parts = [
+                f"{r['employee_work_info__department_id__department'] or 'No department'}: {r['n']}"
+                for r in dept_rows
+            ]
+            if parts:
+                lines.append("Headcount by department — " + "; ".join(parts) + ".")
+            from base.rbac import org_rank as _rank
+
+            tiers = {"CEO/Admin": 0, "HR": 0, "Manager": 0, "Employee": 0}
+            for emp in emp_qs.select_related("employee_user_id"):
+                u = getattr(emp, "employee_user_id", None)
+                r = _rank(u) if u else 4
+                tiers["CEO/Admin" if r <= 1 else "HR" if r == 2 else "Manager" if r == 3 else "Employee"] += 1
+            lines.append(
+                "Headcount by level — "
+                + "; ".join(f"{k}: {v}" for k, v in tiers.items() if v)
+                + "."
+            )
+        except Exception:
+            pass
         level = _action_level(company)
         level_note = {
             "guidance": "You can only explain and guide — you cannot approve leave, generate payroll, or change any data.",
             "suggest": "You can suggest a specific action (e.g. approving a named leave request), but a human must click the real confirm button in Emplinx — you cannot execute it yourself.",
-            "execute": "You CAN approve or reject pending leave requests directly when the user asks — see the ACTIONS protocol in your instructions. Anything else (payroll, contracts, employee records) you still cannot change; guide instead.",
+            "execute": "You CAN approve/reject pending leave requests AND generate payroll (draft payslips for all eligible employees) directly when the user asks — see the ACTIONS protocol in your instructions. Other changes (contracts, employee records) you still cannot make; guide instead.",
         }.get(level, "You can only explain and guide.")
         lines.append(f"Your action level for this company: {level}. {level_note}")
         try:
@@ -361,20 +391,30 @@ def ai_chat(request):
         + (
             # Execute tier: the model may emit a machine-readable action line;
             # the server re-validates and performs it via the same view a
-            # human click would hit. Only leave approve/reject is supported.
-            "ACTIONS: your action level is EXECUTE. You can perform exactly "
-            "two actions: approving or rejecting a pending leave request "
-            "listed in CONTEXT (with its ID). When the user clearly asks you "
-            "to approve/reject a specific pending request, end your reply "
-            "with a line containing ONLY this (no code fences): "
-            'EMPLINX_ACTION={"action":"approve_leave","id":<the numeric ID '
-            'from CONTEXT>} or EMPLINX_ACTION={"action":"reject_leave",'
-            '"id":<ID>,"reason":"<short reason>"}. '
-            "Use it ONLY when the target request is unambiguous — if several "
-            "could match or none are pending, ask which one instead, listing "
-            "the pending IDs. Never fabricate an ID. For anything else "
-            "(payroll, contracts, editing employees) you still cannot act — "
-            "guide to the right screen instead, and never claim you did it.\n"
+            # human click would hit. Supports leave approve/reject + payroll.
+            "ACTIONS: your action level is EXECUTE. You can perform these "
+            "actions by ending your reply with a line containing ONLY the "
+            "action (no code fences, nothing after it):\n"
+            "1. Approve a pending leave request: "
+            'EMPLINX_ACTION={"action":"approve_leave","id":<numeric ID from CONTEXT>}\n'
+            "2. Reject a pending leave request: "
+            'EMPLINX_ACTION={"action":"reject_leave","id":<ID>,"reason":"<short reason>"}\n'
+            "3. Generate payroll (draft payslips for ALL eligible employees in "
+            "this company): "
+            'EMPLINX_ACTION={"action":"generate_payroll"} '
+            "— optionally add a month: "
+            'EMPLINX_ACTION={"action":"generate_payroll","month":"YYYY-MM"}. '
+            "The server picks the eligible (active-contract) employees itself; "
+            "you do NOT list them. It creates DRAFT payslips a human still "
+            "reviews and confirms.\n"
+            "Rules: use an action ONLY when the user's request is clear and "
+            "unambiguous. For leave, never fabricate an ID — if unsure which "
+            "request, ask and list the pending IDs. Before generating payroll, "
+            "if CONTEXT shows 0 eligible (active-contract) employees, do NOT "
+            "emit the action — explain they must create active contracts first. "
+            "For anything else (creating contracts, editing employees) you "
+            "still cannot act — guide to the right screen and never claim you "
+            "did it.\n"
             if can_execute
             else
             "ACTIONS: CONTEXT may state your 'action level' for this company. "
