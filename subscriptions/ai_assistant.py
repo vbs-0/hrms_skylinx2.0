@@ -407,6 +407,12 @@ def ai_chat(request):
             "The server picks the eligible (active-contract) employees itself; "
             "you do NOT list them. It creates DRAFT payslips a human still "
             "reviews and confirms.\n"
+            "FORMAT (critical): ALWAYS write one short natural sentence to the "
+            "user first (e.g. 'Sure — approving that leave request now.' or "
+            "'Generating payroll for all eligible employees now.'), THEN put "
+            "the EMPLINX_ACTION line as the very last line on its own. NEVER "
+            "reply with only the action line and no sentence, and never leave "
+            "the reply empty.\n"
             "Rules: use an action ONLY when the user's request is clear and "
             "unambiguous. For leave, never fabricate an ID — if unsure which "
             "request, ask and list the pending IDs. Before generating payroll, "
@@ -512,4 +518,8 @@ def ai_chat(request):
     if action_result is not None:
         prefix = "✅ " if action_result["ok"] else "⚠️ "
         answer = (answer + "\n\n" if answer else "") + prefix + action_result["message"]
+    # Never return a blank bubble (the model occasionally returns an empty
+    # completion) — fall back to a gentle re-prompt.
+    if not answer.strip():
+        answer = "Sorry, I didn't catch that — could you rephrase? I can help with your leave, payslips, attendance, or using Emplinx."
     return JsonResponse({"reply": answer})
