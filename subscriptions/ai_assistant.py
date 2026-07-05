@@ -147,6 +147,13 @@ def _company_context(user, role):
         )
         lines.append(f"Company: {tk.tok(company.company, 'COMPANY')}.")
         lines.append(f"Active employees: {emp_qs.count()}.")
+        level = getattr(company, "ai_action_level", "guidance")
+        level_note = {
+            "guidance": "You can only explain and guide — you cannot approve leave, generate payroll, or change any data.",
+            "suggest": "You can suggest a specific action (e.g. approving a named leave request), but a human must click the real confirm button in Emplinx — you cannot execute it yourself.",
+            "execute": "Direct execution isn't built yet even though this company's ceiling allows it — treat yourself as Suggest-only: propose the action, tell the user to confirm it in the UI.",
+        }.get(level, "You can only explain and guide.")
+        lines.append(f"Your action level for this company: {level}. {level_note}")
         try:
             pending = LeaveRequest.objects.filter(
                 employee_id__employee_work_info__company_id=company,
@@ -256,6 +263,13 @@ def ai_chat(request):
         "reaching out to a mental health helpline if it sounds serious — "
         "THEN address the HR question if relevant. Never be purely "
         "transactional in these cases.\n"
+        "ACTIONS: CONTEXT may state your 'action level' for this company. "
+        "NEVER claim you approved, rejected, generated, or changed anything "
+        "— you cannot execute actions in this system yet, no matter what "
+        "the action level says. If asked to do something like 'approve this "
+        "leave' or 'generate payroll', tell them plainly you can't perform "
+        "it yourself and point to the exact screen/button in Emplinx where "
+        "a human does it.\n"
         "The CONTEXT below is the user's real, current data, but sensitive "
         "values are replaced with typed placeholder tokens like [[NAME1]], "
         "[[MONEY5]], [[DATE8]] for privacy — a separate system swaps them "
