@@ -108,6 +108,19 @@ class Company(SkylinxModel):
     objects = models.Manager()
     date_format = models.CharField(max_length=30, blank=True, null=True, default="DD-MM-YYYY")
     time_format = models.CharField(max_length=20, blank=True, null=True)
+    # How much can this company's AI assistant do — chosen by the company
+    # admin/CEO in company settings, clamped to the platform owner's ceiling
+    # (subscriptions.AISettings.max_action_level) at read time. See
+    # subscriptions.ai_assistant.effective_action_level().
+    ai_action_level = models.CharField(
+        max_length=20,
+        choices=[
+            ("guidance", "Guidance only"),
+            ("suggest", "Suggest + human confirms"),
+            ("execute", "AI executes directly (not yet available)"),
+        ],
+        default="guidance",
+    )
 
     class Meta:
         """

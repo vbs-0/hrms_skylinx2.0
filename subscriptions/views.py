@@ -237,6 +237,9 @@ def ai_settings(request):
         cfg.allow_employee = request.POST.get("allow_employee") == "on"
         cfg.allow_hr = request.POST.get("allow_hr") == "on"
         cfg.allow_ceo = request.POST.get("allow_ceo") == "on"
+        posted_level = request.POST.get("max_action_level", "").strip()
+        if posted_level in dict(cfg.ACTION_LEVEL_CHOICES):
+            cfg.max_action_level = posted_level
         cfg.save()
         messages.success(request, "AI settings saved.")
         return redirect("subscriptions-ai-settings")
@@ -244,6 +247,51 @@ def ai_settings(request):
         request,
         "subscriptions/ai_settings.html",
         {"cfg": cfg, "has_key": bool(cfg.api_key)},
+    )
+
+
+@login_required
+def company_ai_settings(request):
+    """Company admin/CEO picks how much the AI can do for their company —
+    clamped to the platform owner's ceiling (AISettings.max_action_level)."""
+    from subscriptions.models import AISettings
+
+    if not (
+        is_platform_owner(request.user)
+        or request.user.has_perm("base.change_company")
+    ):
+        messages.error(request, "You do not have permission to change AI settings.")
+        return redirect("/")
+
+    company = company_for_user(request.user)
+    if not company:
+        messages.error(request, "No company context found.")
+        return redirect("/")
+
+    ceiling = AISettings.load().max_action_level
+    order = ["guidance", "suggest", "execute"]
+    allowed_levels = order[: order.index(ceiling) + 1]
+
+    if request.method == "POST":
+        posted = request.POST.get("ai_action_level", "").strip()
+        if posted in allowed_levels:
+            company.ai_action_level = posted
+            company.save()
+            messages.success(request, "AI action level saved.")
+        else:
+            messages.error(request, "That level isn't allowed by the platform owner.")
+        return redirect("subscriptions-company-ai-settings")
+
+    labels = dict(AISettings.ACTION_LEVEL_CHOICES)
+    return render(
+        request,
+        "subscriptions/company_ai_settings.html",
+        {
+            "company": company,
+            "allowed_levels": [(lvl, labels[lvl]) for lvl in allowed_levels],
+            "ceiling": ceiling,
+            "ceiling_label": labels[ceiling],
+        },
     )
 
 

@@ -8,6 +8,7 @@ urlpatterns = [
     path("analytics/", views.console_analytics, name="subscriptions-analytics"),
     path("ai-settings/", views.ai_settings, name="subscriptions-ai-settings"),
     path("ai-chat/", ai_assistant.ai_chat, name="ai-chat"),
+    path("ai-company-settings/", views.company_ai_settings, name="subscriptions-company-ai-settings"),
     path("onboard/", views.onboard, name="subscriptions-onboard"),
     path(
         "company/<int:company_id>/update/",

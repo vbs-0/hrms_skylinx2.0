@@ -209,6 +209,16 @@
 												>
 											</div>
 											{% endif %}
+											{% if perms.base.change_company %}
+											<div class="oh-input-group">
+												<a
+													id="date"
+													href="{% url 'subscriptions-company-ai-settings' %}"
+													class="oh-inner-sidebar__link oh-dropdown__link"
+													>{% trans "AI Assistant" %}</a
+												>
+											</div>
+											{% endif %}
 											<div class="oh-input-group">
 												{% if perms.backup.add_localbackup %}
 													<a

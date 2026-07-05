@@ -151,6 +151,18 @@ class AISettings(models.Model):
     allow_employee = models.BooleanField(default=True)
     allow_hr = models.BooleanField(default=True)
     allow_ceo = models.BooleanField(default=True)
+
+    ACTION_LEVEL_CHOICES = [
+        ("guidance", "Guidance only — explains, never touches data"),
+        ("suggest", "Suggest + human confirms — proposes an action, a person must click confirm"),
+        ("execute", "AI executes directly — not yet built; behaves as Suggest for now"),
+    ]
+    # Platform-wide ceiling: no company can grant its AI more capability than
+    # this, even if the company admin picks a higher option in their own
+    # settings. Set here on /manage, chosen per-company under company settings.
+    max_action_level = models.CharField(
+        max_length=20, choices=ACTION_LEVEL_CHOICES, default="guidance"
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

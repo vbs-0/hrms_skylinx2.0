@@ -49,6 +49,16 @@
       <p class="text-xs text-gray-500 mt-2">{% trans "Data scope is enforced on the server by the caller's role — an employee can never retrieve another person's data, and no data crosses companies." %}</p>
     </div>
 
+    <div class="border-t pt-4">
+      <div class="text-sm font-semibold mb-2">{% trans "Platform ceiling: how much can any company's AI do" %}</div>
+      <select name="max_action_level" class="w-full border rounded px-3 py-2 text-sm">
+        {% for value, label in cfg.ACTION_LEVEL_CHOICES %}
+        <option value="{{ value }}" {% if cfg.max_action_level == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <p class="text-xs text-gray-500 mt-2">{% trans "Each company's admin picks their own level in Company Settings, but it's always clamped to this ceiling — a company can never grant its AI more capability than the platform allows." %}</p>
+    </div>
+
     <div class="flex justify-end">
       <button class="px-5 py-2 bg-primary-600 text-white rounded-md text-sm">{% trans "Save AI settings" %}</button>
     </div>

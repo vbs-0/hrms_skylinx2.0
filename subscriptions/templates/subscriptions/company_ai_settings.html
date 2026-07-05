@@ -1,0 +1,29 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% block content %}
+<div class="oh-wrapper max-w-2xl mx-auto">
+  <h1 class="text-lg font-semibold mb-1">{% trans "AI Assistant — Action Level" %}</h1>
+  <p class="text-sm text-gray-500 mb-4">{% trans "Choose how much the AI assistant can do for" %} {{ company.company }}.</p>
+
+  {% if messages %}{% for m in messages %}
+  <div class="mb-3 p-3 rounded-md text-sm {% if m.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-50 text-green-700{% endif %}">{{ m }}</div>
+  {% endfor %}{% endif %}
+
+  <form method="post" class="bg-white rounded-lg shadow-card p-6 space-y-3">
+    {% csrf_token %}
+    {% for value, label in allowed_levels %}
+    <label class="flex items-start gap-3 p-3 border rounded-md cursor-pointer">
+      <input type="radio" name="ai_action_level" value="{{ value }}" {% if company.ai_action_level == value %}checked{% endif %} class="mt-1">
+      <span class="text-sm">{{ label }}</span>
+    </label>
+    {% endfor %}
+    <p class="text-xs text-gray-500 pt-2">
+      {% trans "Platform ceiling set by the owner:" %} {{ ceiling_label }}.
+      {% if ceiling != "execute" %}{% trans "Ask the platform owner to raise this ceiling if you need a higher level." %}{% endif %}
+    </p>
+    <div class="flex justify-end pt-2">
+      <button class="px-5 py-2 bg-primary-600 text-white rounded-md text-sm">{% trans "Save" %}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
