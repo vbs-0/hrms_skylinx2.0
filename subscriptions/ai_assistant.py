@@ -99,6 +99,10 @@ def _call_llm(cfg, system_prompt, user_msg):
         headers={
             "Authorization": f"Bearer {cfg.api_key}",
             "Content-Type": "application/json",
+            # Cloudflare (fronting Groq/most providers) blocks urllib's
+            # default "Python-urllib/x.y" UA as a bot signature — a real
+            # browser-like UA is required or every request 403s.
+            "User-Agent": "Mozilla/5.0 (compatible; Emplinx/1.0)",
         },
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
