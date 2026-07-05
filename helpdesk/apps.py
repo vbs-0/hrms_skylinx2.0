@@ -15,4 +15,6 @@ class HelpdeskConfig(AppConfig):
         urlpatterns.append(
             path("helpdesk/", include("helpdesk.urls")),
         )
+        from helpdesk import signals  # noqa: F401
+
         super().ready()

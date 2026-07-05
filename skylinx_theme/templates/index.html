@@ -384,5 +384,19 @@
                 });
             })();
         </script>
+        <script>
+            /* Whole-element click targets: many buttons/cards wrap a single
+               <a> — hover styles the wrapper but only the inner anchor
+               navigates. Forward clicks on the wrapper to its lone anchor. */
+            document.addEventListener("click", function (e) {
+                if (e.target.closest("a, input, select, textarea, label")) return;
+                var wrap = e.target.closest("button, .oh-btn, li");
+                if (!wrap || wrap.hasAttribute("hx-get") || wrap.hasAttribute("onclick")) return;
+                var links = wrap.querySelectorAll("a[href], a[hx-get]");
+                if (links.length !== 1) return;
+                e.preventDefault();
+                links[0].click();
+            });
+        </script>
     </body>
 </html>
