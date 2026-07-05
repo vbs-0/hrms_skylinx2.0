@@ -83,14 +83,14 @@ def _company_context(user, role):
     return "\n".join(lines)
 
 
-def _call_llm(cfg, system_prompt, user_msg):
+def _call_llm(cfg, system_prompt, history, user_msg):
+    messages = [{"role": "system", "content": system_prompt}]
+    messages.extend(history)
+    messages.append({"role": "user", "content": user_msg})
     payload = json.dumps({
         "model": cfg.model_name,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_msg},
-        ],
-        "temperature": 0.3,
+        "messages": messages,
+        "temperature": 0.2,
         "max_tokens": 600,
     }).encode()
     req = urllib.request.Request(
@@ -138,19 +138,42 @@ def ai_chat(request):
     if not user_msg:
         return JsonResponse({"error": "Empty message."}, status=400)
 
+    # Client-side conversation memory: only ever echoed back what THIS
+    # session already sent/received in THIS request's own payload — never
+    # stored server-side, never shared across users. Cap to last 6 turns
+    # (12 messages) and clamp each message length so a malicious client
+    # can't blow up the token bill or smuggle a huge prompt-injection blob.
+    raw_history = body.get("history") or []
+    history = []
+    if isinstance(raw_history, list):
+        for turn in raw_history[-12:]:
+            if not isinstance(turn, dict):
+                continue
+            r = turn.get("role")
+            c = str(turn.get("content", ""))[:1000]
+            if r in ("user", "assistant") and c:
+                history.append({"role": r, "content": c})
+
     if role == "employee":
         ctx = _employee_context(request.user)
     else:
         ctx = _company_context(request.user, role)
 
     system_prompt = (
-        "You are Emplinx Assistant, an HR software helper. Answer only using "
-        "the context below and general HR knowledge. Never invent employee "
-        "data. If asked about someone the context doesn't cover, say you don't "
-        "have access to that. Be concise.\n\n=== CONTEXT ===\n" + ctx
+        "You are Emplinx Assistant, a helper built into the Emplinx HR "
+        "software. You ONLY answer questions about: the user's own HR data "
+        "(leave balance, shifts, payslips, attendance) using the context "
+        "below, and how to use Emplinx features. "
+        "You must REFUSE anything else — general knowledge, coding help, "
+        "math, trivia, writing essays, or any topic unrelated to HR/Emplinx — "
+        "even if asked directly. When refusing, say briefly that you only "
+        "handle Emplinx/HR questions and suggest what you *can* help with. "
+        "Never invent employee data; if asked about someone the context "
+        "doesn't cover, say you don't have access to that. Be concise.\n\n"
+        "=== CONTEXT ===\n" + ctx
     )
     try:
-        answer = _call_llm(cfg, system_prompt, user_msg)
+        answer = _call_llm(cfg, system_prompt, history, user_msg)
     except Exception:
         return JsonResponse(
             {"error": "The assistant is temporarily unavailable. Try again shortly."},

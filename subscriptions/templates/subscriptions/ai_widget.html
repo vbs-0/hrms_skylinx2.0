@@ -29,6 +29,7 @@
   var fab=document.getElementById('ai-fab'),panel=document.getElementById('ai-panel'),
       close=document.getElementById('ai-close'),msgs=document.getElementById('ai-msgs'),
       input=document.getElementById('ai-input'),send=document.getElementById('ai-send'),busy=false;
+  var history=[]; // in-memory only: cleared on page reload, never persisted
   function csrf(){var m=document.cookie.match(/csrftoken=([^;]+)/);return m?m[1]:'';}
   function bubble(text,me){
     var d=document.createElement('div');
@@ -42,9 +43,17 @@
     var q=input.value.trim();if(!q||busy)return;
     input.value='';bubble(q,true);busy=true;
     var wait=bubble('…',false);
-    fetch('/manage/ai-chat/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},body:JSON.stringify({message:q})})
+    fetch('/manage/ai-chat/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},body:JSON.stringify({message:q,history:history})})
       .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
-      .then(function(res){wait.textContent=res.ok?res.j.reply:(res.j.error||'Something went wrong.');})
+      .then(function(res){
+        var reply=res.ok?res.j.reply:(res.j.error||'Something went wrong.');
+        wait.textContent=reply;
+        if(res.ok){
+          history.push({role:'user',content:q});
+          history.push({role:'assistant',content:reply});
+          if(history.length>12)history=history.slice(-12);
+        }
+      })
       .catch(function(){wait.textContent='The assistant is unavailable right now.';})
       .finally(function(){busy=false;});
   }
