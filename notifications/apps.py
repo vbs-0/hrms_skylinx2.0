@@ -17,6 +17,7 @@ class Config(AppConfig):
 
         notifications.notify = notifications.signals.notify
 
-        from . import push
+        from . import email, push
 
         push._connect()
+        email._connect()
