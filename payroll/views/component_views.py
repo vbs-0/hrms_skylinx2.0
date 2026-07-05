@@ -935,17 +935,44 @@ def generate_payslip(request):
                 contract = Contract.objects.filter(
                     employee_id=employee, contract_status="active"
                 ).first()
-                if start_date < contract.contract_start_date:
-                    start_date = contract.contract_start_date
+                if contract is None:
+                    messages.error(
+                        request,
+                        _(
+                            "%(emp)s has no ACTIVE contract — create one under "
+                            "Payroll → Pay Register, set status Active, then "
+                            "generate the payslip."
+                        )
+                        % {"emp": employee},
+                    )
+                    emp_count -= 1
+                    continue
+                # per-employee copy: never mutate the form's range, or employee
+                # A's contract start silently corrupts everyone after them
+                emp_start_date = start_date
+                if emp_start_date < contract.contract_start_date:
+                    emp_start_date = contract.contract_start_date
 
-                if end_date < start_date:
+                if end_date < emp_start_date:
                     messages.error(
                         request, _(f"{employee}'s contract has not started yet.")
                     )
                     emp_count -= 1
                     continue
 
-                payslip = payroll_calculation(employee, start_date, end_date)
+                payslip = payroll_calculation(employee, emp_start_date, end_date)
+                if not payslip:
+                    messages.error(
+                        request,
+                        _(
+                            "Could not compute payroll for %(emp)s — check that "
+                            "their contract has a wage/basic pay set for the "
+                            "selected period."
+                        )
+                        % {"emp": employee},
+                    )
+                    emp_count -= 1
+                    continue
                 payslips.append(payslip)
                 json_data.append(payslip["json_data"])
 
@@ -1076,6 +1103,21 @@ def create_payslip(request, new_post_data=None):
                 start_date = form.cleaned_data["start_date"]
                 end_date = form.cleaned_data["end_date"]
                 payslip_data = payroll_calculation(employee, start_date, end_date)
+                if not payslip_data:
+                    messages.error(
+                        request,
+                        _(
+                            "Cannot create payslip: %(emp)s has no ACTIVE "
+                            "contract covering this period (or no wage set). "
+                            "Fix it under Payroll → Pay Register first."
+                        )
+                        % {"emp": employee},
+                    )
+                    return render(
+                        request,
+                        "payroll/payslip/create_payslip.html",
+                        {"individual_form": form},
+                    )
                 payslip_data["payslip"] = payslip
                 data = {}
                 data["employee"] = employee
