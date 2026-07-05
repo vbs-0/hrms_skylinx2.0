@@ -25,7 +25,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
-from base.rbac import org_rank, current_company, CEO_RANK, HR_MANAGER_RANK
+from base.rbac import org_rank, CEO_RANK, HR_MANAGER_RANK
 
 
 def _role_of(user):
@@ -128,7 +128,15 @@ def _company_context(user, role):
     # attendance, payslips) so personal questions still work for them.
     own, tk = _employee_context(user, tk)
     lines = [f"The user is a {role.upper()}.", own]
-    company = current_company(user)
+    # current_company() wants a request; here we only have the user, so take
+    # the company straight off their own employee record.
+    company = None
+    try:
+        emp = getattr(user, "employee_get", None)
+        if emp:
+            company = emp.get_company()
+    except Exception:
+        pass
     if company:
         from employee.models import Employee
         from leave.models import LeaveRequest
