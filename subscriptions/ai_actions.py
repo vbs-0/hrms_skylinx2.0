@@ -137,9 +137,10 @@ def _do_generate_payroll(request, params, company):
         return {
             "ok": False,
             "message": (
-                "No employees have an ACTIVE contract yet, so there's nothing to "
-                "run payroll for. Create contracts first under Payroll → Pay "
-                "Register → Create (set status Active), then ask me again."
+                "No employees have their CTC set yet, so there's nothing to run "
+                "payroll for. Set CTC under Employee → [employee] → Work Info, "
+                "then activate their pay-register entry under Payroll → Pay "
+                "Register, then ask me again."
             ),
         }
 

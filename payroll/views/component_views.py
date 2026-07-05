@@ -939,9 +939,11 @@ def generate_payslip(request):
                     messages.error(
                         request,
                         _(
-                            "%(emp)s has no ACTIVE contract — create one under "
-                            "Payroll → Pay Register, set status Active, then "
-                            "generate the payslip."
+                            "%(emp)s has no active pay-register entry — set their "
+                            "CTC under Employee → Work Info, then activate their "
+                            "entry under Payroll → Pay Register (a draft one "
+                            "already exists for every employee), then generate "
+                            "the payslip."
                         )
                         % {"emp": employee},
                     )
