@@ -384,6 +384,9 @@
                 });
             })();
         </script>
+        {% if ai_widget_visible %}
+        {% include "subscriptions/ai_widget.html" %}
+        {% endif %}
         <script>
             /* Whole-element click targets: many buttons/cards wrap a single
                <a> — hover styles the wrapper but only the inner anchor
