@@ -348,7 +348,9 @@ def ai_chat(request):
         "the guides, say you're not sure of the exact clicks and suggest "
         "the closest guide or raising a helpdesk ticket. Also mention any "
         "prerequisite listed in the guide (e.g. an active contract before "
-        "payslip generation) BEFORE the steps.\n\n"
+        "payslip generation) BEFORE the steps. Never mention the guides "
+        "themselves or that you were given a list — just answer naturally "
+        "as if you know the product.\n\n"
         + HOWTO_GUIDES + "\n"
         "=== CONTEXT (real data, tokenized for privacy) ===\n" + ctx
     )
