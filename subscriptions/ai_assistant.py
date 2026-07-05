@@ -84,6 +84,7 @@ def _employee_context(user, tk=None):
         wi = emp.employee_work_info
         if wi:
             lines.append(
+                f"Job role/position: {tk.tok(wi.job_position_id, 'ROLE')}; "
                 f"Department: {tk.tok(wi.department_id, 'DEPT')}; Shift: {tk.tok(wi.shift_id, 'SHIFT')}; "
                 f"Reporting manager: {tk.tok(wi.reporting_manager_id, 'NAME')}."
             )
