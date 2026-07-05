@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emplinx AI Assistant — Feature Overview</title>
+<style>
+  /* ===== Reset & Base ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #1f2937;
+    background: #f9fafb;
+    line-height: 1.65;
+    font-size: 15px;
+  }
+  a { color: #4f46e5; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ===== Layout ===== */
+  .page-wrapper { max-width: 960px; margin: 0 auto; padding: 0 24px 80px; }
+
+  /* ===== Hero ===== */
+  .hero {
+    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #818cf8 100%);
+    color: #fff;
+    padding: 60px 24px 48px;
+    text-align: center;
+    margin: 0 -24px 40px;
+  }
+  .hero h1 { font-size: 2.2rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .hero p { font-size: 1.05rem; opacity: .88; max-width: 640px; margin: 0 auto; line-height: 1.5; }
+  .hero .badge {
+    display: inline-block;
+    background: rgba(255,255,255,.18);
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: .8rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    margin-bottom: 16px;
+  }
+
+  /* ===== Table of Contents ===== */
+  .toc {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 40px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+  .toc h2 { font-size: .9rem; color: #6b7280; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px; }
+  .toc ol { list-style: none; counter-reset: toc; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+  .toc li { counter-increment: toc; font-size: .92rem; flex: 0 0 auto; }
+  .toc li::before { content: counter(toc) ". "; color: #4f46e5; font-weight: 600; }
+  .toc a { color: #374151; }
+  .toc a:hover { color: #4f46e5; text-decoration: none; }
+
+  /* ===== Section ===== */
+  section { margin-bottom: 40px; }
+  section h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #1f2937;
+    padding-bottom: 8px;
+    border-bottom: 3px solid #4f46e5;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  section h2 .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px; height: 30px;
+    background: #4f46e5;
+    color: #fff;
+    border-radius: 8px;
+    font-size: .85rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  section h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 20px 0 8px;
+  }
+  section p { margin-bottom: 12px; color: #374151; }
+  section ul, section ol { margin: 0 0 12px 20px; color: #374151; }
+  section li { margin-bottom: 4px; }
+
+  /* ===== Cards ===== */
+  .card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+  .card-header { font-weight: 600; font-size: 1rem; margin-bottom: 8px; color: #1f2937; display: flex; align-items: center; gap: 8px; }
+
+  /* Role cards */
+  .role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  @media (max-width: 640px) { .role-grid { grid-template-columns: 1fr; } }
+  .role-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+  .role-card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .role-card ul { margin: 0 0 0 16px; font-size: .9rem; }
+  .role-card li { margin-bottom: 3px; }
+  .role-card .icon-employee { color: #6366f1; }
+  .role-card .icon-hr { color: #0891b2; }
+
+  /* ===== Table ===== */
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .92rem;
+    margin: 12px 0;
+  }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+  th { background: #f3f4f6; font-weight: 600; color: #374151; white-space: nowrap; }
+  td:first-child { font-weight: 600; color: #1f2937; }
+  .tag {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-size: .8rem;
+    font-weight: 600;
+  }
+  .tag-guidance { background: #fef3c7; color: #92400e; }
+  .tag-suggest  { background: #dbeafe; color: #1e40af; }
+  .tag-execute  { background: #d1fae5; color: #065f46; }
+  .tag-check    { color: #059669; font-weight: 700; }
+  .tag-cross    { color: #dc2626; }
+  .tag-info     { background: #f3f4f6; color: #6b7280; }
+
+  /* ===== Flow Diagram ===== */
+  .flow-diagram {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 28px 20px;
+    margin: 16px 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+  .flow-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 6px 0;
+  }
+  .flow-box {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: .82rem;
+    font-weight: 600;
+    text-align: center;
+    min-width: 80px;
+    line-height: 1.3;
+  }
+  .flow-box.browser     { background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; }
+  .flow-box.server      { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+  .flow-box.llm         { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
+  .flow-box.role-tag    { background: #fdf2f8; color: #9d174d; border: 1px solid #fbcfe8; }
+  .flow-arrow {
+    font-size: 1.1rem;
+    color: #9ca3af;
+    font-weight: 300;
+  }
+  .flow-label {
+    font-size: .72rem;
+    color: #6b7280;
+    text-align: center;
+    margin-top: 2px;
+  }
+  .flow-detail {
+    text-align: center;
+    margin-top: 16px;
+    padding: 12px;
+    background: #f9fafb;
+    border-radius: 8px;
+    font-size: .85rem;
+    color: #4b5563;
+    border: 1px dashed #d1d5db;
+  }
+
+  /* ===== Security checklist ===== */
+  .security-list { list-style: none; margin: 0 !important; }
+  .security-list li {
+    padding: 10px 14px 10px 36px;
+    position: relative;
+    border-bottom: 1px solid #f3f4f6;
+    margin: 0;
+  }
+  .security-list li:last-child { border-bottom: none; }
+  .security-list li::before {
+    content: "✓";
+    position: absolute;
+    left: 10px;
+    color: #059669;
+    font-weight: 700;
+    font-size: 1rem;
+  }
+
+  /* ===== Guides ===== */
+  .guide-list { list-style: none; margin: 0 !important; columns: 2; column-gap: 20px; }
+  @media (max-width: 640px) { .guide-list { columns: 1; } }
+  .guide-list li {
+    break-inside: avoid;
+    padding: 6px 0 6px 20px;
+    position: relative;
+    font-size: .88rem;
+    color: #374151;
+    margin: 0;
+  }
+  .guide-list li::before {
+    content: "›";
+    position: absolute;
+    left: 2px;
+    color: #4f46e5;
+    font-weight: 700;
+    font-size: 1.1rem;
+  }
+
+  /* ===== Code / Inline ===== */
+  code {
+    background: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: .85em;
+    color: #1f2937;
+  }
+  .placeholder {
+    background: #eef2ff;
+    color: #4338ca;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: .85em;
+    font-family: monospace;
+    font-weight: 600;
+  }
+  strong { color: #1f2937; }
+
+  /* ===== Back to top ===== */
+  .back-top {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: .85rem;
+    color: #4f46e5;
+  }
+  hr { border: none; border-top: 1px solid #e5e7eb; margin: 24px 0; }
+
+  footer {
+    text-align: center;
+    font-size: .82rem;
+    color: #9ca3af;
+    padding: 24px 0 8px;
+    border-top: 1px solid #e5e7eb;
+    margin-top: 40px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== Hero ===== -->
+<div class="hero">
+  <div class="badge">v1.0 · Server-side LLM Proxy</div>
+  <h1>Emplinx AI Assistant</h1>
+  <p>A role-scoped, privacy-first AI chat widget embedded directly in Emplinx HRMS — powered by a server-side LLM proxy that never exposes your API key or employee PII to the browser or the model provider.</p>
+</div>
+
+<div class="page-wrapper">
+
+<!-- ===== Table of Contents ===== -->
+<div class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#features-by-role">Features by Role</a></li>
+    <li><a href="#howto">How-to Guidance</a></li>
+    <li><a href="#action-levels">Action Levels</a></li>
+    <li><a href="#security">Security Architecture</a></li>
+    <li><a href="#admin-setup">Admin Setup</a></li>
+    <li><a href="#flow">Request Flow</a></li>
+  </ol>
+</div>
+
+<!-- ===== 1. Overview ===== -->
+<section id="overview">
+  <h2><span class="num">1</span> Overview</h2>
+  <p>The Emplinx AI Assistant is an embedded chat widget available to every logged-in user across the Emplinx HRMS. It answers HR-related questions using the user's own live data — leave balances, payslips, attendance, shift details — and provides verified step-by-step navigation guidance for common tasks.</p>
+  <div class="card">
+    <div class="card-header">⚡ Key Characteristics</div>
+    <ul>
+      <li><strong>Role-scoped:</strong> What the AI can see is determined server-side from the logged-in user's role and company. An employee can never retrieve another person's data; HR/CEO can see company-wide aggregates.</li>
+      <li><strong>Privacy-first:</strong> Sensitive values (names, dates, amounts) are replaced with typed placeholders like <span class="placeholder">[[NAME1]]</span> before leaving the server, and swapped back after the LLM responds. The model provider never sees raw PII.</li>
+      <li><strong>Server-side proxy:</strong> The API key lives in <code>AISettings</code> and <em>never</em> reaches the browser. The <code>ai_chat</code> view proxies requests server-side.</li>
+      <li><strong>Action-capable (optional):</strong> Companies can choose an action level — from "guidance only" up to "AI can approve/reject pending leave requests" — clamped to the platform owner's ceiling.</li>
+      <li><strong>OpenAI-compatible:</strong> Works with any OpenAI-compatible API — Groq, Mistral, OpenRouter, or self-hosted Ollama.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== 2. Features by Role ===== -->
+<section id="features-by-role">
+  <h2><span class="num">2</span> Features by Role</h2>
+  <p>Data scope is enforced server-side by the caller's role. The AI never sees data beyond what the logged-in user is authorised to access.</p>
+
+  <div class="role-grid">
+    <div class="role-card">
+      <h4><span class="icon-employee">👤</span> Employee</h4>
+      <p style="font-size:.85rem;color:#6b7280;margin-bottom:8px;">Own data only</p>
+      <ul>
+        <li>Own name, job role/position, department, shift, reporting manager</li>
+        <li>Leave balance per type (available days + carryforward)</li>
+        <li>Last 3 payslips (gross pay, deduction, net pay, status)</li>
+        <li>Last 14 days of attendance (clock-in, clock-out, hours worked)</li>
+        <li>How-to guides for all self-service tasks</li>
+      </ul>
+    </div>
+    <div class="role-card">
+      <h4><span class="icon-hr">🏢</span> HR / CEO</h4>
+      <p style="font-size:.85rem;color:#6b7280;margin-bottom:8px;">Everything Employee sees + company-wide stats</p>
+      <ul>
+        <li>All employee-scoped data above</li>
+        <li>Active employee headcount</li>
+        <li>Pending leave request count (IDs listed at Execute level)</li>
+        <li>Total payslips generated company-wide + most recent period</li>
+        <li>Employees with active contracts (eligible for payslip generation)</li>
+        <li>Company-level action level and its capabilities/restrictions</li>
+      </ul>
+    </div>
+  </div>
+  <p style="font-size:.85rem;color:#6b7280;font-style:italic;">The "employee" context is built from <code>_employee_context()</code>; HR/CEO additionally get <code>_company_context()</code> aggregates. See <code>subscriptions/ai_assistant.py</code>.</p>
+</section>
+
+<!-- ===== 3. How-to Guidance ===== -->
+<section id="howto">
+  <h2><span class="num">3</span> How-to Guidance</h2>
+  <p>The assistant has <strong>18 verified step-by-step UI guides</strong> written from the actual sidebar and templates of Emplinx. The model is explicitly instructed to <strong>never invent UI steps</strong> — every button name, menu location, and prerequisite is real and tested.</p>
+
+  <div class="card">
+    <div class="card-header">📋 Verified Emplinx How-to Guides</div>
+    <ol class="guide-list">
+      <li><strong>Apply for leave:</strong> sidebar Leave → Apply Leave → Create button → pick leave type + dates → Save. Your manager approves it under Leave → Leave Approval.</li>
+      <li><strong>Approve/reject leave (managers/HR):</strong> sidebar Leave → Leave Approval → open the request → Approve or Reject.</li>
+      <li><strong>Generate payslips (HR/admin):</strong> FIRST the employee must have an ACTIVE contract (Payroll → Pay Register → Create, set status Active). Then sidebar Payroll → Payslips → Actions button (top right) → Generate. Pick employees + period → confirm.</li>
+      <li><strong>View own payslips:</strong> sidebar Payroll → Payslips (employees see their own).</li>
+      <li><strong>Submit an expense/reimbursement:</strong> sidebar Payroll → Expenses → Create.</li>
+      <li><strong>Form 16:</strong> sidebar Payroll → Form 16.</li>
+      <li><strong>Check in/out (web):</strong> the Check In / Check Out button in the top navbar.</li>
+      <li><strong>View attendance:</strong> sidebar Attendance → My Attendances (own) or Attendances (HR/managers, company-wide).</li>
+      <li><strong>Fix a wrong attendance entry:</strong> sidebar Attendance → Attendance Requests → Create.</li>
+      <li><strong>Request a shift change:</strong> sidebar Employee → Shift Requests → Create.</li>
+      <li><strong>Add a new employee (HR/admin):</strong> sidebar Employee → Employees → Create button → fill personal info → then open the employee and complete Work Info (department, job position, shift, reporting manager, company).</li>
+      <li><strong>View employee list:</strong> sidebar Employee → Employees.</li>
+      <li><strong>Org chart:</strong> sidebar Employee → Organization Chart.</li>
+      <li><strong>Raise a helpdesk ticket:</strong> sidebar Support → Tickets → Create.</li>
+      <li><strong>FAQs:</strong> sidebar Support → FAQs.</li>
+      <li><strong>Company settings (HR/admin):</strong> gear icon (top right) → Settings.</li>
+      <li><strong>Update own profile:</strong> click your avatar (top right) → My Profile.</li>
+      <li><strong>Pay Register / Contracts:</strong> sidebar Payroll → Pay Register → Create (set status Active for payslip eligibility).</li>
+    </ol>
+    <p style="font-size:.82rem;color:#6b7280;margin-top:8px;">The system prompt includes these guides verbatim. The model must reference them exactly — any task not covered results in "I'm not sure of the exact clicks" and a suggestion to raise a helpdesk ticket.</p>
+  </div>
+</section>
+
+<!-- ===== 4. Action Levels ===== -->
+<section id="action-levels">
+  <h2><span class="num">4</span> Action Levels</h2>
+  <p>The platform owner sets a <strong>platform ceiling</strong> (<code>AISettings.max_action_level</code>) under <code>/manage/ai-settings/</code>. Each company admin then picks their own level, which is <strong>clamped</strong> to that ceiling — a company can never grant its AI more capability than the platform allows.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:110px">Level</th>
+          <th>Behaviour</th>
+          <th style="width:60px;text-align:center">Leave<br>Approve</th>
+          <th style="width:60px;text-align:center">Leave<br>Reject</th>
+          <th style="width:60px;text-align:center">Payroll</th>
+          <th style="width:60px;text-align:center">Employee<br>Data</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="tag tag-guidance">Guidance</span></td>
+          <td>Explains HR processes, answers questions, and guides the user through UI steps. <strong>Never touches data.</strong></td>
+          <td class="tag-cross" style="text-align:center">✗</td>
+          <td class="tag-cross" style="text-align:center">✗</td>
+          <td class="tag-cross" style="text-align:center">✗</td>
+          <td class="tag-cross" style="text-align:center">✗</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-suggest">Suggest</span></td>
+          <td>All of Guidance, plus the AI can <strong>propose an action</strong> (e.g. "I can approve leave request #42 for John — would you like me to?"). A human must click the real confirm button in Emplinx. The AI never executes anything itself.</td>
+          <td style="text-align:center;">💬 Propose</td>
+          <td style="text-align:center;">💬 Propose</td>
+          <td class="tag-cross" style="text-align:center">✗</td>
+          <td class="tag-cross" style="text-align:center">✗</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-execute">Execute</span></td>
+          <td>All of Suggest, plus the AI can <strong>approve or reject pending leave requests</strong> on direct instruction. Executed server-side through the <em>exact same Django views</em> a human click hits — every permission check, hierarchy guard, balance deduction, notification, and reject-reason comment runs identically. <strong>Payroll, contracts, and employee records remain guide-only.</strong></td>
+          <td class="tag-check" style="text-align:center">✓</td>
+          <td class="tag-check" style="text-align:center">✓</td>
+          <td class="tag-cross" style="text-align:center">✗</td>
+          <td class="tag-cross" style="text-align:center">✗</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="font-size:.85rem;color:#6b7280;">The action level is stored on the <code>Company</code> model as <code>ai_action_level</code> and read by <code>_action_level()</code> in <code>subscriptions/ai_assistant.py</code>. The ceiling is enforced at read time.</p>
+</section>
+
+<!-- ===== 5. Security Architecture ===== -->
+<section id="security">
+  <h2><span class="num">5</span> Security Architecture</h2>
+
+  <div class="card">
+    <ul class="security-list">
+      <li>
+        <strong>API key server-side only</strong> — The API key is stored in <code>AISettings</code> (Django DB, encrypted at rest) and <em>never</em> reaches the browser. Every LLM request is proxied through the <code>ai_chat</code> view.
+      </li>
+      <li>
+        <strong>Data scope decided server-side</strong> — What data the model sees is determined from the logged-in user's <em>own</em> role + company, never from anything the client sends. An employee's request can only ever be built from that employee's own rows.
+      </li>
+      <li>
+        <strong>Cross-tenant impossible by construction</strong> — Every queryset is filtered by the caller's company. A user from Company A can never see Company B's data. No tenant-scoped data leak path exists.
+      </li>
+      <li>
+        <strong>Privacy tokenization</strong> — Sensitive values (names, dates, amounts) are replaced with typed placeholders like <span class="placeholder">[[NAME1]]</span>, <span class="placeholder">[[MONEY5]]</span>, <span class="placeholder">[[DATE8]]</span> before the request leaves the server. The LLM only ever sees placeholders; the real values are substituted back into the reply here, after the LLM responds. Any placeholder the model didn't echo back verbatim is stripped, not leaked.
+      </li>
+      <li>
+        <strong>Prompt-injection guard</strong> — If a prompt-injection attack causes the model to echo its own instructions or context block, the server detects this (<code>"=== CONTEXT" in raw_answer</code>) and returns a refusal message.
+      </li>
+      <li>
+        <strong>Off-topic refusal</strong> — The system prompt defines clear in-scope (HR data, Emplinx usage, workplace topics) and out-of-scope (coding, trivia, essays, news) topics. The model is instructed to politely refuse off-topic questions.
+      </li>
+      <li>
+        <strong>Wellbeing-aware handling</strong> — If the user expresses serious stress, burnout, hopelessness, or any hint of self-harm, the model is instructed to acknowledge their feelings first, suggest talking to their manager/HR or a mental health helpline, <em>then</em> address the HR question if relevant.
+      </li>
+      <li>
+        <strong>Session-scoped chat memory</strong> — Conversation history is stored in the browser's <code>sessionStorage</code> only (never persisted server-side). It auto-expires after 8 hours. A <strong>Clear</strong> button lets users wipe their conversation at any time. History is capped to the last 6 turns, each message clamped to 1,000 characters.
+      </li>
+      <li>
+        <strong>Server-side re-validation for actions</strong> — The LLM merely <em>proposes</em> an action (a JSON line like <code>EMPLINX_ACTION={"action":"approve_leave","id":42}</code>). The server re-validates: role check, company scope, request existence, current status, before executing through the <em>same Django views</em> a human click would hit. Nothing the model says alone changes data.
+      </li>
+      <li>
+        <strong>Output length &amp; rate limits</strong> — Input messages are capped at 2,000 characters. The LLM response is limited to 600 tokens. The conversation history is limited to the last 12 messages (6 turns).
+      </li>
+    </ul>
+  </div>
+
+  <h3>Tokenization Example</h3>
+  <div class="card" style="font-size:.88rem;">
+    <p style="margin-bottom:4px;"><strong>Before tokenization (server-side only, never sent to LLM):</strong></p>
+    <code style="display:block;padding:8px 12px;margin-bottom:12px;">
+Leave type Sick Leave: 12 days available, 2 days carried forward.<br>
+Payslip 2026-06-01 to 2026-06-30: gross ₹85,000, deduction ₹12,500, net pay ₹72,500, status confirmed.<br>
+Attendance 2026-06-30: in 09:15, out 18:30, worked 8.5 hours.
+    </code>
+    <p style="margin-bottom:4px;"><strong>Sent to LLM (tokenized):</strong></p>
+    <code style="display:block;padding:8px 12px;margin-bottom:12px;">
+Leave type [[LEAVETYPE2]]: [[DAYS3]] days available, [[DAYS4]] days carried forward.<br>
+Payslip [[DATE5]] to [[DATE6]]: gross [[MONEY7]], deduction [[MONEY8]], net pay [[MONEY9]], status [[STATUS10]].<br>
+Attendance [[DATE11]]: in [[TIME12]], out [[TIME13]], worked [[HOURS14]].
+    </code>
+    <p><strong>After LLM responds:</strong> The server swaps each placeholder back to the real value before the reply reaches the browser. Any leftover brackets (from model-invented tokens) are unwrapped so real words are never blanked.</p>
+  </div>
+</section>
+
+<!-- ===== 6. Admin Setup ===== -->
+<section id="admin-setup">
+  <h2><span class="num">6</span> Admin Setup</h2>
+
+  <div class="role-grid">
+    <div class="role-card">
+      <h4>🔐 Platform Owner</h4>
+      <p style="font-size:.85rem;color:#374151;">Configured at <code><strong>/manage/ai-settings/</strong></code></p>
+      <ul>
+        <li>Enable/disable the assistant platform-wide</li>
+        <li>Set API base URL (any OpenAI-compatible endpoint)</li>
+        <li>Set API key (stored server-side only)</li>
+        <li>Choose model name (e.g. <code>llama-3.3-70b-versatile</code>)</li>
+        <li>Per-role toggles: allow Employee / HR / CEO</li>
+        <li>Set the <strong>platform ceiling</strong> for action levels — no company can exceed this</li>
+      </ul>
+    </div>
+    <div class="role-card">
+      <h4>🏢 Company Admin</h4>
+      <p style="font-size:.85rem;color:#374151;">Navigate: <strong>Settings</strong> → <strong>Integrations</strong> → <strong>AI Assistant</strong></p>
+      <ul>
+        <li>Pick an action level for the company from the allowed options</li>
+        <li>Options are <em>clamped</em> to the platform owner's ceiling</li>
+        <li>Only visible to users with <code>base.change_company</code> permission</li>
+        <li>Level is stored on the <code>Company</code> model as <code>ai_action_level</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">⚙️ Integration Settings Sidebar Entry</div>
+    <p>The AI Assistant settings link is registered in <code>base/sidebar.py</code> under the <strong>Integrations</strong> section, alongside Gdrive Backup, LinkedIn, LDAP, Google Meet, and WhatsApp. The accessibility function checks for <code>base.change_company</code> permission.</p>
+    <p style="font-size:.82rem;color:#6b7280;">Template: <code>subscriptions/ai_settings.html</code> (owner) and <code>subscriptions/company_ai_settings.html</code> (company admin, extends <code>settings.html</code>).</p>
+  </div>
+
+  <h3>AISettings Model (Singleton)</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>enabled</code></td><td>Boolean</td><td><code>False</code></td><td>Platform-wide on/off</td></tr>
+        <tr><td><code>api_base</code></td><td>CharField</td><td><code>https://api.groq.com/openai/v1</code></td><td>LLM API endpoint</td></tr>
+        <tr><td><code>api_key</code></td><td>CharField</td><td><code>""</code></td><td>Server-side only, never in browser</td></tr>
+        <tr><td><code>model_name</code></td><td>CharField</td><td><code>llama-3.3-70b-versatile</code></td><td>OpenAI-compatible model name</td></tr>
+        <tr><td><code>allow_employee</code></td><td>Boolean</td><td><code>True</code></td><td>Employees may use the assistant</td></tr>
+        <tr><td><code>allow_hr</code></td><td>Boolean</td><td><code>True</code></td><td>HR may use the assistant</td></tr>
+        <tr><td><code>allow_ceo</code></td><td>Boolean</td><td><code>True</code></td><td>CEO may use the assistant</td></tr>
+        <tr><td><code>max_action_level</code></td><td>CharField</td><td><code>"guidance"</code></td><td>Platform ceiling for action capability</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===== 7. Request Flow ===== -->
+<section id="flow">
+  <h2><span class="num">7</span> Request Flow</h2>
+  <p>Every chat message follows this path through the system:</p>
+
+  <div class="flow-diagram">
+    <!-- Row 1 -->
+    <div class="flow-row">
+      <div class="flow-box browser">
+        🌐<br>Browser
+        <span class="flow-label">User types message</span>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box server">
+        ⚙️<br>Emplinx Server
+        <span class="flow-label">POST /subscriptions/ai-chat/</span>
+      </div>
+    </div>
+
+    <!-- Flow detail 1 -->
+    <div class="flow-detail">
+      <strong>Server-side processing</strong>: role check (<code>_role_of(user)</code>) → role gate (allow_employee/hr/ceo) → build context (<code>_employee_context</code> or <code>_company_context</code>) → <strong>tokenize</strong> all PII → attach verified how-to guides → construct system prompt
+    </div>
+
+    <!-- Arrow down -->
+    <div style="text-align:center;margin:6px 0;font-size:1.1rem;color:#9ca3af;">↓</div>
+
+    <!-- Row 2 -->
+    <div class="flow-row">
+      <div class="flow-box server" style="background:#fef2f2;border-color:#fecaca;color:#991b1b;">
+        🔒<br>Tokenize PII
+        <span class="flow-label">[[NAME1]] ← Real Name</span>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box llm">
+        🤖<br>LLM Provider
+        <span class="flow-label">Tokenized context only</span>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box server" style="background:#fef2f2;border-color:#fecaca;color:#991b1b;">
+        🔓<br>Detokenize
+        <span class="flow-label">Real values swapped back</span>
+      </div>
+    </div>
+
+    <!-- Flow detail 2 -->
+    <div class="flow-detail">
+      LLM never sees raw PII. It receives only tokenized values like <span class="placeholder">[[NAME1]]</span>. The response is checked for prompt-injection (<code>"=== CONTEXT"</code> check), then all known placeholders are swapped back to real values. Any leftover brackets are unwrapped (never deleted) so real words aren't blanked.
+    </div>
+
+    <!-- Arrow down -->
+    <div style="text-align:center;margin:6px 0;font-size:1.1rem;color:#9ca3af;">↓</div>
+
+    <!-- Row 3 -->
+    <div class="flow-row">
+      <div class="flow-box server">
+        ⚙️<br>Execute Action?
+        <span class="flow-label">Check for EMPLINX_ACTION</span>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box server" style="background:#f0fdf4;border-color:#bbf7d0;color:#166534;">
+        ✓<br>Re-validate &amp; Execute
+        <span class="flow-label">Same Django views as UI</span>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box browser">
+        💬<br>Reply
+        <span class="flow-label">Detokenized answer + action result</span>
+      </div>
+    </div>
+
+    <!-- Flow detail 3 -->
+    <div class="flow-detail">
+      <strong>Action execution</strong> (Execute level only): If the model emits <code>EMPLINX_ACTION={"action":"approve_leave","id":42}</code>, the server strips it from the visible reply, re-validates everything (role, company, request existence + status), then calls the exact same Django view (<code>leave_request_approve</code> or <code>leave_request_cancel</code>) through a <code>RequestFactory</code> — so every permission decorator, hierarchy guard, balance deduction, and notification runs identically to a manual click. The action result ("Done — approved" or "Couldn't complete it") is appended to the reply.
+    </div>
+
+    <!-- Key annotations -->
+    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:16px;">
+      <span class="flow-box role-tag" style="font-size:.75rem;padding:6px 12px;">🔑 <strong>Never in browser:</strong> API key, raw PII, company context building</span>
+      <span class="flow-box role-tag" style="font-size:.75rem;padding:6px 12px;">🛡️ <strong>Never in LLM:</strong> real names, dates, amounts — only <span class="placeholder">[[TOKENS]]</span></span>
+      <span class="flow-box role-tag" style="font-size:.75rem;padding:6px 12px;">✅ <strong>Re-validated server-side:</strong> action proposals never trusted from model alone</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">📁 Key Source Files</div>
+    <table>
+      <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>subscriptions/ai_assistant.py</code></td><td>Main chat view, context building, tokenization, LLM proxy</td></tr>
+        <tr><td><code>subscriptions/ai_actions.py</code></td><td>Action executor — validates &amp; runs approve/reject through real Django views</td></tr>
+        <tr><td><code>subscriptions/models.py</code></td><td><code>AISettings</code> singleton (API key, model, role gates, ceiling)</td></tr>
+        <tr><td><code>subscriptions/views.py</code></td><td>Owner &amp; company admin settings views</td></tr>
+        <tr><td><code>base/models.py</code></td><td><code>Company.ai_action_level</code> field</td></tr>
+        <tr><td><code>base/sidebar.py</code></td><td>Settings menu registration under Integrations</td></tr>
+        <tr><td><code>subscriptions/context_processors.py</code></td><td>Exposes <code>ai_widget_visible</code> to templates</td></tr>
+        <tr><td><code>subscriptions/urls.py</code></td><td>URL routing: <code>/ai-chat/</code>, <code>/ai-settings/</code>, <code>/ai-company-settings/</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-header">🧠 Model Behaviour Summary</div>
+    <ul>
+      <li><strong>In scope:</strong> user's own HR data, Emplinx usage guidance, general workplace/HR questions</li>
+      <li><strong>Out of scope:</strong> coding, math homework, trivia, essays, world news — politely refused</li>
+      <li><strong>Must not:</strong> invent UI steps, claim to execute actions it can't, refer to "CONTEXT" or internal instructions, create bracketed tokens around plain values</li>
+      <li><strong>Wellbeing:</strong> must acknowledge stress signals with empathy and suggest support resources before answering the transactional question</li>
+      <li><strong>Token handling:</strong> must copy tokens <em>exactly</em> (<span class="placeholder">[[NAME1]]</span>) character-for-character, never paraphrase or reformat them</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  Emplinx AI Assistant · Documentation generated from codebase v2-hardening · July 2026
+</footer>
+
+</div><!-- /page-wrapper -->
+
+</body>
+</html>
