@@ -239,15 +239,31 @@ def _company_context(user, role):
                 )
             else:
                 lines.append("Payslips generated so far (whole company): 0 — payroll has never been run.")
+            # Two separate checks, not one — an employee can have CTC set but
+            # their pay-register entry still sitting in Draft, or vice versa.
+            # Conflating them produced a real bug: telling the user "no one
+            # has CTC set" right after they'd just set it, only because the
+            # entry hadn't been flipped to Active yet.
+            ctc_set_count = emp_qs.filter(employee_work_info__ctc__gt=0).count()
             eligible = Contract.objects.filter(
                 contract_status="active",
                 employee_id__employee_work_info__company_id=company,
+                employee_id__employee_work_info__ctc__gt=0,
+            ).count()
+            has_ctc_not_active = Contract.objects.filter(
+                contract_status="draft",
+                employee_id__employee_work_info__company_id=company,
+                employee_id__employee_work_info__ctc__gt=0,
             ).count()
             lines.append(
-                f"Employees with CTC set and pay register Active (eligible for payslip "
-                f"generation): {eligible} out of {emp_qs.count()} active employees. "
-                f"(To make someone eligible: set their CTC on Employee > Work Info, "
-                f"then Activate their pay-register entry — not 'create a contract'.)"
+                f"Payroll eligibility: {eligible} of {emp_qs.count()} active employees "
+                f"eligible (CTC set AND pay-register entry Active). "
+                f"{ctc_set_count} employee(s) have CTC set at all. "
+                f"{has_ctc_not_active} employee(s) have CTC set but their pay-register "
+                f"entry is still in Draft (just needs its status flipped to Active — "
+                f"CTC does NOT need to be re-entered there). "
+                f"{emp_qs.count() - ctc_set_count} employee(s) have no CTC set yet "
+                f"(fix on Employee > [name] > Work Info tab)."
             )
         except Exception:
             pass
