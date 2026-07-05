@@ -1354,7 +1354,7 @@ def employee_creation(request, token):
                 return redirect("user-creation", token)
             if not getattr(user, "pk", None):
                 user.save()
-            login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+            login(request, user, backend="base.auth_backends.IdentifierBackend")
             employee_personal_info = form.save(commit=False)
             employee_personal_info.employee_user_id = user
             employee_personal_info.email = candidate.email

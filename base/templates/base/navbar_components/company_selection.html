@@ -1,6 +1,6 @@
 {% load static %}
 {% load i18n %}
-{% if request.user.is_superuser and request.user.username == "skylinx" %}
+{% if request.user.is_superuser %}
 <div id="multCompany" class="oh-dropdown" x-data="{open: false}" @click="open = !open" title="{% trans 'Companies' %}">
     <div class="oh-navbar__action-icons">
         <a href="#" class="oh-navbar__action-icons-link">

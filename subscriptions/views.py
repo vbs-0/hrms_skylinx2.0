@@ -649,8 +649,12 @@ def impersonate(request, user_id):
         return redirect("subscriptions-console")
     original_id = request.user.id
     # login() flushes the session when switching users, so set the marker AFTER.
-    # Multiple auth backends are configured, so name one explicitly.
-    login(request, target, backend="django.contrib.auth.backends.ModelBackend")
+    # Must name a backend that's actually in settings.AUTHENTICATION_BACKENDS —
+    # ModelBackend is deliberately NOT registered there (see auth_backends.py),
+    # so a session logged in with it gets silently treated as unauthenticated
+    # on the very next request (Django's get_user() rejects unlisted backends),
+    # which looked like impersonate "bouncing to the login screen".
+    login(request, target, backend="base.auth_backends.IdentifierBackend")
     request.session["impersonator_id"] = original_id
     messages.info(request, f"You are now viewing as {target.username}.")
     return redirect("/")
@@ -662,7 +666,7 @@ def stop_impersonate(request):
     if impersonator_id:
         original = User.objects.filter(id=impersonator_id).first()
         if original:
-            login(request, original, backend="django.contrib.auth.backends.ModelBackend")
+            login(request, original, backend="base.auth_backends.IdentifierBackend")
             messages.info(request, "Returned to your platform-owner account.")
     return redirect("subscriptions-console")
 
@@ -710,7 +714,7 @@ def signup(request):
         days = trial_plan.trial_days if trial_plan else 14
         try:
             _, user = create_tenant(company_name, username, email, password, trial_plan)
-            login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+            login(request, user, backend="base.auth_backends.IdentifierBackend")
             messages.success(
                 request, f"Welcome, {company_name}! Your {days}-day trial has started."
             )
