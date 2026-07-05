@@ -1,6 +1,6 @@
-{% extends 'index.html' %}
+{% extends "settings.html" %}
 {% load i18n %}
-{% block content %}
+{% block settings %}
 <div class="oh-wrapper max-w-2xl mx-auto">
   <h1 class="text-lg font-semibold mb-1">{% trans "AI Assistant — Action Level" %}</h1>
   <p class="text-sm text-gray-500 mb-4">{% trans "Choose how much the AI assistant can do for" %} {{ company.company }}.</p>

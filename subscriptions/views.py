@@ -264,8 +264,17 @@ def company_ai_settings(request):
         return redirect("/")
 
     company = company_for_user(request.user)
+    if not company and is_platform_owner(request.user):
+        # Owner has no employee row of their own — use whichever company
+        # they've selected in the topbar switcher, same as other owner views.
+        from base.rbac import current_company
+
+        company = current_company(request)
     if not company:
-        messages.error(request, "No company context found.")
+        messages.error(
+            request,
+            "Select a company from the top switcher first, then open AI Assistant settings again.",
+        )
         return redirect("/")
 
     ceiling = AISettings.load().max_action_level
