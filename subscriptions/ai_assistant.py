@@ -44,11 +44,13 @@ class _Tokenizer:
         self.tokens = {}
         self._n = 0
 
-    def tok(self, value):
+    def tok(self, value, kind="V"):
+        # kind is a type label (NAME/DATE/MONEY/...) so the model knows what
+        # the placeholder holds without seeing the real value.
         if value is None or value == "":
             return "-"
         self._n += 1
-        placeholder = f"[[V{self._n}]]"
+        placeholder = f"[[{kind}{self._n}]]"
         self.tokens[placeholder] = str(value)
         return placeholder
 
@@ -67,14 +69,14 @@ def _employee_context(user):
     emp = getattr(user, "employee_get", None)
     if not emp:
         return "The user has no employee profile.", tk
-    lines = [f"You are helping {tk.tok(emp.get_full_name())} (an employee)."]
+    lines = [f"The user's name: {tk.tok(emp.get_full_name(), 'NAME')} (an employee)."]
     try:
         from leave.models import AvailableLeave
 
         for al in AvailableLeave.objects.filter(employee_id=emp)[:20]:
             lines.append(
-                f"Leave '{tk.tok(al.leave_type_id)}': {tk.tok(al.available_days)} available, "
-                f"{tk.tok(al.carryforward_days)} carried forward."
+                f"Leave type {tk.tok(al.leave_type_id, 'LEAVETYPE')}: {tk.tok(al.available_days, 'DAYS')} days available, "
+                f"{tk.tok(al.carryforward_days, 'DAYS')} days carried forward."
             )
     except Exception:
         pass
@@ -82,8 +84,8 @@ def _employee_context(user):
         wi = emp.employee_work_info
         if wi:
             lines.append(
-                f"Department: {tk.tok(wi.department_id)}; Shift: {tk.tok(wi.shift_id)}; "
-                f"Reporting manager: {tk.tok(wi.reporting_manager_id)}."
+                f"Department: {tk.tok(wi.department_id, 'DEPT')}; Shift: {tk.tok(wi.shift_id, 'SHIFT')}; "
+                f"Reporting manager: {tk.tok(wi.reporting_manager_id, 'NAME')}."
             )
     except Exception:
         pass
@@ -92,8 +94,8 @@ def _employee_context(user):
 
         for p in Payslip.objects.filter(employee_id=emp).order_by("-start_date")[:3]:
             lines.append(
-                f"Payslip {tk.tok(p.start_date)} to {tk.tok(p.end_date)}: gross {tk.tok(p.gross_pay)}, "
-                f"deduction {tk.tok(p.deduction)}, net pay {tk.tok(p.net_pay)}, status {tk.tok(p.status)}."
+                f"Payslip {tk.tok(p.start_date, 'DATE')} to {tk.tok(p.end_date, 'DATE')}: gross {tk.tok(p.gross_pay, 'MONEY')}, "
+                f"deduction {tk.tok(p.deduction, 'MONEY')}, net pay {tk.tok(p.net_pay, 'MONEY')}, status {tk.tok(p.status, 'STATUS')}."
             )
     except Exception:
         pass
@@ -109,8 +111,8 @@ def _employee_context(user):
             employee_id=emp, attendance_date__gte=since
         ).order_by("-attendance_date")[:10]:
             lines.append(
-                f"Attendance {tk.tok(a.attendance_date)}: in {tk.tok(a.attendance_clock_in or '-')}, "
-                f"out {tk.tok(a.attendance_clock_out or '-')}, worked {tk.tok(a.attendance_worked_hour)}."
+                f"Attendance {tk.tok(a.attendance_date, 'DATE')}: in {tk.tok(a.attendance_clock_in or '-', 'TIME')}, "
+                f"out {tk.tok(a.attendance_clock_out or '-', 'TIME')}, worked {tk.tok(a.attendance_worked_hour, 'HOURS')}."
             )
     except Exception:
         pass
@@ -132,7 +134,7 @@ def _company_context(user, role):
         is_active=True, employee_work_info__company_id=company
     )
     lines = [
-        f"You are helping a {role.upper()} at {tk.tok(company.company)}.",
+        f"You are helping a {role.upper()} at {tk.tok(company.company, 'COMPANY')}.",
         f"Active employees: {emp_qs.count()}.",
     ]
     try:
@@ -223,27 +225,35 @@ def ai_chat(request):
 
     system_prompt = (
         "You are Emplinx Assistant, a helper built into the Emplinx HR "
-        "software. You ONLY answer questions about: the user's own HR data "
-        "(leave balance, shifts, payslips, attendance) using the context "
-        "below, and how to use Emplinx features. "
-        "The CONTEXT below already contains the user's real, current data, "
-        "but names/numbers/dates are replaced with placeholder tokens like "
-        "[[V3]] for privacy — a separate system swaps them back to real "
-        "values after you respond. When you use a value from CONTEXT, copy "
-        "its [[V_]] token EXACTLY, character-for-character, brackets "
-        "included — never paraphrase, translate, reformat, or invent a "
-        "token. "
+        "software.\n"
+        "IN SCOPE (answer helpfully): the user's own HR data in CONTEXT "
+        "(name, leave balance, shift, department, manager, payslips, "
+        "attendance); anything about using Emplinx (how to apply for leave, "
+        "request a shift change, view payslips, check in/out, raise a "
+        "helpdesk ticket, update profile); and general workplace/HR "
+        "questions (leave rules, working days, holidays, payroll concepts). "
+        "'Can I apply for leave on Sunday?' or 'what is my name?' are IN "
+        "scope — answer them.\n"
+        "OUT OF SCOPE (politely refuse, suggest what you CAN do): topics "
+        "with no HR/workplace connection — coding, math homework, trivia, "
+        "essays, world news.\n"
+        "The CONTEXT below is the user's real, current data, but sensitive "
+        "values are replaced with typed placeholder tokens like [[NAME1]], "
+        "[[MONEY5]], [[DATE8]] for privacy — a separate system swaps them "
+        "back to real values after you respond. The type prefix tells you "
+        "what the token holds (NAME=a person's name, DEPT=department, "
+        "MONEY=an amount, DATE/TIME/DAYS/HOURS/LEAVETYPE/SHIFT/STATUS "
+        "likewise). When you use a value from CONTEXT, copy its token "
+        "EXACTLY, character-for-character, double brackets included — never "
+        "paraphrase, translate, reformat, or invent a token. Example: 'Your "
+        "name is [[NAME1]].' or 'You have [[DAYS3]] days of [[LEAVETYPE2]] "
+        "available.'\n"
         "When CONTEXT answers the question, STATE THE ANSWER (using its "
-        "tokens) directly. Do NOT tell the user to go log in and check the "
-        "UI themselves when the answer is already in CONTEXT — that is a "
-        "useless non-answer. Only give navigation guidance ('go to the Leave "
-        "section') if CONTEXT does NOT contain the data needed to answer. "
-        "You must REFUSE anything else — general knowledge, coding help, "
-        "math, trivia, writing essays, or any topic unrelated to HR/Emplinx — "
-        "even if asked directly. When refusing, say briefly that you only "
-        "handle Emplinx/HR questions and suggest what you *can* help with. "
-        "Never invent employee data; if CONTEXT truly has nothing on the "
-        "topic, say so plainly. Be concise.\n\n"
+        "tokens) directly. Do NOT tell the user to go check the UI when the "
+        "answer is already in CONTEXT. Only give navigation guidance if "
+        "CONTEXT lacks the data — and then give concrete steps, not a "
+        "brush-off. Never invent employee data; if CONTEXT truly has "
+        "nothing on the topic, say so plainly. Be concise.\n\n"
         "=== CONTEXT (real data, tokenized for privacy) ===\n" + ctx
     )
     try:
