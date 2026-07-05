@@ -57,9 +57,13 @@ class _Tokenizer:
     def detokenize(self, text):
         for placeholder, real in self.tokens.items():
             text = text.replace(placeholder, real)
-        # Anything left over is a placeholder the model mangled/invented —
-        # never let a raw [[...]] leak to the user.
-        return re.sub(r"\[\[[A-Za-z0-9_]+\]\]", "", text)
+        # Anything left over is a placeholder the model invented (it sometimes
+        # wraps a plain, already-real number/word in brackets on its own,
+        # e.g. "[[ACTIVEEMPLOYEESCOUNT]]"). Deleting it outright silently
+        # blanks out real words ("We have  active employees"), which reads as
+        # broken. Un-wrap it instead — keep the inner text, drop the brackets
+        # — so worst case is a slightly odd label, never a vanished value.
+        return re.sub(r"\[\[([A-Za-z0-9_]+)\]\]", r"\1", text)
 
 
 def _employee_context(user, tk=None):
@@ -281,6 +285,12 @@ def ai_chat(request):
         "paraphrase, translate, reformat, or invent a token. Example: 'Your "
         "name is [[NAME1]].' or 'You have [[DAYS3]] days of [[LEAVETYPE2]] "
         "available.'\n"
+        "IMPORTANT: only values already shown wrapped in [[...]] in CONTEXT "
+        "need this treatment. Plain numbers/words in CONTEXT that are NOT "
+        "wrapped (e.g. 'Active employees: 6.') are already final and safe to "
+        "share — repeat them exactly as-is, as plain text. NEVER invent a "
+        "new [[SOMENAME]] bracket around a plain value yourself — only copy "
+        "brackets that were already there in CONTEXT.\n"
         "When CONTEXT answers the question, STATE THE ANSWER (using its "
         "tokens) directly. Do NOT tell the user to go check the UI when the "
         "answer is already in CONTEXT. Only give navigation/how-to steps if "
