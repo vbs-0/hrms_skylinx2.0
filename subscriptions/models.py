@@ -155,7 +155,7 @@ class AISettings(models.Model):
     ACTION_LEVEL_CHOICES = [
         ("guidance", "Guidance only — explains, never touches data"),
         ("suggest", "Suggest + human confirms — proposes an action, a person must click confirm"),
-        ("execute", "AI executes directly — not yet built; behaves as Suggest for now"),
+        ("execute", "AI executes directly — can approve/reject pending leave requests on instruction; everything else stays Suggest"),
     ]
     # Platform-wide ceiling: no company can grant its AI more capability than
     # this, even if the company admin picks a higher option in their own

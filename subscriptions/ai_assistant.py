@@ -124,6 +124,30 @@ def _employee_context(user, tk=None):
     return "\n".join(lines), tk
 
 
+def _company_of(user):
+    """The company on the user's own employee record, or None.
+    (current_company() wants a request; here we only have the user.)"""
+    try:
+        emp = getattr(user, "employee_get", None)
+        if emp:
+            return emp.get_company()
+    except Exception:
+        pass
+    return None
+
+
+def _action_level(company):
+    """Company's chosen AI action level, clamped to the owner's ceiling."""
+    from subscriptions.models import AISettings
+
+    level = getattr(company, "ai_action_level", "guidance") if company else "guidance"
+    ceiling = AISettings.load().max_action_level
+    order = ["guidance", "suggest", "execute"]
+    if order.index(level) > order.index(ceiling):
+        level = ceiling
+    return level
+
+
 def _company_context(user, role):
     """Aggregate, company-scoped stats for HR/CEO — no per-person PII dump.
     Counts are aggregate, not individually identifying, so left untokenized;
@@ -133,15 +157,7 @@ def _company_context(user, role):
     # attendance, payslips) so personal questions still work for them.
     own, tk = _employee_context(user, tk)
     lines = [f"The user is a {role.upper()}.", own]
-    # current_company() wants a request; here we only have the user, so take
-    # the company straight off their own employee record.
-    company = None
-    try:
-        emp = getattr(user, "employee_get", None)
-        if emp:
-            company = emp.get_company()
-    except Exception:
-        pass
+    company = _company_of(user)
     if company:
         from employee.models import Employee
         from leave.models import LeaveRequest
@@ -151,19 +167,29 @@ def _company_context(user, role):
         )
         lines.append(f"Company: {tk.tok(company.company, 'COMPANY')}.")
         lines.append(f"Active employees: {emp_qs.count()}.")
-        level = getattr(company, "ai_action_level", "guidance")
+        level = _action_level(company)
         level_note = {
             "guidance": "You can only explain and guide — you cannot approve leave, generate payroll, or change any data.",
             "suggest": "You can suggest a specific action (e.g. approving a named leave request), but a human must click the real confirm button in Emplinx — you cannot execute it yourself.",
-            "execute": "Direct execution isn't built yet even though this company's ceiling allows it — treat yourself as Suggest-only: propose the action, tell the user to confirm it in the UI.",
+            "execute": "You CAN approve or reject pending leave requests directly when the user asks — see the ACTIONS protocol in your instructions. Anything else (payroll, contracts, employee records) you still cannot change; guide instead.",
         }.get(level, "You can only explain and guide.")
         lines.append(f"Your action level for this company: {level}. {level_note}")
         try:
-            pending = LeaveRequest.objects.filter(
+            pending_qs = LeaveRequest.objects.filter(
                 employee_id__employee_work_info__company_id=company,
                 status="requested",
-            ).count()
-            lines.append(f"Pending leave requests: {pending}.")
+            )
+            lines.append(f"Pending leave requests: {pending_qs.count()}.")
+            # At execute level the model needs the request IDs to act on them.
+            # Names stay tokenized like everything else.
+            if level == "execute":
+                for lr in pending_qs.select_related("employee_id", "leave_type_id")[:15]:
+                    lines.append(
+                        f"Pending leave request ID {lr.id}: employee {tk.tok(lr.employee_id, 'NAME')}, "
+                        f"type {tk.tok(lr.leave_type_id, 'LEAVETYPE')}, "
+                        f"{tk.tok(lr.start_date, 'DATE')} to {tk.tok(lr.end_date, 'DATE')}, "
+                        f"{lr.requested_days} day(s)."
+                    )
         except Exception:
             pass
     return "\n".join(lines), tk
@@ -242,8 +268,12 @@ def ai_chat(request):
 
     if role == "employee":
         ctx, tk = _employee_context(request.user)
+        can_execute = False
+        company = None
     else:
         ctx, tk = _company_context(request.user, role)
+        company = _company_of(request.user)
+        can_execute = bool(company) and _action_level(company) == "execute"
 
     # Verified navigation flows — written from the actual sidebar/templates.
     # The model MUST NOT invent UI steps beyond these; hallucinated buttons
@@ -301,13 +331,32 @@ def ai_chat(request):
         "reaching out to a mental health helpline if it sounds serious — "
         "THEN address the HR question if relevant. Never be purely "
         "transactional in these cases.\n"
-        "ACTIONS: CONTEXT may state your 'action level' for this company. "
-        "NEVER claim you approved, rejected, generated, or changed anything "
-        "— you cannot execute actions in this system yet, no matter what "
-        "the action level says. If asked to do something like 'approve this "
-        "leave' or 'generate payroll', tell them plainly you can't perform "
-        "it yourself and point to the exact screen/button in Emplinx where "
-        "a human does it.\n"
+        + (
+            # Execute tier: the model may emit a machine-readable action line;
+            # the server re-validates and performs it via the same view a
+            # human click would hit. Only leave approve/reject is supported.
+            "ACTIONS: your action level is EXECUTE. You can perform exactly "
+            "two actions: approving or rejecting a pending leave request "
+            "listed in CONTEXT (with its ID). When the user clearly asks you "
+            "to approve/reject a specific pending request, end your reply "
+            "with a line containing ONLY this (no code fences): "
+            'EMPLINX_ACTION={"action":"approve_leave","id":<the numeric ID '
+            'from CONTEXT>} or EMPLINX_ACTION={"action":"reject_leave",'
+            '"id":<ID>,"reason":"<short reason>"}. '
+            "Use it ONLY when the target request is unambiguous — if several "
+            "could match or none are pending, ask which one instead, listing "
+            "the pending IDs. Never fabricate an ID. For anything else "
+            "(payroll, contracts, editing employees) you still cannot act — "
+            "guide to the right screen instead, and never claim you did it.\n"
+            if can_execute
+            else
+            "ACTIONS: CONTEXT may state your 'action level' for this company. "
+            "NEVER claim you approved, rejected, generated, or changed anything "
+            "— you cannot execute actions at your current level. If asked to "
+            "do something like 'approve this leave' or 'generate payroll', "
+            "tell them plainly you can't perform it yourself and point to the "
+            "exact screen/button in Emplinx where a human does it.\n"
+        ) +
         "The CONTEXT below is the user's real, current data, but sensitive "
         "values are replaced with typed placeholder tokens like [[NAME1]], "
         "[[MONEY5]], [[DATE8]] for privacy — a separate system swaps them "
@@ -368,5 +417,30 @@ def ai_chat(request):
             "reply": "I can't share my internal instructions. Ask me about your "
                      "leave balance, shifts, payslips, attendance, or how to use Emplinx."
         })
+    # Execute-tier action handling: the model may end its reply with an
+    # EMPLINX_ACTION={...} line. Strip it from the visible reply and run it
+    # through the server-side validator/executor (which re-checks everything —
+    # the model's claim alone never changes data).
+    action_result = None
+    m = re.search(r"EMPLINX_ACTION=(\{.*?\})\s*$", raw_answer, re.DOTALL)
+    if m:
+        raw_answer = raw_answer[: m.start()].rstrip()
+        if can_execute:
+            from subscriptions.ai_actions import execute_action
+
+            try:
+                proposal = json.loads(m.group(1))
+            except Exception:
+                proposal = {}
+            action_result = execute_action(
+                request, proposal.get("action"), proposal, company
+            )
+        else:
+            # Model emitted an action while not allowed to — never execute.
+            action_result = {"ok": False, "message": "Actions aren't enabled for your company's AI level."}
+
     answer = tk.detokenize(raw_answer)
+    if action_result is not None:
+        prefix = "✅ " if action_result["ok"] else "⚠️ "
+        answer = (answer + "\n\n" if answer else "") + prefix + action_result["message"]
     return JsonResponse({"reply": answer})
