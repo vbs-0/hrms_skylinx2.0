@@ -8,6 +8,14 @@
     btn.addEventListener("click", function (e) {
         e.preventDefault();
 
+        // A page-wide "self-heal" watchdog (index.html) force-reloads on ANY
+        // htmx swap settling if the header looks momentarily empty — totally
+        // unrelated to this toggle, but its reload can land mid-flight and
+        // re-render the header from the OLD server session, snapping the
+        // icon/theme back right after the click. Block it for the duration
+        // of this request so the toggle can never be raced.
+        window.__themeToggling = true;
+
         fetch("{% url 'toggle_theme' %}", {
         method: "POST",
         headers: {
@@ -29,7 +37,8 @@
             }
         }
         })
-        .catch(err => console.error(err));
+        .catch(err => console.error(err))
+        .finally(function () { window.__themeToggling = false; });
     });
     });
 </script>

@@ -312,6 +312,10 @@
             // genuinely headerless response can't loop.
             (function () {
                 function heal() {
+                    // Never reload mid-flight of the theme toggle — it saves its own
+                    // theme choice server-side, and a race here can reload the page
+                    // before that finishes, snapping the icon back to the old theme.
+                    if (window.__themeToggling) return;
                     var hdr = document.getElementById("header");
                     var ok = hdr && hdr.innerHTML.trim().length > 0;
                     if (ok) {
