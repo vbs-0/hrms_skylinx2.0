@@ -55,6 +55,33 @@ def _employee_context(user):
             )
     except Exception:
         pass
+    try:
+        from payroll.models.models import Payslip
+
+        for p in Payslip.objects.filter(employee_id=emp).order_by("-start_date")[:3]:
+            lines.append(
+                f"Payslip {p.start_date} to {p.end_date}: gross {p.gross_pay}, "
+                f"deduction {p.deduction}, net pay {p.net_pay}, status {p.status}."
+            )
+    except Exception:
+        pass
+    try:
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from attendance.models import Attendance
+
+        since = timezone.localdate() - timedelta(days=14)
+        for a in Attendance.objects.filter(
+            employee_id=emp, attendance_date__gte=since
+        ).order_by("-attendance_date")[:10]:
+            lines.append(
+                f"Attendance {a.attendance_date}: in {a.attendance_clock_in or '-'}, "
+                f"out {a.attendance_clock_out or '-'}, worked {a.attendance_worked_hour}."
+            )
+    except Exception:
+        pass
     return "\n".join(lines)
 
 
@@ -164,13 +191,19 @@ def ai_chat(request):
         "software. You ONLY answer questions about: the user's own HR data "
         "(leave balance, shifts, payslips, attendance) using the context "
         "below, and how to use Emplinx features. "
+        "The CONTEXT below already contains the user's real, current data — "
+        "when it answers the question, STATE THE ACTUAL NUMBERS/VALUES from "
+        "it directly. Do NOT tell the user to go log in and check the UI "
+        "themselves when the answer is already in CONTEXT — that is a "
+        "useless non-answer. Only give navigation guidance ('go to the Leave "
+        "section') if CONTEXT does NOT contain the data needed to answer. "
         "You must REFUSE anything else — general knowledge, coding help, "
         "math, trivia, writing essays, or any topic unrelated to HR/Emplinx — "
         "even if asked directly. When refusing, say briefly that you only "
         "handle Emplinx/HR questions and suggest what you *can* help with. "
-        "Never invent employee data; if asked about someone the context "
-        "doesn't cover, say you don't have access to that. Be concise.\n\n"
-        "=== CONTEXT ===\n" + ctx
+        "Never invent employee data; if CONTEXT truly has nothing on the "
+        "topic, say so plainly. Be concise.\n\n"
+        "=== CONTEXT (this IS the user's real current data) ===\n" + ctx
     )
     try:
         answer = _call_llm(cfg, system_prompt, history, user_msg)
