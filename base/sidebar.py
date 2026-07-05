@@ -102,6 +102,10 @@ def gdrive_accessibility(request, submenu, user_perms, *args, **kwargs):
     return request.user.has_perm("skylinx_backup.view_googledrivebackup")
 
 
+def ai_assistant_settings_accessibility(request, submenu, user_perms, *args, **kwargs):
+    return request.user.has_perm("base.change_company")
+
+
 def linkedin_accessibility(request, submenu, user_perms, *args, **kwargs):
     return request.user.has_perm("recruitment.view_linkedinaccount")
 
@@ -269,5 +273,10 @@ class IntegrationsSettings:
             "label": _("Whatsapp"),
             "url": reverse_lazy("whatsapp-credential-view"),
             "accessibility": whatsapp_accessibility,
+        },
+        {
+            "label": _("AI Assistant"),
+            "url": reverse_lazy("subscriptions-company-ai-settings"),
+            "accessibility": ai_assistant_settings_accessibility,
         },
     ]
