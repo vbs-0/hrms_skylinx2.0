@@ -118,6 +118,32 @@ function attendanceDateChange(selectElement) {
     });
 }
 
+function skylinxRecalcWorkedHours(el) {
+    // Live worked-hours calc for the single-employee attendance request form
+    // (NewRequestForm) — Worked Hours is read-only there, derived from
+    // Check-In/Check-Out date+time. Handles overnight shifts since it diffs
+    // full date+time values, not just the time-of-day parts.
+    var form = el.closest("form");
+    if (!form) return;
+    var ciDate = form.querySelector("[name=attendance_clock_in_date]");
+    var ci = form.querySelector("[name=attendance_clock_in]");
+    var coDate = form.querySelector("[name=attendance_clock_out_date]");
+    var co = form.querySelector("[name=attendance_clock_out]");
+    var out = form.querySelector("[name=attendance_worked_hour]");
+    if (!out || !ci || !co || !ci.value || !co.value) return;
+
+    var inDate = (ciDate && ciDate.value) || new Date().toISOString().slice(0, 10);
+    var outDate = (coDate && coDate.value) || inDate;
+    var start = new Date(inDate + "T" + ci.value);
+    var end = new Date(outDate + "T" + co.value);
+    if (isNaN(start) || isNaN(end)) return;
+
+    var diffMin = Math.max(0, Math.round((end - start) / 60000));
+    var hours = Math.floor(diffMin / 60);
+    var minutes = diffMin % 60;
+    out.value = (hours < 10 ? "0" + hours : hours) + ":" + (minutes < 10 ? "0" + minutes : minutes);
+}
+
 function getAssignedLeave(employeeElement) {
     var employeeId = employeeElement.val();
     $.ajax({

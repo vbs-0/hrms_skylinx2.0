@@ -734,22 +734,38 @@ class NewRequestForm(AttendanceRequestForm):
                 ),
                 initial=view_initial.get("employee_id"),
             ),
-            "create_bulk": forms.BooleanField(
-                required=False,
-                label=_("Create Bulk"),
-                widget=forms.CheckboxInput(
-                    attrs={
-                        "class": "oh-checkbox",
-                        "hx-target": "#genericModalBody",
-                        "hx-swap": "innerHTML",
-                        "hx-get": "/attendance/request-bulk-attendance/?bulk=True",
-                    }
-                ),
-            ),
         }
         new_dict.update(old_dict)
         self.fields = new_dict
         kwargs["initial"] = view_initial
+
+        # Single-employee request: bulk creation lives in its own admin flow,
+        # work type is inherited from the employee's work info (see clean()),
+        # and batch attendance is an admin/bulk-only concern.
+        for field_name in ("work_type_id", "batch_attendance_id"):
+            self.fields.pop(field_name, None)
+        self.fields["attendance_worked_hour"].widget.attrs["readonly"] = True
+
+        # Recompute worked hours client-side the instant any of these change,
+        # instead of the shared hx round-trip (which swaps in a fragment from
+        # the unrelated AttendanceForm and isn't scoped to this field here).
+        for field_name in (
+            "attendance_clock_in_date",
+            "attendance_clock_in",
+            "attendance_clock_out_date",
+            "attendance_clock_out",
+        ):
+            attrs = self.fields[field_name].widget.attrs
+            for hx_key in (
+                "hx-include",
+                "hx-target",
+                "hx-swap",
+                "hx-select",
+                "hx-get",
+                "hx-trigger",
+            ):
+                attrs.pop(hx_key, None)
+            attrs["onchange"] = "skylinxRecalcWorkedHours(this)"
 
     def as_p(self, *args, **kwargs):
         """
@@ -771,7 +787,6 @@ class NewRequestForm(AttendanceRequestForm):
             "attendance_clock_in_date",
             "attendance_clock_in",
             "shift_id",
-            "work_type_id",
             "attendance_worked_hour",
         )
         for key in required_for_logic:
@@ -796,6 +811,9 @@ class NewRequestForm(AttendanceRequestForm):
         )
         if employee and not hasattr(employee, "employee_work_info"):
             raise ValidationError(_("Employee work info not found"))
+        # Work type is no longer asked on this form — inherit it from the
+        # employee's current work info instead of the submitted form data.
+        work_type_id = employee.employee_work_info.work_type_id
         data = {
             "employee_id": employee,
             "attendance_date": attendance_date,
@@ -804,7 +822,7 @@ class NewRequestForm(AttendanceRequestForm):
             "attendance_clock_out": self.cleaned_data["attendance_clock_out"],
             "attendance_clock_out_date": self.cleaned_data["attendance_clock_out_date"],
             "shift_id": self.cleaned_data["shift_id"],
-            "work_type_id": self.cleaned_data["work_type_id"],
+            "work_type_id": work_type_id,
             "attendance_worked_hour": self.cleaned_data["attendance_worked_hour"],
             "minimum_hour": self.data.get("minimum_hour", ""),
         }
@@ -825,7 +843,7 @@ class NewRequestForm(AttendanceRequestForm):
                 if data["attendance_clock_out_date"] == "None"
                 else data["attendance_clock_out_date"]
             )
-            data["work_type_id"] = self.data.get("work_type_id")
+            data["work_type_id"] = work_type_id.pk if work_type_id else None
             data["shift_id"] = self.data.get("shift_id")
             attendance = attendances.first()
             for key, value in data.items():
