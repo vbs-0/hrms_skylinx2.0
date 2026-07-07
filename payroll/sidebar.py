@@ -38,11 +38,9 @@ SUBMENUS = [
         "redirect": reverse("view-reimbursement"),
         "accessibility": "payroll.sidebar.expense_accessibility",
     },
-    {
-        "menu": _("Income Tax (TDS)"),
-        "redirect": reverse("filing-status-view"),
-        "accessibility": "payroll.sidebar.federal_tax_accessibility",
-    },
+    # Income Tax (TDS) hidden per product decision — the filing-status pages
+    # still exist at payroll/filling-status-view for direct links, just no
+    # sidebar entry.
     {
         "menu": _("Form 16"),
         "redirect": reverse("form16-list"),

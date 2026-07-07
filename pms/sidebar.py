@@ -11,7 +11,7 @@ from skylinx.menu import settings_menu
 
 MENU = _("PMS")
 IMG_SRC = "images/ui/pms.svg"
-LOCKED = True
+LOCKED = False
 
 
 SUBMENUS = [
@@ -84,14 +84,11 @@ def bonus_point_accessibility(request, submenu, user_perms, *args, **kwargs):
     return request.user.has_perm("pms.add_bonuspointsetting")
 
 
-# ponytail: Performance settings section removed from the UI per owner request
-# (feature pulled everywhere else too) — condition permanently False rather
-# than deleting the class, so it's a one-line flip to bring back.
 @settings_menu.register
 class PerformanceSettings:
     title = _("Performance")
     order = 8
-    condition = lambda self, request: False
+    condition = lambda self, request: apps.is_installed("pms")
     items = [
         {
             "label": _("Bonus Point Setting"),
