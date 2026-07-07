@@ -22,6 +22,37 @@ from facedetection.face_matching import compare_faces, has_face
 from geofencing.models import GeoFencing
 
 
+def _company_alert_recipients(employee):
+    """Users who should get location/geofence alerts for this employee:
+    reporting manager + the employee's company's HR Managers and Company
+    Admins. (Previously targeted is_superuser/is_staff — HR never got the
+    alerts and they leaked across tenants.)"""
+    from django.contrib.auth import get_user_model
+    from django.contrib.auth.models import Group
+
+    from base.rbac import SEP
+
+    User = get_user_model()
+    recipients = set()
+    wi = getattr(employee, "employee_work_info", None)
+    rm = getattr(wi, "reporting_manager_id", None) if wi else None
+    if rm is not None and getattr(rm, "employee_user_id", None):
+        recipients.add(rm.employee_user_id)
+    company = employee.get_company()
+    if company:
+        for g in Group.objects.filter(
+            company_link__company=company, name__endswith=SEP + "HR Manager"
+        ):
+            recipients.update(g.user_set.all())
+        recipients.update(
+            User.objects.filter(
+                groups__name="Company Admin",
+                employee_get__employee_work_info__company_id=company,
+            )
+        )
+    return recipients
+
+
 class MobileCheckInAPIView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
@@ -279,12 +310,10 @@ class MobileCheckInAPIView(APIView):
             )
 
         if not within_geofence:
-            from django.contrib.auth import get_user_model
             from django.contrib.contenttypes.models import ContentType
             from notifications.models import Notification
             
-            User = get_user_model()
-            admins = User.objects.filter(is_superuser=True) | User.objects.filter(is_staff=True)
+            admins = _company_alert_recipients(employee)
             user_ct = ContentType.objects.get_for_model(request.user)
             
             for admin in admins:
@@ -449,12 +478,10 @@ class MobileCheckOutAPIView(APIView):
             detail.save()
 
         if not within_geofence:
-            from django.contrib.auth import get_user_model
             from django.contrib.contenttypes.models import ContentType
             from notifications.models import Notification
             
-            User = get_user_model()
-            admins = User.objects.filter(is_superuser=True) | User.objects.filter(is_staff=True)
+            admins = _company_alert_recipients(employee)
             user_ct = ContentType.objects.get_for_model(request.user)
             
             for admin in admins:
@@ -521,12 +548,10 @@ class MobileLocationLogAPIView(APIView):
         )
 
         if not gps_enabled:
-            from django.contrib.auth import get_user_model
             from django.contrib.contenttypes.models import ContentType
             from notifications.models import Notification
             
-            User = get_user_model()
-            admins = User.objects.filter(is_superuser=True) | User.objects.filter(is_staff=True)
+            admins = _company_alert_recipients(employee)
             user_ct = ContentType.objects.get_for_model(request.user)
             
             for admin in admins:

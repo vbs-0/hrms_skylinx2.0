@@ -1,0 +1,70 @@
+{% load static %} {% now "Y" as current_year %}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>{{white_label_company_name}}</title>
+        <style>
+            body { margin: 0; background-color: #e5e5e5; }
+            table { border-spacing: 0; }
+            td { padding: 0; }
+            img { border: 0; }
+            .hr-wrapper { width: 100%; table-layout: fixed; background-color: #e5e5e5; padding-bottom: 60px; }
+            .hr-table-main {
+                background-color: #fff; margin: 0 auto; width: 100%; max-width: 650px;
+                border-spacing: 0; font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+                color: #1c1c1c; margin-top: 15px;
+            }
+            .hr-table-main__header { table-layout: fixed; padding: 15px; width: 100%; }
+        </style>
+    </head>
+    <body>
+        <center class="hr-wrapper">
+            <table class="hr-table-main" width="100%" style="margin-top: 60px">
+                <tr>
+                    <td>
+                        <table class="hr-table-main__header">
+                            <tr>
+                                <td style="width: 100%">
+                                    <img src="cid:company_logo" height="80" width="80" />
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="center" style="padding-top: 10px; padding-bottom: 10px; font-size: 48px;">
+                        {{emoji}}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 0 25px; font-size: 24px; color: #e54f37;" align="center">
+                        <strong>{{heading}}</strong>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="center" style="padding: 10px 25px 30px 25px; font-size: 15px; color: #1c1c1c;">
+                        <p style="width: 90%; margin: 0 auto;">{{message}}</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td
+                        align="center"
+                        style="
+                            padding-left: 15px;
+                            padding-right: 15px;
+                            padding-top: 20px;
+                            padding-bottom: 10px;
+                            color: #5c5c5c;
+                            font-size: 12px;
+                        "
+                    >
+                        &copy; {{current_year}} {{white_label_company_name}}
+                    </td>
+                </tr>
+            </table>
+        </center>
+    </body>
+</html>

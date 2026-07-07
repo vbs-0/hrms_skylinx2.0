@@ -10,7 +10,7 @@ actions to handle the request, process data, and generate a response.
 This module is part of the recruitment project and is intended to
 provide the main entry points for interacting with the application's functionality.
 """
-from base.rbac import is_platform_owner
+from base.rbac import is_platform_owner, current_company
 
 
 import logging
@@ -3113,7 +3113,9 @@ def enable_ip_restriction(request):
         ip_restiction = AttendanceAllowedIP.objects.first()
 
         if not ip_restiction:
-            ip_restiction = AttendanceAllowedIP.objects.create(is_enabled=True)
+            ip_restiction = AttendanceAllowedIP.objects.create(
+                is_enabled=True, company_id=current_company(request)
+            )
             return SkylinxRedirect(request)
 
         ip_restiction.is_enabled = not ip_restiction.is_enabled
@@ -3174,7 +3176,9 @@ def create_allowed_ips(request):
 
             else:
                 AttendanceAllowedIP.objects.create(
-                    is_enabled=True, additional_data={"allowed_ips": ip_addresses}
+                    is_enabled=True,
+                    additional_data={"allowed_ips": ip_addresses},
+                    company_id=current_company(request),
                 )
                 messages.success(request, "IP addresses saved successfully")
 

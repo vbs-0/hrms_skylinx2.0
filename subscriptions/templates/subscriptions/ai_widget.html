@@ -31,11 +31,25 @@
       input=document.getElementById('ai-input'),send=document.getElementById('ai-send'),busy=false;
   // sessionStorage: survives page navigation within Emplinx, clears on tab close — never sent anywhere but this browser tab.
   function csrf(){var m=document.cookie.match(/csrftoken=([^;]+)/);return m?m[1]:'';}
+  function escapeHtml(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  // Minimal, safe markdown-lite renderer: escape everything first, then turn
+  // **bold**/*italic*/`code` into tags so the assistant's replies don't show
+  // literal asterisks/backticks in the bubble.
+  function renderMd(text){
+    var h=escapeHtml(text);
+    h=h.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+    h=h.replace(/`([^`]+)`/g,'<code>$1</code>');
+    h=h.replace(/(^|\s)\*([^\s*][^*]*?)\*(?=$|\s)/g,'$1<em>$2</em>');
+    return h;
+  }
   function bubble(text,me){
     var d=document.createElement('div');
     d.style.cssText='border-radius:10px;padding:8px 10px;margin-bottom:8px;white-space:pre-wrap;'+
       (me?'background:#4f46e5;color:#fff;margin-left:40px;':'background:#fff;border:1px solid #e2e8f0;color:#0f172a;margin-right:20px;');
-    d.textContent=text;msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;return d;
+    if(me){d.textContent=text;}else{d.innerHTML=renderMd(text);}
+    msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;return d;
   }
   // sessionStorage: survives page navigation within Emplinx, clears when the tab closes — never sent anywhere but this browser tab.
   var GREETING="{% trans 'Hi! Ask me about your leave balance, shifts, payslips, or how to use Emplinx.' %}";
@@ -68,7 +82,7 @@
       .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
       .then(function(res){
         var reply=res.ok?res.j.reply:(res.j.error||'Something went wrong.');
-        wait.textContent=reply;saveMsg(reply,false);
+        wait.innerHTML=renderMd(reply);saveMsg(reply,false);
         if(res.ok){
           history.push({role:'user',content:q});
           history.push({role:'assistant',content:reply});
@@ -76,7 +90,7 @@
           sessionStorage.setItem('ai_history',JSON.stringify(history));
         }
       })
-      .catch(function(){wait.textContent='The assistant is unavailable right now.';saveMsg(wait.textContent,false);})
+      .catch(function(){var msg='The assistant is unavailable right now.';wait.textContent=msg;saveMsg(msg,false);})
       .finally(function(){busy=false;});
   }
   send.onclick=ask;

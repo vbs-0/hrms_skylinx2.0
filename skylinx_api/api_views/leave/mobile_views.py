@@ -162,6 +162,32 @@ class MobileLeaveApplyAPIView(APIView):
                 "errorCode": "SAVE_ERROR"
             }, status=500)
 
+        # Mirror the web flow: mail owner + reporting manager and notify the
+        # manager. Mobile apply previously sent nothing at all.
+        import contextlib
+
+        with contextlib.suppress(Exception):
+            from leave.threading import LeaveMailSendThread
+
+            LeaveMailSendThread(
+                request._request, leave_request, type="request"
+            ).start()
+        with contextlib.suppress(Exception):
+            from django.urls import reverse
+            from notifications.signals import notify
+
+            notify.send(
+                employee,
+                recipient=employee.employee_work_info.reporting_manager_id.employee_user_id,
+                verb="You have a new leave request to validate.",
+                verb_ar="لديك طلب إجازة جديد يجب التحقق منه.",
+                verb_de="Sie haben eine neue Urlaubsanfrage zur Validierung.",
+                verb_es="Tiene una nueva solicitud de permiso que debe validar.",
+                verb_fr="Vous avez une nouvelle demande de congé à valider.",
+                icon="people-circle",
+                redirect=reverse("request-view") + f"?id={leave_request.id}",
+            )
+
         return Response({
             "success": True,
             "message": "Leave request submitted successfully",

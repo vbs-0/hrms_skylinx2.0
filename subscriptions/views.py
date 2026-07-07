@@ -775,6 +775,10 @@ def client_plans(request):
             ("Asset management", "asset"),
             ("Helpdesk / support tickets", "helpdesk"),
         ]),
+        ("AI Assistant", [
+            ("AI assistant (guidance + suggestions)", "ai_assistant"),
+            ("AI assistant execute mode", "ai_execute"),
+        ]),
     ]
     plans = list(Plan.objects.filter(is_active=True).order_by("price"))
     plan_colors = ["#16a34a", "#ea580c", "#7c3aed", "#0284c7", "#db2777"]

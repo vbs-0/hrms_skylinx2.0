@@ -155,6 +155,27 @@ def notify_probation_end():
         )
 
 
+def send_birthday_wishes():
+    """Daily task: mail employees whose birthday (month/day) is today."""
+    from base.celebration_mail import send_celebration_mail
+    from employee.models import Employee
+
+    today = date.today()
+    for emp in Employee.objects.filter(
+        is_active=True, dob__month=today.month, dob__day=today.day
+    ):
+        send_celebration_mail(
+            emp,
+            subject=f"Happy Birthday, {emp.get_full_name()}! 🎂",
+            heading=f"Happy Birthday, {emp.get_full_name()}!",
+            message=(
+                "Wishing you a fantastic day filled with joy and celebration. "
+                "Thank you for being a valued part of our team!"
+            ),
+            emoji="🎂",
+        )
+
+
 if not any(
     cmd in sys.argv
     for cmd in ["makemigrations", "migrate", "compilemessages", "flush", "shell", "test"]
@@ -168,4 +189,5 @@ if not any(
     # date-range based, so hourly is ample and stops the per-minute DB load.
     scheduler.add_job(block_unblock_disciplinary, "interval", hours=1)
     scheduler.add_job(notify_probation_end, "cron", hour=8)
+    scheduler.add_job(send_birthday_wishes, "cron", hour=8, minute=30)
     scheduler.start()
