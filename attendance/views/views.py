@@ -2904,8 +2904,9 @@ def enable_timerunner(request):
     This method is used to enable/disable the timerunner feature
     """
 
-    time_runner = AttendanceGeneralSetting.objects.first()
-    time_runner = time_runner if time_runner else AttendanceGeneralSetting()
+    time_runner, _created = AttendanceGeneralSetting.objects.get_or_create(
+        company_id=current_company(request)
+    )
     time_runner.time_runner = "time_runner" in request.GET.keys()
     time_runner.save()
     return HttpResponse("success")
@@ -3014,7 +3015,7 @@ def grace_time_view(request):
     """
     condition = AttendanceValidationCondition.objects.first()
     default_grace_time = GraceTime.objects.filter(is_default=True).first()
-    grace_times = GraceTime.objects.entire().exclude(is_default=True)
+    grace_times = GraceTime.objects.exclude(is_default=True)
     return render(
         request,
         "attendance/grace_time/grace_time.html",

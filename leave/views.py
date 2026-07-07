@@ -5567,11 +5567,9 @@ if apps.is_installed("recruitment"):
 @login_required
 @permission_required("leave.view_leavegeneralsetting")
 def employee_past_leave_restriction(request):
-    enabled_restriction = EmployeePastLeaveRestrict.objects.first()
-    if not enabled_restriction:
-        enabled_restriction = EmployeePastLeaveRestrict.objects.create(
-            enabled=True, company_id=current_company(request)
-        )
+    enabled_restriction, _created = EmployeePastLeaveRestrict.objects.get_or_create(
+        company_id=current_company(request), defaults={"enabled": True}
+    )
     if request.method == "POST":
         enabled_restriction.enabled = not enabled_restriction.enabled
         enabled_restriction.save()

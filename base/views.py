@@ -6488,14 +6488,11 @@ def history_field_settings(request):
 def enable_account_block_unblock(request):
     if request.method == "POST":
         enabled = request.POST.get("enable_block_account") == "on"
-        instance = AccountBlockUnblock.objects.first()
-        if instance:
-            instance.is_enabled = enabled
-            instance.save()
-        else:
-            AccountBlockUnblock.objects.create(
-                is_enabled=enabled, company_id=current_company(request)
-            )
+        instance, _created = AccountBlockUnblock.objects.get_or_create(
+            company_id=current_company(request)
+        )
+        instance.is_enabled = enabled
+        instance.save()
         messages.success(
             request,
             _(
@@ -6514,14 +6511,14 @@ def enable_profile_edit_feature(request):
 
     if request.method == "POST":
         enabled = request.POST.get("enable_profile_edit") == "on"
-        instance = ProfileEditFeature.objects.first()
-        feature = DefaultAccessibility.objects.filter(feature="profile_edit").first()
-        if instance:
+        company = current_company(request)
+        instance, _created = ProfileEditFeature.objects.get_or_create(
+            company_id=company, defaults={"is_enabled": enabled}
+        )
+        if not _created:
             instance.is_enabled = enabled
             instance.save()
-        else:
-            company = current_company(request)
-            ProfileEditFeature.objects.create(is_enabled=enabled, company_id=company)
+        feature = DefaultAccessibility.objects.filter(feature="profile_edit").first()
 
         if enabled and not feature:
             DefaultAccessibility.objects.create(
