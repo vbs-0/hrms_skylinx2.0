@@ -41,7 +41,7 @@ from base.methods import (
     sortby,
 )
 from base.models import CompanyLeaves, Holidays, PenaltyAccounts
-from base.rbac import is_platform_owner
+from base.rbac import is_platform_owner, current_company
 from employee.models import Employee
 from skylinx.decorators import (
     hx_request_required,
@@ -5569,7 +5569,9 @@ if apps.is_installed("recruitment"):
 def employee_past_leave_restriction(request):
     enabled_restriction = EmployeePastLeaveRestrict.objects.first()
     if not enabled_restriction:
-        enabled_restriction = EmployeePastLeaveRestrict.objects.create(enabled=True)
+        enabled_restriction = EmployeePastLeaveRestrict.objects.create(
+            enabled=True, company_id=current_company(request)
+        )
     if request.method == "POST":
         enabled_restriction.enabled = not enabled_restriction.enabled
         enabled_restriction.save()

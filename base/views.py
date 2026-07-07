@@ -765,10 +765,28 @@ def login_user(request):
 
         if params:
             next_url += f"?{params}"
-        return redirect(next_url)
+        request.session["post_login_redirect"] = next_url
+        return redirect("login-welcome")
 
     return render(
         request, "login.html", {"initialize_database": initialize_database_condition()}
+    )
+
+
+def login_welcome(request):
+    """
+    Full-screen animation shown once right after a successful login,
+    before the user lands on their actual dashboard.
+    """
+    next_url = request.session.pop("post_login_redirect", "/")
+    if not url_has_allowed_host_and_scheme(
+        next_url, allowed_hosts={request.get_host()}
+    ):
+        next_url = "/"
+    return render(
+        request,
+        "login_welcome.html",
+        {"next_url": next_url, "next_url_json": json.dumps(next_url)},
     )
 
 
@@ -6475,7 +6493,9 @@ def enable_account_block_unblock(request):
             instance.is_enabled = enabled
             instance.save()
         else:
-            AccountBlockUnblock.objects.create(is_enabled=enabled)
+            AccountBlockUnblock.objects.create(
+                is_enabled=enabled, company_id=current_company(request)
+            )
         messages.success(
             request,
             _(
@@ -6505,7 +6525,9 @@ def enable_profile_edit_feature(request):
 
         if enabled and not feature:
             DefaultAccessibility.objects.create(
-                feature="profile_edit", filter={"feature": ["profile_edit"]}
+                feature="profile_edit",
+                filter={"feature": ["profile_edit"]},
+                company_id=company,
             )
         else:
             if feature is not None:
