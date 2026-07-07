@@ -32,9 +32,14 @@ def get_mobile_user_data(user):
             shift = work_info.shift_id if work_info else None
 
             if shift:
-                # Query active days for this shift
+                # Query active days for this shift. Use .entire() (unscoped):
+                # EmployeeShiftDay rows are plain day labels shared across the
+                # schedule, and their company_id M2M is often left unassigned
+                # (e.g. a day added later), so the company-scoped manager
+                # silently drops those days — Saturday vanished this way.
+                # The shift itself already came from the user's own work info.
                 active_days_list = []
-                s_days = EmployeeShiftDay.objects.filter(day_schedule__shift_id=shift)
+                s_days = EmployeeShiftDay.objects.entire().filter(day_schedule__shift_id=shift)
                 for sd in s_days:
                     day_name = sd.day.capitalize()[:3]
                     if day_name not in active_days_list:
