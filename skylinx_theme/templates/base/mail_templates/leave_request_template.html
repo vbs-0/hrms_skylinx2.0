@@ -99,21 +99,71 @@
                 </tr>
                 <tr>
                     <td
-                        style="padding: 15px 25px 0 25px; font-size: 24px"
+                        style="padding: 15px 25px 0 25px; font-size: 22px; color: #e54f37;"
                         align="center"
                     >
-                        <strong
-                            >Hello {{ instance.get_full_name }},
-                            {{subject}}!</strong
-                        >
+                        <strong>Hey {{ instance.get_full_name }},</strong>
                     </td>
                 </tr>
+                <tr>
+                    <td align="center" style="padding-top: 4px; padding-bottom: 10px; font-size: 15px; color: #1c1c1c;">
+                        {{subject}}
+                    </td>
+                </tr>
+                {% if content %}
                 <tr>
                     <td align="center" style="padding-top: 0px">
                         <p style="width: 90%">{{content}}</p>
                     </td>
                 </tr>
-                {% if link != "#" %}
+                {% endif %}
+                {% if fields %}
+                <tr>
+                    <td align="center" style="padding: 0 25px 10px 25px;">
+                        <table width="90%" style="border-collapse: collapse;">
+                            {% for label, value in fields %}
+                            <tr>
+                                <td style="padding: 6px 10px; font-size: 14px; color: #6f6f6f; border-bottom: 1px solid #f0f0f0; width: 40%;"><strong>{{ label }}</strong></td>
+                                <td style="padding: 6px 10px; font-size: 14px; color: #1c1c1c; border-bottom: 1px solid #f0f0f0;">{{ value }}</td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                    </td>
+                </tr>
+                {% endif %}
+                {% if approve_url and reject_url %}
+                <tr>
+                    <td style="padding: 20px 15px" align="center">
+                        <a
+                            href="{{approve_url}}"
+                            style="
+                                background-color: #17a2a2;
+                                color: #fff;
+                                border-radius: 10px;
+                                display: inline-block;
+                                padding: 15px 25px;
+                                text-decoration: none;
+                                font-weight: bold;
+                                margin: 0 8px;
+                            "
+                            >Approve</a
+                        ><a
+                            href="{{reject_url}}"
+                            style="
+                                background-color: #17a2a2;
+                                color: #fff;
+                                border-radius: 10px;
+                                display: inline-block;
+                                padding: 15px 25px;
+                                text-decoration: none;
+                                font-weight: bold;
+                                margin: 0 8px;
+                            "
+                            >Reject</a
+                        >
+                    </td>
+                </tr>
+                {% elif link != "#" %}
                 <tr>
                     <td style="padding: 15px" align="center">
                         <a

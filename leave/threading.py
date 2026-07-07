@@ -8,6 +8,7 @@ from django.contrib.staticfiles import finders
 from django.core.mail import EmailMessage, EmailMultiAlternatives
 from django.db.models import Q
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils.translation import gettext as _
 
 from base.backends import ConfiguredEmailBackend
@@ -63,7 +64,27 @@ class LeaveMailSendThread(Thread):
     #                     self.request, f"Mail not sent to {recipient.get_full_name()}"
     #                 )
 
-    def send_email(self, subject, content, recipients, leave_request_id="#"):
+    def leave_fields(self):
+        lr = self.leave_request
+        return [
+            ("Leave Type", lr.leave_type_id.name if lr.leave_type_id else "-"),
+            (
+                "Leave Dates",
+                f"{lr.start_date.strftime('%b %d %Y')} - {lr.end_date.strftime('%b %d %Y')}",
+            ),
+            ("No of Days", f"{lr.requested_days} Days"),
+            ("Reason for Leave", lr.description or "-"),
+        ]
+
+    def send_email(
+        self,
+        subject,
+        content,
+        recipients,
+        leave_request_id="#",
+        approve_url=None,
+        reject_url=None,
+    ):
         email_backend = ConfiguredEmailBackend()
         display_email_name = email_backend.dynamic_from_email_with_display_name
 
@@ -89,6 +110,9 @@ class LeaveMailSendThread(Thread):
                     "protocol": protocol,
                     "subject": subject,
                     "content": content,
+                    "fields": self.leave_fields(),
+                    "approve_url": approve_url,
+                    "reject_url": reject_url,
                 },
                 request=self.request,
             )
@@ -142,14 +166,19 @@ class LeaveMailSendThread(Thread):
             owner = self.leave_request.employee_id
             reporting_manager = self.leave_request.employee_id.get_reporting_manager()
 
-            content_manager = f"This is to inform you that a new leave request has been submitted by {owner}. Take the necessary actions for the leave request. Should you have any additional information or updates, please feel free to communicate directly with the {owner}."
+            content_manager = f"A new leave request has been submitted by {owner}. Take the necessary action below."
             subject_manager = f"Leave request has been submitted by {owner}"
+
+            view_url = f"{self.protocol}://{self.host}/leave/request-view/?id={self.leave_request.id}"
+            approve_url = f"{self.protocol}://{self.host}{reverse('request-approve', args=[self.leave_request.id])}"
 
             self.send_email(
                 subject_manager,
                 content_manager,
                 [reporting_manager],
                 self.leave_request.id,
+                approve_url=approve_url,
+                reject_url=view_url,
             )
 
             content_owner = f"This is to inform you that the leave request you created has been successfully logged into our system. The manager will now take the necessary actions to address leave request. Should you have any additional information or updates, please feel free to communicate directly with the {reporting_manager}."
