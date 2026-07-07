@@ -317,6 +317,23 @@ def ai_chat(request):
     if role == "ceo" and not cfg.allow_ceo:
         return JsonResponse({"error": "AI assistant not available for your role."}, status=403)
 
+    # Plan gating: the chatbot (guidance + suggestions) needs the
+    # "ai_assistant" feature on the company's plan; the execute tier
+    # additionally needs "ai_execute" (higher plan). Platform owner bypasses —
+    # they administer plans and have no subscription of their own.
+    from base.rbac import is_platform_owner
+
+    sub_has_execute = True
+    if not is_platform_owner(request.user):
+        own_company = _company_of(request.user)
+        subscription = getattr(own_company, "subscription", None) if own_company else None
+        if subscription is None or not subscription.has_feature("ai_assistant"):
+            return JsonResponse(
+                {"error": "The AI assistant isn't included in your company's plan."},
+                status=403,
+            )
+        sub_has_execute = subscription.has_feature("ai_execute")
+
     try:
         body = json.loads(request.body.decode())
     except Exception:
@@ -348,7 +365,9 @@ def ai_chat(request):
     else:
         ctx, tk = _company_context(request.user, role)
         company = _company_of(request.user)
-        can_execute = bool(company) and _action_level(company) == "execute"
+        can_execute = (
+            bool(company) and _action_level(company) == "execute" and sub_has_execute
+        )
 
     # Verified navigation flows — written from the actual sidebar/templates.
     # The model MUST NOT invent UI steps beyond these; hallucinated buttons

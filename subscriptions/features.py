@@ -36,6 +36,15 @@ PAID_FEATURES = {
     "geofencing": {"label": "Geo-fencing", "prefixes": [], "app": None},
     "live_location": {"label": "Live Location Tracking", "prefixes": [], "app": None},
     "selfie_login": {"label": "Selfie Login", "prefixes": [], "app": None},
+    # AI assistant: the chatbot itself (guidance + suggestions modes) is one
+    # key, the execute tier (AI performs actions) is a separate key so it can
+    # sit on a higher plan. Flag-only — checked inside ai_chat, no URL/sidebar.
+    "ai_assistant": {
+        "label": "AI Assistant (Guidance + Suggestions)",
+        "prefixes": [],
+        "app": None,
+    },
+    "ai_execute": {"label": "AI Assistant Execute Mode", "prefixes": [], "app": None},
 }
 
 ALL_FEATURE_KEYS = list(PAID_FEATURES.keys())

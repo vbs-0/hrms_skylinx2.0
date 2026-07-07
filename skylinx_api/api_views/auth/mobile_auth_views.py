@@ -1,4 +1,5 @@
 from base.rbac import is_platform_owner
+from skylinx.skylinx_middlewares import set_selected_company
 from django.contrib.auth import authenticate
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -158,6 +159,43 @@ def get_mobile_user_data(user):
         except Exception:
             pass
 
+    # AI assistant availability for the mobile chatbot tab. Mirrors the web
+    # gates exactly: platform AISettings toggle + per-role allow + the
+    # company plan's "ai_assistant" feature; "execute" mode additionally
+    # needs the plan's "ai_execute" feature and the company's action level.
+    ai_assistant = {"enabled": False, "modes": []}
+    try:
+        from subscriptions.models import AISettings
+        from subscriptions.ai_assistant import _action_level, _company_of, _role_of
+
+        cfg = AISettings.load()
+        ai_role = _role_of(user)
+        role_allowed = {
+            "employee": cfg.allow_employee,
+            "hr": cfg.allow_hr,
+            "ceo": cfg.allow_ceo,
+        }[ai_role]
+        ai_company = _company_of(user)
+        subscription = getattr(ai_company, "subscription", None) if ai_company else None
+        plan_ok = is_platform_owner(user) or (
+            subscription is not None and subscription.has_feature("ai_assistant")
+        )
+        if cfg.enabled and cfg.api_key and role_allowed and plan_ok:
+            modes = ["guidance", "suggest"]
+            if (
+                ai_role != "employee"
+                and ai_company
+                and _action_level(ai_company) == "execute"
+                and (
+                    is_platform_owner(user)
+                    or (subscription and subscription.has_feature("ai_execute"))
+                )
+            ):
+                modes.append("execute")
+            ai_assistant = {"enabled": True, "role": ai_role, "modes": modes}
+    except Exception:
+        pass
+
     # Employee record holds the real name; auth User's first/last are usually
     # blank and username is the email — which then showed as the profile title.
     display_name = ""
@@ -173,6 +211,7 @@ def get_mobile_user_data(user):
         "role": role,
         "status": "active" if user.is_active else "inactive",
         "liveLocationEnabled": subscription_enabled,
+        "aiAssistant": ai_assistant,
         "employeeProfile": profile_data
     }
 
@@ -215,6 +254,21 @@ class MobileLoginAPIView(APIView):
                 "errorCode": "ACCOUNT_INACTIVE"
             }, status=403)
 
+        # This request has no Bearer token yet, so CompanyScopedJWTAuthentication
+        # never runs and the tenant context is unset - SkylinxCompanyManager would
+        # then return an empty queryset for a scoped (non-owner) user, silently
+        # dropping data like the shift's configured working days. Resolve the
+        # company here the same way that auth class does for later requests.
+        try:
+            if is_platform_owner(user):
+                set_selected_company("all")
+            else:
+                set_selected_company(
+                    user.employee_get.employee_work_info.company_id_id
+                )
+        except Exception:
+            pass
+
         refresh = RefreshToken.for_user(user)
         user_data = get_mobile_user_data(user)
 
@@ -239,6 +293,27 @@ class MobileProfileAPIView(APIView):
             "message": "Profile loaded",
             "data": user_data
         }, status=200)
+
+
+class MobileAIChatAPIView(APIView):
+    """JWT front door for the AI assistant chat.
+
+    Delegates to the SAME subscriptions.ai_assistant.ai_chat view the web
+    widget uses — no duplicated role/plan/PII logic here. We only propagate
+    the JWT-authenticated user onto the underlying Django request (DRF keeps
+    it on its own wrapper) so @login_required inside ai_chat passes.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from subscriptions.ai_assistant import ai_chat
+
+        django_request = request._request
+        django_request.user = request.user
+        # NOTE: don't touch request.data before this — ai_chat reads the raw
+        # request.body itself.
+        return ai_chat(django_request)
 
 
 class MobilePasswordChangeAPIView(APIView):

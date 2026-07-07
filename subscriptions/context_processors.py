@@ -41,6 +41,13 @@ def subscription_context(request):
                 ai_widget_visible = cfg.allow_hr
             else:
                 ai_widget_visible = cfg.allow_employee
+            # Plan gating: chatbot is a paid feature — hide the widget when
+            # the company's plan lacks it. Platform owner (no subscription of
+            # their own) keeps access to administer/test.
+            from base.rbac import is_platform_owner
+
+            if ai_widget_visible and not is_platform_owner(request.user):
+                ai_widget_visible = "ai_assistant" in (feats or [])
     except Exception:
         ai_widget_visible = False
 
