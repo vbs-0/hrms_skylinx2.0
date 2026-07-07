@@ -686,11 +686,26 @@ s_a[251] =
 s_a[252] =
     "Bulawayo|Harare|ManicalandMashonaland Central|Mashonaland East|Mashonaland West|Masvingo|Matabeleland North|Matabeleland South|Midlands";
 
-function populateStates(countryElementId, stateElementId) {
-    var countryEl = document.getElementById(countryElementId);
-    var stateEl = document.getElementById(stateElementId);
+// NOTE: several pages render MORE THAN ONE country/state pair with the SAME
+// ids (e.g. the employee profile page has both the personal-info form and the
+// bank form, each with id_country/id_state). getElementById only ever returns
+// the first match, which left every later pair unpopulated — the bank form's
+// state dropdown showed no options and IFSC autofill couldn't set the state.
+// Everything below therefore works on ELEMENTS, pairing a country select with
+// the state select inside the same <form>, and the old id-based entry points
+// are kept as wrappers that now handle ALL elements carrying that id.
 
-    if (!countryEl || !stateEl) return;  // Prevents null access
+function _partnerStateEl(countryEl, stateElementId) {
+    var scope = (countryEl.closest && countryEl.closest("form")) || document;
+    if (stateElementId) {
+        var byId = scope.querySelector('select[id="' + stateElementId + '"]');
+        if (byId) return byId;
+    }
+    return scope.querySelector('select[name$="state"]');
+}
+
+function populateStatesEl(countryEl, stateEl) {
+    if (!countryEl || !stateEl) return;
     var selectedCountryIndex = countryEl.selectedIndex;
     var selectedState = stateEl.getAttribute('data-selected') || '';
 
@@ -714,11 +729,7 @@ function populateStates(countryElementId, stateElementId) {
     }
 }
 
-
-function populateCountries(countryElementId, stateElementId) {
-    var countryEl = document.getElementById(countryElementId);
-    var stateEl = document.getElementById(stateElementId);
-
+function populateCountriesEl(countryEl, stateEl) {
     if (!countryEl) return;
 
     var selectedCountry = countryEl.getAttribute('data-selected') || '';
@@ -738,10 +749,7 @@ function populateCountries(countryElementId, stateElementId) {
         let selectedValue = countryEl.value;
         countryEl.setAttribute("data-selected", selectedValue);
         if (stateEl) {
-            populateStates(countryElementId, stateElementId);
-            if (typeof $ !== 'undefined' && $(stateEl).data('select2')) {
-                $(stateEl).trigger('change');
-            }
+            populateStatesEl(countryEl, stateEl);
         }
     };
 
@@ -751,17 +759,42 @@ function populateCountries(countryElementId, stateElementId) {
     }
 
     if (stateEl) {
-        populateStates(countryElementId, stateElementId);
+        populateStatesEl(countryEl, stateEl);
     }
     if (typeof $ !== 'undefined' && $(countryEl).data('select2')) {
         $(countryEl).trigger('change');
     }
 }
 
+// Back-compat wrappers: same signatures the inline template scripts call, but
+// they now populate EVERY element with that id (duplicate ids across forms),
+// each paired with the state select in its own form.
+function populateStates(countryElementId, stateElementId) {
+    document.querySelectorAll('select[id="' + countryElementId + '"]').forEach(function (countryEl) {
+        populateStatesEl(countryEl, _partnerStateEl(countryEl, stateElementId));
+    });
+}
+
+function populateCountries(countryElementId, stateElementId) {
+    document.querySelectorAll('select[id="' + countryElementId + '"]').forEach(function (countryEl) {
+        populateCountriesEl(countryEl, _partnerStateEl(countryEl, stateElementId));
+    });
+}
 
 function initCountryStateDropdowns() {
-    populateCountries("id_country", "id_state");
-    populateCountries("country", "state");
+    var handled = [];
+    document.querySelectorAll('select[name$="country"]').forEach(function (countryEl) {
+        populateCountriesEl(countryEl, _partnerStateEl(countryEl, null));
+        handled.push(countryEl);
+    });
+    // Legacy pairs whose select uses one of the known ids but a different name.
+    [["id_country", "id_state"], ["country", "state"]].forEach(function (pair) {
+        document.querySelectorAll('select[id="' + pair[0] + '"]').forEach(function (countryEl) {
+            if (handled.indexOf(countryEl) !== -1) return;
+            populateCountriesEl(countryEl, _partnerStateEl(countryEl, pair[1]));
+            handled.push(countryEl);
+        });
+    });
 }
 
 document.addEventListener("DOMContentLoaded", function () {
