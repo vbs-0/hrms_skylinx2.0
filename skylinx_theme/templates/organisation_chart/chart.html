@@ -369,11 +369,11 @@
 		setupTreeBehavior();
 	}
 
-	// Setup tree expand/collapse behavior
+	// Setup tree expand/collapse behavior — fully expanded by default; clicking
+	// a node still collapses/expands its branch.
 	function setupTreeBehavior() {
-		$(".genealogy-tree ul").hide();
-		$(".genealogy-tree > ul").show();
-		$(".genealogy-tree ul.active").show();
+		$(".genealogy-tree ul").show().addClass("active");
+		$(".genealogy-tree .toggle-caret").addClass("upArrow");
 
 		$(".genealogy-tree li").each(function () {
 			if ($(this).children("ul").length) {
