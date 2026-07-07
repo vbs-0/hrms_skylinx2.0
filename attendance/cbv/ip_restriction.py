@@ -13,7 +13,7 @@ from skylinx_views.generic.cbv.views import SkylinxListView, SkylinxNavView
 
 @method_decorator(login_required, name="dispatch")
 @method_decorator(
-    permission_required("attendance.view_attendanceallowedip"),
+    permission_required("base.view_attendanceallowedip"),
     name="dispatch",
 )
 class IpRestrictionList(SkylinxListView):
@@ -60,7 +60,7 @@ class IpRestrictionList(SkylinxListView):
 
 @method_decorator(login_required, name="dispatch")
 @method_decorator(
-    permission_required("attendance.view_attendanceallowedip"),
+    permission_required("base.view_attendanceallowedip"),
     name="dispatch",
 )
 class IpRestrictionnav(SkylinxNavView):
