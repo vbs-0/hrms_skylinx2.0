@@ -2051,12 +2051,15 @@ class DynamicEmailConfiguration(SkylinxModel):
     timeout = models.SmallIntegerField(
         null=True, verbose_name=_("Email Send Timeout (seconds)")
     )
-    company_id = models.OneToOneField(
+    companies = models.ManyToManyField(
         Company,
-        on_delete=models.CASCADE,
-        null=True,
         blank=True,
-        verbose_name=_("Company"),
+        verbose_name=_("Companies"),
+        help_text=_(
+            "Companies that use this mail server. Leave empty and mark "
+            "'Primary Mail Server' to use this as the fallback for every "
+            "company without its own server."
+        ),
     )
 
     def highlight_cell(self):
@@ -2081,20 +2084,23 @@ class DynamicEmailConfiguration(SkylinxModel):
                     "so only set one of those settings to True."
                 )
             )
-        if not self.company_id and not self.is_primary:
-            raise ValidationError({"company_id": _("This field is required")})
 
     def __str__(self):
         return self.username
 
-    def save(self, *args, **kwargs) -> None:
+    def companies_display(self):
         if self.is_primary:
-            DynamicEmailConfiguration.objects.filter(
-                is_primary=True, company_id=self.company_id
-            ).exclude(id=self.id).update(is_primary=False)
-            
-        if not DynamicEmailConfiguration.objects.filter(company_id=self.company_id).exists():
-            self.is_primary = True
+            return _("Primary (fallback for all)")
+        names = list(self.companies.values_list("company", flat=True))
+        return ", ".join(names) if names else _("— none assigned —")
+
+    def save(self, *args, **kwargs) -> None:
+        # "Primary" is a single global fallback used by companies with no
+        # dedicated server in `companies` — demote any other primary row.
+        if self.is_primary:
+            DynamicEmailConfiguration.objects.filter(is_primary=True).exclude(
+                id=self.id
+            ).update(is_primary=False)
 
         super().save(*args, **kwargs)
         return

@@ -65,9 +65,11 @@ class DefaultSkylinxMailBackend(EmailBackend):
         company = None
         if request and not request.user.is_anonymous:
             company = request.user.employee_get.get_company()
-        configuration = DynamicEmailConfiguration.objects.filter(
-            company_id=company
-        ).first()
+        configuration = None
+        if company:
+            configuration = DynamicEmailConfiguration.objects.filter(
+                companies=company
+            ).first()
         if configuration is None:
             configuration = DynamicEmailConfiguration.objects.filter(
                 is_primary=True

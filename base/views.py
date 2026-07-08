@@ -1,10 +1,14 @@
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 """
 views.py
 
 This module is used to map url pattens with django views or methods
 """
 from base.rbac import is_platform_owner
+
+# Mail server config lists every tenant's SMTP host/username in one flat
+# table — owner-only, regardless of any per-tenant permission held.
+owner_required = user_passes_test(is_platform_owner)
 
 
 import csv
@@ -2194,6 +2198,7 @@ def add_remove_dynamic_fields(request, **kwargs):
 
 
 @login_required
+@owner_required
 @permission_required("base.view_dynamicemailconfiguration")
 def mail_server_conf(request):
     mail_servers = DynamicEmailConfiguration.objects.all()
@@ -2211,6 +2216,7 @@ def mail_server_conf(request):
 
 
 @login_required
+@owner_required
 @hx_request_required
 @permission_required("base.view_dynamicemailconfiguration")
 def mail_server_test_email(request):
@@ -2308,6 +2314,7 @@ def mail_server_test_email(request):
 
 
 @login_required
+@owner_required
 @permission_required("base.delete_dynamicemailconfiguration")
 def mail_server_delete(request):
     """
@@ -2352,6 +2359,7 @@ def mail_server_delete(request):
 
 
 @login_required
+@owner_required
 def replace_primary_mail(request):
     """
     This method is used to replace primary mail server
@@ -2370,6 +2378,7 @@ def replace_primary_mail(request):
 
 
 @login_required
+@owner_required
 @hx_request_required
 @permission_required("base.add_dynamicemailconfiguration")
 def mail_server_create_or_update(request):
