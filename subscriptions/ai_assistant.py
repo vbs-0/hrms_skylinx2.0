@@ -198,39 +198,39 @@ def _company_context(user, role):
         except Exception:
             pass
         level = _action_level(company)
-        # Execute tier needs a name->id roster to target create_leave / know who's
-        # who by name. Names stay tokenized like everything else; only visible
-        # at execute level to keep guidance/suggest prompts smaller.
-        if level == "execute":
-            try:
-                roster = list(
-                    emp_qs.select_related("employee_work_info__department_id")[:200]
-                )
-                if roster:
-                    lines.append("Employee roster (ID: name, department):")
-                    for e in roster:
-                        wi = getattr(e, "employee_work_info", None)
-                        dept = getattr(wi, "department_id", None) if wi else None
-                        lines.append(
-                            f"- ID {e.id}: {tk.tok(e.get_full_name(), 'NAME')}"
-                            + (f", {tk.tok(dept, 'DEPT')}" if dept else "")
-                        )
-                    if emp_qs.count() > len(roster):
-                        lines.append(
-                            f"(roster truncated to {len(roster)} of {emp_qs.count()} — ask to narrow by department/name if needed.)"
-                        )
-            except Exception:
-                pass
-            try:
-                from leave.models import LeaveType
+        # Employee roster (name+ID, tokenized) is informational, not an
+        # action — available at every level so "list the employees" works
+        # even in guidance/suggest tier. Execute tier additionally needs the
+        # IDs to target create_leave.
+        try:
+            roster = list(
+                emp_qs.select_related("employee_work_info__department_id")[:200]
+            )
+            if roster:
+                lines.append("Employee roster (ID: name, department):")
+                for e in roster:
+                    wi = getattr(e, "employee_work_info", None)
+                    dept = getattr(wi, "department_id", None) if wi else None
+                    lines.append(
+                        f"- ID {e.id}: {tk.tok(e.get_full_name(), 'NAME')}"
+                        + (f", {tk.tok(dept, 'DEPT')}" if dept else "")
+                    )
+                if emp_qs.count() > len(roster):
+                    lines.append(
+                        f"(roster truncated to {len(roster)} of {emp_qs.count()} — ask to narrow by department/name if needed.)"
+                    )
+        except Exception:
+            pass
+        try:
+            from leave.models import LeaveType
 
-                types = list(LeaveType.objects.filter(company_id=company)[:50])
-                if types:
-                    lines.append("Leave types (ID: name):")
-                    for lt in types:
-                        lines.append(f"- ID {lt.id}: {tk.tok(lt.name, 'LEAVETYPE')}")
-            except Exception:
-                pass
+            types = list(LeaveType.objects.filter(company_id=company)[:50])
+            if types:
+                lines.append("Leave types (ID: name):")
+                for lt in types:
+                    lines.append(f"- ID {lt.id}: {tk.tok(lt.name, 'LEAVETYPE')}")
+        except Exception:
+            pass
         level_note = {
             "guidance": "You can only explain and guide — you cannot approve leave, generate payroll, or change any data.",
             "suggest": "You can suggest a specific action (e.g. approving a named leave request), but a human must click the real confirm button in Emplinx — you cannot execute it yourself.",
