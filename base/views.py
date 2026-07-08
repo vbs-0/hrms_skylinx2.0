@@ -769,28 +769,10 @@ def login_user(request):
 
         if params:
             next_url += f"?{params}"
-        request.session["post_login_redirect"] = next_url
-        return redirect("login-welcome")
+        return redirect(next_url)
 
     return render(
         request, "login.html", {"initialize_database": initialize_database_condition()}
-    )
-
-
-def login_welcome(request):
-    """
-    Full-screen animation shown once right after a successful login,
-    before the user lands on their actual dashboard.
-    """
-    next_url = request.session.pop("post_login_redirect", "/")
-    if not url_has_allowed_host_and_scheme(
-        next_url, allowed_hosts={request.get_host()}
-    ):
-        next_url = "/"
-    return render(
-        request,
-        "login_welcome.html",
-        {"next_url": next_url, "next_url_json": json.dumps(next_url)},
     )
 
 
