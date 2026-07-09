@@ -700,6 +700,16 @@ urlpatterns = [
         name="late-come-and-early-out-nav",
     ),
     path(
+        "late-come-early-out-status/<int:obj_id>/",
+        views.late_come_early_out_status,
+        name="late-come-early-out-status",
+    ),
+    path(
+        "late-come-early-out-delete/<int:obj_id>/",
+        views.late_come_early_out_delete,
+        name="late-come-early-out-delete",
+    ),
+    path(
         "late-come-and-early-out-export/",
         late_come_and_early_out.LateEarlyExportView.as_view(),
         name="late-come-and-early-out-export",

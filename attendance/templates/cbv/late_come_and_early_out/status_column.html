@@ -1,0 +1,46 @@
+{% load i18n %}{% load basefilters %}
+{% is_manager_of request.user instance as can_manage %}
+<div onclick="event.stopPropagation();" style="display:flex;align-items:center;gap:6px;">
+    {% if instance.status == "open" %}
+        <span class="oh-badge oh-badge--danger oh-badge--small">{% trans "Open" %}</span>
+    {% elif instance.status == "acknowledged" %}
+        <span class="oh-badge oh-badge--warning oh-badge--small">{% trans "Acknowledged" %}</span>
+    {% elif instance.status == "resolved" %}
+        <span class="oh-badge oh-badge--success oh-badge--small">{% trans "Resolved" %}</span>
+    {% else %}
+        <span class="oh-badge oh-badge--secondary oh-badge--small">{% trans "Ignored" %}</span>
+    {% endif %}
+    {% if can_manage or perms.attendance.change_attendancelatecomeearlyout %}
+        {% if instance.status == "open" or instance.status == "acknowledged" %}
+        <div class="oh-btn-group">
+            {% if instance.status == "open" %}
+            <form hx-post="{% url 'late-come-early-out-status' instance.id %}" hx-target="#late-container">
+                {% csrf_token %}
+                <input type="hidden" name="status" value="acknowledged">
+                <button type="submit" class="oh-btn oh-btn--light-bkg oh-btn--small" title="{% trans 'Acknowledge' %}">
+                    <ion-icon name="eye-outline"></ion-icon>
+                </button>
+            </form>
+            {% endif %}
+            <form hx-post="{% url 'late-come-early-out-status' instance.id %}" hx-target="#late-container"
+                hx-prompt="{% trans 'Resolution note (optional)' %}">
+                {% csrf_token %}
+                <input type="hidden" name="status" value="resolved">
+                <button type="submit" class="oh-btn oh-btn--success-outline oh-btn--light-bkg oh-btn--small" title="{% trans 'Resolve' %}">
+                    <ion-icon name="checkmark-outline"></ion-icon>
+                </button>
+            </form>
+            <form hx-post="{% url 'late-come-early-out-status' instance.id %}" hx-target="#late-container"
+                hx-prompt="{% trans 'Reason for ignoring (optional)' %}">
+                {% csrf_token %}
+                <input type="hidden" name="status" value="ignored">
+                <button type="submit" class="oh-btn oh-btn--light-bkg oh-btn--small" title="{% trans 'Ignore' %}">
+                    <ion-icon name="remove-circle-outline"></ion-icon>
+                </button>
+            </form>
+        </div>
+        {% elif instance.resolution_note %}
+            <span title="{{ instance.resolution_note }}"><ion-icon name="chatbox-ellipses-outline"></ion-icon></span>
+        {% endif %}
+    {% endif %}
+</div>

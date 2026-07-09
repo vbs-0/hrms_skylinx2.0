@@ -1276,6 +1276,58 @@ def late_in_early_out_single_view(request, obj_id):
 
 
 @login_required
+@hx_request_required
+@require_http_methods(["POST"])
+def late_come_early_out_status(request, obj_id):
+    """
+    Anomaly-queue workflow: set an AttendanceLateComeEarlyOut record's status
+    (open/acknowledged/resolved/ignored). Allowed for users with the change
+    permission or the employee's reporting manager. Optional note comes from
+    the HX-Prompt header (hx-prompt on the button).
+    """
+    from django.utils import timezone as _tz
+
+    instance = AttendanceLateComeEarlyOut.objects.filter(id=obj_id).first()
+    previous_data = request.GET.urlencode()
+    if instance is None:
+        messages.error(request, _("Record not found."))
+        return redirect(f"/attendance/late-come-early-out-search?{previous_data}")
+
+    is_manager = (
+        instance.employee_id
+        and getattr(instance.employee_id.employee_work_info, "reporting_manager_id", None)
+        and instance.employee_id.employee_work_info.reporting_manager_id.employee_user_id
+        == request.user
+    )
+    if not (
+        request.user.has_perm("attendance.change_attendancelatecomeearlyout")
+        or is_manager
+    ):
+        messages.error(request, _("You don't have permission to update this record."))
+        return redirect(f"/attendance/late-come-early-out-search?{previous_data}")
+
+    status = request.POST.get("status")
+    if status not in dict(AttendanceLateComeEarlyOut.status_choices):
+        messages.error(request, _("Invalid status."))
+        return redirect(f"/attendance/late-come-early-out-search?{previous_data}")
+
+    instance.status = status
+    instance.resolution_note = (request.headers.get("HX-Prompt") or "")[:255]
+    instance.resolved_by = getattr(request.user, "employee_get", None)
+    instance.status_updated_at = _tz.now()
+    instance.save()
+    messages.success(
+        request,
+        _("Marked {employee}'s {type} as {status}.").format(
+            employee=instance.employee_id,
+            type=instance.get_type(),
+            status=instance.get_status_display(),
+        ),
+    )
+    return redirect(f"/attendance/late-come-early-out-search?{previous_data}")
+
+
+@login_required
 @permission_required("attendance.delete_attendancelatecomeearlyout")
 @hx_request_required
 @require_http_methods(["POST"])

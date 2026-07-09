@@ -84,6 +84,7 @@ class LateComeAndEarlyOutList(SkylinxListView):
         (_("Out Date"), "attendance_id__attendance_clock_out_date"),
         (_("Min Hour"), "attendance_id__minimum_hour"),
         (_("At Work"), "attendance_id__attendance_worked_hour"),
+        (_("Status"), "status_column"),
         (_("Penalities"), "penalities_column"),
     ]
 
@@ -166,6 +167,7 @@ class LateComeAndEarlyOutListNav(SkylinxNavView):
     group_by_fields = [
         ("employee_id", _("Employee")),
         ("type", _("Type")),
+        ("status", _("Status")),
         ("attendance_id__attendance_date", _("Attendance Date")),
         ("attendance_id__shift_id", _("Shift")),
         ("attendance_id__work_type_id", _("Work Type")),
@@ -237,6 +239,9 @@ class LateComeEarlyOutDetailView(SkylinxDetailedView):
         (_("Shift"), "attendance_id__shift_id"),
         (_("Work Type"), "attendance_id__work_type_id"),
         (_("Attendance Validated"), "attendance_validated_check"),
+        (_("Status"), "get_status_display"),
+        (_("Resolution Note"), "resolution_note"),
+        (_("Resolved By"), "resolved_by"),
         (_("Penalities"), "penalities_column"),
     ]
 

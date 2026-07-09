@@ -224,6 +224,7 @@ class LateComeEarlyOutFilter(SkylinxFilterSet):
         fields = [
             "employee_id",
             "type",
+            "status",
             "attendance_id__minimum_hour",
             "attendance_id__attendance_worked_hour",
             "attendance_id__attendance_overtime_approve",

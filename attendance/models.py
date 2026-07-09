@@ -1268,6 +1268,31 @@ class AttendanceLateComeEarlyOut(SkylinxModel):
         editable=False,
     )
     type = models.CharField(max_length=20, choices=choices, verbose_name=_("Type"))
+    status_choices = [
+        ("open", _("Open")),
+        ("acknowledged", _("Acknowledged")),
+        ("resolved", _("Resolved")),
+        ("ignored", _("Ignored")),
+    ]
+    status = models.CharField(
+        max_length=15,
+        choices=status_choices,
+        default="open",
+        verbose_name=_("Status"),
+    )
+    resolved_by = models.ForeignKey(
+        Employee,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="resolved_late_early",
+        editable=False,
+        verbose_name=_("Resolved By"),
+    )
+    resolution_note = models.CharField(
+        max_length=255, blank=True, default="", verbose_name=_("Resolution Note")
+    )
+    status_updated_at = models.DateTimeField(null=True, blank=True, editable=False)
     objects = SkylinxCompanyManager(
         related_company_field="employee_id__employee_work_info__company_id"
     )
@@ -1310,6 +1335,16 @@ class AttendanceLateComeEarlyOut(SkylinxModel):
 
         return render_template(
             path="cbv/late_come_and_early_out/penality.html",
+            context={"instance": self},
+        )
+
+    def status_column(self):
+        """
+        Anomaly-queue status badge + quick actions
+        """
+
+        return render_template(
+            path="cbv/late_come_and_early_out/status_column.html",
             context={"instance": self},
         )
 
