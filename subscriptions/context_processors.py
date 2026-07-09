@@ -51,14 +51,14 @@ def subscription_context(request):
     except Exception:
         ai_widget_visible = False
 
-    # Support tab: available to every authenticated employee regardless of
-    # AI plan — the bot-chat widget itself needs to render even when the AI
-    # assistant tab is hidden, so the two flags are independent.
-    support_widget_visible = bool(
-        getattr(request, "user", None)
-        and request.user.is_authenticated
-        and getattr(request.user, "employee_get", None)
-    )
+    # Support tab: HR Manager / CEO only.
+    support_widget_visible = False
+    if getattr(request, "user", None) and request.user.is_authenticated \
+            and getattr(request.user, "employee_get", None):
+        from base.rbac import org_rank, CEO_RANK, HR_MANAGER_RANK
+
+        rank = org_rank(request.user)
+        support_widget_visible = rank <= CEO_RANK or rank == HR_MANAGER_RANK
 
     return {
         "company_features": feats,

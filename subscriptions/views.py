@@ -23,7 +23,7 @@ from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import Group, Permission
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -1102,6 +1102,13 @@ def submit_support_ticket(request):
     ticket from being recorded."""
     if request.method != "POST":
         return HttpResponse(status=405)
+
+    from base.rbac import org_rank, CEO_RANK, HR_MANAGER_RANK
+
+    rank = org_rank(request.user)
+    if not (rank <= CEO_RANK or rank == HR_MANAGER_RANK):
+        return HttpResponseForbidden("Support is only available to HR/CEO accounts.")
+
     try:
         employee = request.user.employee_get
     except Exception:
