@@ -156,14 +156,17 @@ def notify_probation_end():
 
 
 def send_birthday_wishes():
-    """Daily task: mail employees whose birthday (month/day) is today."""
+    """Daily task: mail employees whose birthday (month/day) is today, and
+    let their teammates (same company, active, excluding the birthday
+    person) know so people can wish them well."""
     from base.celebration_mail import send_celebration_mail
     from employee.models import Employee
 
     today = date.today()
-    for emp in Employee.objects.filter(
+    birthday_people = Employee.objects.filter(
         is_active=True, dob__month=today.month, dob__day=today.day
-    ):
+    )
+    for emp in birthday_people:
         send_celebration_mail(
             emp,
             subject=f"Happy Birthday, {emp.get_full_name()}! 🎂",
@@ -173,7 +176,33 @@ def send_birthday_wishes():
                 "Thank you for being a valued part of our team!"
             ),
             emoji="🎂",
+            template="base/mail_templates/birthday_template.html",
+            avatar_employee=emp,
         )
+
+        company = emp.get_company()
+        if not company:
+            continue
+        teammates = Employee.objects.filter(
+            is_active=True, employee_work_info__company_id=company
+        ).exclude(id=emp.id)
+        for mate in teammates:
+            to = mate.get_mail()
+            if not to:
+                continue
+            send_celebration_mail(
+                emp,
+                subject=f"🎉 It's {emp.get_full_name()}'s birthday today!",
+                heading=f"It's {emp.get_full_name()}'s birthday today!",
+                message=(
+                    f"Take a moment to wish {emp.get_full_name()} a happy "
+                    "birthday — a small message can make their day."
+                ),
+                emoji="🎂",
+                template="base/mail_templates/birthday_template.html",
+                to_override=to,
+                avatar_employee=emp,
+            )
 
 
 if not any(

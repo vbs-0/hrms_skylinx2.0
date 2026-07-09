@@ -1,0 +1,82 @@
+{% load static %} {% now "Y" as current_year %}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>{{white_label_company_name}}</title>
+        <style>
+            body { margin: 0; background-color: #f3edff; }
+            table { border-spacing: 0; }
+            td { padding: 0; }
+            img { border: 0; }
+            .hr-wrapper { width: 100%; table-layout: fixed; background-color: #f3edff; padding-bottom: 60px; }
+            .hr-table-main {
+                background-color: #fff; margin: 0 auto; width: 100%; max-width: 600px;
+                border-spacing: 0; font-family: 'Segoe UI', Arial, "Helvetica Neue", Helvetica, sans-serif;
+                color: #1c1c1c; margin-top: 15px; border-radius: 18px; overflow: hidden;
+                box-shadow: 0 8px 24px rgba(124, 58, 237, 0.12);
+            }
+            .hr-banner {
+                background: linear-gradient(135deg, #7c3aed 0%, #ec4899 55%, #f59e0b 100%);
+                padding: 36px 20px 28px 20px; text-align: center;
+            }
+            .hr-avatar {
+                width: 92px; height: 92px; border-radius: 50%; border: 4px solid #fff;
+                object-fit: cover; background: #fff;
+            }
+        </style>
+    </head>
+    <body>
+        <center class="hr-wrapper">
+            <table class="hr-table-main" width="100%" style="margin-top: 60px">
+                <tr>
+                    <td class="hr-banner" align="center">
+                        <div style="font-size: 40px; letter-spacing: 6px; margin-bottom: 10px;">🎉🎂🎈</div>
+                        {% if avatar_cid %}
+                        <img src="cid:{{avatar_cid}}" class="hr-avatar" alt="{{employee_name}}" />
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td align="center" style="padding-top: 10px;">
+                        <img src="cid:company_logo" height="56" width="56" style="border-radius: 12px;" />
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 18px 25px 0 25px; font-size: 26px; color: #7c3aed; font-weight: 700;" align="center">
+                        {{heading}}
+                    </td>
+                </tr>
+                <tr>
+                    <td align="center" style="padding: 12px 30px 32px 30px; font-size: 15.5px; line-height: 1.6; color: #3f3f46;">
+                        <p style="width: 92%; margin: 0 auto;">{{message}}</p>
+                    </td>
+                </tr>
+                {% if cta_url %}
+                <tr>
+                    <td align="center" style="padding-bottom: 32px;">
+                        <a href="{{cta_url}}" style="background: linear-gradient(135deg, #7c3aed, #ec4899); color: #fff; text-decoration: none; font-weight: 600; font-size: 14px; padding: 12px 28px; border-radius: 999px; display: inline-block;">
+                            {{cta_label|default:"Say Happy Birthday"}}
+                        </a>
+                    </td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <td
+                        align="center"
+                        style="
+                            padding: 18px 15px 22px 15px;
+                            color: #9ca3af;
+                            font-size: 11.5px;
+                            border-top: 1px solid #f1f0f5;
+                        "
+                    >
+                        &copy; {{current_year}} {{white_label_company_name}}
+                    </td>
+                </tr>
+            </table>
+        </center>
+    </body>
+</html>
