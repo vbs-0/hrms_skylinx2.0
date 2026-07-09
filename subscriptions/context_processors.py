@@ -51,6 +51,15 @@ def subscription_context(request):
     except Exception:
         ai_widget_visible = False
 
+    # Support tab: available to every authenticated employee regardless of
+    # AI plan — the bot-chat widget itself needs to render even when the AI
+    # assistant tab is hidden, so the two flags are independent.
+    support_widget_visible = bool(
+        getattr(request, "user", None)
+        and request.user.is_authenticated
+        and getattr(request.user, "employee_get", None)
+    )
+
     return {
         "company_features": feats,
         "company_subscription": sub,
@@ -59,4 +68,5 @@ def subscription_context(request):
         "seat_used": seat_used,
         "seat_left": seat_left,
         "ai_widget_visible": ai_widget_visible,
+        "support_widget_visible": support_widget_visible,
     }

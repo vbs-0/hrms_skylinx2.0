@@ -15,6 +15,7 @@ from base.rbac import is_platform_owner
 
 
 import json
+import logging
 import re
 
 from django.contrib import messages
@@ -22,7 +23,7 @@ from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import Group, Permission
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -1082,3 +1083,130 @@ def plan_delete(request, plan_id):
     else:
         messages.success(request, f"Deleted '{name}'.")
     return redirect("subscriptions-plans")
+
+
+# ---------------------------------------------------------------------------
+# Support desk
+# ---------------------------------------------------------------------------
+
+
+def _platform_owner_users():
+    return User.objects.filter(is_superuser=True)
+
+
+@login_required
+def submit_support_ticket(request):
+    """Client-side: raise a support ticket from the bot-chat 'Support' tab.
+    Notifies the owner (in-app + optional forward email) and confirms to the
+    raising employee by email. Best-effort on email — never blocks the
+    ticket from being recorded."""
+    if request.method != "POST":
+        return HttpResponse(status=405)
+    try:
+        employee = request.user.employee_get
+    except Exception:
+        return HttpResponseBadRequest("Not an employee account.")
+    company = employee.get_company()
+    if not company:
+        return HttpResponseBadRequest("No company on this account.")
+
+    try:
+        body = json.loads(request.body or "{}")
+    except Exception:
+        body = request.POST
+    subject = str(body.get("subject", "")).strip()[:150]
+    message = str(body.get("message", "")).strip()[:3000]
+    if not subject or not message:
+        return HttpResponseBadRequest("Subject and message are required.")
+
+    from .models import SupportSettings, SupportTicket
+
+    ticket = SupportTicket.objects.create(
+        company=company, raised_by=employee, subject=subject, message=message
+    )
+
+    # In-app notification to every platform-owner user
+    try:
+        from django.contrib.contenttypes.models import ContentType
+        from notifications.models import Notification
+
+        user_ct = ContentType.objects.get_for_model(request.user)
+        for owner in _platform_owner_users():
+            Notification.objects.create(
+                recipient=owner,
+                actor_content_type=user_ct,
+                actor_object_id=str(request.user.id),
+                verb="Support Ticket",
+                description=f"{company}: {subject} — {employee.get_full_name()}",
+                level="warning",
+            )
+    except Exception:
+        logging.getLogger(__name__).exception("Support ticket in-app notify failed")
+
+    # Owner-facing email (forwarded to whatever address the owner configured)
+    support_cfg = SupportSettings.load()
+    if support_cfg.forward_email:
+        try:
+            from django.core.mail import EmailMessage
+
+            EmailMessage(
+                subject=f"[Emplinx Support] {company}: {subject}",
+                body=(
+                    f"Company: {company}\n"
+                    f"Raised by: {employee.get_full_name()} ({employee.email})\n\n"
+                    f"{message}\n\n"
+                    f"— Ticket #{ticket.id}, view in owner console under /manage/support/"
+                ),
+                to=[support_cfg.forward_email],
+            ).send(fail_silently=True)
+        except Exception:
+            logging.getLogger(__name__).exception("Support ticket owner-email failed")
+
+    # Client-facing confirmation
+    try:
+        from django.core.mail import EmailMessage
+
+        EmailMessage(
+            subject=f"We received your issue: {subject}",
+            body=(
+                f"Hi {employee.get_full_name()},\n\n"
+                "Thanks for reaching out — our support team has received your "
+                "message and will get back to you shortly.\n\n"
+                f"Your message:\n{message}\n\n"
+                "— Emplinx Support"
+            ),
+            to=[employee.email],
+        ).send(fail_silently=True)
+    except Exception:
+        logging.getLogger(__name__).exception("Support ticket client-confirm email failed")
+
+    return JsonResponse({"ok": True, "id": ticket.id})
+
+
+@login_required
+@superuser_required
+def support_dashboard(request):
+    """Owner console: list all support tickets + configure the forward email."""
+    from .models import SupportSettings, SupportTicket
+
+    cfg = SupportSettings.load()
+    if request.method == "POST":
+        if "forward_email" in request.POST:
+            cfg.forward_email = request.POST.get("forward_email", "").strip()
+            cfg.save()
+            messages.success(request, "Support settings saved.")
+            return redirect("subscriptions-support")
+        ticket_id = request.POST.get("ticket_id")
+        if ticket_id and request.POST.get("action") == "resolve":
+            SupportTicket.objects.filter(id=ticket_id).update(
+                status="resolved", resolved_at=timezone.now()
+            )
+            messages.success(request, "Ticket marked resolved.")
+            return redirect("subscriptions-support")
+
+    tickets = SupportTicket.objects.select_related("company", "raised_by").all()[:200]
+    return render(
+        request,
+        "subscriptions/support.html",
+        {"cfg": cfg, "tickets": tickets},
+    )

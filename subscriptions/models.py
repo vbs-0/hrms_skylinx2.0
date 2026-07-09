@@ -176,3 +176,57 @@ class AISettings(models.Model):
     def load(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class SupportSettings(models.Model):
+    """Platform-wide support-desk config — owner-managed on /manage.
+    Singleton, same pattern as AISettings."""
+
+    forward_email = models.EmailField(
+        blank=True,
+        default="",
+        verbose_name="Support notification email",
+        help_text=(
+            "Every new support ticket is emailed here, sent via whichever "
+            "mail server the raising company/its fallback primary is "
+            "configured with. Leave blank to rely on in-app notifications only."
+        ),
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Support Settings"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1  # singleton
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
+class SupportTicket(models.Model):
+    STATUS_CHOICES = [
+        ("open", "Open"),
+        ("resolved", "Resolved"),
+    ]
+
+    company = models.ForeignKey(
+        "base.Company", on_delete=models.CASCADE, related_name="support_tickets"
+    )
+    raised_by = models.ForeignKey(
+        "employee.Employee", null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    subject = models.CharField(max_length=150)
+    message = models.TextField(max_length=3000)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="open")
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"[{self.company}] {self.subject}"

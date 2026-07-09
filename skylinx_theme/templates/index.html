@@ -388,7 +388,7 @@
                 });
             })();
         </script>
-        {% if ai_widget_visible %}
+        {% if ai_widget_visible or support_widget_visible %}
         {% include "subscriptions/ai_widget.html" %}
         {% endif %}
         <script>

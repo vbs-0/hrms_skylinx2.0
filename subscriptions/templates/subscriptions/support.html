@@ -1,0 +1,75 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% block content %}
+<div class="oh-wrapper max-w-4xl mx-auto">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h1 class="text-lg font-semibold">{% trans "Support Desk" %}</h1>
+      <p class="text-sm text-gray-500">{% trans "Tickets raised by clients via the bot-chat Support tab." %}</p>
+    </div>
+    <a href="{% url 'subscriptions-console' %}" class="px-4 py-2 bg-gray-100 border rounded-md text-sm hover:bg-gray-200">← {% trans "Back to console" %}</a>
+  </div>
+
+  {% if messages %}{% for m in messages %}
+  <div class="mb-3 p-3 rounded-md text-sm {% if m.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-50 text-green-700{% endif %}">{{ m }}</div>
+  {% endfor %}{% endif %}
+
+  <form method="post" class="bg-white rounded-lg shadow-card p-6 mb-6">
+    {% csrf_token %}
+    <label class="block text-sm font-medium mb-1">{% trans "Support notification email" %}</label>
+    <p class="text-xs text-gray-500 mb-2">{% trans "Every new ticket is emailed here too (via the raising company's configured mail server, or the primary fallback)." %}</p>
+    <div class="flex gap-2">
+      <input type="email" name="forward_email" value="{{ cfg.forward_email }}" placeholder="support@yourcompany.com"
+             class="flex-1 border rounded-md px-3 py-2 text-sm">
+      <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700">{% trans "Save" %}</button>
+    </div>
+  </form>
+
+  <div class="bg-white rounded-lg shadow-card overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-left text-gray-600">
+        <tr>
+          <th class="px-4 py-2">{% trans "Company" %}</th>
+          <th class="px-4 py-2">{% trans "Raised By" %}</th>
+          <th class="px-4 py-2">{% trans "Subject" %}</th>
+          <th class="px-4 py-2">{% trans "Status" %}</th>
+          <th class="px-4 py-2">{% trans "Received" %}</th>
+          <th class="px-4 py-2"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in tickets %}
+        <tr class="border-t align-top">
+          <td class="px-4 py-2">{{ t.company }}</td>
+          <td class="px-4 py-2">{{ t.raised_by|default:"—" }}</td>
+          <td class="px-4 py-2">
+            <div class="font-medium">{{ t.subject }}</div>
+            <div class="text-gray-500 text-xs mt-1 whitespace-pre-wrap">{{ t.message }}</div>
+          </td>
+          <td class="px-4 py-2">
+            {% if t.status == "open" %}
+              <span class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs">{% trans "Open" %}</span>
+            {% else %}
+              <span class="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs">{% trans "Resolved" %}</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-2 text-gray-500">{{ t.created_at|date:"M d, H:i" }}</td>
+          <td class="px-4 py-2">
+            {% if t.status == "open" %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="ticket_id" value="{{ t.id }}">
+              <input type="hidden" name="action" value="resolve">
+              <button type="submit" class="px-3 py-1 bg-gray-100 border rounded-md text-xs hover:bg-gray-200">{% trans "Mark resolved" %}</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="px-4 py-6 text-center text-gray-400">{% trans "No support tickets yet." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
