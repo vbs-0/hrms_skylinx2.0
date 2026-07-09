@@ -1706,6 +1706,7 @@ class MobileLocationLog(models.Model):
     longitude = models.FloatField()
     accuracy = models.FloatField(null=True, blank=True)
     gps_enabled = models.BooleanField(default=True)
+    within_geofence = models.BooleanField(default=True)
     captured_at = models.DateTimeField(default=timezone.now)
 
     class Meta:

@@ -538,22 +538,40 @@ class MobileLocationLogAPIView(APIView):
         else:
             gps_enabled = bool(gps_enabled_val)
 
+        # Only meaningful mid-shift — an open (not clocked-out) attendance activity.
+        is_clocked_in = AttendanceActivity.objects.filter(
+            employee_id=employee, out_datetime__isnull=True
+        ).exists()
+
+        within_geofence = True
+        if is_clocked_in:
+            geofence = GeoFencing.objects.filter(company_id=company).first()
+            if geofence:
+                try:
+                    distance_meters = geodesic(
+                        (geofence.latitude, geofence.longitude), (latitude, longitude)
+                    ).meters
+                    within_geofence = distance_meters <= geofence.radius_in_meters
+                except Exception:
+                    within_geofence = True
+
         log = MobileLocationLog.objects.create(
             employee=employee,
             latitude=latitude,
             longitude=longitude,
             accuracy=accuracy,
             gps_enabled=gps_enabled,
+            within_geofence=within_geofence,
             captured_at=timezone.now()
         )
 
         if not gps_enabled:
             from django.contrib.contenttypes.models import ContentType
             from notifications.models import Notification
-            
+
             admins = _company_alert_recipients(employee)
             user_ct = ContentType.objects.get_for_model(request.user)
-            
+
             for admin in admins:
                 Notification.objects.get_or_create(
                     recipient=admin,
@@ -564,11 +582,38 @@ class MobileLocationLogAPIView(APIView):
                     level="warning"
                 )
 
+        # Alert only on the inside->outside transition, not on every ping while
+        # already outside — otherwise HR gets spammed once per ping interval.
+        if is_clocked_in and not within_geofence:
+            previous = (
+                MobileLocationLog.objects.filter(employee=employee)
+                .exclude(id=log.id)
+                .order_by("-captured_at")
+                .first()
+            )
+            just_exited = previous is None or previous.within_geofence
+            if just_exited:
+                from django.contrib.contenttypes.models import ContentType
+                from notifications.models import Notification
+
+                admins = _company_alert_recipients(employee)
+                user_ct = ContentType.objects.get_for_model(request.user)
+                for admin in admins:
+                    Notification.objects.create(
+                        recipient=admin,
+                        actor_content_type=user_ct,
+                        actor_object_id=str(request.user.id),
+                        verb="Left Geofence",
+                        description=f"{employee.employee_first_name} {employee.employee_last_name} left the geofence zone mid-shift at {timezone.now().strftime('%I:%M %p')}.",
+                        level="danger"
+                    )
+
         return Response({
             "success": True,
             "message": "Location logged",
             "data": {
-                "id": str(log.id)
+                "id": str(log.id),
+                "withinGeofence": within_geofence
             }
         }, status=201)
 
