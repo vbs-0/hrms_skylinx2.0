@@ -91,7 +91,10 @@ class LateComeAndEarlyOutList(SkylinxListView):
     header_attrs = {
         "penalities_column": """
                              style ="width:170px !important"
-                             """
+                             """,
+        "status_column": """
+                         title="Open: just flagged, needs review. Acknowledged: HR has seen it. Resolved: reviewed and closed out. Ignored: not counted as an issue."
+                         """,
     }
 
     sortby_mapping = [
