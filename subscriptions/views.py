@@ -190,7 +190,13 @@ def create_tenant(company_name, username, email, password, plan, trial_days=None
         user.groups.add(_company_admin_group())
         user.save()
         emp = Employee.objects.create(
-            employee_first_name=company_name, employee_user_id=user, email=email
+            employee_first_name=company_name,
+            employee_user_id=user,
+            email=email,
+            # Employee.phone is required but the onboarding form never
+            # collects one — placeholder, same pattern as the email
+            # synthesis above. Admin can update it under their profile.
+            phone="9999999999",
         )
         # Creating the Employee auto-makes its work-info row (signal), so update
         # that one with the company rather than creating a second.
