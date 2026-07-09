@@ -22,6 +22,14 @@ from facedetection.face_matching import compare_faces, has_face
 from geofencing.models import GeoFencing
 
 
+def _geofence_exempt(employee):
+    """Hybrid/Work-From-Home employees (WorkType.geofence_exempt=True) skip
+    geofence checks entirely — check-in/out gate and continuous exit alerts."""
+    wi = getattr(employee, "employee_work_info", None)
+    work_type = getattr(wi, "work_type_id", None) if wi else None
+    return bool(work_type and work_type.geofence_exempt)
+
+
 def _company_alert_recipients(employee):
     """Users who should get location/geofence alerts for this employee:
     reporting manager + the employee's company's HR Managers and Company
@@ -155,8 +163,8 @@ class MobileCheckInAPIView(APIView):
         within_geofence = True
         distance_meters = 0.0
         geofence = GeoFencing.objects.filter(company_id=company).first()
-        
-        if geofence and geofence.start:
+
+        if geofence and geofence.start and not _geofence_exempt(employee):
             geofence_center = (geofence.latitude, geofence.longitude)
             employee_loc = (latitude, longitude)
             try:
@@ -433,8 +441,8 @@ class MobileCheckOutAPIView(APIView):
         within_geofence = True
         distance_meters = 0.0
         geofence = GeoFencing.objects.filter(company_id=company).first()
-        
-        if geofence and geofence.start:
+
+        if geofence and geofence.start and not _geofence_exempt(employee):
             geofence_center = (geofence.latitude, geofence.longitude)
             employee_loc = (latitude, longitude)
             try:
@@ -544,7 +552,7 @@ class MobileLocationLogAPIView(APIView):
         ).exists()
 
         within_geofence = True
-        if is_clocked_in:
+        if is_clocked_in and not _geofence_exempt(employee):
             geofence = GeoFencing.objects.filter(company_id=company).first()
             if geofence:
                 try:

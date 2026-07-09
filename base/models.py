@@ -342,6 +342,14 @@ class WorkType(SkylinxModel):
 
     work_type = models.CharField(max_length=50, verbose_name=_("Work Type"))
     company_id = models.ManyToManyField(Company, blank=True, verbose_name=_("Company"))
+    geofence_exempt = models.BooleanField(
+        default=False,
+        verbose_name=_("Exempt from Geo-fencing"),
+        help_text=_(
+            "Employees on this work type (e.g. Hybrid, Work From Home) skip "
+            "geofence checks on check-in/out and continuous location alerts."
+        ),
+    )
 
     objects = SkylinxCompanyManager()
 
