@@ -58,6 +58,7 @@ urlpatterns = [
     path("v1/base/", include("skylinx_api.api_urls.base.mobile_urls")),
     path("v1/admin/", include("skylinx_api.api_urls.admin.mobile_urls")),
     path("v1/notifications/", include("skylinx_api.api_urls.notifications.mobile_urls")),
+    path("v1/buzz/", include("buzz.urls_api")),
     # FCM push token registration — the Flutter app posts here on login.
     path("v1/notifications/device-token/", DeviceTokenView.as_view()),
     # Back-compat alias: builds <=1.1.2 have a URL bug that drops the slash

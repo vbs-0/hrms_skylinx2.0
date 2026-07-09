@@ -131,6 +131,7 @@ INSTALLED_APPS = [
     "skylinx_ldap",
     "skylinx_dbtemplate",
     "subscriptions",
+    "buzz",
 ]
 
 # ========================================

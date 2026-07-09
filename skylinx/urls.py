@@ -101,6 +101,7 @@ urlpatterns = [
     path("employee/", include("employee.urls")),
     path("api/", include("skylinx_api.urls")),
     path("manage/", include("subscriptions.urls")),
+    path("buzz/", include("buzz.urls")),
     path("subscription/", include("subscriptions.client_urls")),
     path("skylinx-widget/", include("skylinx_widgets.urls")),
     re_path(
