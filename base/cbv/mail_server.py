@@ -5,6 +5,7 @@ This page handles the mail server page in settings
 from typing import Any
 
 from django.contrib import messages
+from django.contrib.auth.decorators import user_passes_test
 from django.http import HttpResponse
 from django.urls import reverse
 from django.utils.decorators import method_decorator
@@ -13,6 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from base.filters import MailServerFilter
 from base.forms import DynamicMailConfForm
 from base.models import DynamicEmailConfiguration
+from base.rbac import is_platform_owner
 from skylinx_views.cbv_methods import login_required, permission_required
 from skylinx_views.generic.cbv.views import (
     SkylinxFormView,
@@ -20,8 +22,13 @@ from skylinx_views.generic.cbv.views import (
     SkylinxNavView,
 )
 
+# Mail server config lists every tenant's SMTP host/username in one flat
+# table — owner-only, regardless of any per-tenant permission held.
+owner_required = user_passes_test(is_platform_owner)
+
 
 @method_decorator(login_required, name="dispatch")
+@method_decorator(owner_required, name="dispatch")
 @method_decorator(
     permission_required(perm="base.view_dynamicemailconfiguration"), name="dispatch"
 )
@@ -66,6 +73,7 @@ class MailServerListView(SkylinxListView):
 
 
 @method_decorator(login_required, name="dispatch")
+@method_decorator(owner_required, name="dispatch")
 @method_decorator(
     permission_required(perm="base.view_dynamicemailconfiguration"), name="dispatch"
 )
@@ -92,6 +100,7 @@ class MailServerNav(SkylinxNavView):
 
 
 @method_decorator(login_required, name="dispatch")
+@method_decorator(owner_required, name="dispatch")
 @method_decorator(
     permission_required(perm="base.add_dynamicemailconfiguration"), name="dispatch"
 )

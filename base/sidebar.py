@@ -67,15 +67,25 @@ def audit_tracking_accessibility(request, submenu, user_perms, *args, **kwargs):
 
 
 def mail_server_accessibility(request, submenu, user_perms, *args, **kwargs):
-    return request.user.has_perm(
-        "base.view_dynamicemailconfiguration"
-    ) and not apps.is_installed("outlook_auth")
+    # Owner-only: this page lists every tenant's SMTP host/username in one
+    # flat table, which is not something a client company should ever see.
+    from base.rbac import is_platform_owner
+
+    return (
+        is_platform_owner(request.user)
+        and request.user.has_perm("base.view_dynamicemailconfiguration")
+        and not apps.is_installed("outlook_auth")
+    )
 
 
 def outlook_mail_accessibility(request, submenu, user_perms, *args, **kwargs):
-    return request.user.has_perm(
-        "base.view_dynamicemailconfiguration"
-    ) and apps.is_installed("outlook_auth")
+    from base.rbac import is_platform_owner
+
+    return (
+        is_platform_owner(request.user)
+        and request.user.has_perm("base.view_dynamicemailconfiguration")
+        and apps.is_installed("outlook_auth")
+    )
 
 
 def department_accessibility(request, submenu, user_perms, *args, **kwargs):
