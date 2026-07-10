@@ -671,13 +671,23 @@ class MobileAttendanceHistoryAPIView(APIView):
         geofence = GeoFencing.objects.filter(company_id=employee.get_company()).first()
 
         date_str = request.query_params.get("date")
-        
+        month_str = request.query_params.get("month")  # YYYY-MM — whole month
+
         # Load Attendance activities
         activities = AttendanceActivity.objects.filter(employee_id=employee)
         if date_str:
             try:
                 target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
                 activities = activities.filter(attendance_date=target_date)
+            except ValueError:
+                pass
+        elif month_str:
+            try:
+                month_start = datetime.strptime(month_str, "%Y-%m").date()
+                activities = activities.filter(
+                    attendance_date__year=month_start.year,
+                    attendance_date__month=month_start.month,
+                )
             except ValueError:
                 pass
         else:
