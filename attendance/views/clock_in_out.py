@@ -203,6 +203,26 @@ def clock_in_attendance_and_activity(
     return attendance
 
 
+def _web_checkin_blocked(request, employee):
+    """When a company has BOTH Face Detection and Geofencing turned on, the
+    plain one-click web clock-in/out must not work — only the mobile app, or
+    (for iOS, which has no app) the dedicated /attendance/web-checkin/ page,
+    actually perform that verification. Biometric device requests (which set
+    request.datetime) are exempt — the physical device already verifies the
+    person."""
+    if request.__dict__.get("datetime"):
+        return False
+    company = employee.get_company() if employee else None
+    if not company:
+        return False
+    from facedetection.models import FaceDetection
+    from geofencing.models import GeoFencing
+
+    face_on = FaceDetection.objects.filter(company_id=company, start=True).exists()
+    geo_on = GeoFencing.objects.filter(company_id=company, start=True).exists()
+    return face_on and geo_on
+
+
 @login_required
 @hx_request_required
 def clock_in(request):
@@ -255,6 +275,13 @@ def clock_in(request):
                 return HttpResponse(_("You cannot mark attendance from this network"))
 
         employee, work_info = employee_exists(request)
+        if employee and _web_checkin_blocked(request, employee):
+            return HttpResponse(
+                _(
+                    "Your company requires face + location verification to check in. "
+                    "Use the Emplinx mobile app, or (on iPhone) open this page in Safari."
+                )
+            )
         datetime_now = timezone.localtime()
         if request.__dict__.get("datetime"):
             datetime_now = request.datetime
@@ -500,6 +527,13 @@ def clock_out(request):
         if request.__dict__.get("datetime"):
             datetime_now = request.datetime
         employee, work_info = employee_exists(request)
+        if employee and _web_checkin_blocked(request, employee):
+            return HttpResponse(
+                _(
+                    "Your company requires face + location verification to check out. "
+                    "Use the Emplinx mobile app, or (on iPhone) open this page in Safari."
+                )
+            )
         if employee and work_info is not None:
             shift = work_info.shift_id
             date_today = date.today()
@@ -577,3 +611,14 @@ def clock_out(request):
     else:
         messages.error(request, _("Check in/Check out feature is not enabled."))
         return SkylinxRedirect(request)
+
+
+@login_required
+def web_face_checkin(request):
+    """
+    Browser-based face + geo check-in/out for devices with no native app —
+    iOS has no Emplinx app, so iPhone users check in from Safari here instead.
+    Posts straight to the same mobile check-in/check-out API the Flutter app
+    uses (selfie + GPS), so verification logic isn't duplicated.
+    """
+    return render(request, "attendance/web_face_checkin.html")

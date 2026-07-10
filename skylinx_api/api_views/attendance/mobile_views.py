@@ -4,10 +4,13 @@ from django.core.files.storage import default_storage
 from django.utils import timezone
 from geopy.distance import geodesic
 from rest_framework import status
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+
+from skylinx_api.auth import CompanyScopedJWTAuthentication
 
 from attendance.models import Attendance, AttendanceActivity, EmployeeShiftDay, MobileAttendanceDetail, MobileLocationLog
 from attendance.views.clock_in_out import (
@@ -68,6 +71,7 @@ def _company_alert_recipients(employee):
 
 class MobileCheckInAPIView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [CompanyScopedJWTAuthentication, SessionAuthentication]
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request):
@@ -360,6 +364,7 @@ class MobileCheckInAPIView(APIView):
 
 class MobileCheckOutAPIView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [CompanyScopedJWTAuthentication, SessionAuthentication]
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request):

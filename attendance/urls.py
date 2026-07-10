@@ -291,6 +291,7 @@ urlpatterns = [
     ),
     path("clock-in/", clock_in_out.clock_in, name="clock-in"),
     path("clock-out/", clock_in_out.clock_out, name="clock-out"),
+    path("web-checkin/", clock_in_out.web_face_checkin, name="web-face-checkin"),
     path(
         "on-time-view/",
         views.on_time_view,

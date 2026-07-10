@@ -1,0 +1,135 @@
+{% load i18n %}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>{% trans "Check In / Out" %}</title>
+<style>
+  body{font-family:-apple-system,Inter,sans-serif;background:#f8fafc;margin:0;padding:20px;color:#0f172a;}
+  .card{max-width:420px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:0 6px 24px rgba(0,0,0,.08);padding:20px;}
+  h1{font-size:18px;margin:0 0 4px;}
+  p.sub{color:#64748b;font-size:13px;margin:0 0 18px;}
+  .mode-toggle{display:flex;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:16px;}
+  .mode-toggle button{flex:1;padding:10px;border:none;background:#f8fafc;font-size:13px;font-weight:600;cursor:pointer;}
+  .mode-toggle button.active{background:#4f46e5;color:#fff;}
+  label.file-label{display:block;border:2px dashed #cbd5e1;border-radius:10px;padding:18px;text-align:center;cursor:pointer;font-size:13px;color:#4f46e5;margin-bottom:12px;}
+  input[type=file]{display:none;}
+  #preview{max-width:100%;border-radius:10px;margin-bottom:12px;display:none;}
+  #gps-status{font-size:12.5px;color:#64748b;margin-bottom:12px;}
+  #submit-btn{width:100%;background:#4f46e5;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;}
+  #submit-btn:disabled{opacity:.5;}
+  #result{margin-top:14px;font-size:13px;padding:10px;border-radius:8px;display:none;}
+  #result.ok{background:#dcfce7;color:#166534;display:block;}
+  #result.err{background:#fee2e2;color:#991b1b;display:block;}
+  .ios-note{font-size:12px;color:#92400e;background:#fef3c7;border-radius:8px;padding:8px 10px;margin-bottom:14px;}
+</style>
+</head>
+<body>
+{% csrf_token %}
+<div class="card">
+  <h1>{% trans "Face + Location Check In" %}</h1>
+  <p class="sub">{% trans "Your company requires a selfie and your current location to check in or out." %}</p>
+  <div id="ios-note" class="ios-note" style="display:none;">{% trans "For best results, use Safari on your iPhone." %}</div>
+
+  <div class="mode-toggle">
+    <button type="button" id="mode-in" class="active">{% trans "Check In" %}</button>
+    <button type="button" id="mode-out">{% trans "Check Out" %}</button>
+  </div>
+
+  <label class="file-label" id="file-label">
+    {% trans "Tap to take a selfie" %}
+    <input type="file" id="selfie" accept="image/*" capture="user">
+  </label>
+  <img id="preview">
+
+  <div id="gps-status">{% trans "Getting your location..." %}</div>
+
+  <button id="submit-btn" disabled>{% trans "Check In" %}</button>
+  <div id="result"></div>
+</div>
+
+<script>
+(function(){
+  var mode='in';
+  var modeIn=document.getElementById('mode-in'), modeOut=document.getElementById('mode-out');
+  var submitBtn=document.getElementById('submit-btn');
+  var selfieInput=document.getElementById('selfie'), preview=document.getElementById('preview');
+  var gpsStatus=document.getElementById('gps-status'), result=document.getElementById('result');
+  var iosNote=document.getElementById('ios-note');
+  var lat=null, lng=null, accuracy=0;
+
+  var ua=navigator.userAgent;
+  var isIOS=/iPad|iPhone|iPod/.test(ua) || (ua.includes('Macintosh') && 'ontouchend' in document);
+  var isSafari=/^((?!chrome|android).)*safari/i.test(ua);
+  if(isIOS && !isSafari){ iosNote.style.display='block'; iosNote.textContent="{% trans 'Open this page in Safari for camera/location access to work.' %}"; }
+
+  function setMode(m){
+    mode=m;
+    modeIn.classList.toggle('active', m==='in');
+    modeOut.classList.toggle('active', m==='out');
+    submitBtn.textContent = m==='in' ? "{% trans 'Check In' %}" : "{% trans 'Check Out' %}";
+  }
+  modeIn.onclick=function(){setMode('in');};
+  modeOut.onclick=function(){setMode('out');};
+
+  function csrf(){var m=document.cookie.match(/csrftoken=([^;]+)/);return m?m[1]:'';}
+
+  function updateSubmitState(){
+    submitBtn.disabled = !(selfieInput.files.length && lat!==null && lng!==null);
+  }
+
+  selfieInput.addEventListener('change', function(){
+    if(selfieInput.files.length){
+      preview.src = URL.createObjectURL(selfieInput.files[0]);
+      preview.style.display='block';
+    }
+    updateSubmitState();
+  });
+
+  if(!navigator.geolocation){
+    gpsStatus.textContent="{% trans 'Geolocation not supported on this browser.' %}";
+  } else {
+    navigator.geolocation.getCurrentPosition(function(pos){
+      lat=pos.coords.latitude; lng=pos.coords.longitude; accuracy=pos.coords.accuracy||0;
+      gpsStatus.textContent="{% trans 'Location acquired.' %}";
+      updateSubmitState();
+    }, function(err){
+      gpsStatus.textContent="{% trans 'Could not get your location — allow location access and reload.' %}";
+    }, {enableHighAccuracy:true, timeout:15000});
+  }
+
+  submitBtn.addEventListener('click', function(){
+    if(submitBtn.disabled) return;
+    submitBtn.disabled=true;
+    result.className=''; result.style.display='none';
+
+    var fd=new FormData();
+    fd.append('selfie', selfieInput.files[0]);
+    fd.append('latitude', lat);
+    fd.append('longitude', lng);
+    fd.append('accuracy', accuracy);
+    fd.append('gpsEnabled', 'true');
+
+    var url = mode==='in' ? '/api/v1/attendance/check-in/' : '/api/v1/attendance/check-out/';
+    fetch(url, {method:'POST', headers:{'X-CSRFToken': csrf()}, credentials:'same-origin', body: fd})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok, j:j};});})
+      .then(function(res){
+        if(res.ok && res.j.success!==false){
+          result.className='ok';
+          result.textContent = res.j.message || "{% trans 'Done.' %}";
+        } else {
+          result.className='err';
+          result.textContent = res.j.message || "{% trans 'Something went wrong.' %}";
+        }
+        result.style.display='block';
+      })
+      .catch(function(){
+        result.className='err'; result.textContent="{% trans 'Could not reach the server.' %}"; result.style.display='block';
+      })
+      .finally(function(){ updateSubmitState(); });
+  });
+})();
+</script>
+</body>
+</html>
