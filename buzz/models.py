@@ -43,6 +43,10 @@ def can_message(sender, target):
     t_company = target.get_company()
     if not s_company or s_company != t_company:
         return False, "cross_company"
+    if BuzzModeration.objects.filter(employee_id=sender.id, blocked=True).exists():
+        return False, "blocked"
+    if BuzzModeration.objects.filter(employee_id=target.id, blocked=True).exists():
+        return False, "blocked"
 
     from base.rbac import org_rank, HR_MANAGER_RANK
 
@@ -150,6 +154,9 @@ class BuzzParticipant(models.Model):
         ).exclude(sender=self.employee).count()
 
 
+EDIT_WINDOW_SECONDS = 10 * 60
+
+
 class BuzzMessage(models.Model):
     conversation = models.ForeignKey(
         BuzzConversation, on_delete=models.CASCADE, related_name="messages"
@@ -159,9 +166,50 @@ class BuzzMessage(models.Model):
     )
     body = models.TextField(max_length=4000)
     created_at = models.DateTimeField(auto_now_add=True)
+    edited_at = models.DateTimeField(null=True, blank=True)
+    is_deleted = models.BooleanField(default=False)
+    deleted_by = models.ForeignKey(
+        Employee, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
 
     class Meta:
         ordering = ["created_at"]
 
     def __str__(self):
         return f"{self.sender}: {self.body[:40]}"
+
+    def editable_by(self, employee):
+        return (
+            not self.is_deleted
+            and self.sender_id == employee.id
+            and (timezone.now() - self.created_at).total_seconds() <= EDIT_WINDOW_SECONDS
+        )
+
+    def deletable_by(self, employee):
+        if self.is_deleted:
+            return False
+        if self.sender_id == employee.id:
+            return True
+        from base.rbac import org_rank, HR_MANAGER_RANK
+
+        user = employee.employee_user_id
+        return bool(user and org_rank(user) <= HR_MANAGER_RANK)
+
+
+class BuzzModeration(models.Model):
+    """HR/CEO moderation flags on an employee. Scope is implicitly the
+    employee's own company — every call site re-checks org_rank(actor) and
+    that actor/target share a company before touching this."""
+
+    employee = models.OneToOneField(
+        Employee, on_delete=models.CASCADE, related_name="buzz_moderation"
+    )
+    muted = models.BooleanField(default=False)
+    blocked = models.BooleanField(default=False)
+    updated_by = models.ForeignKey(
+        Employee, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.employee} (muted={self.muted}, blocked={self.blocked})"

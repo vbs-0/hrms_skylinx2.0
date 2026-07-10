@@ -15,6 +15,7 @@ from buzz.models import (
     BuzzConnection,
     BuzzConversation,
     BuzzMessage,
+    BuzzModeration,
     BuzzParticipant,
     can_message,
 )
@@ -29,8 +30,13 @@ def _me(request):
         return None
 
 
-def _notify(recipient_employee, actor_user, verb, description):
-    """In-app notification (rides the existing FCM push signal)."""
+def _is_muted(employee):
+    return BuzzModeration.objects.filter(employee_id=employee.id, muted=True).exists()
+
+
+def _notify(recipient_employee, actor_user, verb, description, mail_subject=None, mail_body=None):
+    """In-app notification (rides the existing FCM push signal) + a
+    best-effort background email — never blocks the request on SMTP."""
     try:
         from django.contrib.contenttypes.models import ContentType
         from notifications.models import Notification
@@ -48,6 +54,30 @@ def _notify(recipient_employee, actor_user, verb, description):
         )
     except Exception:
         pass
+
+    if mail_subject and recipient_employee.email:
+        import threading
+
+        def _send():
+            try:
+                from django.core.mail import EmailMessage
+
+                EmailMessage(
+                    subject=mail_subject,
+                    body=mail_body or description,
+                    to=[recipient_employee.email],
+                ).send(fail_silently=True)
+            except Exception:
+                pass
+
+        threading.Thread(target=_send, daemon=True).start()
+
+
+def _is_hr_or_ceo(employee):
+    from base.rbac import org_rank, HR_MANAGER_RANK
+
+    user = employee.employee_user_id
+    return bool(user and org_rank(user) <= HR_MANAGER_RANK)
 
 
 class BuzzAPIView(APIView):
@@ -67,6 +97,41 @@ def _emp_payload(e, me=None):
         "can_message": allowed,
         "reason": reason,
     }
+
+
+class ProfileAPIView(BuzzAPIView):
+    """Darwinbox-style richer profile card for one directory entry."""
+
+    def get(self, request, employee_id):
+        me = _me(request)
+        if me is None:
+            return Response({"error": "Not an employee."}, status=400)
+        e = Employee.objects.filter(id=employee_id, is_active=True).select_related(
+            "employee_work_info__department_id",
+            "employee_work_info__job_position_id",
+            "employee_work_info__work_type_id",
+            "employee_work_info__reporting_manager_id",
+        ).first()
+        if e is None or e.get_company() != me.get_company():
+            return Response({"error": "Not found."}, status=404)
+        wi = getattr(e, "employee_work_info", None)
+        manager = getattr(wi, "reporting_manager_id", None) if wi else None
+        allowed, reason = can_message(me, e)
+        return Response({
+            "id": e.id,
+            "name": e.get_full_name(),
+            "avatar": e.get_avatar(),
+            "email": e.email or "",
+            "phone": e.phone or "",
+            "department": str(getattr(wi, "department_id", "") or ""),
+            "job_position": str(getattr(wi, "job_position_id", "") or ""),
+            "work_type": str(getattr(wi, "work_type_id", "") or ""),
+            "joining_date": wi.date_joining.isoformat() if wi and wi.date_joining else None,
+            "reporting_manager": manager.get_full_name() if manager else "",
+            "is_hr_or_ceo": _is_hr_or_ceo(e),
+            "can_message": allowed,
+            "reason": reason,
+        })
 
 
 class DirectoryAPIView(BuzzAPIView):
@@ -96,13 +161,22 @@ class DirectoryAPIView(BuzzAPIView):
                 "target_id", flat=True
             )
         )
+        moderated = {
+            m.employee_id: m
+            for m in BuzzModeration.objects.filter(
+                employee__employee_work_info__company_id=company
+            )
+        }
         data = []
         for e in qs[:300]:
             p = _emp_payload(e, me)
             if e.id in pending_out:
                 p["reason"] = "request_pending"
+            mod = moderated.get(e.id)
+            p["muted"] = bool(mod and mod.muted)
+            p["blocked"] = bool(mod and mod.blocked)
             data.append(p)
-        return Response({"results": data})
+        return Response({"results": data, "can_moderate": _is_hr_or_ceo(me)})
 
 
 class ConversationsAPIView(BuzzAPIView):
@@ -186,17 +260,41 @@ class MessagesAPIView(BuzzAPIView):
             qs = qs.filter(id__gt=int(after))
         else:
             qs = qs.order_by("-created_at")[:50][::-1]
-        data = [
-            {
+
+        # "Seen" for a 1:1: the other participant's last_read_at is at/after
+        # this message's created_at. Group chats show a seen-count instead.
+        others = list(part.conversation.participants.exclude(employee=me))
+        is_group = part.conversation.is_group
+        data = []
+        for m in qs:
+            if m.is_deleted:
+                data.append({
+                    "id": m.id, "sender_id": m.sender_id,
+                    "sender": m.sender.get_full_name() if m.sender else "—",
+                    "mine": m.sender_id == me.id, "body": "", "deleted": True,
+                    "edited": False, "seen": False, "at": m.created_at.isoformat(),
+                })
+                continue
+            seen = False
+            if m.sender_id == me.id and others:
+                if is_group:
+                    seen_count = sum(1 for o in others if o.last_read_at >= m.created_at)
+                    seen = seen_count >= len(others)
+                else:
+                    seen = others[0].last_read_at >= m.created_at
+            data.append({
                 "id": m.id,
                 "sender_id": m.sender_id,
                 "sender": m.sender.get_full_name() if m.sender else "—",
                 "mine": m.sender_id == me.id,
                 "body": m.body,
+                "deleted": False,
+                "edited": bool(m.edited_at),
+                "seen": seen,
+                "editable": m.editable_by(me),
+                "deletable": m.deletable_by(me),
                 "at": m.created_at.isoformat(),
-            }
-            for m in qs
-        ]
+            })
         part.last_read_at = timezone.now()
         part.save(update_fields=["last_read_at"])
         return Response({"results": data, "title": part.conversation.display_title(for_employee=me)})
@@ -205,6 +303,8 @@ class MessagesAPIView(BuzzAPIView):
         me, part = self._participant(request, conversation_id)
         if part is None:
             return Response({"error": "Not your conversation."}, status=404)
+        if BuzzModeration.objects.filter(employee_id=me.id, blocked=True).exists():
+            return Response({"error": "Your Buzz access has been blocked."}, status=403)
         body = str(request.data.get("body", "")).strip()[:4000]
         if not body:
             return Response({"error": "Empty message."}, status=400)
@@ -214,14 +314,95 @@ class MessagesAPIView(BuzzAPIView):
         part.conversation.save(update_fields=["updated_at"])  # bump ordering
         part.last_read_at = timezone.now()
         part.save(update_fields=["last_read_at"])
-        for other in part.conversation.participants.exclude(employee=me).select_related("employee"):
-            _notify(
-                other.employee,
-                request.user,
-                "Buzz",
-                f"{me.get_full_name()}: {body[:80]}",
-            )
+        if not _is_muted(me):
+            for other in part.conversation.participants.exclude(employee=me).select_related("employee"):
+                _notify(
+                    other.employee,
+                    request.user,
+                    "Buzz",
+                    f"{me.get_full_name()}: {body[:80]}",
+                    mail_subject=f"New Buzz message from {me.get_full_name()}",
+                    mail_body=f"{me.get_full_name()} sent you a message on Buzz:\n\n{body}\n\nReply from the Buzz tab in Emplinx.",
+                )
         return Response({"id": msg.id, "at": msg.created_at.isoformat()}, status=201)
+
+
+class MessageDetailAPIView(BuzzAPIView):
+    """PATCH: edit own message within the edit window. DELETE: soft-delete
+    (own message anytime, or HR/CEO on any message in their company)."""
+
+    def _get(self, request, message_id):
+        me = _me(request)
+        if me is None:
+            return None, None
+        msg = BuzzMessage.objects.filter(
+            id=message_id, conversation__participants__employee=me
+        ).select_related("conversation").first()
+        return me, msg
+
+    def patch(self, request, message_id):
+        me, msg = self._get(request, message_id)
+        if msg is None:
+            return Response({"error": "Message not found."}, status=404)
+        if not msg.editable_by(me):
+            return Response({"error": "This message can no longer be edited."}, status=403)
+        body = str(request.data.get("body", "")).strip()[:4000]
+        if not body:
+            return Response({"error": "Empty message."}, status=400)
+        msg.body = body
+        msg.edited_at = timezone.now()
+        msg.save(update_fields=["body", "edited_at"])
+        return Response({"id": msg.id, "body": msg.body, "edited_at": msg.edited_at.isoformat()})
+
+    def delete(self, request, message_id):
+        me, msg = self._get(request, message_id)
+        if msg is None:
+            return Response({"error": "Message not found."}, status=404)
+        if not msg.deletable_by(me):
+            return Response({"error": "You can't delete this message."}, status=403)
+        msg.is_deleted = True
+        msg.deleted_by = me
+        msg.body = ""
+        msg.save(update_fields=["is_deleted", "deleted_by", "body"])
+        return Response({"id": msg.id, "deleted": True})
+
+
+class ModerationAPIView(BuzzAPIView):
+    """HR/CEO only. GET current mute/block state for an employee in their own
+    company. POST {'muted': bool} and/or {'blocked': bool} to update."""
+
+    def _target(self, request, employee_id):
+        me = _me(request)
+        if me is None or not _is_hr_or_ceo(me):
+            return None, None
+        target = Employee.objects.filter(id=employee_id).first()
+        if target is None or target.get_company() != me.get_company():
+            return me, None
+        return me, target
+
+    def get(self, request, employee_id):
+        me, target = self._target(request, employee_id)
+        if me is None:
+            return Response({"error": "Not allowed."}, status=403)
+        if target is None:
+            return Response({"error": "Not found."}, status=404)
+        mod = BuzzModeration.objects.filter(employee_id=target.id).first()
+        return Response({"muted": bool(mod and mod.muted), "blocked": bool(mod and mod.blocked)})
+
+    def post(self, request, employee_id):
+        me, target = self._target(request, employee_id)
+        if me is None:
+            return Response({"error": "Not allowed."}, status=403)
+        if target is None:
+            return Response({"error": "Not found."}, status=404)
+        mod, _created = BuzzModeration.objects.get_or_create(employee_id=target.id)
+        if "muted" in request.data:
+            mod.muted = bool(request.data.get("muted"))
+        if "blocked" in request.data:
+            mod.blocked = bool(request.data.get("blocked"))
+        mod.updated_by = me
+        mod.save()
+        return Response({"muted": mod.muted, "blocked": mod.blocked})
 
 
 class ConnectionsAPIView(BuzzAPIView):
