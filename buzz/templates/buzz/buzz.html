@@ -1,0 +1,172 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% block content %}
+<div class="oh-wrapper" style="max-width:1200px;margin:0 auto;">
+  <h1 style="font-size:20px;font-weight:700;margin:14px 0;">Buzz <span style="font-size:13px;color:#64748b;font-weight:400;">{% trans "Directory & Chat" %}</span></h1>
+  <div id="buzz-root" style="display:flex;gap:14px;height:calc(100vh - 180px);min-height:480px;">
+
+    <!-- Left: tabs (Chats / Directory / Requests) -->
+    <div style="width:340px;display:flex;flex-direction:column;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+      <div style="display:flex;border-bottom:1px solid #e2e8f0;">
+        <button class="bz-tab" data-tab="chats" style="flex:1;padding:10px;border:none;background:#f8fafc;cursor:pointer;font-weight:600;">{% trans "Chats" %}</button>
+        <button class="bz-tab" data-tab="directory" style="flex:1;padding:10px;border:none;background:#fff;cursor:pointer;">{% trans "Directory" %}</button>
+        <button class="bz-tab" data-tab="requests" style="flex:1;padding:10px;border:none;background:#fff;cursor:pointer;">{% trans "Requests" %} <span id="bz-req-count"></span></button>
+      </div>
+      <div id="bz-search-wrap" style="padding:8px;display:none;">
+        <input id="bz-search" placeholder="{% trans 'Search people, departments...' %}"
+               style="width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:7px 10px;font-size:13px;outline:none;">
+      </div>
+      <div id="bz-left-list" style="flex:1;overflow-y:auto;"></div>
+    </div>
+
+    <!-- Right: active conversation -->
+    <div style="flex:1;display:flex;flex-direction:column;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+      <div id="bz-conv-header" style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-weight:600;">{% trans "Select a conversation" %}</div>
+      <div id="bz-msgs" style="flex:1;overflow-y:auto;padding:14px;background:#f8fafc;font-size:13.5px;"></div>
+      <div style="display:flex;gap:8px;padding:10px;border-top:1px solid #e2e8f0;">
+        <input id="bz-input" placeholder="{% trans 'Type a message...' %}" disabled
+               style="flex:1;border:1px solid #cbd5e1;border-radius:8px;padding:9px 12px;font-size:13.5px;outline:none;">
+        <button id="bz-send" disabled style="background:#4f46e5;color:#fff;border:none;border-radius:8px;padding:0 18px;cursor:pointer;">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var API='/api/v1/buzz/';
+  var activeConv=null,pollTimer=null,lastMsgId=0,tab='chats';
+  function csrf(){var m=document.cookie.match(/csrftoken=([^;]+)/);return m?m[1]:'';}
+  function jget(url){return fetch(url,{headers:{'X-CSRFToken':csrf()}}).then(function(r){return r.json();});}
+  function jpost(url,data){return fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},body:JSON.stringify(data)}).then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j};});});}
+  function el(tag,css,text){var d=document.createElement(tag);if(css)d.style.cssText=css;if(text)d.textContent=text;return d;}
+  var leftList=document.getElementById('bz-left-list'),msgs=document.getElementById('bz-msgs'),
+      header=document.getElementById('bz-conv-header'),input=document.getElementById('bz-input'),
+      send=document.getElementById('bz-send'),search=document.getElementById('bz-search');
+
+  // ---- tabs ----
+  document.querySelectorAll('.bz-tab').forEach(function(b){
+    b.onclick=function(){
+      tab=b.dataset.tab;
+      document.querySelectorAll('.bz-tab').forEach(function(x){x.style.background='#fff';x.style.fontWeight='400';});
+      b.style.background='#f8fafc';b.style.fontWeight='600';
+      document.getElementById('bz-search-wrap').style.display=(tab==='directory')?'block':'none';
+      renderTab();
+    };
+  });
+  function renderTab(){
+    if(tab==='chats')loadChats();
+    else if(tab==='directory')loadDirectory(search.value);
+    else loadRequests();
+  }
+
+  // ---- chats list ----
+  function loadChats(){
+    jget(API+'conversations/').then(function(d){
+      leftList.innerHTML='';
+      (d.results||[]).forEach(function(c){
+        var row=el('div','padding:11px 14px;border-bottom:1px solid #f1f5f9;cursor:pointer;display:flex;justify-content:space-between;align-items:center;');
+        var left=el('div');
+        left.appendChild(el('div','font-weight:600;font-size:13.5px;',c.title));
+        left.appendChild(el('div','font-size:12px;color:#64748b;margin-top:2px;',c.last_message||'—'));
+        row.appendChild(left);
+        if(c.unread>0){var badge=el('span','background:#4f46e5;color:#fff;border-radius:999px;font-size:11px;padding:2px 8px;',String(c.unread));row.appendChild(badge);}
+        row.onclick=function(){openConv(c.id,c.title);};
+        leftList.appendChild(row);
+      });
+      if(!(d.results||[]).length)leftList.appendChild(el('div','padding:20px;color:#94a3b8;font-size:13px;','No chats yet — find someone in Directory.'));
+    });
+  }
+
+  // ---- directory ----
+  function loadDirectory(q){
+    jget(API+'directory/'+(q?'?q='+encodeURIComponent(q):'')).then(function(d){
+      leftList.innerHTML='';
+      (d.results||[]).forEach(function(p){
+        var row=el('div','padding:11px 14px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;gap:8px;');
+        var left=el('div');
+        left.appendChild(el('div','font-weight:600;font-size:13.5px;',p.name));
+        left.appendChild(el('div','font-size:12px;color:#64748b;margin-top:2px;',[p.job_position,p.department].filter(Boolean).join(' · ')||'—'));
+        row.appendChild(left);
+        var btn=el('button','border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;');
+        if(p.can_message){
+          btn.textContent='Message';btn.style.background='#4f46e5';btn.style.color='#fff';
+          btn.onclick=function(){jpost(API+'conversations/',{employee_id:p.id}).then(function(r){if(r.ok){switchToChats();openConv(r.j.id,p.name);}});};
+        }else if(p.reason==='request_pending'){
+          btn.textContent='Requested';btn.disabled=true;btn.style.background='#e5e7eb';btn.style.color='#6b7280';
+        }else if(p.reason==='needs_connection'){
+          btn.textContent='Connect';btn.style.background='#f59e0b';btn.style.color='#fff';
+          btn.onclick=function(){
+            jpost(API+'connections/',{employee_id:p.id}).then(function(r){if(r.ok){btn.textContent='Requested';btn.disabled=true;btn.style.background='#e5e7eb';btn.style.color='#6b7280';}});
+          };
+        }else{btn.style.display='none';}
+        row.appendChild(btn);
+        leftList.appendChild(row);
+      });
+    });
+  }
+  var debounce=null;
+  search.addEventListener('input',function(){clearTimeout(debounce);debounce=setTimeout(function(){loadDirectory(search.value);},300);});
+
+  // ---- requests ----
+  function loadRequests(){
+    jget(API+'connections/').then(function(d){
+      leftList.innerHTML='';
+      var results=d.results||[];
+      document.getElementById('bz-req-count').textContent=results.length?('('+results.length+')'):'';
+      results.forEach(function(r){
+        var row=el('div','padding:11px 14px;border-bottom:1px solid #f1f5f9;');
+        row.appendChild(el('div','font-weight:600;font-size:13.5px;',r.from));
+        if(r.message)row.appendChild(el('div','font-size:12px;color:#64748b;margin:3px 0;',r.message));
+        var btns=el('div','display:flex;gap:8px;margin-top:6px;');
+        var acc=el('button','background:#16a34a;color:#fff;border:none;border-radius:8px;padding:5px 14px;font-size:12px;cursor:pointer;','Accept');
+        var dec=el('button','background:#e5e7eb;color:#111827;border:none;border-radius:8px;padding:5px 14px;font-size:12px;cursor:pointer;','Decline');
+        acc.onclick=function(){jpost(API+'connections/',{connection_id:r.id,action:'accept'}).then(loadRequests);};
+        dec.onclick=function(){jpost(API+'connections/',{connection_id:r.id,action:'decline'}).then(loadRequests);};
+        btns.appendChild(acc);btns.appendChild(dec);row.appendChild(btns);
+        leftList.appendChild(row);
+      });
+      if(!results.length)leftList.appendChild(el('div','padding:20px;color:#94a3b8;font-size:13px;','No pending requests.'));
+    });
+  }
+
+  function switchToChats(){document.querySelector('.bz-tab[data-tab="chats"]').click();}
+
+  // ---- conversation ----
+  function renderMsgs(list,append){
+    if(!append)msgs.innerHTML='';
+    list.forEach(function(m){
+      var b=el('div','max-width:70%;border-radius:10px;padding:8px 11px;margin-bottom:8px;white-space:pre-wrap;'+(m.mine?'background:#4f46e5;color:#fff;margin-left:auto;':'background:#fff;border:1px solid #e2e8f0;color:#0f172a;'));
+      if(!m.mine)b.appendChild(el('div','font-size:11px;font-weight:600;color:#4f46e5;margin-bottom:2px;',m.sender));
+      b.appendChild(el('div','',m.body));
+      msgs.appendChild(b);
+      lastMsgId=Math.max(lastMsgId,m.id);
+    });
+    if(list.length)msgs.scrollTop=msgs.scrollHeight;
+  }
+  function openConv(id,title){
+    activeConv=id;lastMsgId=0;header.textContent=title;
+    input.disabled=false;send.disabled=false;
+    jget(API+'conversations/'+id+'/messages/').then(function(d){renderMsgs(d.results||[],false);});
+    if(pollTimer)clearInterval(pollTimer);
+    pollTimer=setInterval(function(){
+      if(!activeConv)return;
+      jget(API+'conversations/'+activeConv+'/messages/?after='+lastMsgId).then(function(d){
+        if((d.results||[]).length)renderMsgs(d.results,true);
+      });
+    },4000);
+  }
+  function sendMsg(){
+    var t=input.value.trim();if(!t||!activeConv)return;
+    input.value='';
+    jpost(API+'conversations/'+activeConv+'/messages/',{body:t}).then(function(r){
+      if(r.ok)jget(API+'conversations/'+activeConv+'/messages/?after='+lastMsgId).then(function(d){renderMsgs(d.results||[],true);});
+    });
+  }
+  send.onclick=sendMsg;
+  input.addEventListener('keydown',function(e){if(e.key==='Enter')sendMsg();});
+
+  loadChats();loadRequests();
+})();
+</script>
+{% endblock %}
