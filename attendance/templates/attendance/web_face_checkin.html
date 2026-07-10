@@ -118,6 +118,7 @@
         if(res.ok && res.j.success!==false){
           result.className='ok';
           result.textContent = res.j.message || "{% trans 'Done.' %}";
+          setTimeout(function(){ window.location.href = '/'; }, 1500);
         } else {
           result.className='err';
           result.textContent = res.j.message || "{% trans 'Something went wrong.' %}";

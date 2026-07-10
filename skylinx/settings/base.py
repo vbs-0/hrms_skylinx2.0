@@ -410,6 +410,7 @@ SIDEBARS = [
     "helpdesk",
     "project",
     "report",
+    "buzz",
 ]
 
 # Audit logging is opt-in: the skylinx_audit app registers models explicitly
