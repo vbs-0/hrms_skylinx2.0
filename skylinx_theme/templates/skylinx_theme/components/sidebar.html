@@ -304,18 +304,27 @@ function removeId(element, storeKey = "selectedInstances") {
   })();
 
   document.addEventListener("DOMContentLoaded", function () {
-    window.toggleSidebar = function() {
-      const body = document.body;
-      const isToggled = body.classList.toggle('sidebar-toggled');
-      localStorage.setItem('sidebarToggled', isToggled ? 'true' : 'false');
-      // Belt-and-suspenders: the body.sidebar-toggled #sidebar CSS rule
-      // sometimes loses the cascade fight (Tailwind's Play CDN rescans and
-      // reorders <style> tags at runtime), so also force it inline —
-      // an inline !important always wins regardless of stylesheet order.
+    // Shared so every code path that opens/closes the sidebar (hamburger
+    // click, outside click, Escape key) keeps the inline transform force
+    // in sync with the body class — previously only toggleSidebar() reset
+    // the inline transform, so closing via outside-click/Escape left the
+    // panel visually stuck open (icons visible, labels hidden via the CSS
+    // class rule) even though sidebar-toggled had been removed from body.
+    function setSidebarOpen(isOpen) {
+      var body = document.body;
+      if (isOpen) body.classList.add('sidebar-toggled');
+      else body.classList.remove('sidebar-toggled');
+      localStorage.setItem('sidebarToggled', isOpen ? 'true' : 'false');
       var sb = document.getElementById("sidebar");
       if (sb) {
-        sb.style.setProperty('transform', isToggled ? 'translateX(0)' : 'translateX(-100%)', 'important');
+        sb.style.setProperty('transform', isOpen ? 'translateX(0)' : 'translateX(-100%)', 'important');
       }
+    }
+    window.setSidebarOpen = setSidebarOpen;
+
+    window.toggleSidebar = function() {
+      const isToggled = !document.body.classList.contains('sidebar-toggled');
+      setSidebarOpen(isToggled);
       if (!isToggled) {
         closeAll({ force: true });
         var shared = document.getElementById("sidebarSharedPanel");
@@ -1160,8 +1169,7 @@ function removeId(element, storeKey = "selectedInstances") {
 
       // If sidebar is open, close it entirely
       if (document.body.classList.contains("sidebar-toggled")) {
-        document.body.classList.remove("sidebar-toggled");
-        localStorage.setItem('sidebarToggled', 'false');
+        setSidebarOpen(false);
         closeAll({ force: true });
       } else {
         closeAll();
@@ -1171,8 +1179,7 @@ function removeId(element, storeKey = "selectedInstances") {
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") {
         if (document.body.classList.contains("sidebar-toggled")) {
-          document.body.classList.remove("sidebar-toggled");
-          localStorage.setItem('sidebarToggled', 'false');
+          setSidebarOpen(false);
         }
         closeAll({ force: true });
       }
