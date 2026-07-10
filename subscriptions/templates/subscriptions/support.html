@@ -25,66 +25,65 @@
     </div>
   </form>
 
-  <div class="bg-white rounded-lg shadow-card overflow-hidden">
-    <table class="w-full text-sm">
-      <thead class="bg-gray-50 text-left text-gray-600">
-        <tr>
-          <th class="px-4 py-2">{% trans "Company" %}</th>
-          <th class="px-4 py-2">{% trans "Raised By" %}</th>
-          <th class="px-4 py-2">{% trans "Subject" %}</th>
-          <th class="px-4 py-2">{% trans "Status" %}</th>
-          <th class="px-4 py-2">{% trans "Received" %}</th>
-          <th class="px-4 py-2"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for t in tickets %}
-        <tr class="border-t align-top">
-          <td class="px-4 py-2">{{ t.company }}</td>
-          <td class="px-4 py-2">{{ t.raised_by|default:"—" }}</td>
-          <td class="px-4 py-2" style="min-width:260px;">
-            <div class="font-medium">{{ t.subject }}</div>
-            <div class="text-gray-500 text-xs mt-1 whitespace-pre-wrap">{{ t.message }}</div>
-            {% for r in t.replies.all %}
-            <div class="text-xs mt-2 p-2 rounded {% if r.from_owner %}bg-indigo-50 text-indigo-800{% else %}bg-gray-100 text-gray-700{% endif %}">
-              <span class="font-semibold">{% if r.from_owner %}{% trans "Support" %}{% else %}{% trans "Client" %}{% endif %}:</span>
-              <span class="whitespace-pre-wrap">{{ r.body }}</span>
-              <div class="text-gray-400" style="font-size:10px;">{{ r.created_at|date:"M d, H:i" }}</div>
+  <div class="space-y-3">
+    {% for t in tickets %}
+    <details class="bg-white rounded-lg shadow-card overflow-hidden group" {% if forloop.first and t.status == "open" %}open{% endif %}>
+      <summary class="flex items-center gap-3 px-4 py-3 cursor-pointer select-none hover:bg-gray-50" style="list-style:none;">
+        <span class="text-gray-400 text-xs font-mono whitespace-nowrap">#{{ t.id }}</span>
+        <span class="font-medium truncate flex-1">{{ t.subject }}</span>
+        <span class="text-gray-500 text-xs whitespace-nowrap hidden sm:inline">{{ t.company }} · {{ t.raised_by|default:"—" }}</span>
+        {% if t.status == "open" %}
+          <span class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs whitespace-nowrap">{% trans "Open" %}</span>
+        {% else %}
+          <span class="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs whitespace-nowrap">{% trans "Resolved" %}</span>
+        {% endif %}
+        <span class="text-gray-400 text-xs whitespace-nowrap">{{ t.created_at|date:"M d, H:i" }}</span>
+        <span class="text-gray-400 text-xs transition-transform group-open:rotate-180">▾</span>
+      </summary>
+      <div class="border-t">
+        <div class="px-4 py-2 text-xs text-gray-500 bg-gray-50 flex flex-wrap gap-x-4">
+          <span><b>{% trans "Ticket" %}:</b> #{{ t.id }}</span>
+          <span><b>{% trans "Company" %}:</b> {{ t.company }}</span>
+          <span><b>{% trans "Raised by" %}:</b> {{ t.raised_by|default:"—" }}</span>
+          {% if t.raised_by.email %}<span><b>{% trans "Email" %}:</b> {{ t.raised_by.email }}</span>{% endif %}
+        </div>
+        <div class="p-4 space-y-2" style="max-height:320px;overflow-y:auto;background:#f8fafc;">
+          <div class="max-w-[80%] rounded-lg px-3 py-2 text-sm bg-white border text-gray-800">
+            <div class="text-[10px] text-gray-400 mb-0.5">{{ t.raised_by|default:"Client" }} · {{ t.created_at|date:"M d, H:i" }}</div>
+            <div class="whitespace-pre-wrap">{{ t.message }}</div>
+          </div>
+          {% for r in t.replies.all %}
+          <div class="max-w-[80%] rounded-lg px-3 py-2 text-sm {% if r.from_owner %}ml-auto bg-indigo-600 text-white{% else %}bg-white border text-gray-800{% endif %}">
+            <div class="text-[10px] {% if r.from_owner %}text-indigo-200{% else %}text-gray-400{% endif %} mb-0.5">
+              {% if r.from_owner %}{% trans "Support" %}{% else %}{{ t.raised_by|default:"Client" }}{% endif %} · {{ r.created_at|date:"M d, H:i" }}
             </div>
-            {% endfor %}
-            <form method="post" class="mt-2 flex gap-1">
-              {% csrf_token %}
-              <input type="hidden" name="ticket_id" value="{{ t.id }}">
-              <input type="hidden" name="action" value="reply">
-              <input type="text" name="reply_body" placeholder="{% trans 'Reply...' %}" required
-                     class="flex-1 border rounded-md px-2 py-1 text-xs">
-              <button type="submit" class="px-2 py-1 bg-indigo-600 text-white rounded-md text-xs hover:bg-indigo-700">{% trans "Send" %}</button>
-            </form>
-          </td>
-          <td class="px-4 py-2">
-            {% if t.status == "open" %}
-              <span class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs">{% trans "Open" %}</span>
-            {% else %}
-              <span class="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs">{% trans "Resolved" %}</span>
-            {% endif %}
-          </td>
-          <td class="px-4 py-2 text-gray-500">{{ t.created_at|date:"M d, H:i" }}</td>
-          <td class="px-4 py-2">
-            {% if t.status == "open" %}
-            <form method="post">
-              {% csrf_token %}
-              <input type="hidden" name="ticket_id" value="{{ t.id }}">
-              <input type="hidden" name="action" value="resolve">
-              <button type="submit" class="px-3 py-1 bg-gray-100 border rounded-md text-xs hover:bg-gray-200">{% trans "Mark resolved" %}</button>
-            </form>
-            {% endif %}
-          </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="6" class="px-4 py-6 text-center text-gray-400">{% trans "No support tickets yet." %}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+            <div class="whitespace-pre-wrap">{{ r.body }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="border-t px-4 py-3 flex items-center gap-2">
+          <form method="post" class="flex gap-2 flex-1">
+            {% csrf_token %}
+            <input type="hidden" name="ticket_id" value="{{ t.id }}">
+            <input type="hidden" name="action" value="reply">
+            <input type="text" name="reply_body" placeholder="{% trans 'Type a reply...' %}" required
+                   class="flex-1 border rounded-md px-3 py-2 text-sm">
+            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700">{% trans "Send" %}</button>
+          </form>
+          {% if t.status == "open" %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="ticket_id" value="{{ t.id }}">
+            <input type="hidden" name="action" value="resolve">
+            <button type="submit" class="px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-md text-sm hover:bg-green-100 whitespace-nowrap">✓ {% trans "Resolve" %}</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </details>
+    {% empty %}
+    <div class="bg-white rounded-lg shadow-card px-4 py-8 text-center text-gray-400">{% trans "No support tickets yet." %}</div>
+    {% endfor %}
   </div>
 </div>
 {% endblock %}

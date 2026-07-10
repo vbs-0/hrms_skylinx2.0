@@ -1094,6 +1094,22 @@ def _platform_owner_users():
     return User.objects.filter(is_superuser=True)
 
 
+def _send_support_mail_async(subject, body, to):
+    """Fire-and-forget email so SMTP latency (3-5s per mail) never blocks the
+    ticket/reply HTTP response. Failures are logged, never raised."""
+    import threading
+
+    def _send():
+        try:
+            from django.core.mail import EmailMessage
+
+            EmailMessage(subject=subject, body=body, to=[to]).send(fail_silently=True)
+        except Exception:
+            logging.getLogger(__name__).exception("Support async mail failed")
+
+    threading.Thread(target=_send, daemon=True).start()
+
+
 @login_required
 def submit_support_ticket(request):
     """Client-side: raise a support ticket from the bot-chat 'Support' tab.
@@ -1153,39 +1169,30 @@ def submit_support_ticket(request):
     # Owner-facing email (forwarded to whatever address the owner configured)
     support_cfg = SupportSettings.load()
     if support_cfg.forward_email:
-        try:
-            from django.core.mail import EmailMessage
-
-            EmailMessage(
-                subject=f"[Emplinx Support] {company}: {subject}",
-                body=(
-                    f"Company: {company}\n"
-                    f"Raised by: {employee.get_full_name()} ({employee.email})\n\n"
-                    f"{message}\n\n"
-                    f"— Ticket #{ticket.id}, view in owner console under /manage/support/"
-                ),
-                to=[support_cfg.forward_email],
-            ).send(fail_silently=True)
-        except Exception:
-            logging.getLogger(__name__).exception("Support ticket owner-email failed")
+        _send_support_mail_async(
+            subject=f"[Emplinx Support] Ticket #{ticket.id} — {company}: {subject}",
+            body=(
+                f"Company: {company}\n"
+                f"Raised by: {employee.get_full_name()} ({employee.email})\n\n"
+                f"{message}\n\n"
+                f"— Ticket #{ticket.id}, view in owner console under /manage/support/"
+            ),
+            to=support_cfg.forward_email,
+        )
 
     # Client-facing confirmation
-    try:
-        from django.core.mail import EmailMessage
-
-        EmailMessage(
-            subject=f"We received your issue: {subject}",
+    if employee.email:
+        _send_support_mail_async(
+            subject=f"We received your issue: {subject} (Ticket #{ticket.id})",
             body=(
                 f"Hi {employee.get_full_name()},\n\n"
                 "Thanks for reaching out — our support team has received your "
                 "message and will get back to you shortly.\n\n"
                 f"Your message:\n{message}\n\n"
-                "— Emplinx Support"
+                f"— Emplinx Support (Ticket #{ticket.id})"
             ),
-            to=[employee.email],
-        ).send(fail_silently=True)
-    except Exception:
-        logging.getLogger(__name__).exception("Support ticket client-confirm email failed")
+            to=employee.email,
+        )
 
     return JsonResponse({"ok": True, "id": ticket.id})
 
@@ -1197,21 +1204,16 @@ def _notify_ticket_reply(ticket, from_owner, body):
     if from_owner:
         # owner replied -> tell the employee who raised it
         if ticket.raised_by and ticket.raised_by.email:
-            try:
-                from django.core.mail import EmailMessage
-
-                EmailMessage(
-                    subject=f"Re: {ticket.subject}",
-                    body=(
-                        f"Hi {ticket.raised_by.get_full_name()},\n\n"
-                        f"Support replied to your ticket:\n\n{body}\n\n"
-                        "Reply from the Support tab in Emplinx to continue the conversation.\n\n"
-                        "— Emplinx Support"
-                    ),
-                    to=[ticket.raised_by.email],
-                ).send(fail_silently=True)
-            except Exception:
-                logging.getLogger(__name__).exception("Support reply email to employee failed")
+            _send_support_mail_async(
+                subject=f"Re: {ticket.subject} (Ticket #{ticket.id})",
+                body=(
+                    f"Hi {ticket.raised_by.get_full_name()},\n\n"
+                    f"Support replied to your ticket:\n\n{body}\n\n"
+                    "Reply from the Support tab in Emplinx to continue the conversation.\n\n"
+                    f"— Emplinx Support (Ticket #{ticket.id})"
+                ),
+                to=ticket.raised_by.email,
+            )
         try:
             user = getattr(ticket.raised_by, "employee_user_id", None)
             if user:
@@ -1232,21 +1234,16 @@ def _notify_ticket_reply(ticket, from_owner, body):
         # employee replied -> tell the owner(s)
         support_cfg = SupportSettings.load()
         if support_cfg.forward_email:
-            try:
-                from django.core.mail import EmailMessage
-
-                EmailMessage(
-                    subject=f"[Emplinx Support] Reply on: {ticket.subject}",
-                    body=(
-                        f"Company: {ticket.company}\n"
-                        f"From: {ticket.raised_by.get_full_name() if ticket.raised_by else 'unknown'}\n\n"
-                        f"{body}\n\n"
-                        f"— Ticket #{ticket.id}, view in owner console under /manage/support/"
-                    ),
-                    to=[support_cfg.forward_email],
-                ).send(fail_silently=True)
-            except Exception:
-                logging.getLogger(__name__).exception("Support reply email to owner failed")
+            _send_support_mail_async(
+                subject=f"[Emplinx Support] Reply on Ticket #{ticket.id}: {ticket.subject}",
+                body=(
+                    f"Company: {ticket.company}\n"
+                    f"From: {ticket.raised_by.get_full_name() if ticket.raised_by else 'unknown'}\n\n"
+                    f"{body}\n\n"
+                    f"— Ticket #{ticket.id}, view in owner console under /manage/support/"
+                ),
+                to=support_cfg.forward_email,
+            )
         try:
             from django.contrib.contenttypes.models import ContentType
             from notifications.models import Notification

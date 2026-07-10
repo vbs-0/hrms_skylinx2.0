@@ -38,8 +38,12 @@
              style="border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;margin-bottom:8px;">
       <textarea id="support-message" placeholder="{% trans 'Describe the issue...' %}" rows="6"
                 style="border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;resize:vertical;margin-bottom:8px;"></textarea>
-      <button id="support-send" style="background:#4f46e5;color:#fff;border:none;border-radius:8px;padding:9px;cursor:pointer;font-size:13px;">{% trans "Send to Support" %}</button>
+      <button id="support-send" style="background:#4f46e5;color:#fff;border:none;border-radius:8px;padding:9px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;">
+        <span id="support-send-spinner" style="display:none;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sup-spin .7s linear infinite;"></span>
+        <span id="support-send-label">{% trans "Send to Support" %}</span>
+      </button>
       <div id="support-status" style="margin-top:8px;font-size:12.5px;"></div>
+      <style>@keyframes sup-spin{to{transform:rotate(360deg)}}</style>
     </div>
     <div id="support-thread" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #e2e8f0;">
@@ -174,7 +178,7 @@
       .then(function(r){return r.ok?r.json():null;})
       .then(function(t){
         if(!t){sessionStorage.removeItem('support_ticket_id');showNewTicketForm();return;}
-        threadSubjectEl.textContent=t.subject+(t.status==='resolved'?' ({% trans "resolved" %})':'');
+        threadSubjectEl.textContent='#'+t.id+' · '+t.subject+(t.status==='resolved'?' ({% trans "resolved" %})':'');
         supportMsgs.innerHTML='';
         supportMsgs.appendChild(supportBubble(t.message,false));
         t.replies.forEach(function(r){supportMsgs.appendChild(supportBubble(r.body,r.from_owner));});
@@ -203,7 +207,7 @@
             ?'<span style="background:#dcfce7;color:#166534;border-radius:9999px;padding:1px 8px;font-size:10.5px;">{% trans "Resolved" %}</span>'
             :'<span style="background:#fee2e2;color:#991b1b;border-radius:9999px;padding:1px 8px;font-size:10.5px;">{% trans "Open" %}</span>';
           html+='<div class="support-hist-item" data-tid="'+t.id+'" style="display:flex;justify-content:space-between;align-items:center;gap:6px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;margin-bottom:5px;cursor:pointer;">'
-            +'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;">'+t.subject.replace(/&/g,'&amp;').replace(/</g,'&lt;')+(t.replies?' <span style="color:#64748b;">('+t.replies+')</span>':'')+'</span>'
+            +'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;"><span style="color:#94a3b8;font-family:monospace;">#'+t.id+'</span> '+t.subject.replace(/&/g,'&amp;').replace(/</g,'&lt;')+(t.replies?' <span style="color:#64748b;">('+t.replies+')</span>':'')+'</span>'
             +badge+'</div>';
         });
         historyEl.innerHTML=html;
@@ -229,22 +233,37 @@
     replySend.onclick=function(){
       var msg=replyInput.value.trim(),ticketId=sessionStorage.getItem('support_ticket_id');
       if(!msg||!ticketId||replyBusy)return;
-      replyBusy=true;replySend.disabled=true;
+      replyBusy=true;replySend.disabled=true;replySend.textContent='…';replySend.style.opacity='.75';
+      // optimistic: show the bubble immediately, greyed until confirmed
+      var pending=supportBubble(msg,false);
+      pending.style.opacity='.55';
+      supportMsgs.appendChild(pending);
+      supportMsgs.scrollTop=supportMsgs.scrollHeight;
+      replyInput.value='';
       fetch('/manage/support/reply/'+ticketId+'/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},
         body:JSON.stringify({message:msg})})
         .then(function(r){return r.ok;})
-        .then(function(ok){if(ok){replyInput.value='';loadThread(ticketId);}})
-        .catch(function(){})
-        .finally(function(){replyBusy=false;replySend.disabled=false;});
+        .then(function(ok){
+          if(ok){pending.style.opacity='1';loadThread(ticketId);}
+          else{pending.style.opacity='1';pending.style.background='#fee2e2';pending.style.color='#991b1b';pending.textContent=msg+' — {% trans "failed, try again" %}';replyInput.value=msg;}
+        })
+        .catch(function(){pending.style.background='#fee2e2';pending.style.color='#991b1b';pending.style.opacity='1';replyInput.value=msg;})
+        .finally(function(){replyBusy=false;replySend.disabled=false;replySend.textContent='➤';replySend.style.opacity='1';});
     };
     replyInput.addEventListener('keydown',function(e){if(e.key==='Enter')replySend.onclick();});
   }
 
+  var sendSpinner=document.getElementById('support-send-spinner'),sendLabel=document.getElementById('support-send-label');
+  function setSending(on){
+    if(sendSpinner)sendSpinner.style.display=on?'inline-block':'none';
+    if(sendLabel)sendLabel.textContent=on?"{% trans 'Sending...' %}":"{% trans 'Send to Support' %}";
+    sendSupport.style.opacity=on?'.75':'1';
+  }
   if(sendSupport){
     sendSupport.onclick=function(){
       var subject=subjectEl.value.trim(),message=messageEl.value.trim();
       if(!subject||!message||supportBusy)return;
-      supportBusy=true;sendSupport.disabled=true;statusEl.textContent='';
+      supportBusy=true;sendSupport.disabled=true;statusEl.textContent='';setSending(true);
       fetch('/manage/support/submit/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},
         body:JSON.stringify({subject:subject,message:message})})
         .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};}).catch(function(){return {ok:r.ok,j:{}};});})
@@ -259,7 +278,7 @@
           }
         })
         .catch(function(){statusEl.style.color='#dc2626';statusEl.textContent="{% trans 'Could not reach the server.' %}";})
-        .finally(function(){supportBusy=false;sendSupport.disabled=false;});
+        .finally(function(){supportBusy=false;sendSupport.disabled=false;setSending(false);});
     };
   }
 
