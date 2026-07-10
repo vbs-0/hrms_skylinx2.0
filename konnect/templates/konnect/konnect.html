@@ -47,6 +47,7 @@
 </style>
 
 <div class="kn-wrap">
+  {% csrf_token %}
   <div class="kn-hero">Konnect — {% trans "Share | Celebrate | Collaborate" %}</div>
 
   <div class="kn-card kn-composer" onclick="knOpenComposer()">
@@ -81,7 +82,12 @@
 var API='/api/v1/konnect/';
 var knPage=1, knCanAnnounce=false;
 
-function csrf(){var m=document.cookie.match(/csrftoken=([^;]+)/);return m?m[1]:'';}
+function csrf(){
+  var m=document.cookie.match(/csrftoken=([^;]+)/);
+  if(m)return m[1];
+  var inp=document.querySelector('.kn-wrap input[name=csrfmiddlewaretoken]');
+  return inp?inp.value:'';
+}
 function jget(u){return fetch(u,{credentials:'same-origin'}).then(function(r){return r.json();});}
 function jpost(u,data){return fetch(u,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},body:JSON.stringify(data||{})}).then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j};});});}
 function jdel(u){return fetch(u,{method:'DELETE',credentials:'same-origin',headers:{'X-CSRFToken':csrf()}}).then(function(r){return{ok:r.ok};});}
