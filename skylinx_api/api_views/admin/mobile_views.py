@@ -381,13 +381,25 @@ class MobileAdminDailyReportAPIView(APIView):
             target_date = date.today()
             
         activities = AttendanceActivity.objects.filter(attendance_date=target_date)
-        
+
+        from skylinx_api.api_views.attendance.mobile_views import geofence_distance_meters
+        geofence_by_company = {}
+
+        def _distance_for(emp_obj, lat, lng):
+            company = emp_obj.get_company()
+            key = company.id if company else None
+            if key not in geofence_by_company:
+                geofence_by_company[key] = (
+                    GeoFencing.objects.filter(company_id=company).first() if company else None
+                )
+            return geofence_distance_meters(geofence_by_company[key], lat, lng)
+
         events = []
         check_ins = 0
         check_outs = 0
         missed_selfies = 0
         outside_geofence = 0
-        
+
         for act in activities:
             detail = getattr(act, "mobile_detail", None)
             emp = act.employee_id
@@ -421,7 +433,11 @@ class MobileAdminDailyReportAPIView(APIView):
                     "eventType": "check_in",
                     "selfieUrl": selfie_url,
                     "withinGeofence": within_gf,
-                    "distanceFromCenterMeters": 0.0,
+                    "distanceFromCenterMeters": _distance_for(
+                        emp,
+                        detail.check_in_lat if detail else None,
+                        detail.check_in_lng if detail else None,
+                    ),
                     "gpsEnabled": True,
                     "createdAt": act.in_datetime.isoformat() if act.in_datetime else act.created_at.isoformat(),
                     "user": user_data
@@ -444,7 +460,11 @@ class MobileAdminDailyReportAPIView(APIView):
                     "eventType": "check_out",
                     "selfieUrl": selfie_url,
                     "withinGeofence": within_gf,
-                    "distanceFromCenterMeters": 0.0,
+                    "distanceFromCenterMeters": _distance_for(
+                        emp,
+                        detail.check_out_lat if detail else None,
+                        detail.check_out_lng if detail else None,
+                    ),
                     "gpsEnabled": True,
                     "createdAt": act.out_datetime.isoformat() if act.out_datetime else act.created_at.isoformat(),
                     "user": user_data

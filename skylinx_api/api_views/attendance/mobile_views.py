@@ -642,6 +642,19 @@ class MobileLocationLogAPIView(APIView):
         }, status=201)
 
 
+def geofence_distance_meters(geofence, lat, lng):
+    """Distance from a stored check-in/out point to the geofence center, or
+    None when there's nothing to measure (no geofence / no coords). History
+    endpoints previously omitted this entirely, so the app rendered the
+    null as a literal 'nullm outside'."""
+    if not geofence or lat is None or lng is None:
+        return None
+    try:
+        return round(geodesic((geofence.latitude, geofence.longitude), (lat, lng)).meters, 1)
+    except Exception:
+        return None
+
+
 class MobileAttendanceHistoryAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -654,6 +667,8 @@ class MobileAttendanceHistoryAPIView(APIView):
                 "message": "User is not registered as an employee",
                 "data": []
             }, status=400)
+
+        geofence = GeoFencing.objects.filter(company_id=employee.get_company()).first()
 
         date_str = request.query_params.get("date")
         
@@ -690,6 +705,11 @@ class MobileAttendanceHistoryAPIView(APIView):
                     "latitude": detail.check_out_lat if detail else None,
                     "longitude": detail.check_out_lng if detail else None,
                     "withinGeofence": detail.check_out_within_geofence if detail else True,
+                    "distanceFromCenterMeters": geofence_distance_meters(
+                        geofence,
+                        detail.check_out_lat if detail else None,
+                        detail.check_out_lng if detail else None,
+                    ),
                     "gpsEnabled": True,
                     "capturedAt": act.out_datetime.isoformat(),
                     "createdAt": act.out_datetime.isoformat()
@@ -704,6 +724,11 @@ class MobileAttendanceHistoryAPIView(APIView):
                     "latitude": detail.check_in_lat if detail else None,
                     "longitude": detail.check_in_lng if detail else None,
                     "withinGeofence": detail.within_geofence if detail else True,
+                    "distanceFromCenterMeters": geofence_distance_meters(
+                        geofence,
+                        detail.check_in_lat if detail else None,
+                        detail.check_in_lng if detail else None,
+                    ),
                     "gpsEnabled": True,
                     "capturedAt": act.in_datetime.isoformat(),
                     "createdAt": act.created_at.isoformat()
