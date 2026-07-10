@@ -23,6 +23,11 @@ ACCESSIBILITY = "project.sidebar.menu_accessibilty"
 
 SUBMENUS = [
     {
+        "menu": _("Dashboard"),
+        "redirect": reverse("project-dashboard-view"),
+        "accessibility": "project.sidebar.dashboard_accessibility",
+    },
+    {
         "menu": _("Projects"),
         "redirect": reverse("project-view"),
         "accessibility": "project.sidebar.project_accessibility",

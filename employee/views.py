@@ -1313,6 +1313,15 @@ def employee_view(request):
     view_type = request.GET.get("view")
     previous_data = request.GET.urlencode()
     page_number = request.GET.get("page")
+    # Sticky pagination: remember the page the user was working on so that
+    # coming back to the plain list URL (e.g. after editing an employee from
+    # page 3) reopens that page instead of always resetting to page 1.
+    # Restore ONLY on a bare visit (no filters/search in GET) — explicit
+    # filtering intentionally starts back at page 1.
+    if page_number:
+        request.session["emp_view_page"] = page_number
+    elif not request.GET:
+        page_number = request.session.get("emp_view_page")
     error_message = request.session.pop("error_message", None)
 
     base_qs = Employee.objects.select_related(
@@ -2134,6 +2143,10 @@ def employee_filter_view(request):
     ):
         employees = employees.filter(employee_work_info__company_id=selected_company)
     page_number = request.GET.get("page")
+    if page_number:
+        # Keep the sticky-pagination memory in sync when the user pages
+        # through the htmx list (same key employee_view restores from).
+        request.session["emp_view_page"] = page_number
     view = request.GET.get("view")
     data_dict = parse_qs(previous_data)
     get_key_instances(Employee, data_dict)

@@ -229,6 +229,21 @@ class SkylinxListView(ListView):
 
                     query_dict._mutable = False
                 self._saved_filters = query_dict
+
+                # Sticky pagination (per session, per path): remember the page
+                # being viewed so returning to the plain list URL (e.g. after
+                # editing a record from page 3) reopens that page instead of
+                # resetting to page 1. Applying a new filter clears the memory.
+                page_key = "hlv_page:" + self.request.path
+                if "filter_applied" in self.request.GET:
+                    self.request.session.pop(page_key, None)
+                elif self.request.GET.get("page"):
+                    self.request.session[page_key] = self.request.GET["page"]
+                elif self.request.session.get(page_key):
+                    sticky = self._saved_filters.copy()
+                    sticky["page"] = self.request.session[page_key]
+                    self._saved_filters = sticky
+
                 self.request.exclude_filter_form = True
                 if not filtered:
                     self.queryset = self.filter_class(

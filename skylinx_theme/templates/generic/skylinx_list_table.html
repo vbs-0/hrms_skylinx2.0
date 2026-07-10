@@ -271,10 +271,13 @@
                         class="flex justify-between items-center mt-4 w-full inset-0"
                     >
                         <p class="text-xs text-[#666]">{% trans "Page" %} {{ queryset.number }} {% trans "of" %} {{ queryset.paginator.num_pages }}</p>
-                        <div class="flex gap-3 text-[#666] items-center">
+                        {# mr-20 keeps Next clear of the fixed AI-chat bubble at the
+                           viewport's bottom-right; w-10/h-10 = comfortable tap targets #}
+                        <div class="flex gap-2 text-[#666] items-center mr-20">
                             {% if queryset.has_previous %}
                                 <button
-                                    class="text-xs hover:text-primary-600 transition duration-300"
+                                    class="w-10 h-10 flex items-center justify-center rounded-full border border-dark-50 bg-white text-sm hover:text-primary-600 hover:border-primary-600 transition duration-300"
+                                    title="{% trans 'Previous page' %}"
                                     hx-target="#{{view_id}}"
                                     hx-get="{{search_url}}?{{request.GET.urlencode}}&page={{ queryset.previous_page_number }}"
                                 >
@@ -285,7 +288,7 @@
                                 <input
                                     type="number"
                                     name="page"
-                                    class="w-[30px]"
+                                    class="w-[44px] h-9 text-center border border-dark-50 rounded-md"
                                     value="{{queryset.number}}"
                                     hx-get="{{search_url}}?{{request.GET.urlencode}}"
                                     hx-target="#{{view_id}}"
@@ -294,7 +297,8 @@
                             </div>
                             {% if queryset.has_next %}
                                 <button
-                                    class="text-xs hover:text-primary-600 transition duration-300"
+                                    class="w-10 h-10 flex items-center justify-center rounded-full border border-dark-50 bg-white text-sm hover:text-primary-600 hover:border-primary-600 transition duration-300"
+                                    title="{% trans 'Next page' %}"
                                     hx-target="#{{view_id}}"
                                     hx-get="{{search_url}}?{{request.GET.urlencode}}&page={{ queryset.next_page_number }}"
                                 >

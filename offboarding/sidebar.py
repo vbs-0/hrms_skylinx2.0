@@ -30,7 +30,14 @@ SUBMENUS = [
 
 
 def offboarding_accessibility(request, menu, user_perms, *args, **kwargs):
-    return False
+    # Visible to anyone with offboarding perms or managing an exit stage;
+    # regular employees still see Resignation Letters when that setting is on.
+    return (
+        request.user.has_module_perms("offboarding")
+        or any_manager(request.user.employee_get)
+        or resignation_letter_accessibility(request, menu, user_perms)
+        or is_offboarding_employee(request.user.employee_get)
+    )
 
 
 def resignation_letter_accessibility(request, menu, user_perms, *args, **kwargs):
