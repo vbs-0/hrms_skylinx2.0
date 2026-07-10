@@ -130,6 +130,18 @@
                 color: #ffffff !important;
             }
 
+            /* iOS Safari computes its initial-scale viewport width from
+               <html>'s scroll width, not <body>'s — a fixed-position wide
+               child (e.g. the horizontally-scrolling submodule toolbar)
+               can inflate that and make Safari zoom the whole page out,
+               even though the child's own overflow-x:auto already scrolls
+               it locally. Android Chrome doesn't have this quirk, hence
+               "fine on Android, tiny on iOS". Clamp <html> explicitly. */
+            html {
+                overflow-x: hidden;
+                max-width: 100vw;
+            }
+
             /* Sidebar: hidden by default, full panel via hamburger only */
             #sidebar {
                 width: 260px !important;
