@@ -291,10 +291,15 @@ function removeId(element, storeKey = "selectedInstances") {
   // Restore sidebar toggled state immediately to prevent layout flashes
   (function() {
     const sidebarToggled = localStorage.getItem('sidebarToggled');
-    if (sidebarToggled === 'true') {
+    const isOpen = sidebarToggled === 'true';
+    if (isOpen) {
       document.body.classList.add('sidebar-toggled');
     } else if (sidebarToggled === 'false') {
       document.body.classList.remove('sidebar-toggled');
+    }
+    var sb = document.getElementById("sidebar");
+    if (sb) {
+      sb.style.setProperty('transform', isOpen ? 'translateX(0)' : 'translateX(-100%)', 'important');
     }
   })();
 
@@ -303,6 +308,14 @@ function removeId(element, storeKey = "selectedInstances") {
       const body = document.body;
       const isToggled = body.classList.toggle('sidebar-toggled');
       localStorage.setItem('sidebarToggled', isToggled ? 'true' : 'false');
+      // Belt-and-suspenders: the body.sidebar-toggled #sidebar CSS rule
+      // sometimes loses the cascade fight (Tailwind's Play CDN rescans and
+      // reorders <style> tags at runtime), so also force it inline —
+      // an inline !important always wins regardless of stylesheet order.
+      var sb = document.getElementById("sidebar");
+      if (sb) {
+        sb.style.setProperty('transform', isToggled ? 'translateX(0)' : 'translateX(-100%)', 'important');
+      }
       if (!isToggled) {
         closeAll({ force: true });
         var shared = document.getElementById("sidebarSharedPanel");

@@ -250,6 +250,19 @@
   background-color: white;
 }
 
+/* Mobile: a sticky first column while everything else scrolls horizontally
+   is confusing on a narrow screen — let the whole row scroll together
+   instead. Desktop behavior (above) is unchanged. */
+@media (max-width: 767.98px) {
+  .stickyleft,
+  .stickyleft-second,
+  .stickyright {
+    position: static;
+    left: auto;
+    right: auto;
+  }
+}
+
 /* CHECK IN OUT */
 .check {
   padding: 8px 20px;
