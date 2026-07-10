@@ -228,5 +228,20 @@ class SupportTicket(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
+
+class SupportTicketReply(models.Model):
+    """One message in a ticket's conversation thread — either the owner/support
+    team replying, or the employee replying back."""
+
+    ticket = models.ForeignKey(
+        SupportTicket, on_delete=models.CASCADE, related_name="replies"
+    )
+    from_owner = models.BooleanField(default=False)
+    body = models.TextField(max_length=3000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
     def __str__(self):
         return f"[{self.company}] {self.subject}"

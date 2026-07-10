@@ -95,6 +95,9 @@ class LateComeAndEarlyOutList(SkylinxListView):
         "status_column": """
                          title="Open: just flagged, needs review. Acknowledged: HR has seen it. Resolved: reviewed and closed out. Ignored: not counted as an issue."
                          """,
+        "get_type": """
+                    title="Late Come: clocked in after shift start + grace. Early Out: clocked out before shift end. Forgot to Checkout: never checked out — auto-closed the next time they checked in, so the checkout time shown isn't real."
+                    """,
     }
 
     sortby_mapping = [

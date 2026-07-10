@@ -10,7 +10,12 @@ from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from attendance.models import Attendance, AttendanceActivity, EmployeeShiftDay, MobileAttendanceDetail, MobileLocationLog
-from attendance.views.clock_in_out import clock_in_attendance_and_activity, clock_out
+from attendance.views.clock_in_out import (
+    clock_in_attendance_and_activity,
+    clock_out,
+    clock_out_attendance_and_activity,
+    missing_checkout_create,
+)
 from attendance.methods.utils import (
     employee_exists,
     shift_schedule_today,
@@ -201,15 +206,21 @@ class MobileCheckInAPIView(APIView):
                     "errorCode": "ALREADY_CHECKED_IN"
                 }, status=400)
             # Stale open activity from a previous day (forgot to check out) ->
-            # auto-close it so the user isn't locked out, then check in fresh today.
-            try:
-                clock_out(AttendanceRequest(
-                    user=request.user,
-                    date=open_activity.attendance_date,
-                    time=timezone.localtime().time(),
-                    datetime=timezone.now(),
-                ))
-            except Exception:
+            # auto-close it so the user isn't locked out, then check in fresh
+            # today. Close it directly via the pure helper (no anomaly side
+            # effects) and flag it as a "Forgot to Checkout" anomaly instead
+            # of running it through the normal clock_out() view, which would
+            # compare TODAY's time against YESTERDAY's shift end and wrongly
+            # log it as an early-out.
+            closed_attendance = clock_out_attendance_and_activity(
+                employee=employee,
+                date_today=date.today(),
+                now=timezone.localtime().strftime("%H:%M"),
+                out_datetime=timezone.now(),
+            )
+            if closed_attendance:
+                missing_checkout_create(closed_attendance)
+            else:
                 open_activity.clock_out = timezone.now()
                 open_activity.clock_out_date = date.today()
                 open_activity.out_datetime = timezone.now()

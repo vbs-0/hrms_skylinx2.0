@@ -1251,6 +1251,7 @@ class AttendanceLateComeEarlyOut(SkylinxModel):
     choices = [
         ("late_come", _("Late Come")),
         ("early_out", _("Early Out")),
+        ("missing_checkout", _("Forgot to Checkout")),
     ]
 
     attendance_id = models.ForeignKey(
@@ -1321,11 +1322,7 @@ class AttendanceLateComeEarlyOut(SkylinxModel):
         """
         Display work type
         """
-        choices = [
-            ("late_come", _("Late Come")),
-            ("early_out", _("Early Out")),
-        ]
-        return dict(choices).get(self.type)
+        return dict(self.choices).get(self.type)
 
     def penalities_column(self):
         """

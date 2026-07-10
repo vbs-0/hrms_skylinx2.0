@@ -30,14 +30,28 @@
       <button id="ai-send" style="background:#4f46e5;color:#fff;border:none;border-radius:8px;padding:0 14px;cursor:pointer;">➤</button>
     </div>
   </div>
-  <div id="support-pane" style="display:{% if ai_widget_visible %}none{% else %}flex{% endif %};flex-direction:column;flex:1;overflow-y:auto;padding:14px;font-size:13px;background:#f8fafc;">
-    <p style="color:#64748b;font-size:12.5px;margin-bottom:10px;">{% trans "Trouble with something? Send us a message — we'll get back to you by email." %}</p>
-    <input id="support-subject" placeholder="{% trans 'Subject' %}"
-           style="border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;margin-bottom:8px;">
-    <textarea id="support-message" placeholder="{% trans 'Describe the issue...' %}" rows="6"
-              style="border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;resize:vertical;margin-bottom:8px;"></textarea>
-    <button id="support-send" style="background:#4f46e5;color:#fff;border:none;border-radius:8px;padding:9px;cursor:pointer;font-size:13px;">{% trans "Send to Support" %}</button>
-    <div id="support-status" style="margin-top:8px;font-size:12.5px;"></div>
+  <div id="support-pane" style="display:{% if ai_widget_visible %}none{% else %}flex{% endif %};flex-direction:column;flex:1;overflow:hidden;">
+    <div id="support-new" style="display:flex;flex-direction:column;flex:1;overflow-y:auto;padding:14px;font-size:13px;background:#f8fafc;">
+      <p style="color:#64748b;font-size:12.5px;margin-bottom:10px;">{% trans "Trouble with something? Send us a message — we'll get back to you by email." %}</p>
+      <input id="support-subject" placeholder="{% trans 'Subject' %}"
+             style="border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;margin-bottom:8px;">
+      <textarea id="support-message" placeholder="{% trans 'Describe the issue...' %}" rows="6"
+                style="border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;resize:vertical;margin-bottom:8px;"></textarea>
+      <button id="support-send" style="background:#4f46e5;color:#fff;border:none;border-radius:8px;padding:9px;cursor:pointer;font-size:13px;">{% trans "Send to Support" %}</button>
+      <div id="support-status" style="margin-top:8px;font-size:12.5px;"></div>
+    </div>
+    <div id="support-thread" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #e2e8f0;">
+        <strong id="support-thread-subject" style="font-size:12.5px;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></strong>
+        <span id="support-new-ticket-link" style="cursor:pointer;color:#4f46e5;font-size:12px;white-space:nowrap;margin-left:8px;">{% trans "New ticket" %}</span>
+      </div>
+      <div id="support-msgs" style="flex:1;overflow-y:auto;padding:12px;background:#f8fafc;"></div>
+      <div style="display:flex;border-top:1px solid #e2e8f0;padding:8px;gap:6px;">
+        <input id="support-reply-input" placeholder="{% trans 'Reply...' %}"
+               style="flex:1;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;">
+        <button id="support-reply-send" style="background:#4f46e5;color:#fff;border:none;border-radius:8px;padding:0 14px;cursor:pointer;">➤</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -132,10 +146,71 @@
   if(tabAssistant)tabAssistant.onclick=showAssistant;
   if(tabSupport)tabSupport.onclick=showSupport;
 
-  // ---- support form ----
+  // ---- support: new-ticket form ----
   var subjectEl=document.getElementById('support-subject'),messageEl=document.getElementById('support-message'),
       sendSupport=document.getElementById('support-send'),statusEl=document.getElementById('support-status'),
+      supportNewPane=document.getElementById('support-new'),supportThreadPane=document.getElementById('support-thread'),
       supportBusy=false;
+
+  // ---- support: conversation thread ----
+  var threadSubjectEl=document.getElementById('support-thread-subject'),
+      supportMsgs=document.getElementById('support-msgs'),
+      replyInput=document.getElementById('support-reply-input'),
+      replySend=document.getElementById('support-reply-send'),
+      newTicketLink=document.getElementById('support-new-ticket-link'),
+      supportPollTimer=null,replyBusy=false;
+
+  function supportBubble(text,fromOwner){
+    var d=document.createElement('div');
+    d.style.cssText='border-radius:10px;padding:8px 10px;margin-bottom:8px;white-space:pre-wrap;'+
+      (fromOwner?'background:#fff;border:1px solid #e2e8f0;color:#0f172a;margin-right:20px;':'background:#4f46e5;color:#fff;margin-left:40px;');
+    d.textContent=text;
+    return d;
+  }
+
+  function loadThread(ticketId){
+    fetch('/manage/support/thread/'+ticketId+'/')
+      .then(function(r){return r.ok?r.json():null;})
+      .then(function(t){
+        if(!t){sessionStorage.removeItem('support_ticket_id');showNewTicketForm();return;}
+        threadSubjectEl.textContent=t.subject+(t.status==='resolved'?' ({% trans "resolved" %})':'');
+        supportMsgs.innerHTML='';
+        supportMsgs.appendChild(supportBubble(t.message,false));
+        t.replies.forEach(function(r){supportMsgs.appendChild(supportBubble(r.body,r.from_owner));});
+        supportMsgs.scrollTop=supportMsgs.scrollHeight;
+      })
+      .catch(function(){});
+  }
+
+  function showThread(ticketId){
+    supportNewPane.style.display='none';supportThreadPane.style.display='flex';
+    loadThread(ticketId);
+    if(supportPollTimer)clearInterval(supportPollTimer);
+    supportPollTimer=setInterval(function(){loadThread(ticketId);},5000);
+  }
+
+  function showNewTicketForm(){
+    if(supportPollTimer){clearInterval(supportPollTimer);supportPollTimer=null;}
+    supportThreadPane.style.display='none';supportNewPane.style.display='flex';
+  }
+
+  if(newTicketLink)newTicketLink.onclick=function(){sessionStorage.removeItem('support_ticket_id');showNewTicketForm();};
+
+  if(replySend){
+    replySend.onclick=function(){
+      var msg=replyInput.value.trim(),ticketId=sessionStorage.getItem('support_ticket_id');
+      if(!msg||!ticketId||replyBusy)return;
+      replyBusy=true;replySend.disabled=true;
+      fetch('/manage/support/reply/'+ticketId+'/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},
+        body:JSON.stringify({message:msg})})
+        .then(function(r){return r.ok;})
+        .then(function(ok){if(ok){replyInput.value='';loadThread(ticketId);}})
+        .catch(function(){})
+        .finally(function(){replyBusy=false;replySend.disabled=false;});
+    };
+    replyInput.addEventListener('keydown',function(e){if(e.key==='Enter')replySend.onclick();});
+  }
+
   if(sendSupport){
     sendSupport.onclick=function(){
       var subject=subjectEl.value.trim(),message=messageEl.value.trim();
@@ -146,9 +221,9 @@
         .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};}).catch(function(){return {ok:r.ok,j:{}};});})
         .then(function(res){
           if(res.ok){
-            statusEl.style.color='#16a34a';
-            statusEl.textContent="{% trans 'Sent — we\'ll get back to you by email shortly.' %}";
-            subjectEl.value='';messageEl.value='';
+            subjectEl.value='';messageEl.value='';statusEl.textContent='';
+            sessionStorage.setItem('support_ticket_id',res.j.id);
+            showThread(res.j.id);
           }else{
             statusEl.style.color='#dc2626';
             statusEl.textContent=res.j.error||"{% trans 'Could not send — try again.' %}";
@@ -158,5 +233,11 @@
         .finally(function(){supportBusy=false;sendSupport.disabled=false;});
     };
   }
+
+  // resume an existing ticket's conversation on page load
+  (function(){
+    var existingTicketId=sessionStorage.getItem('support_ticket_id');
+    if(existingTicketId && supportThreadPane)showThread(existingTicketId);
+  })();
 })();
 </script>

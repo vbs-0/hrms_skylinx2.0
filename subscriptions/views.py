@@ -1190,11 +1190,135 @@ def submit_support_ticket(request):
     return JsonResponse({"ok": True, "id": ticket.id})
 
 
+def _notify_ticket_reply(ticket, from_owner, body):
+    """Email + in-app notify whichever side did NOT just reply."""
+    from .models import SupportSettings
+
+    if from_owner:
+        # owner replied -> tell the employee who raised it
+        if ticket.raised_by and ticket.raised_by.email:
+            try:
+                from django.core.mail import EmailMessage
+
+                EmailMessage(
+                    subject=f"Re: {ticket.subject}",
+                    body=(
+                        f"Hi {ticket.raised_by.get_full_name()},\n\n"
+                        f"Support replied to your ticket:\n\n{body}\n\n"
+                        "Reply from the Support tab in Emplinx to continue the conversation.\n\n"
+                        "— Emplinx Support"
+                    ),
+                    to=[ticket.raised_by.email],
+                ).send(fail_silently=True)
+            except Exception:
+                logging.getLogger(__name__).exception("Support reply email to employee failed")
+        try:
+            user = getattr(ticket.raised_by, "employee_user_id", None)
+            if user:
+                from django.contrib.contenttypes.models import ContentType
+                from notifications.models import Notification
+
+                Notification.objects.create(
+                    recipient=user,
+                    actor_content_type=ContentType.objects.get_for_model(user),
+                    actor_object_id=str(user.id),
+                    verb="Support Reply",
+                    description=f"Support replied to \"{ticket.subject}\"",
+                    level="info",
+                )
+        except Exception:
+            logging.getLogger(__name__).exception("Support reply in-app notify (employee) failed")
+    else:
+        # employee replied -> tell the owner(s)
+        support_cfg = SupportSettings.load()
+        if support_cfg.forward_email:
+            try:
+                from django.core.mail import EmailMessage
+
+                EmailMessage(
+                    subject=f"[Emplinx Support] Reply on: {ticket.subject}",
+                    body=(
+                        f"Company: {ticket.company}\n"
+                        f"From: {ticket.raised_by.get_full_name() if ticket.raised_by else 'unknown'}\n\n"
+                        f"{body}\n\n"
+                        f"— Ticket #{ticket.id}, view in owner console under /manage/support/"
+                    ),
+                    to=[support_cfg.forward_email],
+                ).send(fail_silently=True)
+            except Exception:
+                logging.getLogger(__name__).exception("Support reply email to owner failed")
+        try:
+            from django.contrib.contenttypes.models import ContentType
+            from notifications.models import Notification
+
+            for owner in _platform_owner_users():
+                Notification.objects.create(
+                    recipient=owner,
+                    actor_content_type=ContentType.objects.get_for_model(owner),
+                    actor_object_id=str(owner.id),
+                    verb="Support Reply",
+                    description=f"{ticket.company}: new reply on \"{ticket.subject}\"",
+                    level="info",
+                )
+        except Exception:
+            logging.getLogger(__name__).exception("Support reply in-app notify (owner) failed")
+
+
+@login_required
+def support_ticket_thread(request, ticket_id):
+    """Employee-side: fetch a ticket's status + full reply thread (own tickets only)."""
+    from .models import SupportTicket
+
+    try:
+        employee = request.user.employee_get
+    except Exception:
+        return HttpResponseBadRequest("Not an employee account.")
+    ticket = SupportTicket.objects.filter(id=ticket_id, raised_by=employee).first()
+    if not ticket:
+        return HttpResponseForbidden("Not your ticket.")
+    replies = [
+        {"from_owner": r.from_owner, "body": r.body, "created_at": r.created_at.isoformat()}
+        for r in ticket.replies.all()
+    ]
+    return JsonResponse({
+        "id": ticket.id, "subject": ticket.subject, "message": ticket.message,
+        "status": ticket.status, "replies": replies,
+    })
+
+
+@login_required
+def support_ticket_reply(request, ticket_id):
+    """Employee-side: reply on their own already-raised ticket."""
+    if request.method != "POST":
+        return HttpResponse(status=405)
+    from .models import SupportTicket, SupportTicketReply
+
+    try:
+        employee = request.user.employee_get
+    except Exception:
+        return HttpResponseBadRequest("Not an employee account.")
+    ticket = SupportTicket.objects.filter(id=ticket_id, raised_by=employee).first()
+    if not ticket:
+        return HttpResponseForbidden("Not your ticket.")
+
+    try:
+        body = json.loads(request.body or "{}")
+    except Exception:
+        body = request.POST
+    text = str(body.get("message", "")).strip()[:3000]
+    if not text:
+        return HttpResponseBadRequest("Message is required.")
+
+    reply = SupportTicketReply.objects.create(ticket=ticket, from_owner=False, body=text)
+    _notify_ticket_reply(ticket, from_owner=False, body=text)
+    return JsonResponse({"ok": True, "id": reply.id})
+
+
 @login_required
 @superuser_required
 def support_dashboard(request):
     """Owner console: list all support tickets + configure the forward email."""
-    from .models import SupportSettings, SupportTicket
+    from .models import SupportSettings, SupportTicket, SupportTicketReply
 
     cfg = SupportSettings.load()
     if request.method == "POST":
@@ -1204,14 +1328,23 @@ def support_dashboard(request):
             messages.success(request, "Support settings saved.")
             return redirect("subscriptions-support")
         ticket_id = request.POST.get("ticket_id")
-        if ticket_id and request.POST.get("action") == "resolve":
+        action = request.POST.get("action")
+        if ticket_id and action == "resolve":
             SupportTicket.objects.filter(id=ticket_id).update(
                 status="resolved", resolved_at=timezone.now()
             )
             messages.success(request, "Ticket marked resolved.")
             return redirect("subscriptions-support")
+        if ticket_id and action == "reply":
+            reply_text = request.POST.get("reply_body", "").strip()[:3000]
+            ticket = SupportTicket.objects.filter(id=ticket_id).first()
+            if ticket and reply_text:
+                SupportTicketReply.objects.create(ticket=ticket, from_owner=True, body=reply_text)
+                _notify_ticket_reply(ticket, from_owner=True, body=reply_text)
+                messages.success(request, "Reply sent.")
+            return redirect("subscriptions-support")
 
-    tickets = SupportTicket.objects.select_related("company", "raised_by").all()[:200]
+    tickets = SupportTicket.objects.select_related("company", "raised_by").prefetch_related("replies").all()[:200]
     return render(
         request,
         "subscriptions/support.html",

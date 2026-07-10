@@ -381,6 +381,27 @@ def clock_out_attendance_and_activity(employee, date_today, now, out_datetime=No
     return
 
 
+def missing_checkout_create(attendance):
+    """
+    Flag an attendance day that got auto-closed the next morning because the
+    employee forgot to check out — a distinct anomaly from a genuine early
+    out, since the clock-out time here is meaningless (it's whenever they
+    happened to check in again, not when they actually left).
+    """
+    if AttendanceLateComeEarlyOut.objects.filter(
+        type="missing_checkout", attendance_id=attendance
+    ).exists():
+        return AttendanceLateComeEarlyOut.objects.filter(
+            type="missing_checkout", attendance_id=attendance
+        ).first()
+    obj = AttendanceLateComeEarlyOut()
+    obj.type = "missing_checkout"
+    obj.attendance_id = attendance
+    obj.employee_id = attendance.employee_id
+    obj.save()
+    return obj
+
+
 def early_out_create(attendance):
     """
     Used to create early out report

@@ -10,6 +10,8 @@ urlpatterns = [
     path("ai-chat/", ai_assistant.ai_chat, name="ai-chat"),
     path("support/", views.support_dashboard, name="subscriptions-support"),
     path("support/submit/", views.submit_support_ticket, name="support-ticket-submit"),
+    path("support/thread/<int:ticket_id>/", views.support_ticket_thread, name="support-ticket-thread"),
+    path("support/reply/<int:ticket_id>/", views.support_ticket_reply, name="support-ticket-reply"),
     path("ai-company-settings/", views.company_ai_settings, name="subscriptions-company-ai-settings"),
     path("onboard/", views.onboard, name="subscriptions-onboard"),
     path(
