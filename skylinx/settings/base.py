@@ -132,6 +132,7 @@ INSTALLED_APPS = [
     "skylinx_dbtemplate",
     "subscriptions",
     "buzz",
+    "konnect",
 ]
 
 # ========================================
@@ -410,7 +411,8 @@ SIDEBARS = [
     "helpdesk",
     "project",
     "report",
-    "buzz",
+    # "buzz",  # 1:1 chat retired from UI — replaced by the Konnect company feed
+    "konnect",
 ]
 
 # Audit logging is opt-in: the skylinx_audit app registers models explicitly

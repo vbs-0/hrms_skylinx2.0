@@ -183,6 +183,30 @@ def send_birthday_wishes():
         company = emp.get_company()
         if not company:
             continue
+
+        # Konnect feed birthday post — scoped to THIS employee's company only
+        # (this loop crosses tenants, so company comes from the employee, never
+        # from any ambient/request context). Dupe-guarded per employee per day.
+        try:
+            from konnect.models import KonnectPost
+
+            already = KonnectPost.objects.filter(
+                company=company,
+                category="birthday",
+                mentions=emp,
+                created_at__date=today,
+            ).exists()
+            if not already:
+                post = KonnectPost.objects.create(
+                    company=company,
+                    author=None,
+                    category="birthday",
+                    body=f"Happy Birthday @{emp.get_full_name()}\n\nLet's Celebrate 🎂",
+                )
+                post.mentions.add(emp)
+        except Exception:
+            pass
+
         teammates = Employee.objects.filter(
             is_active=True, employee_work_info__company_id=company
         ).exclude(id=emp.id)

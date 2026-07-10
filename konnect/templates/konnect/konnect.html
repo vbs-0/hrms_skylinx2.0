@@ -1,0 +1,216 @@
+{% extends "index.html" %}
+{% load i18n %}
+{% block content %}
+<style>
+  .kn-wrap{max-width:680px;margin:0 auto;}
+  .kn-hero{background:#1e293b;color:#fff;border-radius:12px;padding:16px 20px;font-size:17px;font-weight:700;margin-bottom:14px;}
+  .kn-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:14px;box-shadow:0 1px 4px rgba(15,23,42,.05);}
+  .dark .kn-card{background:#1e293b;border-color:#334155;color:#e2e8f0;}
+  .kn-composer{padding:14px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;color:#64748b;font-size:14px;}
+  .kn-post{padding:16px;}
+  .kn-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .kn-avatar{width:38px;height:38px;border-radius:50%;object-fit:cover;background:#e0e7ff;display:flex;align-items:center;justify-content:center;font-weight:700;color:#4f46e5;flex-shrink:0;}
+  .kn-author{font-weight:700;font-size:14px;}
+  .kn-time{font-size:12px;color:#94a3b8;}
+  .kn-chip{display:inline-block;background:#2196f3;color:#fff;border-radius:999px;padding:4px 14px;font-size:12.5px;font-weight:600;margin-bottom:8px;}
+  .kn-chip.birthday{background:#ec4899;}
+  .kn-chip.anniversary{background:#8b5cf6;}
+  .kn-chip.new_joiner{background:#10b981;}
+  .kn-chip.general{background:#64748b;}
+  .kn-body{font-size:14.5px;line-height:1.5;white-space:pre-wrap;margin-bottom:8px;}
+  .kn-body .mention{color:#2563eb;font-weight:600;}
+  .kn-img{width:100%;border-radius:10px;margin:6px 0;}
+  .kn-actions{display:flex;gap:18px;border-top:1px solid #f1f5f9;padding-top:10px;margin-top:8px;font-size:13px;color:#64748b;align-items:center;}
+  .kn-actions span{cursor:pointer;display:flex;align-items:center;gap:5px;}
+  .kn-actions .liked{color:#2563eb;font-weight:700;}
+  .kn-pin{color:#f59e0b;font-size:12px;font-weight:700;margin-left:auto;}
+  .kn-del{cursor:pointer;color:#94a3b8;margin-left:auto;}
+  .kn-comments{border-top:1px solid #f1f5f9;margin-top:8px;padding-top:8px;display:none;}
+  .kn-comment{display:flex;gap:8px;margin-bottom:8px;font-size:13px;}
+  .kn-cbubble{background:#f8fafc;border-radius:10px;padding:6px 10px;flex:1;}
+  .dark .kn-cbubble{background:#0f172a;}
+  .kn-cinput{display:flex;gap:8px;margin-top:6px;}
+  .kn-cinput input{flex:1;border:1px solid #e2e8f0;border-radius:999px;padding:7px 14px;font-size:13px;}
+  .kn-cinput button{background:#4f46e5;color:#fff;border:none;border-radius:999px;padding:7px 16px;font-size:13px;cursor:pointer;}
+  .kn-modal{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:1050;}
+  .kn-modal.open{display:flex;}
+  .kn-modal-card{background:#fff;border-radius:14px;padding:20px;width:min(520px,92vw);}
+  .dark .kn-modal-card{background:#1e293b;color:#e2e8f0;}
+  .kn-modal-card textarea{width:100%;border:1px solid #e2e8f0;border-radius:10px;padding:10px;font-size:14px;min-height:110px;resize:vertical;}
+  .kn-modal-card select,.kn-modal-card input[type=file]{margin-top:10px;font-size:13px;}
+  .kn-modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px;}
+  .kn-btn{border:none;border-radius:8px;padding:9px 18px;font-size:13.5px;font-weight:600;cursor:pointer;}
+  .kn-btn.primary{background:#4f46e5;color:#fff;}
+  .kn-btn.ghost{background:#f1f5f9;color:#334155;}
+  .kn-empty{text-align:center;color:#94a3b8;padding:40px 0;font-size:14px;}
+  .kn-more{display:block;margin:0 auto 30px;background:none;border:1px solid #e2e8f0;border-radius:999px;padding:8px 22px;font-size:13px;color:#475569;cursor:pointer;}
+</style>
+
+<div class="kn-wrap">
+  <div class="kn-hero">Konnect — {% trans "Share | Celebrate | Collaborate" %}</div>
+
+  <div class="kn-card kn-composer" onclick="knOpenComposer()">
+    <ion-icon name="paper-plane-outline" style="font-size:20px;"></ion-icon>
+    {% trans "Create a post" %}
+  </div>
+
+  <div id="kn-feed"></div>
+  <button class="kn-more" id="kn-more" style="display:none;" onclick="knLoad(knPage+1)">{% trans "Load more" %}</button>
+</div>
+
+<div class="kn-modal" id="kn-modal">
+  <div class="kn-modal-card">
+    <h3 style="font-weight:700;margin-bottom:12px;">{% trans "Create a post" %}</h3>
+    <textarea id="kn-body" placeholder="{% trans 'What do you want to share?' %}"></textarea>
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+      <select id="kn-category">
+        <option value="general">{% trans "General" %}</option>
+        <option value="announcement" id="kn-opt-ann" style="display:none;">{% trans "Announcement" %}</option>
+      </select>
+      <label id="kn-pin-label" style="display:none;font-size:13px;"><input type="checkbox" id="kn-pinned"> {% trans "Pin to top" %}</label>
+      <input type="file" id="kn-image" accept="image/*">
+    </div>
+    <div class="kn-modal-actions">
+      <button class="kn-btn ghost" onclick="knCloseComposer()">{% trans "Cancel" %}</button>
+      <button class="kn-btn primary" id="kn-submit" onclick="knSubmit()">{% trans "Post" %}</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var API='/api/v1/konnect/';
+var knPage=1, knCanAnnounce=false;
+
+function csrf(){var m=document.cookie.match(/csrftoken=([^;]+)/);return m?m[1]:'';}
+function jget(u){return fetch(u,{credentials:'same-origin'}).then(function(r){return r.json();});}
+function jpost(u,data){return fetch(u,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},body:JSON.stringify(data||{})}).then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j};});});}
+function jdel(u){return fetch(u,{method:'DELETE',credentials:'same-origin',headers:{'X-CSRFToken':csrf()}}).then(function(r){return{ok:r.ok};});}
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function fmtWhen(iso){var d=new Date(iso);return d.toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'})+' '+d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});}
+
+function renderBody(p){
+  var html=esc(p.body);
+  (p.mentions||[]).forEach(function(m){
+    html=html.split('@'+esc(m.name)).join('<span class="mention">@'+esc(m.name)+'</span>');
+  });
+  return html;
+}
+
+function knLoad(page){
+  knPage=page;
+  jget(API+'feed/?page='+page).then(function(d){
+    knCanAnnounce=!!d.can_announce;
+    if(knCanAnnounce){document.getElementById('kn-opt-ann').style.display='';document.getElementById('kn-pin-label').style.display='';}
+    var feed=document.getElementById('kn-feed');
+    if(page===1)feed.innerHTML='';
+    if(!(d.results||[]).length && page===1){feed.innerHTML='<div class="kn-card kn-empty">No posts yet — be the first to share something!</div>';}
+    (d.results||[]).forEach(function(p){feed.appendChild(knCard(p));});
+    document.getElementById('kn-more').style.display=d.has_more?'block':'none';
+  });
+}
+
+function knCard(p){
+  var card=document.createElement('div');card.className='kn-card kn-post';card.id='kn-post-'+p.id;
+  var av=p.author_avatar?'<img class="kn-avatar" src="'+p.author_avatar+'">':'<div class="kn-avatar">'+esc((p.author||'?')[0])+'</div>';
+  card.innerHTML=
+    '<div class="kn-head">'+av+
+      '<div><div class="kn-author">'+esc(p.author)+'</div><div class="kn-time">'+fmtWhen(p.at)+'</div></div>'+
+      (p.pinned?'<span class="kn-pin">📌 Pinned</span>':'')+
+      (p.deletable?'<span class="kn-del" title="Delete" onclick="knDelete('+p.id+')"><ion-icon name="trash-outline"></ion-icon></span>':'')+
+    '</div>'+
+    '<span class="kn-chip '+p.category+'">'+esc(p.category_label)+'</span>'+
+    '<div class="kn-body">'+renderBody(p)+'</div>'+
+    (p.image?'<img class="kn-img" src="'+p.image+'">':'')+
+    '<div class="kn-actions">'+
+      '<span class="'+(p.liked?'liked':'')+'" onclick="knLike('+p.id+',this)"><ion-icon name="thumbs-up'+(p.liked?'':'-outline')+'"></ion-icon> Like</span>'+
+      '<span onclick="knToggleComments('+p.id+')"><ion-icon name="chatbox-outline"></ion-icon> Comment</span>'+
+      '<span id="kn-counts-'+p.id+'">'+p.likes+' Likes &nbsp; '+p.comments+' Comments</span>'+
+    '</div>'+
+    '<div class="kn-comments" id="kn-comments-'+p.id+'">'+
+      '<div id="kn-clist-'+p.id+'"></div>'+
+      '<div class="kn-cinput"><input id="kn-cin-'+p.id+'" placeholder="Write a comment..."><button onclick="knComment('+p.id+')">Send</button></div>'+
+    '</div>';
+  return card;
+}
+
+function knLike(id,el){
+  jpost(API+'posts/'+id+'/like/').then(function(r){
+    if(!r.ok)return;
+    el.className=r.j.liked?'liked':'';
+    el.innerHTML='<ion-icon name="thumbs-up'+(r.j.liked?'':'-outline')+'"></ion-icon> Like';
+    var counts=document.getElementById('kn-counts-'+id);
+    var comments=counts.textContent.split('  ')[1]||'';
+    counts.innerHTML=r.j.likes+' Likes &nbsp; '+comments.trim();
+  });
+}
+
+function knToggleComments(id){
+  var box=document.getElementById('kn-comments-'+id);
+  var open=box.style.display==='block';
+  box.style.display=open?'none':'block';
+  if(!open)knLoadComments(id);
+}
+
+function knLoadComments(id){
+  jget(API+'posts/'+id+'/comments/').then(function(d){
+    var list=document.getElementById('kn-clist-'+id);list.innerHTML='';
+    if(!(d.results||[]).length){list.innerHTML='<div style="color:#94a3b8;font-size:12.5px;padding:4px 0;">No comments yet.</div>';return;}
+    d.results.forEach(function(c){
+      var row=document.createElement('div');row.className='kn-comment';
+      row.innerHTML='<div class="kn-cbubble"><b>'+esc(c.author)+'</b> <span style="color:#94a3b8;font-size:11px;">'+fmtWhen(c.at)+'</span><br>'+esc(c.body)+'</div>'+
+        (c.deletable?'<span style="cursor:pointer;color:#94a3b8;" onclick="knDelComment('+c.id+','+id+')"><ion-icon name="trash-outline"></ion-icon></span>':'');
+      list.appendChild(row);
+    });
+  });
+}
+
+function knComment(id){
+  var input=document.getElementById('kn-cin-'+id);
+  var body=input.value.trim();if(!body)return;
+  jpost(API+'posts/'+id+'/comments/',{body:body}).then(function(r){
+    if(r.ok){input.value='';knLoadComments(id);knLoad(1);}
+  });
+}
+
+function knDelComment(cid,pid){
+  if(!confirm('Delete this comment?'))return;
+  jdel(API+'comments/'+cid+'/').then(function(){knLoadComments(pid);});
+}
+
+function knDelete(id){
+  if(!confirm('Delete this post?'))return;
+  jdel(API+'posts/'+id+'/').then(function(r){
+    if(r.ok){var el=document.getElementById('kn-post-'+id);if(el)el.remove();}
+  });
+}
+
+function knOpenComposer(){document.getElementById('kn-modal').classList.add('open');}
+function knCloseComposer(){document.getElementById('kn-modal').classList.remove('open');}
+
+function knSubmit(){
+  var body=document.getElementById('kn-body').value.trim();
+  if(!body)return;
+  var btn=document.getElementById('kn-submit');btn.disabled=true;btn.textContent='Posting...';
+  var fd=new FormData();
+  fd.append('body',body);
+  fd.append('category',document.getElementById('kn-category').value);
+  if(document.getElementById('kn-pinned').checked)fd.append('pinned','true');
+  var img=document.getElementById('kn-image').files[0];
+  if(img)fd.append('image',img);
+  fetch(API+'feed/',{method:'POST',credentials:'same-origin',headers:{'X-CSRFToken':csrf()},body:fd})
+    .then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j};});})
+    .then(function(r){
+      btn.disabled=false;btn.textContent='Post';
+      if(r.ok){
+        knCloseComposer();
+        document.getElementById('kn-body').value='';document.getElementById('kn-image').value='';document.getElementById('kn-pinned').checked=false;
+        knLoad(1);
+      } else {
+        alert(r.j.error||'Could not post.');
+      }
+    });
+}
+
+knLoad(1);
+</script>
+{% endblock %}
