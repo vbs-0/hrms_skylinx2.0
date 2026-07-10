@@ -87,6 +87,42 @@
     if(me){d.textContent=text;}else{d.innerHTML=renderMd(text);}
     msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;return d;
   }
+  // Consequential (execute-tier) actions never run on the turn the model
+  // proposes them — this card is the only way one actually happens.
+  function confirmCard(pendingAction){
+    var wrap=document.createElement('div');
+    wrap.style.cssText='border:1px solid #f59e0b;background:#fffbeb;border-radius:10px;padding:10px;margin-bottom:8px;margin-right:20px;font-size:12.5px;color:#78350f;';
+    var summary=document.createElement('div');
+    summary.style.cssText='margin-bottom:8px;white-space:pre-wrap;';
+    summary.textContent=pendingAction.summary||'Confirm this action?';
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;gap:8px;';
+    var proceed=document.createElement('button');
+    proceed.textContent='Proceed';
+    proceed.style.cssText='background:#16a34a;color:#fff;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;';
+    var cancel=document.createElement('button');
+    cancel.textContent='Cancel';
+    cancel.style.cssText='background:#e5e7eb;color:#111827;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;';
+    row.appendChild(proceed);row.appendChild(cancel);
+    wrap.appendChild(summary);wrap.appendChild(row);
+    msgs.appendChild(wrap);msgs.scrollTop=msgs.scrollHeight;
+    cancel.onclick=function(){
+      wrap.remove();
+      var msg='Cancelled — nothing was changed.';
+      bubble(msg,false);saveMsg(msg,false);
+    };
+    proceed.onclick=function(){
+      proceed.disabled=true;cancel.disabled=true;proceed.textContent='Working…';
+      fetch('/manage/ai-chat/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},body:JSON.stringify({confirm_action:pendingAction})})
+        .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+        .then(function(res){
+          wrap.remove();
+          var reply=res.ok?res.j.reply:(res.j.error||'Something went wrong.');
+          var b=bubble(reply,false);saveMsg(reply,false);
+        })
+        .catch(function(){wrap.remove();var msg='Could not reach the assistant to confirm.';bubble(msg,false);saveMsg(msg,false);});
+    };
+  }
   // sessionStorage: survives page navigation within Emplinx, clears when the tab closes — never sent anywhere but this browser tab.
   var GREETING="{% trans 'Hi! Ask me about your leave balance, shifts, payslips, or how to use Emplinx.' %}";
   var MAX_AGE=8*60*60*1000; // auto-expire the conversation after 8 hours
@@ -124,6 +160,7 @@
           history.push({role:'assistant',content:reply});
           if(history.length>12)history=history.slice(-12);
           sessionStorage.setItem('ai_history',JSON.stringify(history));
+          if(res.j.pending_action){confirmCard(res.j.pending_action);}
         }
       })
       .catch(function(){var msg='The assistant is unavailable right now.';wait.textContent=msg;saveMsg(msg,false);})

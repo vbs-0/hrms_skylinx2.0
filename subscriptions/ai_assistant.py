@@ -198,10 +198,43 @@ def _company_context(user, role):
         except Exception:
             pass
         level = _action_level(company)
+        # Employee roster (name+ID, tokenized) is informational, not an
+        # action — available at every level so "list the employees" works
+        # even in guidance/suggest tier. Execute tier additionally needs the
+        # IDs to target create_leave.
+        try:
+            roster = list(
+                emp_qs.select_related("employee_work_info__department_id")[:200]
+            )
+            if roster:
+                lines.append("Employee roster (ID: name, department):")
+                for e in roster:
+                    wi = getattr(e, "employee_work_info", None)
+                    dept = getattr(wi, "department_id", None) if wi else None
+                    lines.append(
+                        f"- ID {e.id}: {tk.tok(e.get_full_name(), 'NAME')}"
+                        + (f", {tk.tok(dept, 'DEPT')}" if dept else "")
+                    )
+                if emp_qs.count() > len(roster):
+                    lines.append(
+                        f"(roster truncated to {len(roster)} of {emp_qs.count()} — ask to narrow by department/name if needed.)"
+                    )
+        except Exception:
+            pass
+        try:
+            from leave.models import LeaveType
+
+            types = list(LeaveType.objects.filter(company_id=company)[:50])
+            if types:
+                lines.append("Leave types (ID: name):")
+                for lt in types:
+                    lines.append(f"- ID {lt.id}: {tk.tok(lt.name, 'LEAVETYPE')}")
+        except Exception:
+            pass
         level_note = {
             "guidance": "You can only explain and guide — you cannot approve leave, generate payroll, or change any data.",
             "suggest": "You can suggest a specific action (e.g. approving a named leave request), but a human must click the real confirm button in Emplinx — you cannot execute it yourself.",
-            "execute": "You CAN approve/reject pending leave requests AND generate payroll (draft payslips for all eligible employees) directly when the user asks — see the ACTIONS protocol in your instructions. Other changes (contracts, employee records) you still cannot make; guide instead.",
+            "execute": "You CAN approve/reject pending leave requests, create and assign a new leave request for a named employee, AND generate payroll (draft payslips for all eligible employees) directly when the user asks — see the ACTIONS protocol in your instructions. Every execute action requires the user to confirm via a Proceed/Cancel prompt before it actually happens — you propose, you don't silently do it. Other changes (contracts, employee records) you still cannot make; guide instead.",
         }.get(level, "You can only explain and guide.")
         lines.append(f"Your action level for this company: {level}. {level_note}")
         try:
@@ -338,6 +371,30 @@ def ai_chat(request):
         body = json.loads(request.body.decode())
     except Exception:
         return JsonResponse({"error": "Bad request."}, status=400)
+
+    # Confirm/cancel path for a previously-proposed action: the model never
+    # executes anything on the turn it proposes one (see below) — the
+    # frontend shows Proceed/Cancel, and Proceed re-POSTs the exact same
+    # proposal here as confirm_action. Re-validate everything from scratch;
+    # nothing about the client's claim is trusted beyond the action name/params.
+    confirm_action = body.get("confirm_action")
+    if confirm_action is not None:
+        if role == "employee":
+            return JsonResponse({"error": "Your role can't perform actions."}, status=403)
+        company = _company_of(request.user)
+        can_execute = (
+            bool(company) and _action_level(company) == "execute" and sub_has_execute
+        )
+        if not can_execute or not isinstance(confirm_action, dict):
+            return JsonResponse({"reply": "That action is no longer available — nothing was changed."})
+        from subscriptions.ai_actions import execute_action
+
+        result = execute_action(
+            request, confirm_action.get("action"), confirm_action, company
+        )
+        prefix = "✅ " if result["ok"] else "⚠️ "
+        return JsonResponse({"reply": prefix + result["message"]})
+
     user_msg = (body.get("message") or "").strip()[:2000]
     if not user_msg:
         return JsonResponse({"error": "Empty message."}, status=400)
@@ -435,16 +492,25 @@ def ai_chat(request):
         "transactional in these cases.\n"
         + (
             # Execute tier: the model may emit a machine-readable action line;
-            # the server re-validates and performs it via the same view a
-            # human click would hit. Supports leave approve/reject + payroll.
-            "ACTIONS: your action level is EXECUTE. You can perform these "
+            # the server NEVER runs it on this turn — it validates + describes
+            # it in plain English and the user must click Proceed before it
+            # actually happens. Supports leave approve/reject/create + payroll.
+            "ACTIONS: your action level is EXECUTE. You can PROPOSE these "
             "actions by ending your reply with a line containing ONLY the "
-            "action (no code fences, nothing after it):\n"
+            "action (no code fences, nothing after it). Proposing an action "
+            "does NOT perform it — the user sees a Proceed/Cancel confirmation "
+            "and nothing changes until they click Proceed:\n"
             "1. Approve a pending leave request: "
             'EMPLINX_ACTION={"action":"approve_leave","id":<numeric ID from CONTEXT>}\n'
             "2. Reject a pending leave request: "
             'EMPLINX_ACTION={"action":"reject_leave","id":<ID>,"reason":"<short reason>"}\n'
-            "3. Generate payroll (draft payslips for ALL eligible employees in "
+            "3. Create and assign a new leave request for a named employee: "
+            'EMPLINX_ACTION={"action":"create_leave","employee_id":<ID from roster>,'
+            '"leave_type_id":<ID from leave types>,"start_date":"YYYY-MM-DD",'
+            '"end_date":"YYYY-MM-DD","reason":"<short reason>"} '
+            "— only use employee_id/leave_type_id values that appear in "
+            "CONTEXT's roster/leave-types lists; never invent one.\n"
+            "4. Generate payroll (draft payslips for ALL eligible employees in "
             "this company): "
             'EMPLINX_ACTION={"action":"generate_payroll"} '
             "— optionally add a month: "
@@ -453,20 +519,21 @@ def ai_chat(request):
             "set and an active pay-register entry); you do NOT list them. It "
             "creates DRAFT payslips a human still reviews and confirms.\n"
             "FORMAT (critical): ALWAYS write one short natural sentence to the "
-            "user first (e.g. 'Sure — approving that leave request now.' or "
-            "'Generating payroll for all eligible employees now.'), THEN put "
-            "the EMPLINX_ACTION line as the very last line on its own. NEVER "
-            "reply with only the action line and no sentence, and never leave "
-            "the reply empty.\n"
+            "user first (e.g. 'Sure — here's that leave request to approve.' or "
+            "'Ready to generate payroll for all eligible employees — confirm below.'), "
+            "THEN put the EMPLINX_ACTION line as the very last line on its own. "
+            "NEVER reply with only the action line and no sentence, and never "
+            "leave the reply empty. NEVER say you've already done it — you are "
+            "proposing, the user still has to confirm.\n"
             "Rules: use an action ONLY when the user's request is clear and "
             "unambiguous. For leave, never fabricate an ID — if unsure which "
-            "request, ask and list the pending IDs. Before generating payroll, "
-            "if CONTEXT shows 0 eligible employees, do NOT emit the action — "
-            "explain plainly that no employee has their CTC set yet (Employee > "
-            "Work Info > CTC), which is what makes them payroll-eligible. "
-            "For anything else (setting CTC, editing employees) you "
-            "still cannot act — guide to the right screen and never claim you "
-            "did it.\n"
+            "request/employee/leave-type, ask and list the options from CONTEXT. "
+            "Before generating payroll, if CONTEXT shows 0 eligible employees, "
+            "do NOT emit the action — explain plainly that no employee has "
+            "their CTC set yet (Employee > Work Info > CTC), which is what "
+            "makes them payroll-eligible. For anything else (setting CTC, "
+            "editing employees) you still cannot act — guide to the right "
+            "screen and never claim you did it.\n"
             if can_execute
             else
             "ACTIONS: CONTEXT may state your 'action level' for this company. "
@@ -539,23 +606,30 @@ def ai_chat(request):
                      "leave balance, shifts, payslips, attendance, or how to use Emplinx."
         })
     # Execute-tier action handling: the model may end its reply with an
-    # EMPLINX_ACTION={...} line. Strip it from the visible reply and run it
-    # through the server-side validator/executor (which re-checks everything —
-    # the model's claim alone never changes data).
+    # EMPLINX_ACTION={...} line. This NEVER runs the action itself — it's
+    # only ever proposed here, described in plain English, and handed to the
+    # frontend as pending_action. The user must click Proceed (which re-POSTs
+    # it as confirm_action, handled above) before anything actually changes.
     action_result = None
+    pending_action = None
     m = re.search(r"EMPLINX_ACTION=(\{.*?\})\s*$", raw_answer, re.DOTALL)
     if m:
         raw_answer = raw_answer[: m.start()].rstrip()
         if can_execute:
-            from subscriptions.ai_actions import execute_action
-
             try:
                 proposal = json.loads(m.group(1))
             except Exception:
                 proposal = {}
-            action_result = execute_action(
-                request, proposal.get("action"), proposal, company
-            )
+            if proposal.get("action"):
+                from subscriptions.ai_actions import describe_action
+
+                summary = describe_action(proposal.get("action"), proposal, company)
+                if summary:
+                    pending_action = {**proposal, "summary": summary}
+                else:
+                    action_result = {"ok": False, "message": "I couldn't validate that action — nothing was changed."}
+            else:
+                action_result = {"ok": False, "message": "I couldn't understand that action — nothing was changed."}
         else:
             # Model emitted an action while not allowed to — never execute.
             action_result = {"ok": False, "message": "Actions aren't enabled for your company's AI level."}
@@ -568,4 +642,7 @@ def ai_chat(request):
     # completion) — fall back to a gentle re-prompt.
     if not answer.strip():
         answer = "Sorry, I didn't catch that — could you rephrase? I can help with your leave, payslips, attendance, or using Emplinx."
-    return JsonResponse({"reply": answer})
+    resp = {"reply": answer}
+    if pending_action is not None:
+        resp["pending_action"] = pending_action
+    return JsonResponse(resp)
