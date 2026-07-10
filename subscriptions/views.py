@@ -1265,6 +1265,31 @@ def _notify_ticket_reply(ticket, from_owner, body):
 
 
 @login_required
+def support_my_tickets(request):
+    """Employee-side: list their own tickets (newest first) so they can reopen
+    a past conversation or check whether something got resolved."""
+    from .models import SupportTicket
+
+    try:
+        employee = request.user.employee_get
+    except Exception:
+        return HttpResponseBadRequest("Not an employee account.")
+    tickets = SupportTicket.objects.filter(raised_by=employee)[:50]
+    return JsonResponse({
+        "tickets": [
+            {
+                "id": t.id,
+                "subject": t.subject,
+                "status": t.status,
+                "created_at": t.created_at.isoformat(),
+                "replies": t.replies.count(),
+            }
+            for t in tickets
+        ]
+    })
+
+
+@login_required
 def support_ticket_thread(request, ticket_id):
     """Employee-side: fetch a ticket's status + full reply thread (own tickets only)."""
     from .models import SupportTicket
