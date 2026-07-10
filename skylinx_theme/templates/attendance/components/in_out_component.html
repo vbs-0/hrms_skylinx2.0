@@ -1,11 +1,23 @@
 {% load static skylinxfilters attendancefilters i18n %}
 
 {% if request.user.employee_get %}
-    {% with get_forecasted_at_work=request.user.employee_get.get_forecasted_at_work %}
+    {% with get_forecasted_at_work=request.user.employee_get.get_forecasted_at_work needs_face_geo=request|requires_face_geo_checkin %}
         {% if request.session.selected_company == "all" or request.user.employee_get.employee_work_info.company_id.id == request.session.selected_company|default:"-1"|add:"0" %}
             <!-- "CHEKING WETHER Check in/check out enabled" -->
             {% if request|is_check_in_enabled %}
-                {% if request.user|is_clocked_in and get_forecasted_at_work.has_attendance %}
+                {% if needs_face_geo %}
+                    {% if request.user|is_clocked_in and get_forecasted_at_work.has_attendance %}
+                    <button class="check checkout" onclick="window.location.href='{% url 'web-face-checkin' %}'">
+                        <span class="date"><i class="fa-solid fa-right-from-bracket pe-2"></i></span>
+                        <span class="con hr-Check-In-out-text">{% trans "Check Out" %}</span>
+                    </button>
+                    {% else %}
+                    <button class="check checkin" onclick="window.location.href='{% url 'web-face-checkin' %}'">
+                        <span class="date"><i class="fa-solid fa-right-to-bracket pe-2"></i></span>
+                        <span class="con hr-Check-In-out-text">{% trans "Check In" %}</span>
+                    </button>
+                    {% endif %}
+                {% elif request.user|is_clocked_in and get_forecasted_at_work.has_attendance %}
                     {% comment %} <button class="check checkout" hx-get="{% url 'clock-out' %}"  hx-target='#attendance-activity-container' hx-swap='innerHTML'>
                         <span class="date">
                             <i class="fa-solid fa-right-from-bracket pe-2"></i><div class="time-runner"></div>

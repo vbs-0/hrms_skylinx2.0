@@ -331,6 +331,29 @@ def currency_symbol_position(amount):
     return currency_symbol
 
 
+@register.filter(name="requires_face_geo_checkin")
+def requires_face_geo_checkin(request):
+    """
+    True when the logged-in employee's own company has BOTH Face Detection
+    and Geofencing turned on — the plain clock-in/out button must redirect
+    to the face+geo web check-in page instead of trying (and being refused).
+    """
+    try:
+        employee = request.user.employee_get
+        company = employee.get_company()
+    except Exception:
+        return False
+    if not company:
+        return False
+
+    from facedetection.models import FaceDetection
+    from geofencing.models import GeoFencing
+
+    face_on = FaceDetection.objects.filter(company_id=company, start=True).exists()
+    geo_on = GeoFencing.objects.filter(company_id=company, start=True).exists()
+    return face_on and geo_on
+
+
 @register.filter(name="is_check_in_enabled")
 def is_check_in_enabled(request):
     """
