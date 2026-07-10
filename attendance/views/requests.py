@@ -462,18 +462,11 @@ def validate_attendance_request(request, attendance_id):
     )
 
 
-@login_required
-@manager_can_enter("attendance.change_attendance")
-def approve_validate_attendance_request(request, attendance_id):
-    """
-    This method is used to validate the attendance requests
-    """
-    attendance = Attendance.find(attendance_id)
-    if not attendance:
-        return SkylinxRedirect(
-            request, message=_("No Attendance found matching the query.")
-        )
-
+def apply_attendance_request_approval(attendance, approved_by_employee):
+    """Core approval side-effects, shared by the web view and the mobile API:
+    flip flags, apply requested_data, sync the AttendanceActivity, and create
+    late-come/early-out records. Returns the refreshed attendance."""
+    attendance_id = attendance.pk
     prev_attendance_date = attendance.attendance_date
     prev_attendance_clock_in_date = attendance.attendance_clock_in_date
     prev_attendance_clock_in = attendance.attendance_clock_in
@@ -481,7 +474,7 @@ def approve_validate_attendance_request(request, attendance_id):
     attendance.is_validate_request_approved = True
     attendance.is_validate_request = False
     attendance.request_description = None
-    attendance.approved_by = request.user.employee_get
+    attendance.approved_by = approved_by_employee
     attendance.save()
     if attendance.requested_data is not None:
         requested_data = json.loads(attendance.requested_data)
@@ -526,7 +519,14 @@ def approve_validate_attendance_request(request, attendance_id):
     # Create late come or early out objects
     shift = attendance.shift_id
     day = attendance.attendance_date.strftime("%A").lower()
-    day = EmployeeShiftDay.objects.get(day=day)
+    # EmployeeShiftDay is M2M company-scoped and may be invisible in the
+    # current company context — fall back to the unscoped row (same pattern
+    # as the mobile check-in path).
+    day = (
+        EmployeeShiftDay.objects.filter(day=day).first()
+        or EmployeeShiftDay.objects.entire().filter(day=day).first()
+        or EmployeeShiftDay.objects.entire().first()
+    )
 
     minimum_hour, start_time_sec, end_time_sec = shift_schedule_today(
         day=day, shift=shift
@@ -539,6 +539,24 @@ def approve_validate_attendance_request(request, attendance_id):
         early_out(
             attendance, start_time=start_time_sec, end_time=end_time_sec, shift=shift
         )
+    return attendance
+
+
+@login_required
+@manager_can_enter("attendance.change_attendance")
+def approve_validate_attendance_request(request, attendance_id):
+    """
+    This method is used to validate the attendance requests
+    """
+    attendance = Attendance.find(attendance_id)
+    if not attendance:
+        return SkylinxRedirect(
+            request, message=_("No Attendance found matching the query.")
+        )
+
+    attendance = apply_attendance_request_approval(
+        attendance, request.user.employee_get
+    )
     messages.success(request, _("Attendance request has been approved"))
     employee = attendance.employee_id
     notify.send(
