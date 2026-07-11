@@ -54,7 +54,9 @@ def send_push(user, title, body, data=None):
 def _connect():
     from .models import Notification
 
-    @receiver(post_save, sender=Notification)
+    # weak=False: this is a nested function, so with the default weak ref the
+    # handler is garbage-collected right after startup and pushes silently stop.
+    @receiver(post_save, sender=Notification, weak=False)
     def _push_on_notification_created(sender, instance, created, **kwargs):
         if not created or not instance.recipient_id:
             return

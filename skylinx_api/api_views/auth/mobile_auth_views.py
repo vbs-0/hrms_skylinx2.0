@@ -123,11 +123,27 @@ def get_mobile_user_data(user):
             
             is_tracking_enabled = subscription_enabled and owner_permission_enabled
 
+            reporting_manager = None
+            try:
+                rm = work_info.reporting_manager_id if work_info else None
+                if rm:
+                    reporting_manager = {
+                        "id": str(rm.id),
+                        "name": rm.get_full_name(),
+                        "avatar": rm.get_avatar(),
+                        "jobTitle": str(rm.employee_work_info.job_position_id)
+                        if getattr(getattr(rm, "employee_work_info", None), "job_position_id", None)
+                        else None,
+                    }
+            except Exception:
+                pass
+
             profile_data = {
                 "id": str(employee.id),
                 "employeeCode": employee.badge_id or f"EMP{employee.id}",
                 "department": dept,
                 "jobTitle": job_title,
+                "reportingManager": reporting_manager,
                 "shiftId": str(shift.id) if shift else None,
                 "isTrackingEnabled": is_tracking_enabled,
                 "shift": shift_data

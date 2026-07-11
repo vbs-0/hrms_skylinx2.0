@@ -31,7 +31,9 @@ def _send_async(to_email, subject, body):
 def _connect():
     from .models import Notification
 
-    @receiver(post_save, sender=Notification)
+    # weak=False: nested function — default weak ref gets GC'd after startup
+    # and notification emails silently stop (same fix as push.py).
+    @receiver(post_save, sender=Notification, weak=False)
     def _email_on_notification_created(sender, instance, created, **kwargs):
         if not created or not instance.recipient_id:
             return

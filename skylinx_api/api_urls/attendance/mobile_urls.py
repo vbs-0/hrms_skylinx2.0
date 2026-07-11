@@ -14,6 +14,8 @@ from ...api_views.attendance.request_views import (
     MobileAttendanceRequestAPIView,
     MobileAttendanceRequestAdminAPIView,
     MobileMarkPresentAPIView,
+    MobileTeamAttendanceStatusAPIView,
+    MobileMarkAbsentAPIView,
 )
 
 urlpatterns = [
@@ -30,4 +32,6 @@ urlpatterns = [
     path("requests/pending/", MobileAttendanceRequestAdminAPIView.as_view(), name="mobile-api-attendance-requests-pending"),
     path("requests/<int:attendance_id>/action/", MobileAttendanceRequestAdminAPIView.as_view(), name="mobile-api-attendance-request-action"),
     path("mark-present/", MobileMarkPresentAPIView.as_view(), name="mobile-api-mark-present"),
+    path("mark-absent/", MobileMarkAbsentAPIView.as_view(), name="mobile-api-mark-absent"),
+    path("team-status/", MobileTeamAttendanceStatusAPIView.as_view(), name="mobile-api-team-status"),
 ]

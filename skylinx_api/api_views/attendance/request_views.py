@@ -330,3 +330,101 @@ class MobileMarkPresentAPIView(APIView):
             {"success": True, "message": "Marked present.", "data": _request_payload(attendance)},
             status=201,
         )
+
+
+class MobileTeamAttendanceStatusAPIView(APIView):
+    """HR/manager: every active employee's Present/Absent status for a date
+    (?date=YYYY-MM-DD, default today) — powers the app's Team Attendance view."""
+
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CompanyScopedJWTAuthentication, SessionAuthentication]
+
+    def get(self, request):
+        if not _is_attendance_manager(request.user):
+            return Response({"success": False, "message": "Not allowed."}, status=403)
+        date_str = request.query_params.get("date")
+        try:
+            target = (
+                datetime.strptime(str(date_str), "%Y-%m-%d").date()
+                if date_str
+                else datetime.today().date()
+            )
+        except (ValueError, TypeError):
+            return Response({"success": False, "message": "Invalid date (YYYY-MM-DD)."}, status=400)
+
+        att_by_emp = {
+            a.employee_id_id: a
+            for a in Attendance.objects.filter(attendance_date=target).select_related()
+        }
+        rows = []
+        for emp in Employee.objects.filter(is_active=True).select_related(
+            "employee_work_info"
+        ).order_by("employee_first_name"):
+            a = att_by_emp.get(emp.id)
+            rows.append({
+                "employeeId": emp.id,
+                "name": emp.get_full_name(),
+                "avatar": emp.get_avatar(),
+                "designation": getattr(
+                    getattr(emp, "employee_work_info", None), "job_position_id", None
+                ) and str(emp.employee_work_info.job_position_id) or "",
+                "status": (
+                    "pending" if (a and a.is_validate_request)
+                    else "present" if a
+                    else "absent"
+                ),
+                "checkIn": str(a.attendance_clock_in) if a and a.attendance_clock_in else None,
+                "checkOut": str(a.attendance_clock_out) if a and a.attendance_clock_out else None,
+                "attendanceId": a.id if a else None,
+            })
+        present = sum(1 for r in rows if r["status"] == "present")
+        return Response({
+            "success": True,
+            "date": str(target),
+            "present": present,
+            "absent": sum(1 for r in rows if r["status"] == "absent"),
+            "pending": sum(1 for r in rows if r["status"] == "pending"),
+            "data": rows,
+        })
+
+
+class MobileMarkAbsentAPIView(APIView):
+    """HR/manager: undo an attendance for a date (mark absent) — deletes the
+    Attendance row so the day counts as absent again. Employee is notified."""
+
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CompanyScopedJWTAuthentication, SessionAuthentication]
+
+    def post(self, request):
+        if not _is_attendance_manager(request.user):
+            return Response({"success": False, "message": "Not allowed."}, status=403)
+        actor = request.user.employee_get
+        employee = Employee.objects.filter(id=request.data.get("employeeId")).first()
+        if not employee:
+            return Response({"success": False, "message": "Employee not found."}, status=404)
+        try:
+            att_date = datetime.strptime(str(request.data.get("date")), "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            return Response({"success": False, "message": "Invalid or missing date (YYYY-MM-DD)."}, status=400)
+        attendance = Attendance.objects.filter(
+            employee_id=employee, attendance_date=att_date
+        ).first()
+        if not attendance:
+            return Response({"success": False, "message": "No attendance on this date."}, status=404)
+        attendance.delete()
+        if employee.employee_user_id:
+            notify.send(
+                request.user,
+                recipient=employee.employee_user_id,
+                verb=f"Your attendance for {att_date} was marked absent by {actor.get_full_name()}",
+                redirect="/attendance/view-my-attendance/",
+                icon="close-circle-outline",
+            )
+        _mail_async(
+            employee.email,
+            f"Attendance updated for {att_date}",
+            f"Hi {employee.employee_first_name},\n\n"
+            f"Your attendance for {att_date} was marked Absent by {actor.get_full_name()}. "
+            "Contact HR if you believe this is a mistake.\n\n— Emplinx",
+        )
+        return Response({"success": True, "message": "Marked absent."})
