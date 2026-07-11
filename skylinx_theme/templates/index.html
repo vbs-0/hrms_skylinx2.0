@@ -203,7 +203,10 @@
             body.sidebar-toggled #sidebarSharedPanel {
                 left: 259px !important;
             }
-            /* Add an overlay when sidebar is open for better UX */
+            /* Add an overlay when sidebar is open for better UX.
+               Must sit above the header (z-40) or the header stays lit and
+               its search icon shows sharply clipped next to the sidebar
+               edge — the "broken hamburger icon" look. Below sidebar (z-50). */
             body.sidebar-toggled::before {
                 content: "";
                 position: fixed;
@@ -212,7 +215,7 @@
                 right: 0;
                 bottom: 0;
                 background: rgba(0, 0, 0, 0.15);
-                z-index: 35;
+                z-index: 45;
             }
 
             @keyframes fadeInText {
