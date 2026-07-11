@@ -63,6 +63,8 @@ def dashboard_accessibility(request, submenu, user_perms, *args, **kwargs):
         or is_reportingmanager(user)
         or any_project_manager(user)
         or any_task_manager(user)
+        or any_project_member(user)
+        or any_task_member(user)
     ):
         return True
     else:
