@@ -298,19 +298,38 @@ class ProjectFormView(SkylinxFormView):
         if form.is_valid():
             if form.instance.pk:
                 message = _(f"{self.form.instance} Updated")
+                old_people = set(
+                    form.instance.managers.values_list("id", flat=True)
+                ) | set(form.instance.members.values_list("id", flat=True))
                 HTTP_REFERER = self.request.META.get("HTTP_REFERER", None)
                 if HTTP_REFERER and "task-view/" in HTTP_REFERER:
-                    form.save()
+                    project = form.save()
                     messages.success(self.request, message)
+                    self._notify_new_people(project, old_people)
                     return self.HttpResponse(
                         "<script>window.location.reload()</script>"
                     )
             else:
                 message = _("New project created")
-            form.save()
+                old_people = set()
+            project = form.save()
             messages.success(self.request, _(message))
+            self._notify_new_people(project, old_people)
             return self.HttpResponse()
         return super().form_valid(form)
+
+    def _notify_new_people(self, project, old_people):
+        """Notify newly added managers/members (in-app + push + email)."""
+        from project.methods import notify_employees
+
+        assigned = (project.managers.all() | project.members.all()).distinct()
+        new_people = [e for e in assigned if e.id not in old_people]
+        notify_employees(
+            self.request.user.employee_get,
+            new_people,
+            f"You have been added to the project '{project}'.",
+            reverse("task-view", kwargs={"project_id": project.id}),
+        )
 
 
 class DynamicProjectCreationFormView(ProjectFormView):

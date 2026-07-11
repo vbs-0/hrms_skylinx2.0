@@ -391,10 +391,24 @@ class TimeSheetFormView(SkylinxFormView):
         if form.is_valid():
             if form.instance.pk:
                 message = _(f"{self.form.instance} Updated")
+                action = "updated"
             else:
                 message = _("New time sheet created")
-            form.save()
+                action = "added"
+            timesheet = form.save()
             messages.success(self.request, _(message))
+            # tell the project's managers (in-app + push + email)
+            from project.methods import notify_employees
+
+            project = timesheet.project_id
+            if project:
+                notify_employees(
+                    self.request.user.employee_get,
+                    project.managers.all(),
+                    f"{self.request.user.employee_get} {action} a timesheet"
+                    f" for task '{timesheet.task_id}' in project '{project}'.",
+                    reverse("view-time-sheet"),
+                )
             return self.HttpResponse()
         return super().form_valid(form)
 

@@ -395,10 +395,25 @@ class TaskCreateForm(SkylinxFormView):
         if form.is_valid():
             if form.instance.pk:
                 message = _(f"{self.form.instance} Updated")
+                old_people = set(
+                    form.instance.task_managers.values_list("id", flat=True)
+                ) | set(form.instance.task_members.values_list("id", flat=True))
             else:
                 message = _("New Task created")
-            form.save()
+                old_people = set()
+            task = form.save()
             messages.success(self.request, _(message))
+            # notify newly assigned managers/members (in-app + push + email)
+            from project.methods import notify_employees
+
+            assigned = (task.task_managers.all() | task.task_members.all()).distinct()
+            new_people = [e for e in assigned if e.id not in old_people]
+            notify_employees(
+                self.request.user.employee_get,
+                new_people,
+                f"You have been assigned to the task '{task}' in project '{task.project}'.",
+                reverse("task-all"),
+            )
             if stage_id or self.request.GET.get("project_task"):
                 return SkylinxRedirect(self.request)
             return self.HttpResponse("<script>$('#applyFilter').click();</script>")

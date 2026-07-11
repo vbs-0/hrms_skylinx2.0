@@ -233,3 +233,26 @@ def is_project_manager_or_super_user(request, project):
     return (
         request.user.employee_get in project.managers.all() or is_platform_owner(request.user)
     )
+
+
+def notify_employees(sender_employee, employees, verb, redirect_url):
+    """Send an in-app notification (which also fans out to push + email via
+    the Notification post_save receivers) to each employee, skipping the
+    actor themself. Never raises."""
+    from notifications.signals import notify
+
+    for employee in employees:
+        user = getattr(employee, "employee_user_id", None)
+        if not user or user == getattr(sender_employee, "employee_user_id", None):
+            continue
+        try:
+            notify.send(
+                sender_employee,
+                recipient=user,
+                verb=verb,
+                redirect=redirect_url,
+            )
+        except Exception:  # notification failure must never break the save
+            import logging
+
+            logging.getLogger(__name__).exception("project notify failed")
