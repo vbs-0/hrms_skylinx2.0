@@ -12,6 +12,43 @@ from django.http import JsonResponse
 from django.shortcuts import render
 
 
+def _scoped_projects(request):
+    """Projects this user may see on the dashboard: everything for platform
+    owners / view_project holders, otherwise only projects they manage,
+    belong to, or have a task in — a member must not see company-wide data."""
+    from base.rbac import is_platform_owner
+    from project.models import Project, Task
+
+    user = request.user
+    if is_platform_owner(user) or user.has_perm("project.view_project"):
+        return Project.objects.all()
+    emp = getattr(user, "employee_get", None)
+    if not emp:
+        return Project.objects.none()
+    ids = set(Project.objects.filter(managers=emp).values_list("id", flat=True))
+    ids |= set(Project.objects.filter(members=emp).values_list("id", flat=True))
+    ids |= set(Task.objects.filter(task_managers=emp).values_list("project", flat=True))
+    ids |= set(Task.objects.filter(task_members=emp).values_list("project", flat=True))
+    return Project.objects.filter(id__in=ids)
+
+
+def _scoped_tasks(request):
+    """Tasks this user may see: all for owners/perm holders; otherwise their
+    own tasks plus tasks of projects they manage."""
+    from base.rbac import is_platform_owner
+    from project.models import Task
+
+    user = request.user
+    if is_platform_owner(user) or user.has_perm("project.view_task"):
+        return Task.objects.all()
+    emp = getattr(user, "employee_get", None)
+    if not emp:
+        return Task.objects.none()
+    return Task.objects.filter(
+        Q(task_managers=emp) | Q(task_members=emp) | Q(project__managers=emp)
+    ).distinct()
+
+
 def _parse_period(request):
     today = date.today()
     from_str = request.GET.get("from_date")
@@ -37,12 +74,12 @@ def project_kpi_data(request):
     from project.models import Project, Task
 
     from_date, to_date = _parse_period(request)
-    period_tasks = Task.objects.filter(
+    period_tasks = _scoped_tasks(request).filter(
         created_at__date__gte=from_date,
         created_at__date__lte=to_date,
     )
 
-    active_qs = Project.objects.filter(is_active=True)
+    active_qs = _scoped_projects(request).filter(is_active=True)
     total = active_qs.count()
     active = active_qs.filter(status="in_progress").count()
     completed = active_qs.filter(status="completed").count()
@@ -80,7 +117,7 @@ def project_status_distribution(request):
 
     from_date, to_date = _parse_period(request)
     qs = (
-        Project.objects.filter(
+        _scoped_projects(request).filter(
             created_at__date__gte=from_date,
             created_at__date__lte=to_date,
         )
@@ -113,7 +150,7 @@ def project_task_status(request):
 
     from_date, to_date = _parse_period(request)
     qs = (
-        Task.objects.filter(
+        _scoped_tasks(request).filter(
             created_at__date__gte=from_date,
             created_at__date__lte=to_date,
         )
@@ -142,6 +179,7 @@ def project_monthly_trend(request):
     from project.models import Project
 
     _, to_date = _parse_period(request)
+    scoped = _scoped_projects(request)
     today = to_date
     months = []
     started = []
@@ -160,10 +198,10 @@ def project_monthly_trend(request):
             last = date(first.year, first.month + 1, 1) - timedelta(days=1)
         months.append(first.strftime("%b %Y"))
         started.append(
-            Project.objects.filter(start_date__gte=first, start_date__lte=last).count()
+            scoped.filter(start_date__gte=first, start_date__lte=last).count()
         )
         completed.append(
-            Project.objects.filter(
+            scoped.filter(
                 status="completed", end_date__gte=first, end_date__lte=last
             ).count()
         )
@@ -176,7 +214,7 @@ def project_upcoming_deadlines(request):
 
     today = date.today()
     upcoming = (
-        Project.objects.filter(
+        _scoped_projects(request).filter(
             end_date__gte=today,
             end_date__lte=today + timedelta(days=30),
         )
@@ -201,7 +239,7 @@ def project_top_active(request):
     from project.models import Project
 
     projects = (
-        Project.objects.filter(status="in_progress")
+        _scoped_projects(request).filter(status="in_progress")
         .annotate(task_count=Count("task"))
         .order_by("-task_count")[:8]
     )

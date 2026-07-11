@@ -432,6 +432,12 @@
         </div>
         <script>
             function openFaceCheckinModal(url) {
+                // Android has the Emplinx app — web face check-in is for iOS
+                // (no app) and desktops only.
+                if (/Android/i.test(navigator.userAgent)) {
+                    alert("{% trans 'Please check in from the Emplinx mobile app.' %}");
+                    return;
+                }
                 document.getElementById("faceCheckinFrame").src = url;
                 document.getElementById("faceCheckinModal").style.display = "flex";
             }
