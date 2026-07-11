@@ -1517,10 +1517,15 @@ def user_group_table(request):
             )
         permissions.append({"app": django_apps.get_app_config(app_name).verbose_name, "app_label": app_name, "app_models": app_models})
     if request.method == "POST":
-        if not is_platform_owner(request.user):
-            messages.error(request, _("Only the platform owner can create user groups."))
-            return SkylinxRedirect(request)
+        # Client admins (auth.add_group perm, enforced by the decorator) may
+        # create groups for their OWN company: the name gets a per-tenant
+        # prefix and a CompanyGroup ownership row, so tenants can't see or
+        # collide with each other's groups. Only a user with no company at
+        # all (and not the owner) is blocked.
         company = current_company(request)
+        if not is_platform_owner(request.user) and not company:
+            messages.error(request, _("No company selected."))
+            return SkylinxRedirect(request)
         post = request.POST.copy()
         if company:
             post["name"] = scoped_name(company.id, post.get("name", ""))
@@ -1571,10 +1576,8 @@ def update_group_permission(
         messages.success(request, _("Updated the permissions"))
         return JsonResponse({})
     if request.POST.get("name_update"):
-        if not is_platform_owner(request.user):
-            return JsonResponse(
-                {"message": "Only the platform owner can rename user groups.", "type": "danger"}
-            )
+        # owns_group() above already restricted this to the tenant's own
+        # groups, so renaming is safe for client admins too.
         name = request.POST["name"]
         if len(name) > 3:
             instance.name = scoped_name(company.id, name) if scope else name
