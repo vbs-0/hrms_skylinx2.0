@@ -129,3 +129,29 @@ class MobileOrgChartAPIView(APIView):
             })
 
         return Response({"success": True, "message": "Org chart loaded", "data": nodes}, status=200)
+
+
+class MobileProfilePhotoAPIView(APIView):
+    """Self-service profile photo upload from the mobile app (own photo only)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        employee = getattr(request.user, "employee_get", None)
+        if not employee:
+            return Response({"error": "No employee record"}, status=400)
+        photo = request.FILES.get("photo")
+        if not photo:
+            return Response({"error": "photo file required"}, status=400)
+        if not (photo.content_type or "").startswith("image/"):
+            return Response({"error": "Only image files allowed"}, status=400)
+        if photo.size > 5 * 1024 * 1024:
+            return Response({"error": "Max size is 5 MB"}, status=400)
+        employee.employee_profile = photo
+        employee.save(update_fields=["employee_profile"])
+        return Response(
+            {
+                "success": True,
+                "url": request.build_absolute_uri(employee.employee_profile.url),
+            }
+        )

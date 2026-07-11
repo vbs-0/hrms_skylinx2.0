@@ -54,6 +54,16 @@ class ProjectGetCreateAPIView(APIView):
         # checking user level permissions
         perm = "project.view_project"
         queryset = permission_based_queryset(user, perm, queryset, user_obj=True)
+        # M2M models can't be scoped by permission_based_queryset (no
+        # employee_id FK) — without this, every employee saw every project.
+        if not user.has_perm(perm):
+            emp = getattr(user, "employee_get", None)
+            if emp is None:
+                return queryset.none()
+            queryset = queryset.filter(
+                Q(managers=emp) | Q(members=emp)
+                | Q(task__task_managers=emp) | Q(task__task_members=emp)
+            ).distinct()
         return queryset
 
     def get(self, request, pk=None):
@@ -210,6 +220,15 @@ class TaskGetCreateAPIView(APIView):
         # checking user level permissions
         perm = "project.view_task"
         queryset = permission_based_queryset(user, perm, queryset, user_obj=True)
+        # Same M2M-scoping gap as projects above.
+        if not user.has_perm(perm):
+            emp = getattr(user, "employee_get", None)
+            if emp is None:
+                return queryset.none()
+            queryset = queryset.filter(
+                Q(task_managers=emp) | Q(task_members=emp)
+                | Q(project__managers=emp) | Q(project__members=emp)
+            ).distinct()
         return queryset
 
     def get(self, request, pk=None, project_id=None):

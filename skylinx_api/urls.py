@@ -55,6 +55,7 @@ urlpatterns = [
     path("v1/leaves/", include("skylinx_api.api_urls.leave.mobile_urls")),
     path("v1/payroll/", include("skylinx_api.api_urls.payroll.mobile_urls")),
     path("v1/employee/", include("skylinx_api.api_urls.employee.mobile_urls")),
+    path("v1/project/", include("skylinx_api.api_urls.project.urls")),
     path("v1/base/", include("skylinx_api.api_urls.base.mobile_urls")),
     path("v1/admin/", include("skylinx_api.api_urls.admin.mobile_urls")),
     path("v1/notifications/", include("skylinx_api.api_urls.notifications.mobile_urls")),
