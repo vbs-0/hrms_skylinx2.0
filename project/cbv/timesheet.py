@@ -339,7 +339,7 @@ class TimeSheetFormView(SkylinxFormView):
             self.form_class.verbose_name = _("Update Time Sheet")
         # If the timesheet create from task or project
         if project:
-            if self.is_platform_owner(request.user) or self.request.user.has_perm(
+            if is_platform_owner(request.user) or self.request.user.has_perm(
                 "project.add_project"
             ):
                 members = (
