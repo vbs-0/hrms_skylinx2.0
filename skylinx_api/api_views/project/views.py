@@ -348,9 +348,13 @@ class TimeSheetGetCreateAPIView(APIView):
         serializer = TimeSheetSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
-    @permission_required("project.add_timesheet")
     def post(self, request, project_id=None, task_id=None, **kwargs):
         data = request.data.copy()
+        if not request.user.has_perm("project.add_timesheet"):
+            employee = getattr(request.user, "employee_get", None)
+            if employee is None:
+                return Response({"error": "No employee record"}, status=400)
+            data["employee_id_write"] = employee.pk
         if (
             project_id
             and not data.get("project_id_write")

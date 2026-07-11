@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -143,7 +145,12 @@ class MobileProfilePhotoAPIView(APIView):
         photo = request.FILES.get("photo")
         if not photo:
             return Response({"error": "photo file required"}, status=400)
-        if not (photo.content_type or "").startswith("image/"):
+        content_type = photo.content_type or ""
+        if not content_type.startswith("image/") and not (
+            content_type in ("", "application/octet-stream")
+            and Path(photo.name).suffix.lower()
+            in {".jpg", ".jpeg", ".png", ".webp", ".heic"}
+        ):
             return Response({"error": "Only image files allowed"}, status=400)
         if photo.size > 5 * 1024 * 1024:
             return Response({"error": "Max size is 5 MB"}, status=400)

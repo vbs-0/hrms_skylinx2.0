@@ -207,6 +207,13 @@ class TimeSheetSerializer(serializers.ModelSerializer):
         model = TimeSheet
         fields = "__all__"
 
+    def validate(self, attrs):
+        instance = self.instance or TimeSheet()
+        for field, value in attrs.items():
+            setattr(instance, field, value)
+        instance.clean()
+        return attrs
+
     def get_project_id(self, obj):
         if obj.project_id:
             return {

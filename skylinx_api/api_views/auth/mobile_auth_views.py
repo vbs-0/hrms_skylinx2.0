@@ -44,6 +44,15 @@ def get_mobile_user_data(user):
                     day_name = sd.day.capitalize()[:3]
                     if day_name not in active_days_list:
                         active_days_list.append(day_name)
+                day_order = {
+                    day: index
+                    for index, day in enumerate(
+                        ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+                    )
+                }
+                active_days_list.sort(
+                    key=lambda day: day_order.get(day, len(day_order))
+                )
 
                 # Fetch company geofence details
                 company = employee.get_company()
