@@ -339,26 +339,37 @@ class TimeSheetFormView(SkylinxFormView):
             self.form_class.verbose_name = _("Update Time Sheet")
         # If the timesheet create from task or project
         if project:
+            # id-set union instead of queryset `|`: the company-scoped
+            # Employee manager returns distinct querysets, and Django refuses
+            # to OR a distinct queryset with a non-distinct M2M one
+            # ("Cannot combine a unique query with a non-unique query").
+            def _ids(*querysets):
+                out = set()
+                for qs in querysets:
+                    out.update(qs.values_list("id", flat=True))
+                return out
+
             if is_platform_owner(self.request.user) or self.request.user.has_perm(
                 "project.add_project"
             ):
-                members = (
-                    project.managers.all()
-                    | project.members.all()
-                    | task.task_members.all()
-                    | task.task_managers.all()
-                ).distinct()
+                member_ids = _ids(
+                    project.managers.all(),
+                    project.members.all(),
+                    task.task_members.all(),
+                    task.task_managers.all(),
+                )
             elif employee.first() in project.managers.all():
-                members = (
-                    employee
-                    | project.members.all()
-                    | task.task_members.all()
-                    | task.task_managers.all()
-                ).distinct()
+                member_ids = _ids(
+                    employee,
+                    project.members.all(),
+                    task.task_members.all(),
+                    task.task_managers.all(),
+                )
             elif employee.first() in task.task_managers.all():
-                members = (employee | task.task_members.all()).distinct()
+                member_ids = _ids(employee, task.task_members.all())
             else:
-                members = employee
+                member_ids = _ids(employee)
+            members = Employee.objects.filter(id__in=member_ids)
             if task_id:
                 self.form.fields["project_id"].widget = forms.HiddenInput()
                 self.form.fields["task_id"].widget = forms.HiddenInput()
