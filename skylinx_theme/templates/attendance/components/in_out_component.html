@@ -7,12 +7,12 @@
             {% if request|is_check_in_enabled %}
                 {% if needs_face_geo %}
                     {% if request.user|is_clocked_in and get_forecasted_at_work.has_attendance %}
-                    <button class="check checkout" onclick="window.location.href='{% url 'web-face-checkin' %}'">
+                    <button class="check checkout" onclick="openFaceCheckinModal('{% url 'web-face-checkin' %}')">
                         <span class="date"><i class="fa-solid fa-right-from-bracket pe-2"></i></span>
                         <span class="con hr-Check-In-out-text">{% trans "Check Out" %}</span>
                     </button>
                     {% else %}
-                    <button class="check checkin" onclick="window.location.href='{% url 'web-face-checkin' %}'">
+                    <button class="check checkin" onclick="openFaceCheckinModal('{% url 'web-face-checkin' %}')">
                         <span class="date"><i class="fa-solid fa-right-to-bracket pe-2"></i></span>
                         <span class="con hr-Check-In-out-text">{% trans "Check In" %}</span>
                     </button>

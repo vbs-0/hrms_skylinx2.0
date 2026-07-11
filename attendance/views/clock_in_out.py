@@ -620,5 +620,14 @@ def web_face_checkin(request):
     iOS has no Emplinx app, so iPhone users check in from Safari here instead.
     Posts straight to the same mobile check-in/check-out API the Flutter app
     uses (selfie + GPS), so verification logic isn't duplicated.
+
+    Also rendered inside a modal iframe from the header button, so the page
+    reports its result to the parent via postMessage instead of navigating.
     """
-    return render(request, "attendance/web_face_checkin.html")
+    from attendance.templatetags.attendancefilters import is_clocked_in
+
+    return render(
+        request,
+        "attendance/web_face_checkin.html",
+        {"clocked_in": is_clocked_in(request.user)},
+    )

@@ -420,5 +420,34 @@
                 links[0].click();
             });
         </script>
+        <!-- Face check-in modal: same page as /attendance/web-checkin/ but in an
+             iframe overlay so users keep their place; page postMessages back on
+             success and we reload to refresh the header button state. -->
+        <div id="faceCheckinModal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(15,23,42,.55);align-items:center;justify-content:center;">
+            <div style="position:relative;width:min(460px,94vw);height:min(660px,92vh);">
+                <button type="button" onclick="closeFaceCheckinModal()" aria-label="Close"
+                    style="position:absolute;top:-14px;right:-14px;z-index:1;width:32px;height:32px;border-radius:50%;border:none;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.25);font-size:18px;cursor:pointer;line-height:1;">&times;</button>
+                <iframe id="faceCheckinFrame" allow="camera; geolocation" style="width:100%;height:100%;border:0;border-radius:16px;background:#f8fafc;"></iframe>
+            </div>
+        </div>
+        <script>
+            function openFaceCheckinModal(url) {
+                document.getElementById("faceCheckinFrame").src = url;
+                document.getElementById("faceCheckinModal").style.display = "flex";
+            }
+            function closeFaceCheckinModal() {
+                document.getElementById("faceCheckinModal").style.display = "none";
+                document.getElementById("faceCheckinFrame").src = "";
+            }
+            window.addEventListener("message", function (e) {
+                if (e.data === "emplinx-checkin-done") {
+                    closeFaceCheckinModal();
+                    window.location.reload();
+                }
+            });
+            document.getElementById("faceCheckinModal").addEventListener("click", function (e) {
+                if (e.target === this) closeFaceCheckinModal();
+            });
+        </script>
     </body>
 </html>
