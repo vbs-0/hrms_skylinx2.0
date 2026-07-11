@@ -236,13 +236,13 @@
     flex-direction: column;
     align-items: center;
     gap: 0.75rem;
-    background: #fff;
-    border-radius: 16px;
-    padding: 1.25rem 0.85rem 1.05rem;
+    background: transparent;
+    border-radius: 0;
+    padding: 0.65rem 0.4rem;
     text-decoration: none !important;
     color: inherit;
-    box-shadow: 0 2px 12px rgba(15,23,42,0.07);
-    border: 1.5px solid rgba(226,232,240,0.8);
+    box-shadow: none;
+    border: 0;
     transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
     position: relative; overflow: hidden;
   }
@@ -251,8 +251,7 @@
     background: linear-gradient(135deg, var(--hp-accent,#e34e38), transparent);
     opacity:0; transition:opacity 0.25s;
   }
-  .hp-card:hover { transform:translateY(-6px); box-shadow:0 16px 36px rgba(15,23,42,0.14); border-color:var(--hp-accent,#e34e38); color:inherit; }
-  .hp-card:hover::before { opacity:0.07; }
+  .hp-card:hover { transform:translateY(-4px); box-shadow:none; color:inherit; }
 
   .hp-icon {
     width: 50px; height: 50px;
@@ -270,14 +269,16 @@
   .hp-c-employee .hp-icon, .hp-c-attendance .hp-icon, .hp-c-leave .hp-icon,
   .hp-c-payroll .hp-icon, .hp-c-pms .hp-icon, .hp-c-project .hp-icon,
   .hp-c-asset .hp-icon, .hp-c-helpdesk .hp-icon, .hp-c-buzz .hp-icon,
+  .hp-card[href^="/buzz"] .hp-icon,
   .hp-c-holiday_calendar .hp-icon {
-    width: 62px; height: 62px; background-position: center;
-    background-size: 150%; background-repeat: no-repeat;
+    width: 88px; height: 88px; background-position: center;
+    background-size: contain; background-repeat: no-repeat; background-color: transparent;
   }
   .hp-c-employee .hp-icon svg, .hp-c-attendance .hp-icon svg,
   .hp-c-leave .hp-icon svg, .hp-c-payroll .hp-icon svg, .hp-c-pms .hp-icon svg,
   .hp-c-project .hp-icon svg, .hp-c-asset .hp-icon svg, .hp-c-helpdesk .hp-icon svg,
-  .hp-c-buzz .hp-icon svg, .hp-c-holiday_calendar .hp-icon svg { display: none; }
+  .hp-c-buzz .hp-icon svg, .hp-card[href^="/buzz"] .hp-icon svg,
+  .hp-c-holiday_calendar .hp-icon svg { display: none; }
   .hp-c-employee .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/employee.png' %}"); }
   .hp-c-attendance .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/attendance.png' %}"); }
   .hp-c-leave .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/leave.png' %}"); }
@@ -287,6 +288,7 @@
   .hp-c-asset .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/assets.png' %}"); }
   .hp-c-helpdesk .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/support.png' %}"); }
   .hp-c-buzz .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/buzz.png' %}"); }
+  .hp-card[href^="/buzz"] .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/buzz.png' %}"); }
   .hp-c-holiday_calendar .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/holiday-calendar.png' %}"); }
 
   .hp-card-label {
@@ -348,16 +350,15 @@
     color: #94a3b8;
   }
   .dark .hp-card {
-    background: #1e293b;
-    border-color: #334155;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    background: transparent;
+    border: 0;
+    box-shadow: none;
   }
   .dark .hp-card-label {
     color: #e2e8f0;
   }
   .dark .hp-card:hover {
-    box-shadow: 0 16px 36px rgba(0,0,0,0.4);
-    border-color: var(--hp-accent, #e34e38);
+    box-shadow: none;
   }
   .dark .hp-icon {
     filter: brightness(0.9) contrast(1.1);
@@ -371,6 +372,7 @@
   .dark .hp-c-asset .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/assets.png' %}"); }
   .dark .hp-c-helpdesk .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/support.png' %}"); }
   .dark .hp-c-buzz .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/buzz.png' %}"); }
+  .dark .hp-card[href^="/buzz"] .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/buzz.png' %}"); }
   .dark .hp-c-holiday_calendar .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/holiday-calendar.png' %}"); }
   .dark .hp-logo-card {
     background: #1e293b;
