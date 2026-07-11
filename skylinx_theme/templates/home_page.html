@@ -265,6 +265,27 @@
   }
   .hp-card:hover .hp-icon { transform: scale(1.12) rotate(-3deg); }
   .hp-icon svg { width: 26px; height: 26px; }
+  /* Generated module artwork is deliberately zoomed to trim its soft outer
+     halo; this keeps the icon readable instead of a tiny symbol in a square. */
+  .hp-c-employee .hp-icon, .hp-c-attendance .hp-icon, .hp-c-leave .hp-icon,
+  .hp-c-payroll .hp-icon, .hp-c-pms .hp-icon, .hp-c-project .hp-icon,
+  .hp-c-asset .hp-icon, .hp-c-helpdesk .hp-icon, .hp-c-buzz .hp-icon {
+    width: 62px; height: 62px; background-position: center;
+    background-size: 150%; background-repeat: no-repeat;
+  }
+  .hp-c-employee .hp-icon svg, .hp-c-attendance .hp-icon svg,
+  .hp-c-leave .hp-icon svg, .hp-c-payroll .hp-icon svg, .hp-c-pms .hp-icon svg,
+  .hp-c-project .hp-icon svg, .hp-c-asset .hp-icon svg, .hp-c-helpdesk .hp-icon svg,
+  .hp-c-buzz .hp-icon svg { display: none; }
+  .hp-c-employee .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/employee.png' %}"); }
+  .hp-c-attendance .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/attendance.png' %}"); }
+  .hp-c-leave .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/leave.png' %}"); }
+  .hp-c-payroll .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/payroll.png' %}"); }
+  .hp-c-pms .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/pms.png' %}"); }
+  .hp-c-project .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/projects.png' %}"); }
+  .hp-c-asset .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/assets.png' %}"); }
+  .hp-c-helpdesk .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/support.png' %}"); }
+  .hp-c-buzz .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/buzz.png' %}"); }
 
   .hp-card-label {
     font-size: 0.82rem; font-weight: 700;
@@ -339,6 +360,15 @@
   .dark .hp-icon {
     filter: brightness(0.9) contrast(1.1);
   }
+  .dark .hp-c-employee .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/employee.png' %}"); }
+  .dark .hp-c-attendance .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/attendance.png' %}"); }
+  .dark .hp-c-leave .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/leave.png' %}"); }
+  .dark .hp-c-payroll .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/payroll.png' %}"); }
+  .dark .hp-c-pms .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/pms.png' %}"); }
+  .dark .hp-c-project .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/projects.png' %}"); }
+  .dark .hp-c-asset .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/assets.png' %}"); }
+  .dark .hp-c-helpdesk .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/support.png' %}"); }
+  .dark .hp-c-buzz .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/buzz.png' %}"); }
   .dark .hp-logo-card {
     background: #1e293b;
     border-color: #334155;
