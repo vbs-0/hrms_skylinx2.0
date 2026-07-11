@@ -495,7 +495,7 @@ def attendance_view_redirect(request):
 
 
 @login_required
-@permission_required("attendance.delete_attendance")
+@manager_can_enter("attendance.delete_attendance")
 @require_http_methods(["POST"])
 def attendance_delete(request, obj_id):
     """
@@ -734,7 +734,7 @@ def attendance_overtime_update(request, obj_id):
 
 
 @login_required
-@permission_required("attendance.delete_attendanceovertime")
+@manager_can_enter("attendance.delete_attendanceovertime")
 @require_http_methods(["POST"])
 def attendance_overtime_delete(request, obj_id):
     """
@@ -777,7 +777,7 @@ def attendance_overtime_delete(request, obj_id):
 
 
 @login_required
-@permission_required("attendance.delete_attendanceovertime")
+@manager_can_enter("attendance.delete_attendanceovertime")
 def attendance_account_bulk_delete(request):
     """
     This method is used to bulk delete for Payslip

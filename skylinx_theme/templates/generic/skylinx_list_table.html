@@ -271,8 +271,7 @@
                         class="flex justify-between items-center mt-4 w-full inset-0"
                     >
                         <p class="text-xs text-[#666]">{% trans "Page" %} {{ queryset.number }} {% trans "of" %} {{ queryset.paginator.num_pages }}</p>
-                        {# mr-20 keeps Next clear of the fixed AI-chat bubble at the
-                           viewport's bottom-right; w-10/h-10 = comfortable tap targets #}
+                        {# mr-20 keeps Next clear of the fixed AI-chat bubble; w-10/h-10 = comfortable tap targets #}
                         <div class="flex gap-2 text-[#666] items-center mr-20">
                             {% if queryset.has_previous %}
                                 <button

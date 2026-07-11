@@ -138,8 +138,7 @@
             class="flex justify-between items-center mt-4 w-full inset-0"
         >
             <p class="text-[#666]">{% trans "Page" %} {{ queryset.number }} {% trans "of" %} {{ queryset.paginator.num_pages }}</p>
-            {# mr-20 keeps the Next arrow clear of the fixed AI-chat bubble
-               pinned to the viewport's bottom-right corner #}
+            {# mr-20 keeps the Next arrow clear of the fixed AI-chat bubble pinned bottom-right #}
             <div class="flex gap-2 text-[#666] items-center mr-20">
                 {% if queryset.has_previous %}
                     <button
