@@ -327,12 +327,6 @@
   opacity: 1;
 }
 
-@media (max-width: 480px) {
-  .check {
-    display: none;
-  }
-}
-
 /* FORM DESIGN */
 .myform input,
 .myform select,
