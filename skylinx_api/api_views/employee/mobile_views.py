@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from django.core.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -162,3 +163,56 @@ class MobileProfilePhotoAPIView(APIView):
                 "url": request.build_absolute_uri(employee.employee_profile.url),
             }
         )
+
+
+class MobileOwnProfileAPIView(APIView):
+    """Read and update the authenticated employee's basic contact details."""
+
+    permission_classes = [IsAuthenticated]
+    editable_fields = {
+        "firstName": "employee_first_name",
+        "lastName": "employee_last_name",
+        "phone": "phone",
+        "address": "address",
+        "city": "city",
+        "state": "state",
+        "zip": "zip",
+    }
+
+    def _payload(self, employee):
+        return {
+            "firstName": employee.employee_first_name,
+            "lastName": employee.employee_last_name or "",
+            "email": employee.email,
+            "phone": employee.phone or "",
+            "address": employee.address or "",
+            "city": employee.city or "",
+            "state": employee.state or "",
+            "zip": employee.zip or "",
+        }
+
+    def get(self, request):
+        employee = getattr(request.user, "employee_get", None)
+        if not employee:
+            return Response({"error": "No employee record"}, status=400)
+        return Response({"success": True, "data": self._payload(employee)})
+
+    def put(self, request):
+        employee = getattr(request.user, "employee_get", None)
+        if not employee:
+            return Response({"error": "No employee record"}, status=400)
+        changed = []
+        for request_name, model_name in self.editable_fields.items():
+            if request_name in request.data:
+                value = str(request.data[request_name]).strip()
+                setattr(employee, model_name, value or None)
+                changed.append(model_name)
+        if not changed:
+            return Response({"error": "No profile details supplied"}, status=400)
+        if not employee.employee_first_name or not employee.phone:
+            return Response({"error": "First name and phone are required"}, status=400)
+        try:
+            employee.save(update_fields=changed)
+        except ValidationError as exc:
+            return Response({"error": exc.message_dict}, status=400)
+        return Response({"success": True, "data": self._payload(employee)})

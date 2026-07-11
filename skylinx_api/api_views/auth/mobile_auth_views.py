@@ -150,6 +150,7 @@ def get_mobile_user_data(user):
             profile_data = {
                 "id": str(employee.id),
                 "employeeCode": employee.badge_id or f"EMP{employee.id}",
+                "profileUrl": employee.get_image() or None,
                 "department": dept,
                 "jobTitle": job_title,
                 "reportingManager": reporting_manager,
