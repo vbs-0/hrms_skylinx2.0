@@ -285,6 +285,19 @@
   background: rgb(233 145 13 / 10%);
 }
 
+/* Narrow mobile: icon+text button doesn't fit the header row alongside the
+   other icons, pushing it off-screen. Shrink to icon-only there. */
+@media (max-width: 480px) {
+  .check {
+    width: 44px;
+    padding: 8px;
+  }
+  .check .date .time-runner,
+  .check .date .at-work-seconds {
+    display: none;
+  }
+}
+
 .check .date,
 .check .con {
   position: absolute;

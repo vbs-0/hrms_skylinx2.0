@@ -70,9 +70,9 @@
         </div>
     {% endif %}
 
-    <div class="flex items-center gap-8">
+    <div class="flex items-center gap-2 md:gap-8">
         <!-- Action Icons -->
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1 md:gap-2">
             {% if "attendance"|app_installed %}
                     <div id="attendance-activity-container">
                         {% include "attendance/components/in_out_component.html" %}
