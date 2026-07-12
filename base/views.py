@@ -8645,10 +8645,16 @@ def protected_media(request, path):
 
 def get_home_announcement(request):
     from base.models import Announcement
-    latest_announcement = Announcement.objects.filter(is_active=True).order_by('id').last()
+    company = current_company(request)
+    qs = Announcement.objects.filter(company_id=company) if company else Announcement.objects.all()
+    announcements = list(qs.filter(is_active=True).order_by('-id')[:2])
+    latest_announcement = announcements[0] if announcements else qs.order_by('id').last()
     if not latest_announcement:
         latest_announcement = Announcement.objects.order_by('id').last()
-    return render(request, "home_announcement.html", {"latest_announcement": latest_announcement})
+    return render(request, "home_announcement.html", {
+        "latest_announcement": latest_announcement,
+        "announcements": announcements,
+    })
 
 @login_required
 def edit_home_announcement(request):

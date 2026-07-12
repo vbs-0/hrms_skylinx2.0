@@ -38,6 +38,8 @@ class KonnectAPIView(APIView):
 def _post_payload(p, me, request):
     author_name = p.author.get_full_name() if p.author else p.company.company
     author_avatar = p.author.get_avatar() if p.author else None
+    if author_avatar:
+        author_avatar = request.build_absolute_uri(author_avatar)
     return {
         "id": p.id,
         "author": author_name,
