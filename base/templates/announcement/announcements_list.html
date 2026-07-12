@@ -26,7 +26,7 @@
                                 <span class="oh-profile__name oh-text--dark fw-bold">
                                     {{announcement.title}}
                                 </span>
-                                {% if announcement.created_at|date:"Y-m-d" == current_date and request.user not in announcement.viewed_by %}
+                                {% if announcement.created_at|date:"Y-m-d" == current_date and not announcement.has_viewed %}
                                     <span class="oh-profile__info-value ms-2 newTag"
                                         style="
                                             background-color: hsl(204,73%,43%);

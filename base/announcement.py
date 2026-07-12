@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timedelta
 
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -22,6 +22,7 @@ from base.models import (
     Attachment,
 )
 from employee.models import Employee
+from base.rbac import current_company
 from skylinx.decorators import hx_request_required, login_required, permission_required
 from skylinx.http.response import SkylinxRedirect
 from skylinx_auth.models import SkylinxUser
@@ -29,7 +30,6 @@ from notifications.signals import notify
 
 
 @login_required
-@hx_request_required
 def announcement_list(request):
     """
     Renders a list of announcements for the authenticated user.
@@ -41,7 +41,8 @@ def announcement_list(request):
     general_expire_date = (
         AnnouncementExpire.objects.values_list("days", flat=True).first() or 30
     )
-    announcements = Announcement.objects.all()
+    company = current_company(request)
+    announcements = Announcement.objects.filter(company_id=company).distinct()
     announcements_to_update = []
 
     for announcement in announcements.filter(expire_date__isnull=True):
@@ -63,20 +64,24 @@ def announcement_list(request):
         )
     )
 
-    filtered_announcements = announcement_items.prefetch_related(
-        "announcementview_set"
-    ).order_by("-created_at")
-    for announcement in filtered_announcements:
-        announcement.has_viewed = announcement.announcementview_set.filter(
-            user=request.user, viewed=True
-        ).exists()
+    viewed = AnnouncementView.objects.filter(
+        announcement_id=OuterRef("pk"), user=request.user, viewed=True
+    )
+    filtered_announcements = list(
+        announcement_items.annotate(has_viewed=Exists(viewed)).order_by("-created_at")
+    )
     instance_ids = json.dumps([instance.id for instance in filtered_announcements])
     context = {
         "announcements": filtered_announcements,
         "general_expire_date": general_expire_date,
         "instance_ids": instance_ids,
     }
-    return render(request, "announcement/announcements_list.html", context)
+    template = (
+        "announcement/announcements_content.html"
+        if request.headers.get("HX-Request") == "true"
+        else "announcement/announcements_view.html"
+    )
+    return render(request, template, context)
 
 
 @login_required

@@ -24,7 +24,8 @@
             {% if perms.base.add_announcement %}
             <a href="#" hx-get="{% url 'create-announcement' %}"
                hx-target="#objectCreateModalTarget"
-               onclick="document.getElementById('objectCreateModal').classList.add('oh-modal--show');"
+               hx-swap="innerHTML"
+               data-toggle="oh-modal-toggle" data-target="#objectCreateModal"
                title="{% trans 'Create Announcement' %}"
                style="font-size:1rem;font-weight:700;">+</a>
             {% endif %}

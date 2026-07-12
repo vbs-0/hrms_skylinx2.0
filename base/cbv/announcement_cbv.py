@@ -17,7 +17,7 @@ from base.models import Announcement, AnnouncementView, Attachment, Company
 from employee.models import Employee
 from skylinx.http.response import SkylinxRedirect
 from skylinx_auth.models import SkylinxUser
-from skylinx_views.cbv_methods import login_required, permission_required
+from skylinx_views.cbv_methods import hx_request_required, login_required, permission_required
 from skylinx_views.generic.cbv.views import (
     SkylinxDetailedView,
     SkylinxFormView,
@@ -39,6 +39,7 @@ BLOCKED_EXTENSIONS = {
 
 
 @method_decorator(login_required, name="dispatch")
+@method_decorator(hx_request_required, name="dispatch")
 @method_decorator(permission_required(perm="base.add_announcement"), name="dispatch")
 class AnnouncementFormView(SkylinxFormView):
     """
