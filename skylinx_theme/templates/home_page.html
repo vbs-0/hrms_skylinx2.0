@@ -251,7 +251,10 @@
     background: linear-gradient(135deg, var(--hp-accent,#e34e38), transparent);
     opacity:0; transition:opacity 0.25s;
   }
-  .hp-card:hover { transform:translateY(-4px); box-shadow:none; color:inherit; }
+  /* Suppressed while the page is scrolling (see .is-scrolling below) — the
+     grid sits directly under the cursor, so scrolling toggles :hover on/off
+     rapidly as cards slide past a stationary mouse, reading as "shaking". */
+  body:not(.is-scrolling) .hp-card:hover { transform:translateY(-4px); box-shadow:none; color:inherit; }
 
   .hp-icon {
     width: 50px; height: 50px;
@@ -262,7 +265,7 @@
     transition: transform 0.22s ease;
     flex-shrink: 0;
   }
-  .hp-card:hover .hp-icon { transform: scale(1.12) rotate(-3deg); }
+  body:not(.is-scrolling) .hp-card:hover .hp-icon { transform: scale(1.12) rotate(-3deg); }
   .hp-icon svg { width: 26px; height: 26px; }
   /* Generated module artwork is deliberately zoomed to trim its soft outer
      halo; this keeps the icon readable instead of a tiny symbol in a square. */
@@ -514,7 +517,7 @@
     <div class="hp-col-center">
       <!-- Header -->
       <div class="hp-header">
-        <h1>{% trans "Welcome back" %}{% if request.user.get_full_name %}, {{ request.user.get_full_name }}{% elif request.user.username %}, {{ request.user.username }}{% endif %} 👋</h1>
+        <h1>{% trans "Welcome back" %}{% if request.user.employee_get.get_full_name %}, {{ request.user.employee_get.get_full_name }}{% elif request.user.get_full_name %}, {{ request.user.get_full_name }}{% elif request.user.username %}, {{ request.user.username }}{% endif %} 👋</h1>
         <p>{% trans "Search anything or pick a module to get started" %}</p>
       </div>
 
@@ -616,5 +619,15 @@
     to { transform: rotate(360deg); }
   }
 </style>
+<script>
+  (function () {
+    var t;
+    window.addEventListener("scroll", function () {
+      document.body.classList.add("is-scrolling");
+      clearTimeout(t);
+      t = setTimeout(function () { document.body.classList.remove("is-scrolling"); }, 150);
+    }, { passive: true });
+  })();
+</script>
 {% endblock %}
 
