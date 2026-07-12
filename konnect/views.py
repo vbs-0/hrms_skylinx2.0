@@ -1,7 +1,12 @@
 """KONNECT API + web page. One DRF surface serves the web feed (session auth)
 and the Flutter app (JWT) — same pattern as the retired Buzz chat."""
 
+import io
+from pathlib import Path
+
+from PIL import Image, ImageOps
 from django.contrib.auth.decorators import login_required
+from django.core.files.base import ContentFile
 from django.shortcuts import render
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -10,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from employee.models import Employee
-from konnect.models import CATEGORY_CHOICES, KonnectComment, KonnectLike, KonnectPost
+from konnect.models import CATEGORY_CHOICES, KonnectComment, KonnectLike, KonnectMedia, KonnectPost
 from skylinx_api.auth import CompanyScopedJWTAuthentication
 
 PAGE_SIZE = 20
@@ -40,6 +45,9 @@ def _post_payload(p, me, request):
     author_avatar = p.author.get_avatar() if p.author else None
     if author_avatar:
         author_avatar = request.build_absolute_uri(author_avatar)
+    media = [{"url": request.build_absolute_uri(m.file.url), "kind": m.kind} for m in p.media.all()]
+    if p.image:
+        media.insert(0, {"url": request.build_absolute_uri(p.image.url), "kind": "image"})
     return {
         "id": p.id,
         "author": author_name,
@@ -48,6 +56,7 @@ def _post_payload(p, me, request):
         "is_system": p.author_id is None,
         "body": p.body,
         "image": request.build_absolute_uri(p.image.url) if p.image else None,
+        "media": media,
         "category": p.category,
         "category_label": dict(CATEGORY_CHOICES).get(p.category, p.category),
         "pinned": p.pinned,
@@ -77,7 +86,7 @@ class FeedAPIView(KonnectAPIView):
         qs = (
             KonnectPost.objects.filter(company=company, is_deleted=False)
             .select_related("author", "company")
-            .prefetch_related("mentions", "likes", "comments")
+            .prefetch_related("mentions", "likes", "comments", "media")
         )
         try:
             page = max(1, int(request.GET.get("page", 1)))
@@ -111,14 +120,33 @@ class FeedAPIView(KonnectAPIView):
         # Announcements + pinning are an HR/CEO privilege
         if (category == "announcement" or pinned) and not _is_hr_or_ceo(me):
             return Response({"error": "Only HR/Admin can post announcements."}, status=403)
+        uploads = request.FILES.getlist("images")[:10]
+        legacy = request.FILES.get("image")
+        if legacy:
+            uploads.insert(0, legacy)
+        video = request.FILES.get("video")
+        if video and (video.size > 50 * 1024 * 1024 or not video.content_type.startswith("video/")):
+            return Response({"error": "Video must be a video file under 50 MB."}, status=400)
         post = KonnectPost.objects.create(
             company=company,
             author=me,
             body=body,
             category=category,
             pinned=pinned,
-            image=request.FILES.get("image"),
         )
+        for upload in uploads:
+            try:
+                image = ImageOps.exif_transpose(Image.open(upload)).convert("RGB")
+                image.thumbnail((1600, 1600))
+                output = io.BytesIO()
+                image.save(output, "WEBP", quality=82, method=6)
+                name = f"{Path(upload.name).stem}.webp"
+                KonnectMedia.objects.create(post=post, kind="image", file=ContentFile(output.getvalue(), name=name))
+            except Exception:
+                post.delete()
+                return Response({"error": "One of the selected images is invalid."}, status=400)
+        if video:
+            KonnectMedia.objects.create(post=post, kind="video", file=video)
         return Response({"id": post.id}, status=201)
 
 

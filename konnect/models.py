@@ -48,6 +48,13 @@ class KonnectPost(models.Model):
         return f"[{self.category}] {self.body[:40]}"
 
 
+class KonnectMedia(models.Model):
+    post = models.ForeignKey(KonnectPost, on_delete=models.CASCADE, related_name="media")
+    file = models.FileField(upload_to="konnect/media/")
+    kind = models.CharField(max_length=5, choices=(("image", "Image"), ("video", "Video")))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 class KonnectLike(models.Model):
     post = models.ForeignKey(
         KonnectPost, on_delete=models.CASCADE, related_name="likes"
