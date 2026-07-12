@@ -399,14 +399,14 @@ NESTED_SUBORDINATE_VISIBILITY = False
 TWO_FACTORS_AUTHENTICATION = False
 
 SIDEBARS = [
-    "recruitment",
-    "onboarding",
+    # "recruitment",  # Hidden per product decision
+    # "onboarding",  # Hidden per product decision
     "employee",
     "attendance",
     "leave",
     "payroll",
     "pms",
-    "offboarding",
+    # "offboarding",  # Hidden per product decision
     "asset",
     "helpdesk",
     "project",
