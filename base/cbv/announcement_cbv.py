@@ -6,6 +6,8 @@ import json
 import os
 
 from django.contrib import messages
+from django.db import transaction
+from django.db.models import Q
 from django.http import HttpResponse
 from django.urls import resolve, reverse
 from django.utils.decorators import method_decorator
@@ -57,6 +59,7 @@ class AnnouncementFormView(SkylinxFormView):
 
         return context
 
+    @transaction.atomic
     def form_valid(self, form: AnnouncementForm) -> HttpResponse:
         if form.is_valid():
             if form.instance.pk:
@@ -115,18 +118,20 @@ class AnnouncementFormView(SkylinxFormView):
             anou.company_id.set(company)  # scope to company or it stays hidden
 
             emp_dep = SkylinxUser.objects.filter(
-                employee_get__employee_work_info__department_id__in=departments
+                employee_get__employee_work_info__department_id__in=departments,
+                employee_get__employee_work_info__company_id__in=company,
             )
             emp_jobs = SkylinxUser.objects.filter(
-                employee_get__employee_work_info__job_position_id__in=job_positions
+                employee_get__employee_work_info__job_position_id__in=job_positions,
+                employee_get__employee_work_info__company_id__in=company,
             )
 
-            employees = employees | Employee.objects.filter(
-                employee_work_info__department_id__in=departments
-            )
-            employees = employees | Employee.objects.filter(
-                employee_work_info__job_position_id__in=job_positions
-            )
+            employees = Employee.objects.filter(
+                Q(id__in=employees.values("id"))
+                | Q(employee_work_info__department_id__in=departments)
+                | Q(employee_work_info__job_position_id__in=job_positions),
+                employee_work_info__company_id__in=company,
+            ).distinct()
 
             anou.employees.add(*employees)
 
