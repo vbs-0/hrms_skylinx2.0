@@ -20,7 +20,7 @@
 {% endif %}
 <div class="oh-modal__dialog-header">
     <h2 class="oh-modal__dialog-title" id="createModalTitle">
-        {% trans "Update" %} {{form.verbose_name}}
+        {% trans "Edit Announcement" %}
     </h2>
     <button type="button" class="oh-modal_close--custom"
         onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show');setTimeout(function () { $('#{{hx_target}}').empty(); }, 200);">
@@ -31,10 +31,60 @@
     <form hx-post="{{request.get_full_path}}" hx-target="#{{hx_target}}" hx-encoding="multipart/form-data"
         class="oh-profile-section">
         {% csrf_token %}
-        {{form.as_p}}
-        <div class="d-flex flex-row-reverse">
-            <button type="submit" class="oh-btn oh-btn--secondary mt-2 mr-0 oh-btn--w-100-resp">
+        <div class="oh-input-group">
+            {{ form.title.errors }}
+            {{ form.title }}
+        </div>
+        <div class="oh-input-group mt-2">
+            {{ form.description.errors }}
+            {{ form.description }}
+        </div>
+
+        <details class="mt-2">
+            <summary style="cursor:pointer;font-size:.85rem;font-weight:600;color:var(--oh-primary,#6b46ff);">
+                {% trans "Send to specific employees, departments or job positions (optional)" %}
+            </summary>
+            <div class="mt-2">
+                <div class="oh-input-group">{{ form.employees.errors }}{{ form.employees }}</div>
+                <div class="oh-input-group mt-2">{{ form.department.errors }}{{ form.department }}</div>
+                <div class="oh-input-group mt-2">{{ form.job_position.errors }}{{ form.job_position }}</div>
+                <div class="oh-input-group mt-2">{{ form.company_id.errors }}{{ form.company_id }}</div>
+            </div>
+        </details>
+
+        <details class="mt-2">
+            <summary style="cursor:pointer;font-size:.85rem;font-weight:600;color:var(--oh-primary,#6b46ff);">
+                {% trans "More options" %}
+            </summary>
+            <div class="mt-2">
+                <div class="oh-input-group">
+                    <label>{% trans "Attachments" %}</label>
+                    {{ form.attachments.errors }}
+                    {{ form.attachments }}
+                </div>
+                <div class="oh-input-group mt-2">
+                    <label>{% trans "Expire Date" %}</label>
+                    {{ form.expire_date.errors }}
+                    {{ form.expire_date }}
+                </div>
+                <div class="oh-input-group mt-2 d-flex align-items-center" style="gap:.5rem;">
+                    {{ form.disable_comments }}
+                    <label>{{ form.disable_comments.label }}</label>
+                </div>
+                <div class="oh-input-group mt-2 d-flex align-items-center" style="gap:.5rem;">
+                    {{ form.public_comments }}
+                    <label>{{ form.public_comments.label }}</label>
+                </div>
+            </div>
+        </details>
+
+        <div class="d-flex flex-row-reverse mt-3" style="gap:.5rem;">
+            <button type="submit" class="oh-btn oh-btn--secondary mr-0 oh-btn--w-100-resp">
                 {% trans "Save" %}
+            </button>
+            <button type="button" class="oh-btn oh-btn--light oh-btn--w-100-resp"
+                onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show');setTimeout(function () { $('#{{hx_target}}').empty(); }, 200);">
+                {% trans "Cancel" %}
             </button>
         </div>
     </form>
