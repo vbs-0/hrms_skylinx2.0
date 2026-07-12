@@ -425,40 +425,26 @@
                renderer (same one every model's CRUD modal uses), so it can't
                be re-templated per-model without affecting every other form.
                Instead, detect the Announcement form specifically by its
-               field-id signature and collapse the targeting/extra fields
-               into a "More options" toggle, purely client-side. */
+               field-id signature and hide everything except Title and
+               Description — targeting/attachments/expiry/comment toggles
+               still submit with their defaults, just not shown. */
             document.body.addEventListener("htmx:afterSwap", function (event) {
                 var root = event.target;
                 if (!root || !root.querySelector) return;
                 var titleDiv = root.querySelector("#id_title_parent_div");
                 var empDiv = root.querySelector("#id_employees_parent_div");
-                if (!titleDiv || !empDiv || empDiv.dataset.ohCollapsed) return;
+                if (!titleDiv || !empDiv || empDiv.dataset.ohHidden) return;
 
-                var advancedIds = [
+                var hiddenIds = [
                     "id_employees_parent_div", "id_department_parent_div",
                     "id_job_position_parent_div", "id_company_id_parent_div",
                     "id_attachments_parent_div", "id_expire_date_parent_div",
                     "id_disable_comments_parent_div", "id_public_comments_parent_div",
                 ];
-                var advancedEls = advancedIds
-                    .map(function (id) { return root.querySelector("#" + id); })
-                    .filter(Boolean);
-                if (!advancedEls.length) return;
-
-                var row = titleDiv.parentNode;
-                var details = document.createElement("details");
-                details.className = "col-12";
-                details.style.marginTop = "8px";
-                var summary = document.createElement("summary");
-                summary.textContent = "{% trans 'Send to specific employees, departments or job positions, and more options' %}";
-                summary.style.cssText = "cursor:pointer;font-size:.85rem;font-weight:600;color:var(--oh-primary,#6b46ff);";
-                details.appendChild(summary);
-
-                advancedEls.forEach(function (el) {
-                    el.dataset.ohCollapsed = "1";
-                    details.appendChild(el);
+                hiddenIds.forEach(function (id) {
+                    var el = root.querySelector("#" + id);
+                    if (el) { el.dataset.ohHidden = "1"; el.style.display = "none"; }
                 });
-                row.appendChild(details);
             });
         </script>
         <!-- Face check-in modal: same page as /attendance/web-checkin/ but in an
