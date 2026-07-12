@@ -612,6 +612,15 @@
     </div>
 
   </div>
+
+  {% if can_view_company_analytics %}
+    <div class="hp-section-title" style="max-width:1440px;margin:2.5rem auto 0;font-size:1.1rem;font-weight:800;color:#0f172a;">
+      {% trans "Company Overview" %}
+    </div>
+    <div style="max-width:1440px;margin:0.75rem auto 0;">
+      {% include "dashboard/_dashboard_body.html" %}
+    </div>
+  {% endif %}
 </div>
 
 <style>

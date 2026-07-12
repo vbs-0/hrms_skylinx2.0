@@ -66,22 +66,18 @@ def _parse_period(request):
     return from_date, to_date
 
 
-@login_required
-def main_dashboard_view(request):
-    """Render the modern dashboard page.
+def build_dashboard_context(request):
+    """
+    Build the context dict the modern dashboard widgets (KPI cards, charts,
+    sidebar panels — templates/dashboard/_dashboard_body.html) need.
 
-    The company-wide analytics dashboard is reserved for users who can view
-    company analytics (HR/admin). Everyone else is sent to their personal
-    Employee Self-Service dashboard, which shows only their own attendance,
-    leave, payslips and requests.
+    Shared by main_dashboard_view (the standalone /dashboard/ page) and the
+    home page (which embeds the same widgets for users who can view company
+    analytics), so both stay in sync automatically.
     """
     from django.apps import apps
-    from django.shortcuts import redirect
 
     from skylinx.methods import get_skylinx_model_class
-
-    if not can_view_company_analytics(request.user):
-        return redirect("ess-dashboard")
 
     enabled_timerunner = True
     get_forecasted_at_work = None
@@ -114,26 +110,39 @@ def main_dashboard_view(request):
     except Exception:
         logger.warning("[dashboard] dashboard_operation failed", exc_info=True)
 
-    return render(
-        request,
-        "dashboard.html",
-        {
-            "enabled_timerunner": enabled_timerunner,
-            "get_forecasted_at_work": get_forecasted_at_work,
-            "employee_chart_prefs": employee_chart_prefs,
-            # Drives visibility of company-wide analytics cards in the template.
-            # The JSON endpoints enforce this server-side regardless; this flag
-            # only prevents non-privileged users from rendering empty cards and
-            # firing requests that would 403.
-            "can_view_company_analytics": can_view_company_analytics(request.user),
-            "can_view_payroll_analytics": can_view_company_analytics(
-                request.user, "payroll.view_payslip"
-            ),
-            "can_view_recruitment_analytics": can_view_company_analytics(
-                request.user, "recruitment.view_candidate"
-            ),
-        },
-    )
+    return {
+        "enabled_timerunner": enabled_timerunner,
+        "get_forecasted_at_work": get_forecasted_at_work,
+        "employee_chart_prefs": employee_chart_prefs,
+        # Drives visibility of company-wide analytics cards in the template.
+        # The JSON endpoints enforce this server-side regardless; this flag
+        # only prevents non-privileged users from rendering empty cards and
+        # firing requests that would 403.
+        "can_view_company_analytics": can_view_company_analytics(request.user),
+        "can_view_payroll_analytics": can_view_company_analytics(
+            request.user, "payroll.view_payslip"
+        ),
+        "can_view_recruitment_analytics": can_view_company_analytics(
+            request.user, "recruitment.view_candidate"
+        ),
+    }
+
+
+@login_required
+def main_dashboard_view(request):
+    """Render the modern dashboard page.
+
+    The company-wide analytics dashboard is reserved for users who can view
+    company analytics (HR/admin). Everyone else is sent to their personal
+    Employee Self-Service dashboard, which shows only their own attendance,
+    leave, payslips and requests.
+    """
+    from django.shortcuts import redirect
+
+    if not can_view_company_analytics(request.user):
+        return redirect("ess-dashboard")
+
+    return render(request, "dashboard.html", build_dashboard_context(request))
 
 
 @analytics_permission_required("employee.change_employee")

@@ -1298,6 +1298,14 @@ def home(request):
         "tasks_active": tasks_active,
     }
 
+    # HR/admin (anyone who can see the company-wide /dashboard/ analytics)
+    # gets the same KPI/chart/sidebar widgets embedded right on the home
+    # page, below the module launcher grid. Regular employees are unaffected.
+    from base.dashboard import build_dashboard_context, can_view_company_analytics
+
+    if can_view_company_analytics(user):
+        context.update(build_dashboard_context(request))
+
     return render(request, "home_page.html", context)
 
 
