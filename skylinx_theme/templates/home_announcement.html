@@ -21,7 +21,17 @@
         <h3 class="fw-bold mb-0 text-dark" style="font-size: 1.15rem; font-weight: 800; letter-spacing: -0.4px; display: flex; align-items: center; gap: 6px;">
             <ion-icon name="megaphone-outline" style="font-size: 1.3rem;"></ion-icon>
             {% trans "Announcements" %}
-            <a href="{% url 'announcement-list' %}" style="margin-left:auto;font-size:.75rem;font-weight:600;">{% trans "View all" %}</a>
+            {% if perms.base.add_announcement %}
+            <a href="#" hx-get="{% url 'create-announcement' %}"
+               hx-target="#objectCreateModalTarget"
+               onclick="document.getElementById('objectCreateModal').classList.add('oh-modal--show');"
+               title="{% trans 'Create Announcement' %}"
+               style="font-size:1rem;font-weight:700;">+</a>
+            {% endif %}
+            <a href="{% url 'announcement-list' %}"
+               hx-get="{% url 'announcement-list' %}" hx-target="#ohMainContent"
+               hx-swap="innerHTML show:window:top" hx-push-url="true"
+               style="margin-left:auto;font-size:.75rem;font-weight:600;">{% trans "View all" %}</a>
         </h3>
     </div>
     
