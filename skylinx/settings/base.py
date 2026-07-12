@@ -46,6 +46,9 @@ if "test" in sys.argv:
     ALLOWED_HOSTS.append("testserver")
     MIGRATION_MODULES = {"notifications": None}
 CSRF_TRUSTED_ORIGINS = env("CSRF_TRUSTED_ORIGINS")
+# Flutter web is served from a separate local origin during UI testing. Keep
+# this explicit and environment-controlled; never use a wildcard here.
+CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
 
 # Licensing role + vendor server endpoint (see env() defaults above).
 LICENSE_ROLE = env("LICENSE_ROLE")
