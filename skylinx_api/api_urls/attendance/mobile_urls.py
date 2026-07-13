@@ -1,9 +1,11 @@
 from django.urls import path
 from ...api_views.attendance.mobile_views import (
     MobileCheckInAPIView,
+    MobileCheckInEligibilityAPIView,
     MobileCheckOutAPIView,
     MobileLocationLogAPIView,
-    MobileAttendanceHistoryAPIView
+    MobileAttendanceHistoryAPIView,
+    MobileWeatherAPIView,
 )
 from ...api_views.attendance.shift_request_views import (
     MobileShiftListAPIView,
@@ -20,6 +22,8 @@ from ...api_views.attendance.request_views import (
 
 urlpatterns = [
     path("check-in/", MobileCheckInAPIView.as_view(), name="mobile-api-check-in"),
+    path("check-in/eligibility/", MobileCheckInEligibilityAPIView.as_view(), name="mobile-api-check-in-eligibility"),
+    path("weather/", MobileWeatherAPIView.as_view(), name="mobile-api-weather"),
     path("check-out/", MobileCheckOutAPIView.as_view(), name="mobile-api-check-out"),
     path("location/", MobileLocationLogAPIView.as_view(), name="mobile-api-location-log"),
     path("my/", MobileAttendanceHistoryAPIView.as_view(), name="mobile-api-history"),

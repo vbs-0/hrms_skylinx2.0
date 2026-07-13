@@ -749,3 +749,148 @@ class MobileAttendanceHistoryAPIView(APIView):
             "message": "Logs retrieved",
             "data": events
         }, status=200)
+
+
+class MobileCheckInEligibilityAPIView(APIView):
+    """
+    GET — tells the app upfront (before the camera/face flow) whether a
+    check-in would be accepted right now. Mirrors the validation gates in
+    MobileCheckInAPIView but performs NO writes (a stale open activity from
+    a previous day is treated as eligible — the real check-in auto-closes it).
+    """
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CompanyScopedJWTAuthentication, SessionAuthentication]
+
+    def get(self, request):
+        employee = getattr(request.user, "employee_get", None)
+        if not employee:
+            return Response({"eligible": False, "message": "Employee profile not found", "errorCode": "NO_EMPLOYEE"}, status=200)
+
+        open_activity = AttendanceActivity.objects.filter(
+            employee_id=employee, clock_out__isnull=True
+        ).order_by("-id").first()
+        if open_activity and open_activity.attendance_date >= date.today():
+            return Response({"eligible": False, "message": "Already checked-in", "errorCode": "ALREADY_CHECKED_IN"}, status=200)
+
+        work_info = employee.employee_work_info if hasattr(employee, "employee_work_info") else None
+        if not work_info or not work_info.shift_id:
+            return Response({"eligible": False, "message": "You don't have shift information filled", "errorCode": "NO_SHIFT_INFO"}, status=200)
+
+        shift = work_info.shift_id
+        date_today = date.today()
+        day_name = date_today.strftime("%A").lower()
+        day = (
+            EmployeeShiftDay.objects.filter(day=day_name).first()
+            or EmployeeShiftDay.objects.entire().filter(day=day_name).first()
+            or EmployeeShiftDay.objects.entire().first()
+        )
+
+        now_sec = strtime_seconds(timezone.localtime().strftime("%H:%M"))
+        mid_day_sec = strtime_seconds("12:00")
+
+        if day:
+            _, start_time_sec, end_time_sec = shift_schedule_today(day=day, shift=shift)
+            has_schedule_today = day.day_schedule.filter(shift_id=shift).exists()
+        else:
+            start_time_sec, end_time_sec = 0, 0
+            has_schedule_today = False
+
+        # night shift: before noon, yesterday's shift may still be running
+        if start_time_sec > end_time_sec and mid_day_sec > now_sec:
+            date_yesterday = date_today - timedelta(days=1)
+            day_yesterday = (
+                EmployeeShiftDay.objects.filter(day=date_yesterday.strftime("%A").lower()).first()
+                or EmployeeShiftDay.objects.entire().filter(day=date_yesterday.strftime("%A").lower()).first()
+            )
+            if day_yesterday:
+                _, start_time_sec, end_time_sec = shift_schedule_today(day=day_yesterday, shift=shift)
+                has_schedule_today = day_yesterday.day_schedule.filter(shift_id=shift).exists()
+
+        if not has_schedule_today:
+            return Response({"eligible": False, "message": "You are not scheduled to work today", "errorCode": "NO_SHIFT_SCHEDULED_TODAY"}, status=200)
+
+        GRACE_SECS = 30 * 60
+        start_with_grace = start_time_sec - GRACE_SECS
+        if start_time_sec > end_time_sec:
+            in_shift_window = now_sec >= start_with_grace or now_sec <= end_time_sec
+        else:
+            in_shift_window = start_with_grace <= now_sec <= end_time_sec
+        if not in_shift_window:
+            return Response({"eligible": False, "message": "Check-in is only allowed during your shift hours.", "errorCode": "OUTSIDE_SHIFT_HOURS"}, status=200)
+
+        return Response({"eligible": True, "message": "OK", "errorCode": None}, status=200)
+
+
+class MobileWeatherAPIView(APIView):
+    """
+    GET — current weather for the employee's company city, via the free
+    Open-Meteo APIs (no key needed). Geocoded coordinates and the weather
+    itself are cached (24h / 30min) so we hit Open-Meteo rarely.
+    """
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CompanyScopedJWTAuthentication, SessionAuthentication]
+
+    WMO = {
+        0: "Clear", 1: "Mostly Clear", 2: "Partly Cloudy", 3: "Overcast",
+        45: "Fog", 48: "Fog", 51: "Drizzle", 53: "Drizzle", 55: "Drizzle",
+        61: "Light Rain", 63: "Rain", 65: "Heavy Rain", 66: "Freezing Rain",
+        67: "Freezing Rain", 71: "Snow", 73: "Snow", 75: "Heavy Snow",
+        77: "Snow", 80: "Showers", 81: "Showers", 82: "Heavy Showers",
+        85: "Snow Showers", 86: "Snow Showers", 95: "Thunderstorm",
+        96: "Thunderstorm", 99: "Thunderstorm",
+    }
+
+    def get(self, request):
+        import requests as _requests
+        from django.core.cache import cache
+
+        employee = getattr(request.user, "employee_get", None)
+        wi = getattr(employee, "employee_work_info", None) if employee else None
+        company = getattr(wi, "company_id", None) if wi else None
+        city = (getattr(company, "city", "") or "").strip()
+        country = (getattr(company, "country", "") or "").strip()
+        if not city:
+            return Response({"success": False, "message": "No company city configured"}, status=200)
+
+        weather_key = f"mobile_weather_{city}_{country}".lower().replace(" ", "_")
+        cached = cache.get(weather_key)
+        if cached:
+            return Response(cached, status=200)
+
+        try:
+            geo_key = f"mobile_geocode_{city}_{country}".lower().replace(" ", "_")
+            coords = cache.get(geo_key)
+            if not coords:
+                geo = _requests.get(
+                    "https://geocoding-api.open-meteo.com/v1/search",
+                    params={"name": city, "count": 1},
+                    timeout=6,
+                ).json()
+                results = geo.get("results") or []
+                if not results:
+                    return Response({"success": False, "message": "City not found"}, status=200)
+                coords = {"lat": results[0]["latitude"], "lon": results[0]["longitude"]}
+                cache.set(geo_key, coords, 60 * 60 * 24)
+
+            wx = _requests.get(
+                "https://api.open-meteo.com/v1/forecast",
+                params={
+                    "latitude": coords["lat"],
+                    "longitude": coords["lon"],
+                    "current": "temperature_2m,weather_code",
+                },
+                timeout=6,
+            ).json()
+            current = wx.get("current") or {}
+            code = int(current.get("weather_code", 0))
+            payload = {
+                "success": True,
+                "tempC": round(float(current.get("temperature_2m", 0))),
+                "description": self.WMO.get(code, "—"),
+                "weatherCode": code,
+                "city": city,
+            }
+            cache.set(weather_key, payload, 60 * 30)
+            return Response(payload, status=200)
+        except Exception:
+            return Response({"success": False, "message": "Weather unavailable"}, status=200)
