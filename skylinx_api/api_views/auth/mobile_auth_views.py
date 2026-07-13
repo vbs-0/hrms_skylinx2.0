@@ -242,6 +242,19 @@ def get_mobile_user_data(user):
         "role": role,
         "status": "active" if user.is_active else "inactive",
         "liveLocationEnabled": subscription_enabled,
+        "permissions": {
+            "can_approve_leaves": user.has_perm("leave.change_leaverequest"),
+            "can_add_holidays": user.has_perm("base.add_holidays"),
+            "can_view_reports": user.has_perm("attendance.view_attendance"),
+            "can_view_live_map": user.has_perm("geofencing.view_geofencing"),
+            "can_manage_selfies": user.has_perm("facedetection.view_facedetection"),
+            "can_manage_announcements": (
+                is_platform_owner(user)
+                or user.has_perm("base.add_announcement")
+                or user.has_perm("base.change_announcement")
+                or user.has_perm("base.delete_announcement")
+            ),
+        },
         "aiAssistant": ai_assistant,
         "employeeProfile": profile_data
     }

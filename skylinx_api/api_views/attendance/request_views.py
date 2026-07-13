@@ -8,9 +8,10 @@ absent employee present (auto-approved request) — employee notified both ways.
 
 import json
 import threading
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from django.core.mail import EmailMessage
+from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -19,7 +20,7 @@ from rest_framework.authentication import SessionAuthentication
 from attendance.models import Attendance
 from attendance.methods.utils import shift_schedule_today
 from attendance.views.requests import apply_attendance_request_approval
-from base.models import EmployeeShiftDay
+from base.models import CompanyLeaves, EmployeeShiftDay, Holidays
 from employee.models import Employee
 from notifications.signals import notify
 from skylinx_api.auth import CompanyScopedJWTAuthentication
@@ -49,6 +50,35 @@ def _shift_day(att_date):
         or EmployeeShiftDay.objects.entire().filter(day=day_name).first()
         or EmployeeShiftDay.objects.entire().first()
     )
+
+
+def _non_working_date_message(employee, att_date):
+    if att_date > date.today():
+        return "Future attendance cannot be marked."
+    company = employee.get_company()
+    holiday = Holidays.objects.entire().filter(
+        start_date__lte=att_date,
+        is_optional=False,
+    ).filter(
+        Q(end_date__gte=att_date)
+        | Q(end_date__isnull=True, start_date=att_date)
+    )
+    if company:
+        holiday = holiday.filter(Q(company_id=company) | Q(company_id__isnull=True))
+    if holiday.exists():
+        return "Attendance cannot be marked on a holiday."
+    company_leaves = CompanyLeaves.objects.entire()
+    if company:
+        company_leaves = company_leaves.filter(
+            Q(company_id=company) | Q(company_id__isnull=True)
+        )
+    try:
+        from leave.methods import company_leave_dates_list
+        if att_date in company_leave_dates_list(company_leaves, att_date.replace(day=1)):
+            return "Attendance cannot be marked on an off day."
+    except Exception:
+        pass
+    return None
 
 
 def _hr_recipients(employee):
@@ -114,9 +144,9 @@ class MobileAttendanceRequestAPIView(APIView):
             att_date = datetime.strptime(str(date_str), "%Y-%m-%d").date()
         except (ValueError, TypeError):
             return Response({"success": False, "message": "Invalid or missing date (YYYY-MM-DD)."}, status=400)
-        if att_date > datetime.today().date():
-            return Response({"success": False, "message": "Cannot request attendance for a future date."}, status=400)
-
+        blocked = _non_working_date_message(employee, att_date)
+        if blocked:
+            return Response({"success": False, "message": blocked}, status=400)
         existing = Attendance.objects.filter(employee_id=employee, attendance_date=att_date).first()
         if existing:
             if existing.is_validate_request:
@@ -274,6 +304,9 @@ class MobileMarkPresentAPIView(APIView):
             att_date = datetime.strptime(str(request.data.get("date")), "%Y-%m-%d").date()
         except (ValueError, TypeError):
             return Response({"success": False, "message": "Invalid or missing date (YYYY-MM-DD)."}, status=400)
+        blocked = _non_working_date_message(employee, att_date)
+        if blocked:
+            return Response({"success": False, "message": blocked}, status=400)
         if Attendance.objects.filter(employee_id=employee, attendance_date=att_date).exists():
             return Response({"success": False, "message": "Attendance already exists for this date."}, status=400)
 
