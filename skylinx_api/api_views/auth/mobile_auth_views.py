@@ -246,6 +246,7 @@ def get_mobile_user_data(user):
             "can_approve_leaves": user.has_perm("leave.change_leaverequest"),
             "can_add_holidays": user.has_perm("base.add_holidays"),
             "can_view_reports": user.has_perm("attendance.view_attendance"),
+            "can_manage_attendance": user.has_perm("attendance.change_attendance"),
             "can_view_live_map": user.has_perm("geofencing.view_geofencing"),
             "can_manage_selfies": user.has_perm("facedetection.view_facedetection"),
             "can_manage_announcements": (

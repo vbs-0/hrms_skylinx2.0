@@ -37,13 +37,15 @@ class MobileHardeningTests(SimpleTestCase):
         employee.save.assert_called_once_with(update_fields=["employee_profile"])
 
     @patch("skylinx_api.api_views.project.views.TimeSheetSerializer")
-    def test_employee_timesheet_forces_authenticated_employee(self, serializer):
+    def test_timesheet_forces_authenticated_employee_even_with_add_permission(
+        self, serializer
+    ):
         serializer.return_value.is_valid.return_value = True
         serializer.return_value.data = {"id": 1}
         employee = SimpleNamespace(pk=10)
         user = SimpleNamespace(
             employee_get=employee,
-            has_perm=lambda permission: False,
+            has_perm=lambda permission: True,
             is_active=True,
             is_authenticated=True,
         )
@@ -58,6 +60,19 @@ class MobileHardeningTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(serializer.call_args.kwargs["data"]["employee_id_write"], 10)
+
+    @patch("skylinx_api.api_views.project.views.TimeSheet.objects.all")
+    def test_timesheet_list_is_scoped_to_authenticated_employee(self, all_timesheets):
+        queryset = MagicMock()
+        all_timesheets.return_value = queryset
+        queryset.filter.return_value = queryset
+        employee = SimpleNamespace(pk=10)
+        request = SimpleNamespace(user=SimpleNamespace(employee_get=employee))
+
+        result = TimeSheetGetCreateAPIView().get_queryset(request)
+
+        self.assertIs(result, queryset)
+        queryset.filter.assert_called_once_with(employee_id=employee)
 
     @patch.object(TimeSheet, "clean")
     def test_timesheet_serializer_runs_model_membership_validation(self, clean):

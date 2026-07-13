@@ -315,14 +315,14 @@ class TimeSheetGetCreateAPIView(APIView):
         if getattr(self, "swagger_fake_view", False) or request is None:
             return TimeSheet.objects.none()
         queryset = TimeSheet.objects.all()
+        employee = getattr(request.user, "employee_get", None)
+        if employee is None:
+            return queryset.none()
+        queryset = queryset.filter(employee_id=employee)
         if project_id:
             queryset = queryset.filter(project_id=project_id)
         if task_id:
             queryset = queryset.filter(task_id=task_id)
-        user = request.user
-        # checking user level permissions
-        perm = "project.view_timesheet"
-        queryset = permission_based_queryset(user, perm, queryset, user_obj=True)
         return queryset
 
     def get(self, request, pk=None, project_id=None, task_id=None):
@@ -350,11 +350,10 @@ class TimeSheetGetCreateAPIView(APIView):
 
     def post(self, request, project_id=None, task_id=None, **kwargs):
         data = request.data.copy()
-        if not request.user.has_perm("project.add_timesheet"):
-            employee = getattr(request.user, "employee_get", None)
-            if employee is None:
-                return Response({"error": "No employee record"}, status=400)
-            data["employee_id_write"] = employee.pk
+        employee = getattr(request.user, "employee_get", None)
+        if employee is None:
+            return Response({"error": "No employee record"}, status=400)
+        data["employee_id_write"] = employee.pk
         if (
             project_id
             and not data.get("project_id_write")
