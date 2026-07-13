@@ -5,6 +5,7 @@ import io
 from pathlib import Path
 
 from PIL import Image, ImageOps
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
 from django.shortcuts import render
@@ -16,9 +17,11 @@ from rest_framework.views import APIView
 
 from employee.models import Employee
 from konnect.models import CATEGORY_CHOICES, KonnectComment, KonnectLike, KonnectMedia, KonnectPost
+from notifications.signals import notify
 from skylinx_api.auth import CompanyScopedJWTAuthentication
 
 PAGE_SIZE = 20
+User = get_user_model()
 
 
 def _me(request):
@@ -147,6 +150,17 @@ class FeedAPIView(KonnectAPIView):
                 return Response({"error": "One of the selected images is invalid."}, status=400)
         if video:
             KonnectMedia.objects.create(post=post, kind="video", file=video)
+        recipients = User.objects.filter(
+            employee_get__is_active=True,
+            employee_get__employee_work_info__company_id=company,
+        ).exclude(pk=request.user.pk).distinct()
+        notify.send(
+            me,
+            recipient=recipients,
+            verb=f"{me.get_full_name()} posted in Buzz.",
+            redirect="/konnect/",
+            icon="megaphone-outline",
+        )
         return Response({"id": post.id}, status=201)
 
 
