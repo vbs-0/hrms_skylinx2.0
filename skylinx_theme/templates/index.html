@@ -242,7 +242,7 @@
 
         <!-- Main Content -->
         <div id="main-content-wrapper" class="h-screen overflow-auto">
-            <div>
+            <div style="display:flex; flex-direction:column; min-height:100%;">
                 <!-- Include Header -->
                 <div id="header">
                     {% include "skylinx_theme/components/header.html" %}
@@ -253,7 +253,7 @@
                     <div id="submodules-toolbar-links" class="flex items-center gap-2"></div>
                 </div>
 
-                <div id="ohMainContent" class="p-6 pt-24">
+                <div id="ohMainContent" class="p-6 pt-24" style="flex:1 0 auto;">
                     {% if request.user.is_superuser or perms.subscriptions.change_subscription or perms.base.change_company %}
                     {% if trial_days_left is not None and trial_days_left <= 7 %}
                     <div class="mb-4 rounded-md px-4 py-3 text-sm flex items-center justify-between
@@ -312,8 +312,10 @@
                     </div>
                 </div>
 
-                <!-- ── Global footer: outside #ohMainContent so it survives htmx page swaps ── -->
-                <div style="border-top: 1px solid #e2e8f0; background: #f1f5f9; padding: 0.8rem 1rem;">
+                <!-- ── Global footer: outside #ohMainContent so it survives htmx page swaps.
+                     flex-shrink:0 + the flex column above keeps it pinned to the bottom of
+                     the viewport on short pages instead of floating mid-screen. ── -->
+                <div style="flex-shrink:0; border-top: 1px solid #e2e8f0; background: #f1f5f9; padding: 0.8rem 1rem;">
                     <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 12px; color: #94a3b8; font-weight: 500; line-height: 1;">
                         <span>Powered by</span>
                         <img src="{% static 'skylinx_theme/assets/img/emplinx_wordmark.png' %}" alt="Emplinx" style="height: 18px; width: auto; display: block; object-fit: contain; margin: 0; transform: translateY(-1px);">
