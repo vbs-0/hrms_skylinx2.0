@@ -2,6 +2,184 @@
 
 {% now "Y-m-d" as current_date %}
 
+<style>
+.announcements-grid-wrapper {
+    width: 100%;
+    padding: 0.5rem 0;
+}
+.announcements-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+.announcement-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.025);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    position: relative;
+    overflow: hidden;
+}
+.announcement-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 20px -8px rgba(0, 0, 0, 0.1), 0 4px 12px -2px rgba(0, 0, 0, 0.05);
+    border-color: #cbd5e1;
+}
+.card-header-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+.announcement-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    flex-shrink: 0;
+    object-fit: cover;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+.header-meta {
+    flex-grow: 1;
+    min-width: 0;
+}
+.announcement-title-link {
+    text-decoration: none !important;
+    display: block;
+}
+.announcement-title-text {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.2s ease;
+}
+.announcement-title-link:hover .announcement-title-text {
+    color: #4f46e5;
+}
+.post-date {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 0.25rem;
+    display: block;
+}
+.new-badge {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 12px;
+    letter-spacing: 0.05em;
+    animation: badge-pulse 2s infinite;
+}
+@keyframes badge-pulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5); }
+    70% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(59, 130, 246, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+.card-body-content {
+    margin-bottom: 1.25rem;
+    flex-grow: 1;
+}
+.description-text {
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: #475569;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.read-more-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #4f46e5;
+    margin-top: 0.5rem;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    transition: color 0.2s ease;
+}
+.read-more-btn:hover {
+    color: #3730a3;
+    text-decoration: underline;
+}
+.card-footer-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 0.75rem;
+    margin-top: auto;
+}
+.audience-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    max-width: 60%;
+}
+.audience-tag {
+    background-color: #f1f5f9;
+    color: #475569;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 6px;
+}
+.audience-tag.general-tag {
+    background-color: #e0f2fe;
+    color: #0369a1;
+}
+.audience-tag.target-tag {
+    background-color: #fef3c7;
+    color: #b45309;
+}
+.action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.btn-action-custom {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.btn-action-custom:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #cbd5e1;
+}
+.btn-action-custom.delete-btn:hover {
+    background: #fef2f2;
+    color: #ef4444;
+    border-color: #fca5a5;
+}
+</style>
+
 {% if not announcements %}
     <div class="oh-empty h-100" style="padding-top: 50px;">
         <img src="{% static 'images/ui/search.svg' %}" class="oh-404__image" alt="404" />
@@ -9,46 +187,74 @@
         <p class="oh-empty__subtitle">{% trans "There are no announcements at the moment." %}</p>
     </div>
 {% else %}
-    <div class="oh-sticky-table" style="height:300px; border:none;">
-        <div class="oh-sticky-table__table oh-table--sortable">
-            <div class="oh-sticky-table__tbody">
-                {% for announcement in announcements %}
-                    <div class="oh-sticky-table__tr d-flex align-items-center justify-content-between" draggable="true">
-                        <div class="announcement_title" style="min-width:0;flex:1;">
-                            <a class="oh-profile oh-profile--md" style="text-decoration:none;"
+    <div class="announcements-grid-wrapper">
+        <div class="announcements-grid">
+            {% for announcement in announcements %}
+                <div class="announcement-card" draggable="true">
+                    <div class="card-header-top">
+                        <img src="https://ui-avatars.com/api/?name={{announcement.title}}&background=random" class="announcement-avatar" alt="Avatar" />
+                        <div class="header-meta">
+                            <a class="announcement-title-link" style="cursor: pointer;"
+                               hx-on:click="$('#objectDetailsModal').addClass('oh-modal--show');"
+                               hx-get="{% url 'announcement-single-view' announcement.id %}?instance_ids={{instance_ids}}"
+                               hx-target="#objectDetailsModalTarget" onclick="closeNew(this)">
+                                <h3 class="announcement-title-text">{{ announcement.title }}</h3>
+                            </a>
+                            <span class="post-date">
+                                <ion-icon name="calendar-outline" style="vertical-align: middle; margin-right: 2px;"></ion-icon>
+                                {{ announcement.created_at|date:"F j, Y" }} at {{ announcement.created_at|time:"g:i A" }}
+                            </span>
+                        </div>
+                        {% if announcement.created_at|date:"Y-m-d" == current_date and not announcement.has_viewed %}
+                            <span class="new-badge newTag">{% trans "NEW" %}</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="card-body-content">
+                        <p class="description-text">
+                            {{ announcement.description|striptags }}
+                        </p>
+                        <button class="read-more-btn"
                                 hx-on:click="$('#objectDetailsModal').addClass('oh-modal--show');"
                                 hx-get="{% url 'announcement-single-view' announcement.id %}?instance_ids={{instance_ids}}"
                                 hx-target="#objectDetailsModalTarget" onclick="closeNew(this)">
-                                <div class="oh-profile__avatar mr-1">
-                                    <img src="https://ui-avatars.com/api/?name={{announcement.title}}&background=random"
-                                        class="oh-profile__image" />
-                                </div>
-                                <span class="oh-profile__name oh-text--dark fw-bold">
-                                    {{announcement.title}}
+                            {% trans "Read Full Announcement" %}
+                            <ion-icon name="arrow-forward-outline"></ion-icon>
+                        </button>
+                    </div>
+                    
+                    {% if perms.base.change_announcement or perms.base.delete_announcement %}
+                    <div class="card-footer-actions">
+                        <div class="audience-badges">
+                            {% if announcement.employees.all %}
+                                <span class="audience-tag target-tag" title="{% trans 'Targeted Employees' %}: {% for emp in announcement.employees.all %}{{ emp }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+                                    {% trans "Targeted" %} ({{ announcement.employees.all|length }})
                                 </span>
-                                {% if announcement.created_at|date:"Y-m-d" == current_date and not announcement.has_viewed %}
-                                    <span class="oh-profile__info-value ms-2 newTag"
-                                        style="
-                                            background-color: hsl(204,73%,43%);
-                                            color:white;
-                                            font-size: 0.7rem;
-                                            padding: 3px 8px;
-                                            border-radius: 15px;
-                                            font-weight: 800;
-                                            width:auto;
-                                        "
-                                    >
-                                        {% trans "NEW" %}
-                                    </span>
+                            {% endif %}
+                            {% if announcement.department.all %}
+                                {% for dep in announcement.department.all|slice:":2" %}
+                                    <span class="audience-tag" title="{% trans 'Department' %}: {{ dep.department }}">#{{ dep.department }}</span>
+                                {% endfor %}
+                                {% if announcement.department.all|length > 2 %}
+                                    <span class="audience-tag" title="{% trans 'More departments' %}">+{{ announcement.department.all|length|add:"-2" }}</span>
                                 {% endif %}
-                                <span class="oh-text--dark ms-2" style="font-weight:400;font-size:.85rem;opacity:.7;">
-                                    {{ announcement.description|striptags|truncatechars:60 }}
-                                </span>
-                            </a>
+                            {% endif %}
+                            {% if announcement.job_position.all %}
+                                {% for job in announcement.job_position.all|slice:":2" %}
+                                    <span class="audience-tag" title="{% trans 'Job Position' %}: {{ job.job_position }}">#{{ job.job_position }}</span>
+                                {% endfor %}
+                                {% if announcement.job_position.all|length > 2 %}
+                                    <span class="audience-tag" title="{% trans 'More positions' %}">+{{ announcement.job_position.all|length|add:"-2" }}</span>
+                                {% endif %}
+                            {% endif %}
+                            {% if not announcement.employees.all and not announcement.department.all and not announcement.job_position.all %}
+                                <span class="audience-tag general-tag">#{% trans "All Employees" %}</span>
+                            {% endif %}
                         </div>
-                        <div class="d-flex align-items-center" style="gap:.25rem;flex-shrink:0;">
+                        
+                        <div class="action-buttons">
                             {% if perms.base.change_announcement %}
-                                <button type="button" class="oh-btn oh-btn--light oh-btn--sm" title="{% trans 'Edit' %}"
+                                <button type="button" class="btn-action-custom" title="{% trans 'Edit' %}"
                                     hx-get="{% url 'update-announcement' announcement.id %}?instance_ids={{instance_ids}}"
                                     hx-target="#objectUpdateModalTarget"
                                     data-toggle="oh-modal-toggle" data-target="#objectUpdateModal">
@@ -59,22 +265,25 @@
                                 <form hx-post="{% url 'delete-announcement' announcement.id %}?instance_ids={{instance_ids}}"
                                     hx-confirm="{% trans 'Are you sure you want to delete this announcement?' %}"
                                     hx-swap="none"
-                                    hx-on::after-request="if(event.detail.successful){htmx.ajax('GET', '{% url 'announcement-list' %}', {target:'#announcementListCard'});}">
+                                    hx-on::after-request="if(event.detail.successful){htmx.ajax('GET', '{% url 'announcement-list' %}', {target:'#announcementListCard'});}"
+                                    style="display: inline;">
                                     {% csrf_token %}
-                                    <button type="submit" class="oh-btn oh-btn--light oh-btn--sm text-danger" title="{% trans 'Delete' %}">
+                                    <button type="submit" class="btn-action-custom delete-btn" title="{% trans 'Delete' %}">
                                         <ion-icon name="trash-outline"></ion-icon>
                                     </button>
                                 </form>
                             {% endif %}
                         </div>
                     </div>
-                {% endfor %}
-            </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
         </div>
     </div>
 {% endif %}
+
 <script>
     function closeNew(anchorElement) {
-        $(anchorElement).closest('.announcement_title').find('.newTag').hide();
+        $(anchorElement).closest('.announcement-card').find('.newTag').hide();
     }
 </script>

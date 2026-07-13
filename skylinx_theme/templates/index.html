@@ -420,33 +420,7 @@
                 links[0].click();
             });
         </script>
-        <script>
-            /* Announcement create/edit form uses the shared generic form
-               renderer (same one every model's CRUD modal uses), so it can't
-               be re-templated per-model without affecting every other form.
-               Instead, detect the Announcement form specifically by its
-               field-id signature and hide everything except Title and
-               Description — targeting/attachments/expiry/comment toggles
-               still submit with their defaults, just not shown. */
-            document.body.addEventListener("htmx:afterSwap", function (event) {
-                var root = event.target;
-                if (!root || !root.querySelector) return;
-                var titleDiv = root.querySelector("#id_title_parent_div");
-                var empDiv = root.querySelector("#id_employees_parent_div");
-                if (!titleDiv || !empDiv || empDiv.dataset.ohHidden) return;
-
-                var hiddenIds = [
-                    "id_employees_parent_div", "id_department_parent_div",
-                    "id_job_position_parent_div", "id_company_id_parent_div",
-                    "id_attachments_parent_div", "id_expire_date_parent_div",
-                    "id_disable_comments_parent_div", "id_public_comments_parent_div",
-                ];
-                hiddenIds.forEach(function (id) {
-                    var el = root.querySelector("#" + id);
-                    if (el) { el.dataset.ohHidden = "1"; el.style.display = "none"; }
-                });
-            });
-        </script>
+        <!-- Announcement form fields auto-hiding script removed to allow targeting specific employees/departments/job positions and configuring attachments/expiry/comments. -->
         <!-- Face check-in modal: same page as /attendance/web-checkin/ but in an
              iframe overlay so users keep their place; page postMessages back on
              success and we reload to refresh the header button state. -->

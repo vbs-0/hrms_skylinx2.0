@@ -114,11 +114,13 @@
             <div class="card-footer mt-2">
                 <div class="oh-announcement__comment-view">
 
-                    {% if announcement.department.all or announcement.job_position.all %}
-                    <button class="oh-btn me-1 oh-announcement-btn" type="button" onmouseover="showDetails()"
-                        onmouseout="hideDetails()">
-                        <ion-icon name="information"></ion-icon>
-                    </button>
+                    {% if perms.base.change_announcement or perms.base.delete_announcement %}
+                        {% if announcement.department.all or announcement.job_position.all %}
+                        <button class="oh-btn me-1 oh-announcement-btn" type="button" onmouseover="showDetails()"
+                            onmouseout="hideDetails()">
+                            <ion-icon name="information"></ion-icon>
+                        </button>
+                        {% endif %}
                     {% endif %}
                     {% if not announcement.disable_comments %}
                     <button class="oh-btn oh-btn--light oh-activity-sidebar__open" type="button"
@@ -130,6 +132,7 @@
                     {% endif %}
                 </div>
             </div>
+            {% if perms.base.change_announcement or perms.base.delete_announcement %}
             <div id="infoDiv" style="display:none;">
                 {% if announcement.department.all %}
                 <div class="oh-announcement-hastag__container" style="z-index:1000">
@@ -152,6 +155,7 @@
                 </div>
                 {% endif %}
             </div>
+            {% endif %}
         </div>
     {% else %}
         <div class="oh-empty h-100">
