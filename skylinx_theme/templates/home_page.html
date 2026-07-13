@@ -138,6 +138,12 @@
   }
   .dark #ohMainContent p[style*="color: #64748b"],
   .dark #ohMainContent span[style*="color: #64748b"] { color: #94a3b8 !important; }
+  /* Tailwind utility text colors used inside the redesigned cards */
+  .dark #ohMainContent .text-slate-400,
+  .dark #ohMainContent .text-slate-500 { color: #94a3b8 !important; }
+  .dark #ohMainContent .hover\:bg-slate-50:hover { background-color: #334155 !important; }
+  /* Per-row hover set via onmouseover/onmouseout inline JS (light-only colors) */
+  .dark #ohMainContent div[onmouseover*="#f8fafc"]:hover { background: #334155 !important; }
 </style>
 
 <div style="max-width: 1600px; margin: 0 auto; padding: 0.6rem 1.2rem; font-family: 'Outfit', 'Inter', sans-serif;">
@@ -460,7 +466,6 @@
         <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div class="flex justify-between items-center mb-3">
             <h4 class="text-sm font-bold" style="color: #0f172a; margin: 0;">Birthdays</h4>
-            <a href="/employee/employee-view/" class="text-xs text-indigo-600 hover:underline">View all</a>
           </div>
           <div class="space-y-2">
             {% for bday in upcoming_birthdays %}
@@ -752,7 +757,6 @@
         <div class="chart-card">
           <div class="card-header">
             <span class="card-title">🎂 Birthdays</span>
-            <a href="/employee/employee-view/" class="card-link">View all</a>
           </div>
           <div style="display: flex; flex-direction: column; gap: 0.4rem;">
             {% for bday in upcoming_birthdays %}
