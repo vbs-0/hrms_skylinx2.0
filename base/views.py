@@ -1272,6 +1272,13 @@ def home(request):
     can_approve_leave = user.has_perm("leave.change_leaverequest")
     can_onboard = user.has_perm("recruitment.view_candidate") or user.has_perm("employee.add_employee")
     can_view_payroll = user.has_perm("payroll.view_payslip") or user.has_perm("payroll.add_payslip")
+    # Home-page admin/employee dashboard split. can_view_payroll (above) also
+    # covers "can view MY OWN payslip", which every employee has via their
+    # role's default permissions — using it here put everyone on the admin
+    # dashboard. add_payslip (generate/manage payroll) is admin-only.
+    is_dashboard_admin = (
+        user.is_superuser or user.is_staff or can_approve_leave or user.has_perm("payroll.add_payslip")
+    )
 
     pending_leaves_count = (
         get_count_or_zero('leave', 'LeaveRequest', {'status': 'requested'}) if can_approve_leave else 0
@@ -1633,6 +1640,7 @@ def home(request):
         "my_approved_leaves": my_approved_leaves,
         "can_approve_leave": can_approve_leave,
         "can_view_payroll": can_view_payroll,
+        "is_dashboard_admin": is_dashboard_admin,
         "my_monthly_attendance": my_monthly_attendance,
     }
 

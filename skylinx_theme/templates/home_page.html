@@ -108,7 +108,7 @@
         <span id="greeting-text">Good Morning</span>, {{ request.user.employee_get.get_full_name|default:request.user.username }} 👋
       </h1>
       <p style="font-size: 12px; color: #64748b; margin: 2px 0 0;">
-        {% if request.user.is_superuser or request.user.is_staff or can_approve_leave or can_view_payroll %}
+        {% if is_dashboard_admin %}
           Here's what's happening in your workspace today.
         {% else %}
           Here's your personal workspace summary for today.
@@ -133,7 +133,7 @@
     <div class="info-pill">🏢 {{ location }}</div>
   </div>
 
-  {% if request.user.is_superuser or request.user.is_staff or can_approve_leave or can_view_payroll %}
+  {% if is_dashboard_admin %}
     <!-- ════════════════════════════════════════ -->
     <!-- ═══════════ ADMIN DASHBOARD ════════════ -->
     <!-- ════════════════════════════════════════ -->
@@ -150,11 +150,11 @@
               <img src="{% static 'skylinx_theme/assets/img/modules/light/employee.png' %}" class="quick-action-img" alt="Employee">
               <span class="quick-action-label">Employee</span>
             </a>
-            <a href="/attendance/attendance-dashboard/" class="quick-action-btn">
+            <a href="/attendance/attendance-view/" class="quick-action-btn">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/attendance.png' %}" class="quick-action-img" alt="Attendance">
               <span class="quick-action-label">Attendance</span>
             </a>
-            <a href="/leave/request-view/" class="quick-action-btn">
+            <a href="/leave/user-request-view/" class="quick-action-btn">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/leave.png' %}" class="quick-action-img" alt="Leave">
               <span class="quick-action-label">Leave</span>
             </a>
@@ -162,7 +162,7 @@
               <img src="{% static 'skylinx_theme/assets/img/modules/light/payroll.png' %}" class="quick-action-img" alt="Payroll">
               <span class="quick-action-label">Payroll</span>
             </a>
-            <a href="/project/project-list-view/" class="quick-action-btn">
+            <a href="/project/dashboard/" class="quick-action-btn">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/projects.png' %}" class="quick-action-img" alt="Projects">
               <span class="quick-action-label">Projects</span>
             </a>
@@ -170,7 +170,7 @@
               <img src="{% static 'skylinx_theme/assets/img/modules/light/assets.png' %}" class="quick-action-img" alt="Assets">
               <span class="quick-action-label">Assets</span>
             </a>
-            <a href="/helpdesk/ticket-list/" class="quick-action-btn">
+            <a href="/helpdesk/faq-category-view/" class="quick-action-btn">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/support.png' %}" class="quick-action-img" alt="Support">
               <span class="quick-action-label">Support</span>
             </a>
@@ -547,15 +547,15 @@
             <span class="card-title">Quick Access</span>
           </div>
           <div style="display: grid; grid-template-columns: repeat(10,1fr);">
-            <a href="/employee/employee-view/" class="quick-action-btn">
+            <a href="/employee/shift-request-view/" class="quick-action-btn">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/employee.png' %}" class="quick-action-img" alt="Employee">
               <span class="quick-action-label">Employee</span>
             </a>
-            <a href="/attendance/attendance-dashboard/" class="quick-action-btn">
+            <a href="/attendance/view-my-attendance/" class="quick-action-btn">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/attendance.png' %}" class="quick-action-img" alt="Attendance">
               <span class="quick-action-label">Attendance</span>
             </a>
-            <a href="/leave/request-view/" class="quick-action-btn">
+            <a href="/leave/user-request-view/" class="quick-action-btn">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/leave.png' %}" class="quick-action-img" alt="Leave">
               <span class="quick-action-label">Leave</span>
             </a>
@@ -563,15 +563,15 @@
               <img src="{% static 'skylinx_theme/assets/img/modules/light/payroll.png' %}" class="quick-action-img" alt="Payroll">
               <span class="quick-action-label">Payroll</span>
             </a>
-            <a href="/project/project-list-view/" class="quick-action-btn">
+            <a href="/project/dashboard/" class="quick-action-btn">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/projects.png' %}" class="quick-action-img" alt="Projects">
               <span class="quick-action-label">Projects</span>
             </a>
-            <a href="/asset/asset-category-view/" class="quick-action-btn">
+            <a href="/asset/asset-request-allocation-view/" class="quick-action-btn">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/assets.png' %}" class="quick-action-img" alt="Assets">
               <span class="quick-action-label">Assets</span>
             </a>
-            <a href="/helpdesk/ticket-list/" class="quick-action-btn">
+            <a href="/helpdesk/faq-category-view/" class="quick-action-btn">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/support.png' %}" class="quick-action-img" alt="Support">
               <span class="quick-action-label">Support</span>
             </a>
@@ -841,7 +841,7 @@
     const labelColor = isDark ? '#94a3b8' : '#64748b';
     const gridColor = isDark ? 'rgba(51,65,85,0.2)' : 'rgba(226,232,240,0.5)';
 
-    {% if request.user.is_superuser or request.user.is_staff or can_approve_leave or can_view_payroll %}
+    {% if is_dashboard_admin %}
       // --- Admin Charts ---
       const ctxProject = document.getElementById('chart-project-progress').getContext('2d');
       const ctxEmployee = document.getElementById('chart-employee-dist').getContext('2d');
