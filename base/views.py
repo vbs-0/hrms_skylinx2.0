@@ -1314,9 +1314,9 @@ def home(request):
         try:
             from attendance.models import Attendance
             emp_attendance = Attendance.objects.filter(employee_id=user.employee_get, attendance_date=today).first()
-            if emp_attendance and emp_attendance.clock_in:
+            if emp_attendance and emp_attendance.attendance_clock_in:
                 checked_in = True
-                checkin_time = emp_attendance.clock_in.strftime("%I:%M %p")
+                checkin_time = emp_attendance.attendance_clock_in.strftime("%I:%M %p")
 
             present_today_count = Attendance.objects.filter(attendance_date=today).values("employee_id").distinct().count()
             if total_employees > 0:
@@ -1495,7 +1495,7 @@ def home(request):
                 employee_id=emp
             ).order_by("-attendance_date")[:3]
             for a in my_recent_att:
-                clock_str = a.clock_in.strftime("%I:%M %p") if a.clock_in else ""
+                clock_str = a.attendance_clock_in.strftime("%I:%M %p") if a.attendance_clock_in else ""
                 recent_activities.append({
                     "title": f"You checked in{' at ' + clock_str if clock_str else ''}",
                     "time": a.attendance_date.strftime("%b %d") if a.attendance_date != today else "Today",
@@ -1537,9 +1537,9 @@ def home(request):
     if is_dashboard_admin and apps.is_installed("attendance"):
         try:
             from attendance.models import Attendance
-            recent_att = Attendance.objects.select_related("employee_id").order_by("-attendance_date", "-clock_in")[:8]
+            recent_att = Attendance.objects.select_related("employee_id").order_by("-attendance_date", "-attendance_clock_in")[:8]
             for a in recent_att:
-                clock_str = a.clock_in.strftime("%I:%M %p") if a.clock_in else ""
+                clock_str = a.attendance_clock_in.strftime("%I:%M %p") if a.attendance_clock_in else ""
                 name = a.employee_id.get_full_name() if a.employee_id else "Someone"
                 company_recent_activities.append({
                     "title": f"{name} checked in{' at ' + clock_str if clock_str else ''}",
