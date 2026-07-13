@@ -178,6 +178,40 @@
     color: #ef4444;
     border-color: #fca5a5;
 }
+
+/* ── Dark Mode ── */
+.dark .announcement-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+.dark .announcement-card:hover {
+    border-color: #475569;
+}
+.dark .announcement-title-text { color: #f1f5f9; }
+.dark .post-date { color: #94a3b8; }
+.dark .description-text { color: #cbd5e1; }
+.dark .card-footer-actions { border-top-color: #334155; }
+.dark .audience-tag {
+    background-color: #334155;
+    color: #cbd5e1;
+}
+.dark .audience-tag.general-tag { background-color: #0c4a6e; color: #7dd3fc; }
+.dark .audience-tag.target-tag { background-color: #78350f; color: #fcd34d; }
+.dark .btn-action-custom {
+    background: #0f172a;
+    border-color: #334155;
+    color: #94a3b8;
+}
+.dark .btn-action-custom:hover {
+    background: #1e293b;
+    color: #f1f5f9;
+    border-color: #475569;
+}
+.dark .btn-action-custom.delete-btn:hover {
+    background: #450a0a;
+    color: #f87171;
+    border-color: #7f1d1d;
+}
 </style>
 
 {% if not announcements %}
