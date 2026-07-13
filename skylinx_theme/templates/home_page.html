@@ -130,7 +130,6 @@
     <div class="info-pill" style="{% if checked_in %}color:#059669;border-color:#a7f3d0;{% else %}color:#dc2626;border-color:#fca5a5;{% endif %}">
       📍 {% if checked_in %}Checked In · {{ checkin_time }}{% else %}Not Checked In{% endif %}
     </div>
-    <div class="info-pill">🏢 {{ location }}</div>
   </div>
 
   {% if is_dashboard_admin %}
@@ -506,7 +505,7 @@
 
         <!-- Personal Stats Row (4 cards) -->
         <div style="display: grid; grid-template-columns: repeat(4,1fr); gap: 0.85rem;">
-          <a href="/attendance/attendance-dashboard/" class="stat-card">
+          <a href="/attendance/view-my-attendance/" class="stat-card">
             <div class="stat-icon" style="background:#eff6ff;">📅</div>
             <div>
               <div class="stat-val" style="color:#1d4ed8;">{{ my_attendance_days }}</div>
@@ -515,7 +514,7 @@
             </div>
           </a>
 
-          <a href="/leave/request-view/" class="stat-card">
+          <a href="/leave/user-request-view/" class="stat-card">
             <div class="stat-icon" style="background:#f0fdf4;">🌴</div>
             <div>
               <div class="stat-val" style="color:#15803d;">{% if my_leave_balance %}{{ my_leave_balance }}{% else %}—{% endif %}</div>
@@ -533,7 +532,7 @@
             </div>
           </a>
 
-          <a href="/attendance/attendance-dashboard/" class="stat-card">
+          <a href="/attendance/view-my-attendance/" class="stat-card">
             <div class="stat-icon" style="background:{% if checked_in %}#f0fdf4{% else %}#fef2f2{% endif %};">{% if checked_in %}✅{% else %}⏰{% endif %}</div>
             <div>
               <div class="stat-val" style="color:{% if checked_in %}#15803d{% else %}#dc2626{% endif %}; font-size:1rem;">{% if checked_in %}{{ checkin_time }}{% else %}Not In{% endif %}</div>
@@ -598,7 +597,7 @@
           <div class="chart-card">
             <div class="card-header">
               <span class="card-title">My Attendance</span>
-              <a href="/attendance/attendance-dashboard/" class="card-link">Details →</a>
+              <a href="/attendance/view-my-attendance/" class="card-link">Details →</a>
             </div>
             <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.5rem;">
               <span style="font-size: 1.6rem; font-weight: 800; color: #1d4ed8;">{{ my_attendance_days }}</span>
@@ -613,7 +612,7 @@
           <div class="chart-card">
             <div class="card-header">
               <span class="card-title">My Leave</span>
-              <a href="/leave/request-view/" class="card-link">Apply →</a>
+              <a href="/leave/user-request-view/" class="card-link">Apply →</a>
             </div>
             <div style="display: flex; justify-content: center; align-items: center; height: 110px;">
               <canvas id="chart-my-leave"></canvas>
@@ -706,7 +705,7 @@
         <div class="chart-card">
           <div class="card-header">
             <span class="card-title">My Leave Summary</span>
-            <a href="/leave/request-view/" class="card-link">+ Apply</a>
+            <a href="/leave/user-request-view/" class="card-link">+ Apply</a>
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
             <div style="background: #fef3c7; border-radius: 10px; padding: 0.6rem; text-align: center;">
