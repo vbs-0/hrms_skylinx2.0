@@ -287,6 +287,31 @@ class MobileMarkPresentAPIView(APIView):
             return Response({"success": False, "message": "Shift schedule not configured."}, status=400)
         minimum_hour, start_sec, end_sec = shift_schedule_today(day=day, shift=shift)
         in_time, out_time = _sec_to_time(start_sec), _sec_to_time(end_sec)
+
+        # Optional exact times ("Mark Exact Time" in the app): checkIn /
+        # checkOut as "HH:MM". Either may be given alone — the other falls
+        # back to the shift boundary above.
+        def _parse_hhmm(key):
+            raw = request.data.get(key)
+            if raw in (None, ""):
+                return None
+            try:
+                return datetime.strptime(str(raw), "%H:%M").time()
+            except (ValueError, TypeError):
+                raise ValueError(key)
+
+        try:
+            custom_in = _parse_hhmm("checkIn")
+            custom_out = _parse_hhmm("checkOut")
+        except ValueError as bad:
+            return Response({"success": False, "message": f"Invalid {bad} (HH:MM)."}, status=400)
+        if custom_in:
+            in_time = custom_in
+        if custom_out:
+            out_time = custom_out
+        if datetime.combine(att_date, out_time) <= datetime.combine(att_date, in_time):
+            return Response({"success": False, "message": "Check-out must be after check-in."}, status=400)
+
         worked_sec = max(
             0,
             (datetime.combine(att_date, out_time) - datetime.combine(att_date, in_time)).total_seconds(),
