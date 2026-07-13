@@ -480,12 +480,14 @@
             <a href="/" class="text-xs text-indigo-600 hover:underline">View all</a>
           </div>
           <div class="relative pl-4 border-l-2 border-slate-100 space-y-4">
-            {% for act in recent_activities %}
+            {% for act in company_recent_activities %}
               <div class="relative">
                 <span class="absolute -left-[19px] top-1.5 bg-white border-2 border-indigo-500 rounded-full w-2.5 h-2.5"></span>
                 <h5 class="text-xs font-bold" style="color: #0f172a;">{{ act.title }}</h5>
                 <p class="text-[10px] text-slate-400 mt-0.5">{{ act.time }}</p>
               </div>
+            {% empty %}
+              <p style="font-size: 11px; color: #94a3b8; margin: 0;">No recent activity yet.</p>
             {% endfor %}
           </div>
         </div>

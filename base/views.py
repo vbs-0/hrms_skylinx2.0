@@ -1529,6 +1529,26 @@ def home(request):
     except Exception:
         pass
 
+    # Company-wide feed for the admin dashboard's "Recent Activity" panel —
+    # recent_activities above is deliberately the logged-in user's OWN
+    # activity (used by the employee dashboard), which reads empty for an
+    # admin/CEO account with no personal check-ins of its own.
+    company_recent_activities = []
+    if is_dashboard_admin and apps.is_installed("attendance"):
+        try:
+            from attendance.models import Attendance
+            recent_att = Attendance.objects.select_related("employee_id").order_by("-attendance_date", "-clock_in")[:8]
+            for a in recent_att:
+                clock_str = a.clock_in.strftime("%I:%M %p") if a.clock_in else ""
+                name = a.employee_id.get_full_name() if a.employee_id else "Someone"
+                company_recent_activities.append({
+                    "title": f"{name} checked in{' at ' + clock_str if clock_str else ''}",
+                    "time": a.attendance_date.strftime("%b %d") if a.attendance_date != today else "Today",
+                    "icon": "✅"
+                })
+        except Exception:
+            pass
+
     my_monthly_attendance = []
     try:
         emp = user.employee_get
@@ -1629,6 +1649,7 @@ def home(request):
         "upcoming_birthdays": upcoming_birthdays,
         "pending_approvals": pending_approvals,
         "recent_activities": recent_activities,
+        "company_recent_activities": company_recent_activities,
         "avg_performance": avg_performance,
 
         "my_leave_balance": my_leave_balance,
