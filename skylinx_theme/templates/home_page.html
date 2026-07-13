@@ -124,7 +124,7 @@
 
   <!-- ── Info Pills Row ── -->
   <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.9rem;">
-    <div class="info-pill">⛅ 24°C &nbsp;Partly Cloudy</div>
+    <div class="info-pill" id="weather-pill" style="display:none;"></div>
     <div class="info-pill">🕒 {{ working_hours }}</div>
     <div class="info-pill">⏱️ {{ shift_name }}</div>
     <div class="info-pill" style="{% if checked_in %}color:#059669;border-color:#a7f3d0;{% else %}color:#dc2626;border-color:#fca5a5;{% endif %}">
@@ -803,6 +803,27 @@
   }
   setInterval(runClock, 1000);
   runClock();
+
+  // ── Weather (company location, via backend Open-Meteo proxy) ──
+  (function () {
+    var ICONS = {
+      0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️', 45: '🌫️', 48: '🌫️',
+      51: '🌦️', 53: '🌦️', 55: '🌦️', 61: '🌧️', 63: '🌧️', 65: '🌧️',
+      66: '🌧️', 67: '🌧️', 71: '🌨️', 73: '🌨️', 75: '🌨️', 77: '🌨️',
+      80: '🌦️', 81: '🌦️', 82: '⛈️', 85: '🌨️', 86: '🌨️',
+      95: '⛈️', 96: '⛈️', 99: '⛈️'
+    };
+    fetch('/api/v1/attendance/weather/', { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var pill = document.getElementById('weather-pill');
+        if (!pill || !data || !data.success) return;
+        var icon = ICONS[data.weatherCode] || '⛅';
+        pill.textContent = icon + ' ' + data.tempC + '°C  ' + data.description;
+        pill.style.display = '';
+      })
+      .catch(function () {});
+  })();
 
   // ── Calendar ──
   let currentMonth = new Date().getMonth();
