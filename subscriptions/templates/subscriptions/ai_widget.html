@@ -1,8 +1,30 @@
-{% load i18n %}
+{% load i18n static %}
+<style>
+  /* Dark mode for the assistant widget — the markup uses inline light
+     styles, so these need !important to win. */
+  .dark #ai-panel { background: #1e293b !important; }
+  .dark #ai-msgs,
+  .dark #support-new,
+  .dark #support-msgs { background: #0f172a !important; color: #cbd5e1; }
+  .dark #ai-panel .ai-tab-btn { background: #1e293b !important; color: #cbd5e1; }
+  .dark #ai-panel .ai-tab-btn[style*="background:#f8fafc"] { background: #0f172a !important; }
+  .dark #ai-panel div[style*="border-bottom:1px solid #e2e8f0"],
+  .dark #ai-panel div[style*="border-top:1px solid #e2e8f0"] { border-color: #334155 !important; }
+  .dark #ai-input,
+  .dark #support-subject,
+  .dark #support-message,
+  .dark #support-reply-input {
+    background: #0f172a !important; color: #e2e8f0 !important; border-color: #334155 !important;
+  }
+  .dark #support-thread-subject { color: #f1f5f9 !important; }
+  .dark #support-new p { color: #94a3b8 !important; }
+</style>
 <div id="ai-fab" title="{% trans 'Ask Emplinx Assistant' %}"
      style="position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;
-            background:#4f46e5;color:#fff;display:flex;align-items:center;justify-content:center;
-            font-size:24px;cursor:pointer;box-shadow:0 6px 18px rgba(79,70,229,.4);z-index:9998;">🤖</div>
+            background:#4f46e5;display:flex;align-items:center;justify-content:center;
+            cursor:pointer;box-shadow:0 6px 18px rgba(79,70,229,.4);z-index:9998;overflow:hidden;">
+  <img src="{% static 'skylinx_theme/assets/img/ai_bot.png' %}" alt="AI"
+       style="width:42px;height:42px;object-fit:contain;pointer-events:none;"></div>
 
 <div id="ai-panel"
      style="display:none;position:fixed;bottom:92px;right:24px;width:340px;max-width:calc(100vw - 48px);

@@ -106,6 +106,38 @@
     border-radius: 50%;
     background-color: currentColor;
   }
+
+  /* ── Dark Mode ── */
+  .dark #ohMainContent { background-color: #0f172a !important; }
+  .dark .info-pill,
+  .dark .stat-card,
+  .dark .chart-card {
+    background: #1e293b !important; border-color: #334155 !important; color: #cbd5e1;
+  }
+  .dark .card-title { color: #f1f5f9; }
+  .dark .quick-action-label { color: #cbd5e1; }
+  .dark .stat-lbl { color: #94a3b8; }
+  .dark .timeline-wrap { border-left-color: #334155; }
+  .dark .timeline-dot { background: #1e293b; }
+  /* Cards/pills built with inline white backgrounds — attribute match + !important */
+  .dark #ohMainContent div[style*="background: #ffffff"],
+  .dark #ohMainContent div[style*="background: #fff;"] {
+    background: #1e293b !important; border-color: #334155 !important;
+  }
+  .dark #ohMainContent div[style*="background: #f8fafc"] { background: #0f172a !important; border-color: #334155 !important; }
+  .dark #ohMainContent div[style*="background: #f1f5f9"] { background: #0f172a !important; }
+  /* Inline dark-slate text becomes light in dark mode */
+  .dark #ohMainContent h1[style*="color: #0f172a"],
+  .dark #ohMainContent h3[style*="color: #0f172a"],
+  .dark #ohMainContent h4[style*="color: #0f172a"],
+  .dark #ohMainContent h5[style*="color: #0f172a"],
+  .dark #ohMainContent span[style*="color: #0f172a"],
+  .dark #ohMainContent div[style*="color: #0f172a"],
+  .dark #ohMainContent strong[style*="color: #0f172a"] {
+    color: #f1f5f9 !important;
+  }
+  .dark #ohMainContent p[style*="color: #64748b"],
+  .dark #ohMainContent span[style*="color: #64748b"] { color: #94a3b8 !important; }
 </style>
 
 <div style="max-width: 1600px; margin: 0 auto; padding: 0.6rem 1.2rem; font-family: 'Outfit', 'Inter', sans-serif;">
@@ -491,7 +523,7 @@
     <!-- ════════════════════════════════════════ -->
     <!-- ═════════ EMPLOYEE DASHBOARD ═══════════ -->
     <!-- ════════════════════════════════════════ -->
-    <div style="display: grid; grid-template-columns: 1fr 320px; gap: 1.1rem; align-items: start;">
+    <div style="display: grid; grid-template-columns: 1fr 260px; gap: 1.1rem; align-items: start;">
 
       <!-- LEFT COLUMN -->
       <div style="display: flex; flex-direction: column; gap: 1rem;">

@@ -212,6 +212,15 @@
                 0% { opacity: 0; transform: translateX(-6px); }
                 100% { opacity: 1; transform: translateX(0); }
             }
+
+            /* Global footer dark mode (inline light styles need !important) */
+            .dark #app-footer {
+                background: #0f172a !important;
+                border-top-color: #334155 !important;
+            }
+            .dark #app-footer img {
+                filter: brightness(0) invert(1) opacity(0.7);
+            }
         </style>
         {% endwith %}
 
@@ -305,7 +314,7 @@
                 <!-- ── Global footer: outside #ohMainContent so it survives htmx page swaps.
                      flex-shrink:0 + the flex column above keeps it pinned to the bottom of
                      the viewport on short pages instead of floating mid-screen. ── -->
-                <div style="flex-shrink:0; border-top: 1px solid #e2e8f0; background: #f1f5f9; padding: 0.8rem 1rem;">
+                <div id="app-footer" style="flex-shrink:0; border-top: 1px solid #e2e8f0; background: #f1f5f9; padding: 0.8rem 1rem;">
                     <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 12px; color: #94a3b8; font-weight: 500; line-height: 1;">
                         <span>Powered by</span>
                         <img src="{% static 'skylinx_theme/assets/img/emplinx_wordmark.png' %}" alt="Emplinx" style="height: 18px; width: auto; display: block; object-fit: contain; margin: 0; transform: translateY(-1px);">
