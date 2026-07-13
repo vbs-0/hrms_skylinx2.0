@@ -79,7 +79,12 @@
     background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
     padding: 1.1rem 1.25rem; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
     height: 100%; box-sizing: border-box;
+    /* Grid items default to min-width:auto, so a <canvas>'s large intrinsic
+       pixel width (Chart.js) can force its column wider than its 1fr share,
+       squeezing sibling columns. min-width:0 makes it respect the track. */
+    min-width: 0;
   }
+  .chart-card canvas { max-width: 100%; }
   .card-header {
     display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;
   }
