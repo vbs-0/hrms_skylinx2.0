@@ -311,6 +311,15 @@
                         <div id="dynamicCreateModalTarget" class="oh-modal__dialog" style="max-width: 550px"></div>
                     </div>
                 </div>
+
+                <!-- ── Global footer: outside #ohMainContent so it survives htmx page swaps ── -->
+                <div style="border-top: 1px solid #e2e8f0; background: #f1f5f9; padding: 0.8rem 1rem;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 12px; color: #94a3b8; font-weight: 500; line-height: 1;">
+                        <span>Powered by</span>
+                        <img src="{% static 'skylinx_theme/assets/img/emplinx_wordmark.png' %}" alt="Emplinx" style="height: 18px; width: auto; display: block; object-fit: contain; margin: 0; transform: translateY(-1px);">
+                        <span>&mdash; The Intelligent Workforce Platform</span>
+                    </div>
+                </div>
             </div>
         </div>
         {% include "generic/components.html" %}
