@@ -10,6 +10,15 @@
     background-color: #f1f5f9;
   }
 
+  /* ── Sidebar Pinned Mode for Homepage (Desktop Only) ── */
+  @media (min-width: 1024px) {
+    #main-content-wrapper { margin-left: 260px !important; width: calc(100% - 260px) !important; }
+    #header > div, #submodules-toolbar { width: calc(100% - 260px) !important; left: 260px !important; }
+    #sidebarToggle, #sidebarCloseToggle { display: none !important; }
+    #sidebar { box-shadow: none !important; border-right: 1px solid #e2e8f0; }
+    body::before { display: none !important; }
+  }
+
   /* ── General Elements ── */
   .info-pill {
     display: flex; align-items: center; gap: 6px;
@@ -136,15 +145,15 @@
     <!-- ════════════════════════════════════════ -->
     <!-- ═══════════ ADMIN DASHBOARD ════════════ -->
     <!-- ════════════════════════════════════════ -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+    <div class="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-6 items-start">
 
       <!-- LEFT & CENTER AREA (8 columns) -->
-      <div class="lg:col-span-8 flex flex-col gap-6">
+      <div class="flex flex-col gap-6">
 
         <!-- Quick Access Modules (Admin layout) -->
         <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 1.25rem 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <h3 class="text-sm font-bold mb-3" style="color: #0f172a; margin-top: 0;">Quick Access Modules</h3>
-          <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-10 gap-0">
+          <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-y-4 gap-x-2">
             <a href="/employee/employee-view/" class="quick-action-btn">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/employee.png' %}" class="quick-action-img" alt="Employee">
               <span class="quick-action-label">Employee</span>
@@ -191,71 +200,55 @@
         <!-- Metrics / Charts grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <!-- Total Employees -->
-          <div class="flex flex-col justify-between h-[130px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div class="flex flex-col justify-center h-[130px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
             <div>
               <div class="flex justify-between items-center">
                 <span class="text-xs font-bold" style="color: #64748b;">Total Employees</span>
-                <span class="text-[10px] font-bold" style="color: #16a34a; background: #f0fdf4; padding: 1px 5px; border-radius: 6px;">▲ 12.5%</span>
+                
               </div>
               <h3 class="text-2xl font-extrabold mt-1" style="color: #0f172a; margin-bottom: 0;">{{ total_employees }}</h3>
-              <p class="text-[9px]" style="color: #94a3b8; margin: 0;">vs last month</p>
+              
             </div>
-            <div class="w-full h-8 mt-1">
-              <svg class="w-full h-full text-indigo-500" viewBox="0 0 100 30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <path class="sparkline-path" d="M0 25 L15 22 L30 26 L45 18 L60 22 L75 14 L90 18 L100 8" />
-              </svg>
-            </div>
+            
           </div>
 
           <!-- Attendance Rate -->
-          <div class="flex flex-col justify-between h-[130px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div class="flex flex-col justify-center h-[130px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
             <div>
               <div class="flex justify-between items-center">
                 <span class="text-xs font-bold" style="color: #64748b;">Attendance Rate</span>
-                <span class="text-[10px] font-bold" style="color: #16a34a; background: #f0fdf4; padding: 1px 5px; border-radius: 6px;">▲ 2.3%</span>
+                
               </div>
               <h3 class="text-2xl font-extrabold mt-1" style="color: #0f172a; margin-bottom: 0;">{{ attendance_rate }}%</h3>
-              <p class="text-[9px]" style="color: #94a3b8; margin: 0;">vs last month</p>
+              
             </div>
-            <div class="w-full h-8 mt-1">
-              <svg class="w-full h-full text-emerald-500" viewBox="0 0 100 30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <path class="sparkline-path" d="M0 10 L15 15 L30 8 L45 12 L60 5 L75 8 L90 4 L100 2" />
-              </svg>
-            </div>
+            
           </div>
 
           <!-- Leave Taken -->
-          <div class="flex flex-col justify-between h-[130px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div class="flex flex-col justify-center h-[130px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
             <div>
               <div class="flex justify-between items-center">
                 <span class="text-xs font-bold" style="color: #64748b;">Leave Taken Today</span>
-                <span class="text-[10px] font-bold" style="color: #dc2626; background: #fef2f2; padding: 1px 5px; border-radius: 6px;">▼ 9.4%</span>
+                
               </div>
               <h3 class="text-2xl font-extrabold mt-1" style="color: #0f172a; margin-bottom: 0;">{{ leave_today_count }}</h3>
-              <p class="text-[9px]" style="color: #94a3b8; margin: 0;">vs last month</p>
+              
             </div>
-            <div class="w-full h-8 mt-1">
-              <svg class="w-full h-full text-rose-500" viewBox="0 0 100 30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <path class="sparkline-path" d="M0 25 L15 28 L30 20 L45 22 L60 12 L75 14 L90 8 L100 12" />
-              </svg>
-            </div>
+            
           </div>
 
           <!-- Payroll Total -->
-          <div class="flex flex-col justify-between h-[130px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div class="flex flex-col justify-center h-[130px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
             <div>
               <div class="flex justify-between items-center">
                 <span class="text-xs font-bold" style="color: #64748b;">Payroll This Month</span>
-                <span class="text-[10px] font-bold" style="color: #16a34a; background: #f0fdf4; padding: 1px 5px; border-radius: 6px;">▲ 15.7%</span>
+                
               </div>
               <h3 class="text-2xl font-extrabold mt-1" style="color: #0f172a; margin-bottom: 0;">{{ payroll_total }}</h3>
-              <p class="text-[9px]" style="color: #94a3b8; margin: 0;">vs last month</p>
+              
             </div>
-            <div class="w-full h-8 mt-1">
-              <svg class="w-full h-full text-amber-500" viewBox="0 0 100 30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <path class="sparkline-path" d="M0 25 L20 22 L40 18 L60 14 L80 10 L100 8" />
-              </svg>
-            </div>
+            
           </div>
         </div>
 
@@ -265,7 +258,7 @@
           <div class="flex flex-col justify-between h-[170px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
             <div class="flex justify-between items-center mb-1">
               <span class="text-xs font-bold" style="color: #64748b;">Projects In Progress</span>
-              <span class="text-[10px] font-bold" style="color: #16a34a; background: #f0fdf4; padding: 1px 5px; border-radius: 6px;">▲ 9.1%</span>
+              
             </div>
             <h3 class="text-2xl font-extrabold" style="color: #0f172a; margin-top: 0; margin-bottom: 0;">{{ active_projects }}</h3>
             <div class="h-[75px] w-full mt-1">
@@ -287,7 +280,7 @@
           <div class="flex flex-col justify-between h-[170px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
             <div class="flex justify-between items-center mb-1">
               <span class="text-xs font-bold" style="color: #64748b;">Average Performance</span>
-              <span class="text-[10px] font-bold" style="color: #16a34a; background: #f0fdf4; padding: 1px 5px; border-radius: 6px;">▲ 0.4</span>
+              
             </div>
             <h3 class="text-2xl font-extrabold" style="color: #0f172a; margin-top: 0; margin-bottom: 0;">{{ avg_performance }}/5</h3>
             <div class="h-[75px] w-full mt-1">
@@ -299,7 +292,7 @@
           <div class="flex flex-col justify-between h-[170px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
             <div class="flex justify-between items-center mb-1">
               <span class="text-xs font-bold" style="color: #64748b;">Expense This Month</span>
-              <span class="text-[10px] font-bold" style="color: #16a34a; background: #f0fdf4; padding: 1px 5px; border-radius: 6px;">▲ 5.2%</span>
+              
             </div>
             <h3 class="text-2xl font-extrabold" style="color: #0f172a; margin-top: 0; margin-bottom: 0;">{{ expenses_total }}</h3>
             <div class="h-[75px] w-full mt-1">
@@ -406,7 +399,7 @@
       </div>
 
       <!-- RIGHT SIDEBAR (4 columns) -->
-      <div class="lg:col-span-4 flex flex-col gap-5" style="min-height: 0;">
+      <div class="flex flex-col gap-5" style="width: 260px;">
 
         <!-- Pending Approvals (Admin view) -->
         <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
@@ -547,7 +540,7 @@
           <div class="card-header" style="margin-bottom: 0.5rem;">
             <span class="card-title">Quick Access</span>
           </div>
-          <div style="display: grid; grid-template-columns: repeat(10,1fr);">
+          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem 0.5rem;">
             <a href="/employee/shift-request-view/" class="quick-action-btn">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/employee.png' %}" class="quick-action-img" alt="Employee">
               <span class="quick-action-label">Employee</span>
@@ -700,7 +693,7 @@
       </div>
 
       <!-- RIGHT COLUMN (Employee) -->
-      <div style="display: flex; flex-direction: column; gap: 1rem;">
+      <div style="display: flex; flex-direction: column; gap: 1rem; width: 260px;">
         <!-- My Leave Summary -->
         <div class="chart-card">
           <div class="card-header">
@@ -858,7 +851,7 @@
   renderCalendar(currentMonth, currentYear);
 
   // ── Charts ──
-  document.addEventListener('DOMContentLoaded', function () {
+  (function initDashboardCharts() {
     const isDark = document.documentElement.classList.contains('dark');
     const labelColor = isDark ? '#94a3b8' : '#64748b';
     const gridColor = isDark ? 'rgba(51,65,85,0.2)' : 'rgba(226,232,240,0.5)';
@@ -1066,7 +1059,8 @@
         });
       }
     {% endif %}
-  });
+  })();
 </script>
+
 
 {% endblock %}

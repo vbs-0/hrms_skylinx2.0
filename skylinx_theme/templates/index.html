@@ -163,6 +163,17 @@
             #header > div > div.flex.items-center.gap-3 {
                 padding-left: 0 !important;
             }
+
+            @media (min-width: 1024px) {
+                body.sidebar-toggled #main-content-wrapper {
+                    margin-left: 260px !important;
+                }
+                body.sidebar-toggled #header > div,
+                body.sidebar-toggled #submodules-toolbar {
+                    width: calc(100% - 260px) !important;
+                    left: 260px !important;
+                }
+            }
             body.sidebar-toggled #sidebarToggle {
                 display: none !important;
             }
@@ -184,15 +195,7 @@
                 pointer-events: auto;
                 box-shadow: 10px 0 35px -5px rgba(15, 23, 42, 0.2);
             }
-            /* Don't push main content, just hover */
-            body.sidebar-toggled #main-content-wrapper {
-                margin-left: 0 !important;
-            }
-            body.sidebar-toggled #header > div,
-            body.sidebar-toggled #submodules-toolbar {
-                width: 100% !important;
-                left: 0 !important;
-            }
+
             body.sidebar-toggled #sidebar .sidebar-top-header {
                 display: flex !important;
             }
@@ -203,20 +206,7 @@
             body.sidebar-toggled #sidebarSharedPanel {
                 left: 259px !important;
             }
-            /* Add an overlay when sidebar is open for better UX.
-               Must sit above the header (z-40) or the header stays lit and
-               its search icon shows sharply clipped next to the sidebar
-               edge — the "broken hamburger icon" look. Below sidebar (z-50). */
-            body.sidebar-toggled::before {
-                content: "";
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0, 0, 0, 0.15);
-                z-index: 45;
-            }
+
 
             @keyframes fadeInText {
                 0% { opacity: 0; transform: translateX(-6px); }
@@ -465,6 +455,36 @@
             });
             document.getElementById("faceCheckinModal").addEventListener("click", function (e) {
                 if (e.target === this) closeFaceCheckinModal();
+            });
+        </script>
+        <script>
+            window.initHomeSidebarLock = function() {
+                if (window.innerWidth >= 1024) {
+                    document.body.classList.add('sidebar-toggled');
+                    var sb = document.getElementById('sidebar');
+                    if (sb) {
+                        sb.style.removeProperty('transform');
+                        sb.style.setProperty('transform', 'translateX(0)', 'important');
+                    }
+                    localStorage.setItem('sidebarToggled', 'true');
+                }
+            };
+
+            // HTMX prevents identical inline scripts from re-running. 
+            // We use afterSwap to guarantee the lock applies if they navigate back to the home page.
+            document.body.addEventListener('htmx:afterSwap', function(event) {
+                var path = window.location.pathname;
+                if (path === '/' || path === '/home/' || path === '/base/home/') {
+                    window.initHomeSidebarLock();
+                }
+            });
+
+            // Also call it immediately on initial page load if we land on the home page.
+            document.addEventListener('DOMContentLoaded', function() {
+                var path = window.location.pathname;
+                if (path === '/' || path === '/home/' || path === '/base/home/') {
+                    window.initHomeSidebarLock();
+                }
             });
         </script>
     </body>

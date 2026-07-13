@@ -1167,9 +1167,15 @@ function removeId(element, storeKey = "selectedInstances") {
       var s = document.getElementById("sidebar") || sidebarEl;
       if (s && s.contains(e.target)) return;
 
-      // If sidebar is open, close it entirely
+      var currentPath = window.location.pathname;
+      var isHome = currentPath === '/' || currentPath === '/home/' || currentPath === '/base/home/';
+      var isDesktop = window.innerWidth >= 1024;
+
+      // If sidebar is open, close it entirely (unless locked on desktop homescreen)
       if (document.body.classList.contains("sidebar-toggled")) {
-        setSidebarOpen(false);
+        if (!(isHome && isDesktop)) {
+          setSidebarOpen(false);
+        }
         closeAll({ force: true });
       } else {
         closeAll();
