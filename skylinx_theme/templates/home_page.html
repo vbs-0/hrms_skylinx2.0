@@ -3,631 +3,1057 @@
 
 {% block content %}
 <style>
-  /* ── Layout ─────────────────────────────────────────────────────────── */
-  .hp-wrapper {
-    min-height: calc(100vh - 90px);
-    background: linear-gradient(145deg, #f0f4ff 0%, #f8fafc 50%, #fdf4ff 100%);
-    padding: 2.5rem 2rem 4rem;
+  #ohMainContent {
+    padding-top: 4.25rem !important;
+    padding-bottom: 0.5rem !important;
+    overflow: auto !important;
+    background-color: #f1f5f9;
   }
 
-  .hp-layout-container {
-    display: grid;
-    grid-template-columns: 280px 1fr 300px;
-    gap: 2rem;
-    max-width: 1440px;
-    margin: 0 auto;
-    align-items: start;
+  /* ── General Elements ── */
+  .info-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 5px 12px; font-size: 12px; color: #475569; font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03); white-space: nowrap;
   }
 
-  .hp-col-left {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    position: sticky;
-    top: 2rem;
-  }
-
-  .hp-col-center {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .hp-col-right {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    position: sticky;
-    top: 2rem;
-  }
-
-  /* ── Left Sidebar Widgets ────────────────────────────────────────────── */
-  .hp-logo-card {
-    background: #fff;
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 20px rgba(15,23,42,0.05);
-    border: 1px solid rgba(226,232,240,0.8);
+  /* ── 3D Icons Grid Styling ── */
+  .quick-action-btn {
     display: flex;
     flex-direction: column;
     align-items: center;
-    text-align: center;
-  }
-
-  .hp-logo-img {
-    max-height: 50px;
-    max-width: 100%;
-    object-fit: contain;
-    margin-bottom: 0.75rem;
-  }
-
-  .hp-logo-text {
-    font-size: 1.15rem;
-    font-weight: 800;
-    color: #0f172a;
-    letter-spacing: -0.5px;
-  }
-
-  .hp-social-links {
-    display: flex;
-    gap: 12px;
-    margin-top: 0.75rem;
-  }
-
-  .hp-social-link {
-    color: #64748b;
-    font-size: 1.25rem;
-    transition: color 0.2s;
-  }
-  .hp-social-link:hover {
-    color: #3b82f6;
-  }
-
-  .hp-tasks-card {
-    background: #fff;
-    color: #1e293b;
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 20px rgba(15,23,42,0.05);
-    border: 1px solid rgba(226,232,240,0.8);
-    transition: all 0.3s ease;
-  }
-
-  .hp-tasks-card.tasks-active {
-    box-shadow: 0 8px 32px rgba(15,23,42,0.1);
-    border: 1px solid rgba(226,232,240,0.8);
-  }
-
-  .hp-tasks-title {
-    font-size: 1rem;
-    font-weight: 800;
-    margin-bottom: 1rem;
-    letter-spacing: -0.3px;
-    border-bottom: 1px solid rgba(226,232,240,0.8);
-    padding-bottom: 0.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .pulsing-live-dot {
-    width: 9px;
-    height: 9px;
-    background-color: #ff3d00;
-    border-radius: 50%;
-    display: inline-block;
-    box-shadow: 0 0 0 0 rgba(255, 61, 0, 0.8);
-    animation: live-pulse 1.4s infinite;
-  }
-
-  @keyframes live-pulse {
-    0% {
-      transform: scale(0.9);
-      box-shadow: 0 0 0 0 rgba(255, 61, 0, 0.8);
-    }
-    70% {
-      transform: scale(1.1);
-      box-shadow: 0 0 0 8px rgba(255, 61, 0, 0);
-    }
-    100% {
-      transform: scale(0.9);
-      box-shadow: 0 0 0 0 rgba(255, 61, 0, 0);
-    }
-  }
-
-  .hp-task-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 0.9rem;
-    margin-bottom: 0.85rem;
-    color: #64748b !important;
-    text-decoration: none !important;
-    transition: all 0.2s ease;
-    padding: 4px 0;
-    width: 100%;
-  }
-  .hp-task-item:hover {
-    color: #1e293b !important;
-    text-decoration: underline !important;
-    transform: translateX(4px);
-  }
-  .hp-task-item.item-highlight {
-    font-weight: 700;
-  }
-
-  /* ── Right Sidebar Announcement ──────────────────────────────────────── */
-  .hp-announcement-card {
-    background: #fff;
-    color: #1e293b;
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 20px rgba(15,23,42,0.05);
-    border: 1px solid rgba(226,232,240,0.8);
-    min-height: 180px;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .hp-announcement-card form .oh-label {
-    color: #1e293b !important;
-  }
-
-  /* ── Center Content Header ────────────────────────────────────────────── */
-  .hp-header {
-    text-align: center;
-    margin-bottom: 1.25rem;
-  }
-  .hp-header h1 {
-    font-size: 1.9rem;
-    font-weight: 800;
-    color: #0f172a;
-    letter-spacing: -0.6px;
-    margin-bottom: 0.3rem;
-  }
-  .hp-header p {
-    color: #64748b;
-    font-size: 0.95rem;
-  }
-
-  /* ── Dashboard hero card ─────────────────────────────────────────────── */
-  .hp-hero {
-    display: flex;
     justify-content: center;
-    margin-bottom: 1.5rem;
-  }
-  .hp-hero-card {
-    display: flex;
-    align-items: center;
-    gap: 1.15rem;
-    background: linear-gradient(135deg, #e34e38 0%, #c0392b 100%);
-    color: #fff;
-    border-radius: 18px;
-    padding: 1rem 2rem;
-    text-decoration: none !important;
-    box-shadow: 0 8px 30px rgba(227,78,56,0.38);
-    transition: transform 0.22s ease, box-shadow 0.22s ease;
-    min-width: 240px;
-  }
-  .hp-hero-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 16px 42px rgba(227,78,56,0.48);
-    color: #fff;
-  }
-  .hp-hero-icon-wrap {
-    background: rgba(255,255,255,0.2);
-    border-radius: 12px;
-    width: 44px; height: 44px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .hp-hero-label { font-size: 1.1rem; font-weight: 800; letter-spacing:-0.3px; }
-  .hp-hero-sub   { font-size: 0.75rem; opacity: 0.85; margin-top: 2px; }
-
-  /* ── Module grid ─────────────────────────────────────────────────────── */
-  .hp-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 0.95rem;
-    width: 100%;
-  }
-  .hp-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
     background: transparent;
-    border-radius: 0;
-    padding: 0.65rem 0.4rem;
+    border: none;
+    padding: 0.55rem 0.4rem;
     text-decoration: none !important;
-    color: inherit;
-    box-shadow: none;
-    border: 0;
-    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
-    position: relative; overflow: hidden;
+    transition: transform 0.2s ease;
+    text-align: center;
+    cursor: pointer;
   }
-  .hp-card::before {
-    content:""; position:absolute; inset:0;
-    background: linear-gradient(135deg, var(--hp-accent,#e34e38), transparent);
-    opacity:0; transition:opacity 0.25s;
+  .quick-action-btn:hover {
+    transform: scale(1.08) translateY(-4px);
   }
-  /* Suppressed while the page is scrolling (see .is-scrolling below) — the
-     grid sits directly under the cursor, so scrolling toggles :hover on/off
-     rapidly as cards slide past a stationary mouse, reading as "shaking". */
-  body:not(.is-scrolling) .hp-card:hover { transform:translateY(-4px); box-shadow:none; color:inherit; }
+  .quick-action-img {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+    margin-bottom: 4px;
+  }
+  .quick-action-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+    white-space: nowrap;
+  }
 
-  .hp-icon {
-    width: 50px; height: 50px;
-    border-radius: 14px;
-    background: var(--hp-bg, #fff3f0);
+  /* ── Employee Stat Cards ── */
+  .stat-card {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
+    padding: 1rem 1.15rem; display: flex; align-items: center; gap: 0.85rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04); text-decoration: none !important;
+    transition: box-shadow 0.2s, transform 0.15s;
+  }
+  .stat-card:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.09); transform: translateY(-2px); }
+  .stat-icon {
+    width: 44px; height: 44px; border-radius: 12px;
     display: flex; align-items: center; justify-content: center;
-    position: relative; z-index:1;
-    transition: transform 0.22s ease;
-    flex-shrink: 0;
+    font-size: 1.3rem; flex-shrink: 0;
   }
-  body:not(.is-scrolling) .hp-card:hover .hp-icon { transform: scale(1.12) rotate(-3deg); }
-  .hp-icon svg { width: 26px; height: 26px; }
-  /* Generated module artwork is deliberately zoomed to trim its soft outer
-     halo; this keeps the icon readable instead of a tiny symbol in a square. */
-  .hp-c-employee .hp-icon, .hp-c-attendance .hp-icon, .hp-c-leave .hp-icon,
-  .hp-c-payroll .hp-icon, .hp-c-pms .hp-icon, .hp-c-project .hp-icon,
-  .hp-c-asset .hp-icon, .hp-c-helpdesk .hp-icon, .hp-c-buzz .hp-icon,
-  .hp-card[href^="/buzz"] .hp-icon,
-  .hp-c-holiday_calendar .hp-icon {
-    width: 88px; height: 88px; background-position: center;
-    background-size: contain; background-repeat: no-repeat; background-color: transparent;
-  }
-  .hp-c-employee .hp-icon svg, .hp-c-attendance .hp-icon svg,
-  .hp-c-leave .hp-icon svg, .hp-c-payroll .hp-icon svg, .hp-c-pms .hp-icon svg,
-  .hp-c-project .hp-icon svg, .hp-c-asset .hp-icon svg, .hp-c-helpdesk .hp-icon svg,
-  .hp-c-buzz .hp-icon svg, .hp-card[href^="/buzz"] .hp-icon svg,
-  .hp-c-holiday_calendar .hp-icon svg { display: none; }
-  .hp-c-employee .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/employee.png' %}"); }
-  .hp-c-attendance .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/attendance.png' %}"); }
-  .hp-c-leave .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/leave.png' %}"); }
-  .hp-c-payroll .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/payroll.png' %}"); }
-  .hp-c-pms .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/pms.png' %}"); }
-  .hp-c-project .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/projects.png' %}"); }
-  .hp-c-asset .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/assets.png' %}"); }
-  .hp-c-helpdesk .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/support.png' %}"); }
-  .hp-c-buzz .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/buzz.png' %}"); }
-  .hp-card[href^="/buzz"] .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/buzz.png' %}"); }
-  .hp-c-holiday_calendar .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/light/holiday-calendar.png' %}"); }
+  .stat-val { font-size: 1.4rem; font-weight: 800; line-height: 1; }
+  .stat-lbl { font-size: 10px; color: #64748b; font-weight: 600; margin-top: 3px; }
+  .stat-sub { font-size: 9px; color: #94a3b8; margin-top: 1px; }
 
-  .hp-card-label {
-    font-size: 0.82rem; font-weight: 700;
-    color: #1e293b; text-align: center; line-height: 1.35;
-    position: relative; z-index:1;
+  /* ── Card/Sidebar Styling ── */
+  .chart-card {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
+    padding: 1.1rem 1.25rem; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .card-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;
+  }
+  .card-title { font-size: 13px; font-weight: 800; color: #0f172a; letter-spacing: -0.01em; }
+  .card-link { font-size: 11px; color: #6366f1; font-weight: 600; text-decoration: none; }
+  .card-link:hover { text-decoration: underline; }
+
+  /* ── Timeline ── */
+  .timeline-wrap { position: relative; padding-left: 1.1rem; border-left: 2px solid #e2e8f0; }
+  .timeline-dot {
+    position: absolute; left: -10px; top: 4px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #fff; border: 2.5px solid #6366f1;
   }
 
-  /* per-module color tokens */
-  .hp-c-employee    { --hp-accent:#3b82f6; --hp-bg:#dbeafe; }
-  .hp-c-recruitment { --hp-accent:#6366f1; --hp-bg:#e0e7ff; }
-  .hp-c-onboarding  { --hp-accent:#f59e0b; --hp-bg:#fef3c7; }
-  .hp-c-attendance  { --hp-accent:#10b981; --hp-bg:#d1fae5; }
-  .hp-c-leave       { --hp-accent:#14b8a6; --hp-bg:#ccfbf1; }
-  .hp-c-payroll     { --hp-accent:#8b5cf6; --hp-bg:#ede9fe; }
-  .hp-c-pms         { --hp-accent:#ec4899; --hp-bg:#fce7f3; }
-  .hp-c-project     { --hp-accent:#84cc16; --hp-bg:#ecfccb; }
-  .hp-c-asset       { --hp-accent:#f97316; --hp-bg:#ffedd5; }
-  .hp-c-helpdesk    { --hp-accent:#06b6d4; --hp-bg:#cffafe; }
-  .hp-c-offboarding { --hp-accent:#64748b; --hp-bg:#e2e8f0; }
-  .hp-c-report      { --hp-accent:#a855f7; --hp-bg:#f3e8ff; }
-  .hp-c-licensing   { --hp-accent:#f43f5e; --hp-bg:#ffe4e6; }
+  /* ── Badges ── */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+  .badge-new { background: #6366f1; color: #fff; }
 
-  /* ── Responsive media queries ───────────────────────────────────────── */
-  @media (max-width: 1200px) {
-    .hp-layout-container {
-      grid-template-columns: 260px 1fr;
-    }
-    .hp-col-right {
-      grid-column: span 2;
-      position: static;
-    }
-  }
-
-  @media (max-width: 992px) {
-    .hp-layout-container {
-      grid-template-columns: 1fr;
-    }
-    .hp-col-left, .hp-col-right {
-      grid-column: span 1;
-      position: static;
-    }
-  }
-
-  @media (max-width: 640px) {
-    .hp-grid { grid-template-columns: repeat(2, 1fr); gap: 0.8rem; }
-    .hp-hero-card { min-width: unset; width: 100%; }
-    .hp-icon { width: 44px; height: 44px; } .hp-icon svg { width: 22px; height: 22px; }
-  }
-
-  /* ── Dark Mode Overrides ─────────────────────────────────────────────── */
-  .dark .hp-wrapper {
-    background: #0f172a;
-  }
-  .dark .hp-header h1 {
-    color: #f8fafc;
-  }
-  .dark .hp-header p {
-    color: #94a3b8;
-  }
-  .dark .hp-card {
-    background: transparent;
-    border: 0;
-    box-shadow: none;
-  }
-  .dark .hp-card-label {
-    color: #e2e8f0;
-  }
-  .dark .hp-card:hover {
-    box-shadow: none;
-  }
-  .dark .hp-icon {
-    filter: brightness(0.9) contrast(1.1);
-  }
-  .dark .hp-c-employee .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/employee.png' %}"); }
-  .dark .hp-c-attendance .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/attendance.png' %}"); }
-  .dark .hp-c-leave .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/leave.png' %}"); }
-  .dark .hp-c-payroll .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/payroll.png' %}"); }
-  .dark .hp-c-pms .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/pms.png' %}"); }
-  .dark .hp-c-project .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/projects.png' %}"); }
-  .dark .hp-c-asset .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/assets.png' %}"); }
-  .dark .hp-c-helpdesk .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/support.png' %}"); }
-  .dark .hp-c-buzz .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/buzz.png' %}"); }
-  .dark .hp-card[href^="/buzz"] .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/buzz.png' %}"); }
-  .dark .hp-c-holiday_calendar .hp-icon { background-image: url("{% static 'skylinx_theme/assets/img/modules/dark/holiday-calendar.png' %}"); }
-  .dark .hp-logo-card {
-    background: #1e293b;
-    border-color: #334155;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-  }
-  .dark .hp-logo-text {
-    color: #f8fafc;
-  }
-
-  /* Tasks & Announcements Dark Mode */
-  .dark .hp-tasks-card {
-    background: #1e293b;
-    color: #f8fafc;
-    border-color: #334155;
-  }
-  .dark .hp-tasks-title {
-    color: #f8fafc;
-    border-bottom: 1px solid #334155;
-  }
-  .dark .hp-tasks-card .hp-task-item {
-    color: #94a3b8 !important;
-  }
-  .dark .hp-tasks-card .hp-task-item:hover {
-    color: #f8fafc !important;
-  }
-  .dark .hp-announcement-card {
-    background: #1e293b;
-    color: #f8fafc;
-    border-color: #334155;
-  }
-  .dark .hp-announcement-card h3.text-dark {
-    color: #f8fafc !important;
-  }
-  .dark .announcement-scroll-container {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: #334155;
-  }
-  .dark .announcement-scroll-text {
-    color: #cbd5e1;
-  }
-  .dark .announcement-scroll-container:hover .announcement-scroll-text {
-    color: #38bdf8;
-  }
-  .dark .hp-announcement-card label.oh-label {
-    color: #f8fafc !important;
-  }
-  .dark .hp-announcement-card input, 
-  .dark .hp-announcement-card textarea {
-    background-color: #1e293b !important;
-    color: #f8fafc !important;
-    border-color: #334155 !important;
-  }
-  .dark .hp-announcement-card input:focus, 
-  .dark .hp-announcement-card textarea:focus {
-    border-color: #3b82f6 !important;
-  }
-  .dark .announcement-scroll-container-editable:hover {
-    background: rgba(255, 255, 255, 0.1) !important;
-    border-color: rgba(255, 255, 255, 0.2) !important;
+  .agenda-bullet::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0.4rem;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background-color: currentColor;
   }
 </style>
 
-<div class="hp-wrapper">
-  <div class="hp-layout-container">
-    
-    <!-- ── Left Column: Logo & Tasks ── -->
-    <div class="hp-col-left">
-      <!-- Logo Card Container loaded via HTMX -->
-      <div class="hp-logo-card" id="home-logo-container" hx-get="{% url 'get-home-logo-card' %}" hx-trigger="load" hx-swap="outerHTML">
-        <div style="display: flex; align-items: center; justify-content: center; height: 100px; width: 100%;">
-          <div style="width: 24px; height: 24px; border: 3px solid rgba(0,0,0,0.1); border-radius: 50%; border-top-color: #3b82f6; animation: spin 1s linear infinite;"></div>
-        </div>
-      </div>
+<div style="max-width: 1600px; margin: 0 auto; padding: 0.6rem 1.2rem; font-family: 'Outfit', 'Inter', sans-serif;">
 
-      <!-- Tasks and Notifications Card -->
-      <div class="hp-tasks-card {% if tasks_active %}tasks-active{% endif %}">
-        <div class="hp-tasks-title">
-          <span>{% trans "Tasks and Notifications" %}</span>
-          {% if tasks_active %}
-            <span class="pulsing-live-dot" title="{% trans 'Live updates available' %}"></span>
-          {% endif %}
-        </div>
-        
-        <!-- Leave Requests task -->
-        {% if pending_leaves_count > 0 %}
-          <a href="/leave/request-view/" class="hp-task-item item-highlight">
-            <ion-icon name="mail-unread-outline" style="font-size: 1.15rem; flex-shrink: 0; color: #eab308;"></ion-icon>
-            <span>
-              {% blocktrans count count=pending_leaves_count %}
-                1 leave request pending approval
-              {% plural %}
-                {{ count }} leave requests pending approval
-              {% endblocktrans %}
-            </span>
-          </a>
+  <!-- ── Greeting Row ── -->
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+    <div>
+      <h1 style="font-size: 1.35rem; font-weight: 800; color: #0f172a; margin: 0; line-height: 1.2;">
+        <span id="greeting-text">Good Morning</span>, {{ request.user.employee_get.get_full_name|default:request.user.username }} 👋
+      </h1>
+      <p style="font-size: 12px; color: #64748b; margin: 2px 0 0;">
+        {% if request.user.is_superuser or request.user.is_staff or can_approve_leave or can_view_payroll %}
+          Here's what's happening in your workspace today.
+        {% else %}
+          Here's your personal workspace summary for today.
         {% endif %}
+      </p>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 6px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+      <div id="local-time" style="font-size: 1.1rem; font-weight: 800; color: #4f46e5; font-variant-numeric: tabular-nums;">--:--:--</div>
+      <div style="width: 1px; height: 14px; background: #cbd5e1;"></div>
+      <div id="local-date" style="font-size: 11px; font-weight: 600; color: #64748b;">Loading...</div>
+    </div>
+  </div>
 
-        <!-- Onboarding / Recent Employee Add Alert -->
-        {% if employee_add_alert %}
-          <a href="/onboarding/candidates-view/" class="hp-task-item item-highlight">
-            <ion-icon name="person-add-outline" style="font-size: 1.15rem; flex-shrink: 0; color: #22c55e;"></ion-icon>
-            <span>{% trans "New employee onboarding in progress" %}</span>
-          </a>
-        {% endif %}
+  <!-- ── Info Pills Row ── -->
+  <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.9rem;">
+    <div class="info-pill">⛅ 24°C &nbsp;Partly Cloudy</div>
+    <div class="info-pill">🕒 {{ working_hours }}</div>
+    <div class="info-pill">⏱️ {{ shift_name }}</div>
+    <div class="info-pill" style="{% if checked_in %}color:#059669;border-color:#a7f3d0;{% else %}color:#dc2626;border-color:#fca5a5;{% endif %}">
+      📍 {% if checked_in %}Checked In · {{ checkin_time }}{% else %}Not Checked In{% endif %}
+    </div>
+    <div class="info-pill">🏢 {{ location }}</div>
+  </div>
 
-        <!-- Payroll Processing Alert -->
-        {% if is_payroll_time %}
-          <a href="/payroll/view-payslip/" class="hp-task-item item-highlight">
-            <ion-icon name="card-outline" style="font-size: 1.15rem; flex-shrink: 0; color: #f97316;"></ion-icon>
-            <span>{% trans "Payroll processing due for this month" %}</span>
-          </a>
-        {% endif %}
+  {% if request.user.is_superuser or request.user.is_staff or can_approve_leave or can_view_payroll %}
+    <!-- ════════════════════════════════════════ -->
+    <!-- ═══════════ ADMIN DASHBOARD ════════════ -->
+    <!-- ════════════════════════════════════════ -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
 
-        <!-- Notification tasks: list the actual recent unread notifications -->
-        {% for note in recent_notifications %}
-          <a href="{{ note.data.redirect|default:'/notifications/' }}" class="hp-task-item">
-            <ion-icon name="notifications-outline" style="font-size: 1.1rem; flex-shrink: 0;"></ion-icon>
-            <span>{{ note.verb }}</span>
-          </a>
-        {% endfor %}
-        {% if unread_notifications_count > recent_notifications|length %}
-          <a href="/notifications/" class="hp-task-item" style="color:#64748b;">
-            <ion-icon name="ellipsis-horizontal-outline" style="font-size: 1.1rem; flex-shrink: 0;"></ion-icon>
-            <span>{% blocktrans count count=unread_notifications_count %}View all (1 unread){% plural %}View all ({{ count }} unread){% endblocktrans %}</span>
-          </a>
-        {% endif %}
+      <!-- LEFT & CENTER AREA (8 columns) -->
+      <div class="lg:col-span-8 flex flex-col gap-6">
 
-        {% if not tasks_active %}
-          <div class="hp-task-item" style="color: #64748b; padding: 4px 8px;">
-            <ion-icon name="checkmark-circle-outline" style="font-size: 1.1rem; flex-shrink: 0; color: #22c55e;"></ion-icon>
-            <span>{% trans "All caught up! No pending tasks." %}</span>
+        <!-- Quick Access Modules (Admin layout) -->
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 1.25rem 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <h3 class="text-sm font-bold mb-3" style="color: #0f172a; margin-top: 0;">Quick Access Modules</h3>
+          <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-10 gap-0">
+            <a href="/employee/employee-view/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/employee.png' %}" class="quick-action-img" alt="Employee">
+              <span class="quick-action-label">Employee</span>
+            </a>
+            <a href="/attendance/attendance-dashboard/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/attendance.png' %}" class="quick-action-img" alt="Attendance">
+              <span class="quick-action-label">Attendance</span>
+            </a>
+            <a href="/leave/request-view/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/leave.png' %}" class="quick-action-img" alt="Leave">
+              <span class="quick-action-label">Leave</span>
+            </a>
+            <a href="/payroll/view-payslip/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/payroll.png' %}" class="quick-action-img" alt="Payroll">
+              <span class="quick-action-label">Payroll</span>
+            </a>
+            <a href="/project/project-list-view/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/projects.png' %}" class="quick-action-img" alt="Projects">
+              <span class="quick-action-label">Projects</span>
+            </a>
+            <a href="/asset/asset-category-view/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/assets.png' %}" class="quick-action-img" alt="Assets">
+              <span class="quick-action-label">Assets</span>
+            </a>
+            <a href="/helpdesk/ticket-list/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/support.png' %}" class="quick-action-img" alt="Support">
+              <span class="quick-action-label">Support</span>
+            </a>
+            <a href="/pms/objective-list-view/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/pms.png' %}" class="quick-action-img" alt="PMS">
+              <span class="quick-action-label">PMS</span>
+            </a>
+            <a href="/konnect/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/buzz.png' %}" class="quick-action-img" alt="Buzz">
+              <span class="quick-action-label">Buzz</span>
+            </a>
+            <a href="/holiday-calendar/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/holiday-calendar.png' %}" class="quick-action-img" alt="Holiday">
+              <span class="quick-action-label">Holiday</span>
+            </a>
           </div>
-        {% endif %}
-      </div>
-    </div>
+        </div>
 
-    <!-- ── Center Column: Welcome & Module Cards ── -->
-    <div class="hp-col-center">
-      <!-- Header -->
-      <div class="hp-header">
-        <h1>{% trans "Welcome back" %}{% if request.user.employee_get.get_full_name %}, {{ request.user.employee_get.get_full_name }}{% elif request.user.get_full_name %}, {{ request.user.get_full_name }}{% elif request.user.username %}, {{ request.user.username }}{% endif %} 👋</h1>
-        <p>{% trans "Search anything or pick a module to get started" %}</p>
-      </div>
+        <!-- Metrics / Charts grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Total Employees -->
+          <div class="flex flex-col justify-between h-[130px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+            <div>
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold" style="color: #64748b;">Total Employees</span>
+                <span class="text-[10px] font-bold" style="color: #16a34a; background: #f0fdf4; padding: 1px 5px; border-radius: 6px;">▲ 12.5%</span>
+              </div>
+              <h3 class="text-2xl font-extrabold mt-1" style="color: #0f172a; margin-bottom: 0;">{{ total_employees }}</h3>
+              <p class="text-[9px]" style="color: #94a3b8; margin: 0;">vs last month</p>
+            </div>
+            <div class="w-full h-8 mt-1">
+              <svg class="w-full h-full text-indigo-500" viewBox="0 0 100 30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path class="sparkline-path" d="M0 25 L15 22 L30 26 L45 18 L60 22 L75 14 L90 18 L100 8" />
+              </svg>
+            </div>
+          </div>
 
-      <!-- Hero Card -->
-      <div class="hp-hero">
-        <a href="{% url 'dashboard' %}"
-           hx-get="{% url 'dashboard' %}" hx-target="#ohMainContent"
-           hx-select="#ohMainContent > *" hx-swap="innerHTML show:window:top" hx-push-url="true"
-           class="hp-hero-card" id="hp-hero-dashboard">
-          <span class="hp-hero-icon-wrap">
-            <svg width="28" height="28" fill="none" stroke="#fff" stroke-width="2.2" viewBox="0 0 24 24">
-              <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
-              <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
-            </svg>
-          </span>
-          <span>
-            <div class="hp-hero-label">{% trans "Overview and Analytics" %}</div>
-          </span>
-        </a>
-      </div>
+          <!-- Attendance Rate -->
+          <div class="flex flex-col justify-between h-[130px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+            <div>
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold" style="color: #64748b;">Attendance Rate</span>
+                <span class="text-[10px] font-bold" style="color: #16a34a; background: #f0fdf4; padding: 1px 5px; border-radius: 6px;">▲ 2.3%</span>
+              </div>
+              <h3 class="text-2xl font-extrabold mt-1" style="color: #0f172a; margin-bottom: 0;">{{ attendance_rate }}%</h3>
+              <p class="text-[9px]" style="color: #94a3b8; margin: 0;">vs last month</p>
+            </div>
+            <div class="w-full h-8 mt-1">
+              <svg class="w-full h-full text-emerald-500" viewBox="0 0 100 30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path class="sparkline-path" d="M0 10 L15 15 L30 8 L45 12 L60 5 L75 8 L90 4 L100 2" />
+              </svg>
+            </div>
+          </div>
 
-      <!-- Module Grid -->
-      <div class="hp-grid">
-        {% for module in sidebar %}
-          {% if module.submenu and module.app not in "report,licensing" %}
-          <a href="{{ module.submenu.0.redirect }}"
-             hx-get="{{ module.submenu.0.redirect }}" hx-target="#ohMainContent"
-             hx-select="#ohMainContent > *" hx-swap="innerHTML show:window:top" hx-push-url="true"
-             class="hp-card hp-c-{{ module.app }}{% if module.menu == 'Buzz' %} hp-c-buzz{% endif %}">
-            <span class="hp-icon">
-              {% if module.app == "employee" %}
-                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              {% elif module.app == "recruitment" %}
-                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><path d="M12 12v4"/><path d="M10 14h4"/></svg>
-              {% elif module.app == "onboarding" %}
-                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
-              {% elif module.app == "attendance" %}
-                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              {% elif module.app == "leave" %}
-                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
-              {% elif module.app == "payroll" %}
-                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/><path d="M12 15a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" fill="var(--hp-accent)" stroke="none"/></svg>
-              {% elif module.app == "helpdesk" %}
-                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
-              {% elif module.app == "pms" %}
-                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-              {% elif module.app == "project" %}
-                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-              {% elif module.app == "asset" %}
-                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-              {% elif module.app == "offboarding" %}
-                <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-              {% else %}
-                <svg fill="none" stroke="var(--hp-accent, #e34e38)" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
-              {% endif %}
+          <!-- Leave Taken -->
+          <div class="flex flex-col justify-between h-[130px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+            <div>
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold" style="color: #64748b;">Leave Taken Today</span>
+                <span class="text-[10px] font-bold" style="color: #dc2626; background: #fef2f2; padding: 1px 5px; border-radius: 6px;">▼ 9.4%</span>
+              </div>
+              <h3 class="text-2xl font-extrabold mt-1" style="color: #0f172a; margin-bottom: 0;">{{ leave_today_count }}</h3>
+              <p class="text-[9px]" style="color: #94a3b8; margin: 0;">vs last month</p>
+            </div>
+            <div class="w-full h-8 mt-1">
+              <svg class="w-full h-full text-rose-500" viewBox="0 0 100 30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path class="sparkline-path" d="M0 25 L15 28 L30 20 L45 22 L60 12 L75 14 L90 8 L100 12" />
+              </svg>
+            </div>
+          </div>
+
+          <!-- Payroll Total -->
+          <div class="flex flex-col justify-between h-[130px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+            <div>
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold" style="color: #64748b;">Payroll This Month</span>
+                <span class="text-[10px] font-bold" style="color: #16a34a; background: #f0fdf4; padding: 1px 5px; border-radius: 6px;">▲ 15.7%</span>
+              </div>
+              <h3 class="text-2xl font-extrabold mt-1" style="color: #0f172a; margin-bottom: 0;">{{ payroll_total }}</h3>
+              <p class="text-[9px]" style="color: #94a3b8; margin: 0;">vs last month</p>
+            </div>
+            <div class="w-full h-8 mt-1">
+              <svg class="w-full h-full text-amber-500" viewBox="0 0 100 30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path class="sparkline-path" d="M0 25 L20 22 L40 18 L60 14 L80 10 L100 8" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts (Row 2) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Projects in Progress -->
+          <div class="flex flex-col justify-between h-[170px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-xs font-bold" style="color: #64748b;">Projects In Progress</span>
+              <span class="text-[10px] font-bold" style="color: #16a34a; background: #f0fdf4; padding: 1px 5px; border-radius: 6px;">▲ 9.1%</span>
+            </div>
+            <h3 class="text-2xl font-extrabold" style="color: #0f172a; margin-top: 0; margin-bottom: 0;">{{ active_projects }}</h3>
+            <div class="h-[75px] w-full mt-1">
+              <canvas id="chart-project-progress"></canvas>
+            </div>
+          </div>
+
+          <!-- Employee Distribution -->
+          <div class="flex flex-col justify-between h-[170px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-xs font-bold" style="color: #64748b;">Employee Distribution</span>
+            </div>
+            <div class="h-[105px] w-full mt-1 relative flex items-center justify-center">
+              <canvas id="chart-employee-dist"></canvas>
+            </div>
+          </div>
+
+          <!-- Average Performance -->
+          <div class="flex flex-col justify-between h-[170px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-xs font-bold" style="color: #64748b;">Average Performance</span>
+              <span class="text-[10px] font-bold" style="color: #16a34a; background: #f0fdf4; padding: 1px 5px; border-radius: 6px;">▲ 0.4</span>
+            </div>
+            <h3 class="text-2xl font-extrabold" style="color: #0f172a; margin-top: 0; margin-bottom: 0;">{{ avg_performance }}/5</h3>
+            <div class="h-[75px] w-full mt-1">
+              <canvas id="chart-performance"></canvas>
+            </div>
+          </div>
+
+          <!-- Expense This Month -->
+          <div class="flex flex-col justify-between h-[170px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-xs font-bold" style="color: #64748b;">Expense This Month</span>
+              <span class="text-[10px] font-bold" style="color: #16a34a; background: #f0fdf4; padding: 1px 5px; border-radius: 6px;">▲ 5.2%</span>
+            </div>
+            <h3 class="text-2xl font-extrabold" style="color: #0f172a; margin-top: 0; margin-bottom: 0;">{{ expenses_total }}</h3>
+            <div class="h-[75px] w-full mt-1">
+              <canvas id="chart-reimbursements"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Announcements + Buzz -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="chart-card">
+            <div class="card-header">
+              <span class="card-title">Announcements</span>
+              <a href="/announcement-list/" class="card-link">View all</a>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+              {% for ann in latest_announcements %}
+                <div style="border-left: 3px solid #6366f1; padding-left: 0.75rem;">
+                  <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 2px;">
+                    <span class="badge badge-new">New</span>
+                    <span style="font-size: 12px; font-weight: 700; color: #0f172a;">{{ ann.title }}</span>
+                  </div>
+                  <p style="font-size: 11px; color: #64748b; margin: 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ ann.description|striptags }}</p>
+                  <p style="font-size: 10px; color: #94a3b8; margin: 3px 0 0;">{{ ann.created_at|timesince }} ago</p>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="card-header">
+              <span class="card-title">Employee Buzz</span>
+              <a href="/konnect/" class="card-link">View all</a>
+            </div>
+            {% for post in buzz_posts|slice:":1" %}
+              <div>
+                <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem;">
+                  <div style="width: 34px; height: 34px; border-radius: 50%; background: #eef2ff; color: #4f46e5; font-weight: 800; font-size: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    {% if post.author_name %}{{ post.author_name|slice:":2"|upper }}{% else %}{{ post.author.get_full_name|slice:":2"|upper }}{% endif %}
+                  </div>
+                  <div>
+                    <div style="font-size: 12px; font-weight: 700; color: #0f172a;">{% if post.author_name %}{{ post.author_name }}{% else %}{{ post.author.get_full_name }}{% endif %}</div>
+                    <div style="font-size: 10px; color: #94a3b8;">{% if post.author_role %}{{ post.author_role }}{% else %}Employee{% endif %}</div>
+                  </div>
+                </div>
+                <p style="font-size: 12px; color: #475569; margin: 0; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">{{ post.body }}</p>
+                <div style="display: flex; gap: 1rem; margin-top: 0.6rem; font-size: 11px; color: #94a3b8;">
+                  <span>❤️ {{ post.likes_count|default:0 }}</span>
+                  <span>💬 {{ post.comments_count|default:0 }}</span>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Today's Attendance Snapshot -->
+        <div class="chart-card" style="margin-top: 1.25rem; border-radius: 16px; padding: 1.25rem; position: relative; overflow: hidden;">
+          <div class="card-header" style="margin-bottom: 1rem;">
+            <span class="card-title" style="display: flex; align-items: center; gap: 0.5rem;">
+              <span style="background: #e0e7ff; color: #4f46e5; border-radius: 8px; padding: 4px 6px; font-size: 13px;">👥</span>
+              Today's Attendance Snapshot
             </span>
-            <span class="hp-card-label">{{ module.menu }}</span>
-          </a>
-          {% endif %}
-        {% empty %}
-          <!-- Static fallback cards -->
-          <a href="/employee/employee-view/" class="hp-card hp-c-employee">
-            <span class="hp-icon"><svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>
-            <span class="hp-card-label">{% trans "Employees" %}</span>
-          </a>
-          <a href="/attendance/attendance-dashboard/" class="hp-card hp-c-attendance">
-            <span class="hp-icon"><svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
-            <span class="hp-card-label">{% trans "Attendance" %}</span>
-          </a>
-        {% endfor %}
-        <!-- Explicit Expenses Card -->
-        <a href="/payroll/view-reimbursement/"
-           hx-get="/payroll/view-reimbursement/" hx-target="#ohMainContent"
-           hx-select="#ohMainContent > *" hx-swap="innerHTML show:window:top" hx-push-url="true"
-           class="hp-card hp-c-payroll">
-          <span class="hp-icon">
-            <svg fill="none" stroke="var(--hp-accent)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
-          </span>
-          <span class="hp-card-label">{% trans "Expenses" %}</span>
-        </a>
-      </div>
-    </div>
+          </div>
 
-    <!-- ── Right Column: Company Announcement ── -->
-    <div class="hp-col-right">
-      <div class="hp-announcement-card" id="home-announcement-container" hx-get="{% url 'get-home-announcement' %}" hx-trigger="load" hx-swap="innerHTML">
-        <!-- Spinner placeholder loaded via HTMX -->
-        <div style="display: flex; align-items: center; justify-content: center; height: 100%; width: 100%;">
-          <div style="width: 28px; height: 28px; border: 3px solid rgba(0,0,0,0.1); border-radius: 50%; border-top-color: #3b82f6; animation: spin 1s linear infinite;"></div>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem;">
+
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0.75rem; text-align: center;">
+              <div style="font-size: 1.75rem; font-weight: 900; color: #0f172a; line-height: 1;">{{ total_employees|default:0 }}</div>
+              <div style="font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Total</div>
+            </div>
+
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 0.75rem; text-align: center;">
+              <div style="font-size: 1.75rem; font-weight: 900; color: #15803d; line-height: 1;">{{ checked_in_count|default:0 }}</div>
+              <div style="font-size: 9px; font-weight: 700; color: #16a34a; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Present</div>
+            </div>
+
+            <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 0.75rem; text-align: center;">
+              <div style="font-size: 1.75rem; font-weight: 900; color: #b45309; line-height: 1;">{{ on_leave_count|default:0 }}</div>
+              <div style="font-size: 9px; font-weight: 700; color: #d97706; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">On Leave</div>
+            </div>
+
+            <div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 12px; padding: 0.75rem; text-align: center;">
+              <div style="font-size: 1.75rem; font-weight: 900; color: #b91c1c; line-height: 1;">{{ absent_count|default:0 }}</div>
+              <div style="font-size: 9px; font-weight: 700; color: #dc2626; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Absent</div>
+            </div>
+
+          </div>
+
+          <!-- Progress Bar (inline styles — Tailwind colour classes get purged) -->
+          <div style="margin-top: 1rem; height: 8px; width: 100%; border-radius: 999px; overflow: hidden; background: #e2e8f0; display: flex;">
+            <div style="background: #10b981; height: 100%; width: {% if total_employees %}{% widthratio checked_in_count total_employees 100 %}{% else %}0{% endif %}%;"></div>
+            <div style="background: #f59e0b; height: 100%; width: {% if total_employees %}{% widthratio on_leave_count total_employees 100 %}{% else %}0{% endif %}%;"></div>
+            <div style="background: #ef4444; height: 100%; width: {% if total_employees %}{% widthratio absent_count total_employees 100 %}{% else %}0{% endif %}%;"></div>
+          </div>
+
+          <!-- Legend -->
+          <div style="display: flex; gap: 1rem; margin-top: 0.5rem; justify-content: flex-end;">
+            <span style="font-size: 10px; color: #64748b; display: flex; align-items: center; gap: 4px;"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;display:inline-block;"></span>Present</span>
+            <span style="font-size: 10px; color: #64748b; display: flex; align-items: center; gap: 4px;"><span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>On Leave</span>
+            <span style="font-size: 10px; color: #64748b; display: flex; align-items: center; gap: 4px;"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;"></span>Absent</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT SIDEBAR (4 columns) -->
+      <div class="lg:col-span-4 flex flex-col gap-5" style="min-height: 0;">
+
+        <!-- Pending Approvals (Admin view) -->
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div class="flex justify-between items-center mb-3">
+            <h4 class="text-sm font-bold" style="color: #0f172a; margin: 0;">Pending Approvals</h4>
+            <a href="/leave/request-view/" class="text-xs text-indigo-600 hover:underline">View all</a>
+          </div>
+          <div class="space-y-2">
+            {% for req in pending_approvals %}
+              <div class="p-3 border rounded-xl flex items-start justify-between gap-2" style="border-color: #e2e8f0;">
+                <div>
+                  <span class="text-[8px] font-extrabold text-indigo-600 uppercase tracking-wider">{{ req.type }}</span>
+                  <h5 class="text-xs font-bold mt-0.5" style="color: #0f172a;">{{ req.title }}</h5>
+                  <p class="text-[10px] mt-0.5 leading-snug" style="color: #64748b;">{{ req.desc }}</p>
+                </div>
+                <div class="flex gap-1.5 flex-shrink-0">
+                  <button class="w-6 h-6 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-700 flex items-center justify-center transition text-xs">✓</button>
+                  <button class="w-6 h-6 rounded-full bg-rose-100 hover:bg-rose-200 text-rose-700 flex items-center justify-center transition text-xs">✗</button>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Birthdays -->
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div class="flex justify-between items-center mb-3">
+            <h4 class="text-sm font-bold" style="color: #0f172a; margin: 0;">Birthdays</h4>
+            <a href="/employee/employee-view/" class="text-xs text-indigo-600 hover:underline">View all</a>
+          </div>
+          <div class="space-y-2">
+            {% for bday in upcoming_birthdays %}
+              <div class="flex items-center justify-between p-2 hover:bg-slate-50 rounded-xl transition">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" style="color: #db2777; background: #fdf2f8;">
+                    {{ bday.name|slice:":2"|upper }}
+                  </div>
+                  <div>
+                    <h5 class="text-xs font-bold" style="color: #0f172a;">{{ bday.name }}</h5>
+                    <p class="text-[10px] text-slate-400">{{ bday.date_str }}</p>
+                  </div>
+                </div>
+                <span class="text-base">🎁</span>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Calendar -->
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div class="flex justify-between items-center mb-3">
+            <h4 id="calendar-month-year" class="text-xs font-bold" style="color: #0f172a; margin: 0;">Calendar</h4>
+            <div class="flex gap-1">
+              <button onclick="prevMonth()" class="p-1 hover:bg-slate-100 rounded text-slate-400 text-xs">◄</button>
+              <button onclick="nextMonth()" class="p-1 hover:bg-slate-100 rounded text-slate-400 text-xs">►</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-7 text-center text-[9px] font-bold text-slate-400 uppercase mb-1">
+            <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+          </div>
+          <div id="calendar-grid" class="grid grid-cols-7 text-xs">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Recent Activity (All checkins for Admin) -->
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02); flex: 1 1 auto;">
+          <div class="flex justify-between items-center mb-3">
+            <h4 class="text-sm font-bold" style="color: #0f172a; margin: 0;">Recent Activity</h4>
+            <a href="/" class="text-xs text-indigo-600 hover:underline">View all</a>
+          </div>
+          <div class="relative pl-4 border-l-2 border-slate-100 space-y-4">
+            {% for act in recent_activities %}
+              <div class="relative">
+                <span class="absolute -left-[19px] top-1.5 bg-white border-2 border-indigo-500 rounded-full w-2.5 h-2.5"></span>
+                <h5 class="text-xs font-bold" style="color: #0f172a;">{{ act.title }}</h5>
+                <p class="text-[10px] text-slate-400 mt-0.5">{{ act.time }}</p>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  {% else %}
+    <!-- ════════════════════════════════════════ -->
+    <!-- ═════════ EMPLOYEE DASHBOARD ═══════════ -->
+    <!-- ════════════════════════════════════════ -->
+    <div style="display: grid; grid-template-columns: 1fr 320px; gap: 1.1rem; align-items: start;">
+
+      <!-- LEFT COLUMN -->
+      <div style="display: flex; flex-direction: column; gap: 1rem;">
+
+        <!-- Personal Stats Row (4 cards) -->
+        <div style="display: grid; grid-template-columns: repeat(4,1fr); gap: 0.85rem;">
+          <a href="/attendance/attendance-dashboard/" class="stat-card">
+            <div class="stat-icon" style="background:#eff6ff;">📅</div>
+            <div>
+              <div class="stat-val" style="color:#1d4ed8;">{{ my_attendance_days }}</div>
+              <div class="stat-lbl">Days Present</div>
+              <div class="stat-sub">This Month</div>
+            </div>
+          </a>
+
+          <a href="/leave/request-view/" class="stat-card">
+            <div class="stat-icon" style="background:#f0fdf4;">🌴</div>
+            <div>
+              <div class="stat-val" style="color:#15803d;">{% if my_leave_balance %}{{ my_leave_balance }}{% else %}—{% endif %}</div>
+              <div class="stat-lbl">Leave Balance</div>
+              <div class="stat-sub">{{ my_pending_leaves }} pending · {{ my_approved_leaves }} approved</div>
+            </div>
+          </a>
+
+          <a href="/payroll/view-payslip/" class="stat-card">
+            <div class="stat-icon" style="background:#faf5ff;">💰</div>
+            <div>
+              <div class="stat-val" style="color:#7c3aed; font-size:{% if my_payslip_net %}1rem{% else %}1.4rem{% endif %};">{{ my_payslip_net|default:"—" }}</div>
+              <div class="stat-lbl">My Payslip</div>
+              <div class="stat-sub">{{ my_payslip_month|default:"No payslip yet" }}</div>
+            </div>
+          </a>
+
+          <a href="/attendance/attendance-dashboard/" class="stat-card">
+            <div class="stat-icon" style="background:{% if checked_in %}#f0fdf4{% else %}#fef2f2{% endif %};">{% if checked_in %}✅{% else %}⏰{% endif %}</div>
+            <div>
+              <div class="stat-val" style="color:{% if checked_in %}#15803d{% else %}#dc2626{% endif %}; font-size:1rem;">{% if checked_in %}{{ checkin_time }}{% else %}Not In{% endif %}</div>
+              <div class="stat-lbl">Today's Status</div>
+              <div class="stat-sub">{% if checked_in %}Checked In{% else %}Tap to check in{% endif %}</div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Quick Access -->
+        <div class="chart-card" style="padding: 0.9rem 1.1rem;">
+          <div class="card-header" style="margin-bottom: 0.5rem;">
+            <span class="card-title">Quick Access</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(10,1fr);">
+            <a href="/employee/employee-view/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/employee.png' %}" class="quick-action-img" alt="Employee">
+              <span class="quick-action-label">Employee</span>
+            </a>
+            <a href="/attendance/attendance-dashboard/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/attendance.png' %}" class="quick-action-img" alt="Attendance">
+              <span class="quick-action-label">Attendance</span>
+            </a>
+            <a href="/leave/request-view/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/leave.png' %}" class="quick-action-img" alt="Leave">
+              <span class="quick-action-label">Leave</span>
+            </a>
+            <a href="/payroll/view-payslip/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/payroll.png' %}" class="quick-action-img" alt="Payroll">
+              <span class="quick-action-label">Payroll</span>
+            </a>
+            <a href="/project/project-list-view/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/projects.png' %}" class="quick-action-img" alt="Projects">
+              <span class="quick-action-label">Projects</span>
+            </a>
+            <a href="/asset/asset-category-view/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/assets.png' %}" class="quick-action-img" alt="Assets">
+              <span class="quick-action-label">Assets</span>
+            </a>
+            <a href="/helpdesk/ticket-list/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/support.png' %}" class="quick-action-img" alt="Support">
+              <span class="quick-action-label">Support</span>
+            </a>
+            <a href="/pms/objective-list-view/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/pms.png' %}" class="quick-action-img" alt="PMS">
+              <span class="quick-action-label">PMS</span>
+            </a>
+            <a href="/konnect/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/buzz.png' %}" class="quick-action-img" alt="Buzz">
+              <span class="quick-action-label">Buzz</span>
+            </a>
+            <a href="/holiday-calendar/" class="quick-action-btn">
+              <img src="{% static 'skylinx_theme/assets/img/modules/light/holiday-calendar.png' %}" class="quick-action-img" alt="Holiday">
+              <span class="quick-action-label">Holiday</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Dashboard Charts Row (3 charts like admin but personal) -->
+        <div style="display: grid; grid-template-columns: 1.8fr 1fr 1fr; gap: 0.85rem;">
+          <!-- My Attendance Trend -->
+          <div class="chart-card">
+            <div class="card-header">
+              <span class="card-title">My Attendance</span>
+              <a href="/attendance/attendance-dashboard/" class="card-link">Details →</a>
+            </div>
+            <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.5rem;">
+              <span style="font-size: 1.6rem; font-weight: 800; color: #1d4ed8;">{{ my_attendance_days }}</span>
+              <span style="font-size: 11px; color: #64748b; font-weight: 600;">days this month</span>
+            </div>
+            <div style="height: 90px; position: relative;">
+              <canvas id="chart-my-attendance"></canvas>
+            </div>
+          </div>
+
+          <!-- My Leave Summary -->
+          <div class="chart-card">
+            <div class="card-header">
+              <span class="card-title">My Leave</span>
+              <a href="/leave/request-view/" class="card-link">Apply →</a>
+            </div>
+            <div style="display: flex; justify-content: center; align-items: center; height: 110px;">
+              <canvas id="chart-my-leave"></canvas>
+            </div>
+            <div style="display: flex; justify-content: center; gap: 1rem; margin-top: 4px;">
+              <span style="font-size: 9px; color: #64748b; font-weight: 600;">⬤ <span style="color:#f59e0b"> Pending {{ my_pending_leaves }}</span></span>
+              <span style="font-size: 9px; color: #64748b; font-weight: 600;">⬤ <span style="color:#10b981"> Approved {{ my_approved_leaves }}</span></span>
+            </div>
+          </div>
+
+          <!-- My Payslip/Leaves Details -->
+          <div class="chart-card">
+            <div class="card-header">
+              <span class="card-title">My Payslip</span>
+              <a href="/payroll/view-payslip/" class="card-link">View →</a>
+            </div>
+            <div style="text-align: center; padding: 0.5rem 0;">
+              <div style="font-size: 1.5rem; font-weight: 800; color: #7c3aed;">{{ my_payslip_net|default:"—" }}</div>
+              <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">{{ my_payslip_month|default:"Latest payslip" }}</div>
+            </div>
+            <div style="background: #f8fafc; border-radius: 10px; padding: 0.65rem; margin-top: 0.5rem;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                <span style="font-size: 10px; color: #64748b;">Pending Leaves</span>
+                <span style="font-size: 10px; font-weight: 700; color: #f59e0b;">{{ my_pending_leaves }}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                <span style="font-size: 10px; color: #64748b;">Approved Leaves</span>
+                <span style="font-size: 10px; font-weight: 700; color: #10b981;">{{ my_approved_leaves }}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span style="font-size: 10px; color: #64748b;">Days Present</span>
+                <span style="font-size: 10px; font-weight: 700; color: #1d4ed8;">{{ my_attendance_days }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Announcements + Buzz -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem;">
+          <div class="chart-card">
+            <div class="card-header">
+              <span class="card-title">Announcements</span>
+              <a href="/announcement-list/" class="card-link">View all</a>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+              {% for ann in latest_announcements %}
+                <div style="border-left: 3px solid #6366f1; padding-left: 0.75rem;">
+                  <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 2px;">
+                    <span class="badge badge-new">New</span>
+                    <span style="font-size: 12px; font-weight: 700; color: #0f172a;">{{ ann.title }}</span>
+                  </div>
+                  <p style="font-size: 11px; color: #64748b; margin: 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ ann.description|striptags }}</p>
+                  <p style="font-size: 10px; color: #94a3b8; margin: 3px 0 0;">{{ ann.created_at|timesince }} ago</p>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="card-header">
+              <span class="card-title">Employee Buzz</span>
+              <a href="/konnect/" class="card-link">View all</a>
+            </div>
+            {% for post in buzz_posts|slice:":1" %}
+              <div>
+                <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem;">
+                  <div style="width: 34px; height: 34px; border-radius: 50%; background: #eef2ff; color: #4f46e5; font-weight: 800; font-size: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    {% if post.author_name %}{{ post.author_name|slice:":2"|upper }}{% else %}{{ post.author.get_full_name|slice:":2"|upper }}{% endif %}
+                  </div>
+                  <div>
+                    <div style="font-size: 12px; font-weight: 700; color: #0f172a;">{% if post.author_name %}{{ post.author_name }}{% else %}{{ post.author.get_full_name }}{% endif %}</div>
+                    <div style="font-size: 10px; color: #94a3b8;">{% if post.author_role %}{{ post.author_role }}{% else %}Employee{% endif %}</div>
+                  </div>
+                </div>
+                <p style="font-size: 12px; color: #475569; margin: 0; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">{{ post.body }}</p>
+                <div style="display: flex; gap: 1rem; margin-top: 0.6rem; font-size: 11px; color: #94a3b8;">
+                  <span>❤️ {{ post.likes_count|default:0 }}</span>
+                  <span>💬 {{ post.comments_count|default:0 }}</span>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN (Employee) -->
+      <div style="display: flex; flex-direction: column; gap: 1rem;">
+        <!-- My Leave Summary -->
+        <div class="chart-card">
+          <div class="card-header">
+            <span class="card-title">My Leave Summary</span>
+            <a href="/leave/request-view/" class="card-link">+ Apply</a>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+            <div style="background: #fef3c7; border-radius: 10px; padding: 0.6rem; text-align: center;">
+              <div style="font-size: 1.3rem; font-weight: 800; color: #92400e;">{{ my_pending_leaves }}</div>
+              <div style="font-size: 9px; color: #92400e; font-weight: 700;">Pending</div>
+            </div>
+            <div style="background: #d1fae5; border-radius: 10px; padding: 0.6rem; text-align: center;">
+              <div style="font-size: 1.3rem; font-weight: 800; color: #065f46;">{{ my_approved_leaves }}</div>
+              <div style="font-size: 9px; color: #065f46; font-weight: 700;">Approved</div>
+            </div>
+            <div style="background: #eff6ff; border-radius: 10px; padding: 0.6rem; text-align: center;">
+              <div style="font-size: 1.3rem; font-weight: 800; color: #1d4ed8;">{% if my_leave_balance %}{{ my_leave_balance }}{% else %}—{% endif %}</div>
+              <div style="font-size: 9px; color: #1d4ed8; font-weight: 700;">Balance</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Birthdays -->
+        <div class="chart-card">
+          <div class="card-header">
+            <span class="card-title">🎂 Birthdays</span>
+            <a href="/employee/employee-view/" class="card-link">View all</a>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+            {% for bday in upcoming_birthdays %}
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.35rem 0.5rem; border-radius: 8px; transition: background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                <div style="display: flex; align-items: center; gap: 0.55rem;">
+                  <div style="width: 28px; height: 28px; border-radius: 50%; background: #fdf2f8; color: #db2777; font-size: 9px; font-weight: 800; display: flex; align-items: center; justify-content: center;">{{ bday.name|slice:":2"|upper }}</div>
+                  <div>
+                    <div style="font-size: 11px; font-weight: 700; color: #0f172a;">{{ bday.name }}</div>
+                    <div style="font-size: 9px; color: #94a3b8;">{{ bday.date_str }}</div>
+                  </div>
+                </div>
+                <span style="font-size: 0.95rem;">🎁</span>
+              </div>
+            {% empty %}
+              <p style="font-size: 11px; color: #94a3b8; text-align: center; padding: 0.5rem 0; margin: 0;">No birthdays soon</p>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Calendar -->
+        <div class="chart-card">
+          <div class="card-header" style="margin-bottom: 0.5rem;">
+            <span id="calendar-month-year" class="card-title">Calendar</span>
+            <div style="display: flex; gap: 2px;">
+              <button onclick="prevMonth()" style="border:none;background:none;color:#94a3b8;cursor:pointer;padding:2px 5px;border-radius:4px;font-size:11px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'">◄</button>
+              <button onclick="nextMonth()" style="border:none;background:none;color:#94a3b8;cursor:pointer;padding:2px 5px;border-radius:4px;font-size:11px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'">►</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:8px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:3px;">
+            <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+          </div>
+          <div id="calendar-grid" style="display:grid;grid-template-columns:repeat(7,1fr);"></div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="chart-card" style="flex: 1 1 auto;">
+          <div class="card-header">
+            <span class="card-title">My Activity</span>
+          </div>
+          <div class="timeline-wrap">
+            {% for act in recent_activities %}
+              <div style="position: relative; margin-bottom: 0.85rem;">
+                <span class="timeline-dot"></span>
+                <div style="display: flex; align-items: baseline; gap: 5px;">
+                  <span style="font-size: 12px;">{{ act.icon|default:"●" }}</span>
+                  <span style="font-size: 11px; font-weight: 700; color: #0f172a;">{{ act.title }}</span>
+                </div>
+                <div style="font-size: 10px; color: #94a3b8; margin-top: 1px;">{{ act.time }}</div>
+              </div>
+            {% endfor %}
+          </div>
         </div>
       </div>
-    </div>
 
+    </div>
+  {% endif %}
+
+</div>
+
+<script>
+  // ── Clock ──
+  function runClock() {
+    const t = document.getElementById('local-time');
+    const d = document.getElementById('local-date');
+    const g = document.getElementById('greeting-text');
+    if (!t || !d) return;
+    const now = new Date();
+    t.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    d.textContent = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+    if (g) {
+      const h = now.getHours();
+      g.textContent = h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening';
+    }
+  }
+  setInterval(runClock, 1000);
+  runClock();
+
+  // ── Calendar ──
+  let currentMonth = new Date().getMonth();
+  let currentYear = new Date().getFullYear();
+  function renderCalendar(month, year) {
+    const grid = document.getElementById('calendar-grid');
+    const label = document.getElementById('calendar-month-year');
+    if (!grid || !label) return;
+    grid.innerHTML = '';
+    const d = new Date(year, month, 1);
+    label.textContent = d.toLocaleString([], { month: 'long' }) + ' ' + year;
+    for (let i = 0; i < d.getDay(); i++) {
+      const c = document.createElement('div'); c.style.height = '24px'; grid.appendChild(c);
+    }
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    const today = new Date();
+    for (let day = 1; day <= totalDays; day++) {
+      const c = document.createElement('div');
+      const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+      c.style.cssText = `height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:10px;font-weight:600;cursor:pointer;${isToday ? 'background:#4f46e5;color:#fff;font-weight:800;' : 'color:#475569;'}`;
+      c.textContent = day;
+      if (!isToday) {
+        c.onmouseover = () => c.style.background = '#eef2ff';
+        c.onmouseout = () => c.style.background = 'transparent';
+      }
+      grid.appendChild(c);
+    }
+  }
+  function prevMonth() { currentMonth--; if (currentMonth < 0) { currentMonth = 11; currentYear--; } renderCalendar(currentMonth, currentYear); }
+  function nextMonth() { currentMonth++; if (currentMonth > 11) { currentMonth = 0; currentYear++; } renderCalendar(currentMonth, currentYear); }
+  renderCalendar(currentMonth, currentYear);
+
+  // ── Charts ──
+  document.addEventListener('DOMContentLoaded', function () {
+    const isDark = document.documentElement.classList.contains('dark');
+    const labelColor = isDark ? '#94a3b8' : '#64748b';
+    const gridColor = isDark ? 'rgba(51,65,85,0.2)' : 'rgba(226,232,240,0.5)';
+
+    {% if request.user.is_superuser or request.user.is_staff or can_approve_leave or can_view_payroll %}
+      // --- Admin Charts ---
+      const ctxProject = document.getElementById('chart-project-progress').getContext('2d');
+      const ctxEmployee = document.getElementById('chart-employee-dist').getContext('2d');
+      const ctxPerf = document.getElementById('chart-performance').getContext('2d');
+      const ctxExpense = document.getElementById('chart-reimbursements').getContext('2d');
+
+      let projectChart, employeeChart, performanceChart, expenseChart;
+
+      function drawProjectChart(labels, dataValues) {
+        if (projectChart) projectChart.destroy();
+        projectChart = new Chart(ctxProject, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: dataValues,
+              backgroundColor: '#3b82f6',
+              borderRadius: 4,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { display: false }, ticks: { color: labelColor, font: { size: 8 } } },
+              y: { grid: { color: gridColor }, ticks: { color: labelColor, font: { size: 8 } } }
+            }
+          }
+        });
+      }
+
+      function drawEmployeeChart(labels, dataValues) {
+        if (employeeChart) employeeChart.destroy();
+        employeeChart = new Chart(ctxEmployee, {
+          type: 'doughnut',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: dataValues,
+              backgroundColor: ['#4f46e5', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6', '#06b6d4', '#ef4444'],
+              borderWidth: 0,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'right',
+                labels: { color: labelColor, font: { size: 8 }, boxWidth: 6, padding: 4 }
+              }
+            },
+            cutout: '70%'
+          }
+        });
+      }
+
+      function drawPerformanceChart(labels, dataValues) {
+        if (performanceChart) performanceChart.destroy();
+        performanceChart = new Chart(ctxPerf, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: dataValues,
+              borderColor: '#f59e0b',
+              borderWidth: 2,
+              fill: false,
+              tension: 0.4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { display: false }, ticks: { color: labelColor, font: { size: 8 } } },
+              y: { grid: { color: gridColor }, ticks: { color: labelColor, font: { size: 8 } } }
+            }
+          }
+        });
+      }
+
+      function drawExpenseChart(labels, dataValues) {
+        if (expenseChart) expenseChart.destroy();
+        expenseChart = new Chart(ctxExpense, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: dataValues,
+              backgroundColor: '#10b981',
+              borderRadius: 4,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { display: false }, ticks: { color: labelColor, font: { size: 8 } } },
+              y: { grid: { color: gridColor }, ticks: { color: labelColor, font: { size: 8 } } }
+            }
+          }
+        });
+      }
+
+      fetch('/dashboard/api/projects/')
+        .then(r => r.json())
+        .then(data => {
+          if (data.error || !data.statuses || data.statuses.length === 0) {
+            drawProjectChart(['Ongoing', 'Done', 'Planning'], [12, 8, 4]);
+          } else {
+            drawProjectChart(data.statuses.map(s => s.status), data.statuses.map(s => s.count));
+          }
+        })
+        .catch(() => drawProjectChart(['Ongoing', 'Done', 'Planning'], [12, 8, 4]));
+
+      fetch('/dashboard/api/departments/')
+        .then(r => r.json())
+        .then(data => {
+          if (data.error || !data.departments || data.departments.length === 0) {
+            drawEmployeeChart(['Technical', 'Operations', 'HR & Admin'], [848, 250, 150]);
+          } else {
+            drawEmployeeChart(data.departments.map(d => d.department), data.departments.map(d => d.count));
+          }
+        })
+        .catch(() => drawEmployeeChart(['Technical', 'Operations', 'HR & Admin'], [848, 250, 150]));
+
+      fetch('/dashboard/api/attendance-trend/')
+        .then(r => r.json())
+        .then(data => {
+          if (data.error || !data.weeks || data.weeks.length === 0) {
+            drawPerformanceChart(['W1', 'W2', 'W3', 'W4'], [4.1, 4.3, 4.2, 4.4]);
+          } else {
+            drawPerformanceChart(data.weeks.map(w => w.week), data.weeks.map(w => w.rate));
+          }
+        })
+        .catch(() => drawPerformanceChart(['W1', 'W2', 'W3', 'W4'], [4.1, 4.3, 4.2, 4.4]));
+
+      fetch('/dashboard/api/leave-breakdown/')
+        .then(r => r.json())
+        .then(data => {
+          if (data.error || !data.breakdown || data.breakdown.length === 0) {
+            drawExpenseChart(['Sick', 'Casual', 'Annual'], [5, 12, 3]);
+          } else {
+            drawExpenseChart(data.breakdown.map(b => b.type), data.breakdown.map(b => b.days));
+          }
+        })
+        .catch(() => drawExpenseChart(['Sick', 'Casual', 'Annual'], [5, 12, 3]));
+
+    {% else %}
+      // --- Employee Charts ---
+      const attCtx = document.getElementById('chart-my-attendance');
+      if (attCtx) {
+        const months = [{% for m in my_monthly_attendance %}"{{ m.month }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+        const days = [{% for m in my_monthly_attendance %}{{ m.days }}{% if not forloop.last %},{% endif %}{% endfor %}];
+        new Chart(attCtx.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: months,
+            datasets: [{
+              data: days,
+              backgroundColor: days.map((_, i) => i === days.length - 1 ? '#4f46e5' : '#c7d2fe'),
+              borderRadius: 6,
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.raw + ' days' } } },
+            scales: {
+              x: { grid: { display: false }, ticks: { color: labelColor, font: { size: 9 } } },
+              y: { grid: { color: gridColor }, ticks: { color: labelColor, font: { size: 9 }, stepSize: 5 }, beginAtZero: true, max: 31 }
+            }
+          }
+        });
+      }
+
+      const leaveCtx = document.getElementById('chart-my-leave');
+      if (leaveCtx) {
+        const pending = {{ my_pending_leaves }};
+        const approved = {{ my_approved_leaves }};
+        const total = pending + approved;
+        new Chart(leaveCtx.getContext('2d'), {
+          type: 'doughnut',
+          data: {
+            labels: ['Pending', 'Approved'],
+            datasets: [{
+              data: total > 0 ? [pending, approved] : [1, 0],
+              backgroundColor: total > 0 ? ['#f59e0b', '#10b981'] : ['#e2e8f0', '#e2e8f0'],
+              borderWidth: 0,
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: total > 0 } },
+            cutout: '72%'
+          }
+        });
+      }
+    {% endif %}
+  });
+</script>
+
+<!-- ── Footer ── -->
+<div style="margin-top: 1rem; border-top: 1px solid #e2e8f0; background: #f1f5f9; padding: 0.8rem 1rem;">
+  <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 12px; color: #94a3b8; font-weight: 500; line-height: 1;">
+    <span>Powered by</span>
+    <img src="{% static 'skylinx_theme/assets/img/emplinx_wordmark.png' %}" alt="Emplinx" style="height: 18px; width: auto; display: block; object-fit: contain; margin: 0; transform: translateY(-1px);">
+    <span>&mdash; The Intelligent Workforce Platform</span>
   </div>
 </div>
 
-<style>
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-</style>
-<script>
-  (function () {
-    var t;
-    window.addEventListener("scroll", function () {
-      document.body.classList.add("is-scrolling");
-      clearTimeout(t);
-      t = setTimeout(function () { document.body.classList.remove("is-scrolling"); }, 150);
-    }, { passive: true });
-  })();
-</script>
 {% endblock %}
-

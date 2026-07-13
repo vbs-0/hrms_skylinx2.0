@@ -1246,6 +1246,11 @@ def home(request):
         return redirect("login")
 
     from django.apps import apps
+    from django.db.models import Sum, Q
+    from datetime import date, timedelta
+    from employee.models import Employee
+
+    today = date.today()
 
     def get_count_or_zero(app_label, model_name, filter_kwargs=None):
         try:
@@ -1289,6 +1294,307 @@ def home(request):
 
     tasks_active = (pending_leaves_count > 0) or employee_add_alert or (unread_notifications_count > 0) or is_payroll_time
 
+    # --- Rich dashboard metrics (role-separated: admin vs personal) ---
+
+    total_employees = Employee.objects.filter(is_active=True).count()
+
+    checked_in = False
+    checkin_time = None
+    present_today_count = 0
+    attendance_rate = 0
+
+    if apps.is_installed("attendance"):
+        try:
+            from attendance.models import Attendance
+            emp_attendance = Attendance.objects.filter(employee_id=user.employee_get, attendance_date=today).first()
+            if emp_attendance and emp_attendance.clock_in:
+                checked_in = True
+                checkin_time = emp_attendance.clock_in.strftime("%I:%M %p")
+
+            present_today_count = Attendance.objects.filter(attendance_date=today).values("employee_id").distinct().count()
+            if total_employees > 0:
+                attendance_rate = round((present_today_count / total_employees) * 100, 1)
+        except Exception:
+            pass
+
+    leave_today_count = 0
+    if apps.is_installed("leave"):
+        try:
+            from leave.models import LeaveRequest
+            leave_today_count = LeaveRequest.objects.filter(
+                start_date__lte=today,
+                end_date__gte=today,
+                status="approved"
+            ).values("employee_id").distinct().count()
+        except Exception:
+            pass
+
+    payroll_total = "₹0"
+    if apps.is_installed("payroll"):
+        try:
+            from payroll.models.models import Payslip
+            payroll_sum = Payslip.objects.filter(
+                status__in=["confirmed", "paid"]
+            ).aggregate(total=Sum("net_pay"))["total"]
+            if payroll_sum:
+                val = float(payroll_sum)
+                if val >= 10000000:
+                    payroll_total = f"₹{round(val / 10000000, 2)} Cr"
+                else:
+                    payroll_total = f"₹{round(val / 100000, 2)} Lakhs"
+        except Exception:
+            pass
+
+    active_projects = 0
+    if apps.is_installed("project"):
+        try:
+            from project.models import Project
+            active_projects = Project.objects.count()
+        except Exception:
+            pass
+
+    expenses_total = "₹0"
+    if apps.is_installed("payroll"):
+        try:
+            from payroll.models.models import Reimbursement
+            expense_sum = Reimbursement.objects.filter(
+                status="approved"
+            ).aggregate(total=Sum("amount"))["total"]
+            if expense_sum:
+                val = float(expense_sum)
+                if val >= 100000:
+                    expenses_total = f"₹{round(val / 100000, 1)} Lakhs"
+                else:
+                    expenses_total = f"₹{int(val):,}"
+        except Exception:
+            pass
+
+    shift_name = "General Shift"
+    working_hours = "09:30 AM - 08:30 PM"
+    location = "Head Office"
+    try:
+        emp = user.employee_get
+        wi = getattr(emp, "employee_work_info", None)
+        if wi:
+            if wi.shift_id:
+                shift_name = wi.shift_id.employee_shift
+                from base.models import EmployeeShiftSchedule
+                weekday = today.strftime("%A").lower()
+                schedule = EmployeeShiftSchedule.objects.filter(shift_id=wi.shift_id, day__day=weekday).first()
+                if schedule and schedule.start_time and schedule.end_time:
+                    working_hours = f"{schedule.start_time.strftime('%I:%M %p')} - {schedule.end_time.strftime('%I:%M %p')}"
+            if wi.location_id:
+                location = wi.location_id.location
+    except Exception:
+        pass
+
+    latest_announcements = []
+    try:
+        from base.models import Announcement
+        qs = Announcement.objects.filter(
+            Q(expire_date__gte=today) | Q(expire_date__isnull=True)
+        ).order_by("-created_at")[:3]
+        for ann in qs:
+            latest_announcements.append({
+                "id": ann.pk,
+                "title": ann.title,
+                "description": ann.description or "",
+                "created_at": ann.created_at,
+            })
+    except Exception:
+        pass
+
+    buzz_posts = []
+    if apps.is_installed("konnect"):
+        try:
+            from konnect.models import KonnectPost
+            posts = KonnectPost.objects.filter(is_deleted=False).order_by("-created_at")[:3]
+            for p in posts:
+                buzz_posts.append({
+                    "id": p.pk,
+                    "author": p.author,
+                    "body": p.body,
+                    "created_at": p.created_at,
+                    "likes_count": p.likes.count(),
+                    "comments_count": p.comments.count(),
+                })
+        except Exception:
+            pass
+
+    upcoming_birthdays = []
+    try:
+        end_date = today + timedelta(days=15)
+        for emp in Employee.objects.filter(is_active=True).exclude(dob__isnull=True):
+            dob = emp.dob
+            try:
+                this_year_bday = dob.replace(year=today.year)
+            except ValueError:  # Feb 29 leap-year edge case
+                this_year_bday = dob.replace(year=today.year, day=28)
+
+            if this_year_bday < today:
+                try:
+                    this_year_bday = dob.replace(year=today.year + 1)
+                except ValueError:
+                    this_year_bday = dob.replace(year=today.year + 1, day=28)
+
+            if today <= this_year_bday <= end_date:
+                days_away = (this_year_bday - today).days
+                upcoming_birthdays.append({
+                    "name": emp.get_full_name(),
+                    "avatar": emp.employee_profile.url if emp.employee_profile else None,
+                    "days_away": days_away,
+                    "date_str": "Today" if days_away == 0 else "Tomorrow" if days_away == 1 else f"In {days_away} days"
+                })
+        upcoming_birthdays.sort(key=lambda x: x["days_away"])
+    except Exception:
+        pass
+
+    pending_approvals = []
+    if can_approve_leave:
+        try:
+            from leave.models import LeaveRequest
+            leaves = LeaveRequest.objects.filter(status="requested")[:2]
+            for lr in leaves:
+                pending_approvals.append({
+                    "type": "Leave Request",
+                    "title": f"Leave Request - {lr.employee_id.get_full_name()}",
+                    "desc": f"{lr.leave_type_id.name if lr.leave_type_id else 'Leave'} for {float(lr.requested_days)} days",
+                    "action_url": "/leave/request-view/",
+                })
+        except Exception:
+            pass
+
+    if can_view_payroll:
+        try:
+            from payroll.models.models import Reimbursement
+            expenses = Reimbursement.objects.filter(status="requested")[:2]
+            for exp in expenses:
+                pending_approvals.append({
+                    "type": "Expense Claim",
+                    "title": f"Expense Claim - {exp.employee_id.get_full_name()}",
+                    "desc": f"Claim of ₹{exp.amount} for {exp.title}",
+                    "action_url": "/payroll/view-reimbursement/",
+                })
+        except Exception:
+            pass
+
+    recent_activities = []
+    try:
+        emp = user.employee_get
+
+        if apps.is_installed("attendance"):
+            from attendance.models import Attendance
+            my_recent_att = Attendance.objects.filter(
+                employee_id=emp
+            ).order_by("-attendance_date")[:3]
+            for a in my_recent_att:
+                clock_str = a.clock_in.strftime("%I:%M %p") if a.clock_in else ""
+                recent_activities.append({
+                    "title": f"You checked in{' at ' + clock_str if clock_str else ''}",
+                    "time": a.attendance_date.strftime("%b %d") if a.attendance_date != today else "Today",
+                    "icon": "✅"
+                })
+
+        if apps.is_installed("leave"):
+            from leave.models import LeaveRequest
+            my_leaves = LeaveRequest.objects.filter(
+                employee_id=emp
+            ).order_by("-created_at")[:2]
+            for lr in my_leaves:
+                status_label = {"requested": "pending", "approved": "approved", "rejected": "rejected"}.get(lr.status, lr.status)
+                recent_activities.append({
+                    "title": f"Leave request {status_label}",
+                    "time": lr.created_at.strftime("%b %d") if lr.created_at else "Recently",
+                    "icon": "🌴"
+                })
+
+        if apps.is_installed("payroll"):
+            from payroll.models.models import Payslip
+            my_slip = Payslip.objects.filter(
+                employee_id=emp
+            ).order_by("-created_at").first()
+            if my_slip:
+                recent_activities.append({
+                    "title": "Payslip generated",
+                    "time": my_slip.created_at.strftime("%b %d") if my_slip.created_at else "This month",
+                    "icon": "💰"
+                })
+    except Exception:
+        pass
+
+    my_monthly_attendance = []
+    try:
+        emp = user.employee_get
+        if apps.is_installed("attendance"):
+            from attendance.models import Attendance
+            import calendar as cal_module
+            for i in range(5, -1, -1):
+                ref = today.replace(day=1)
+                for _ in range(i):
+                    ref = (ref - timedelta(days=1)).replace(day=1)
+                last_day = cal_module.monthrange(ref.year, ref.month)[1]
+                month_end = ref.replace(day=last_day)
+                count = Attendance.objects.filter(
+                    employee_id=emp,
+                    attendance_date__gte=ref,
+                    attendance_date__lte=month_end,
+                ).count()
+                my_monthly_attendance.append({
+                    "month": ref.strftime("%b"),
+                    "days": count
+                })
+    except Exception:
+        pass
+
+    avg_performance = 0
+
+    my_leave_balance = None
+    my_leave_taken = 0
+    my_payslip_net = None
+    my_payslip_month = None
+    my_attendance_days = 0
+    my_pending_leaves = 0
+    my_approved_leaves = 0
+
+    try:
+        emp = user.employee_get
+
+        if apps.is_installed("leave"):
+            from leave.models import LeaveRequest
+            month_start = today.replace(day=1)
+            my_leave_taken = LeaveRequest.objects.filter(
+                employee_id=emp,
+                status="approved",
+                start_date__gte=month_start,
+            ).count()
+            my_pending_leaves = LeaveRequest.objects.filter(
+                employee_id=emp, status="requested"
+            ).count()
+            my_approved_leaves = LeaveRequest.objects.filter(
+                employee_id=emp, status="approved"
+            ).count()
+
+        if apps.is_installed("attendance"):
+            from attendance.models import Attendance
+            month_start = today.replace(day=1)
+            my_attendance_days = Attendance.objects.filter(
+                employee_id=emp,
+                attendance_date__gte=month_start,
+                attendance_date__lte=today,
+            ).count()
+
+        if apps.is_installed("payroll"):
+            from payroll.models.models import Payslip
+            my_slip = Payslip.objects.filter(
+                employee_id=emp,
+                status__in=["confirmed", "paid"],
+            ).order_by("-created_at").first()
+            if my_slip:
+                my_payslip_net = f"₹{int(float(my_slip.net_pay)):,}" if my_slip.net_pay else None
+                my_payslip_month = my_slip.start_date.strftime("%b %Y") if getattr(my_slip, "start_date", None) else None
+    except Exception:
+        pass
+
     context = {
         "pending_leaves_count": pending_leaves_count,
         "employee_add_alert": employee_add_alert,
@@ -1296,6 +1602,38 @@ def home(request):
         "unread_notifications_count": unread_notifications_count,
         "recent_notifications": recent_notifications,
         "tasks_active": tasks_active,
+
+        "total_employees": total_employees,
+        "checked_in": checked_in,
+        "checkin_time": checkin_time,
+        "attendance_rate": attendance_rate,
+        "leave_today_count": leave_today_count,
+        "checked_in_count": present_today_count,
+        "on_leave_count": leave_today_count,
+        "absent_count": max(0, total_employees - present_today_count - leave_today_count),
+        "payroll_total": payroll_total,
+        "active_projects": active_projects,
+        "expenses_total": expenses_total,
+        "shift_name": shift_name,
+        "working_hours": working_hours,
+        "location": location,
+        "latest_announcements": latest_announcements,
+        "buzz_posts": buzz_posts,
+        "upcoming_birthdays": upcoming_birthdays,
+        "pending_approvals": pending_approvals,
+        "recent_activities": recent_activities,
+        "avg_performance": avg_performance,
+
+        "my_leave_balance": my_leave_balance,
+        "my_leave_taken": my_leave_taken,
+        "my_payslip_net": my_payslip_net,
+        "my_payslip_month": my_payslip_month,
+        "my_attendance_days": my_attendance_days,
+        "my_pending_leaves": my_pending_leaves,
+        "my_approved_leaves": my_approved_leaves,
+        "can_approve_leave": can_approve_leave,
+        "can_view_payroll": can_view_payroll,
+        "my_monthly_attendance": my_monthly_attendance,
     }
 
     return render(request, "home_page.html", context)
