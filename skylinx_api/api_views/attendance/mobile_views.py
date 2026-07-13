@@ -849,28 +849,41 @@ class MobileWeatherAPIView(APIView):
         company = getattr(wi, "company_id", None) if wi else None
         city = (getattr(company, "city", "") or "").strip()
         country = (getattr(company, "country", "") or "").strip()
-        if not city:
-            return Response({"success": False, "message": "No company city configured"}, status=200)
 
-        weather_key = f"mobile_weather_{city}_{country}".lower().replace(" ", "_")
+        # Preferred location source: the company's geofence — exact office
+        # coordinates, no geocoding needed. City text is the fallback for
+        # companies without a geofence configured.
+        geofence = getattr(company, "geo_fencing", None) if company else None
+        coords = None
+        if geofence and geofence.latitude and geofence.longitude:
+            coords = {"lat": geofence.latitude, "lon": geofence.longitude}
+
+        if not coords and not city:
+            return Response({"success": False, "message": "No company location configured"}, status=200)
+
+        loc_tag = (
+            f"{coords['lat']:.3f}_{coords['lon']:.3f}" if coords else f"{city}_{country}"
+        )
+        weather_key = f"mobile_weather_{loc_tag}".lower().replace(" ", "_")
         cached = cache.get(weather_key)
         if cached:
             return Response(cached, status=200)
 
         try:
-            geo_key = f"mobile_geocode_{city}_{country}".lower().replace(" ", "_")
-            coords = cache.get(geo_key)
             if not coords:
-                geo = _requests.get(
-                    "https://geocoding-api.open-meteo.com/v1/search",
-                    params={"name": city, "count": 1},
-                    timeout=6,
-                ).json()
-                results = geo.get("results") or []
-                if not results:
-                    return Response({"success": False, "message": "City not found"}, status=200)
-                coords = {"lat": results[0]["latitude"], "lon": results[0]["longitude"]}
-                cache.set(geo_key, coords, 60 * 60 * 24)
+                geo_key = f"mobile_geocode_{city}_{country}".lower().replace(" ", "_")
+                coords = cache.get(geo_key)
+                if not coords:
+                    geo = _requests.get(
+                        "https://geocoding-api.open-meteo.com/v1/search",
+                        params={"name": city, "count": 1},
+                        timeout=6,
+                    ).json()
+                    results = geo.get("results") or []
+                    if not results:
+                        return Response({"success": False, "message": "City not found"}, status=200)
+                    coords = {"lat": results[0]["latitude"], "lon": results[0]["longitude"]}
+                    cache.set(geo_key, coords, 60 * 60 * 24)
 
             wx = _requests.get(
                 "https://api.open-meteo.com/v1/forecast",
@@ -888,7 +901,7 @@ class MobileWeatherAPIView(APIView):
                 "tempC": round(float(current.get("temperature_2m", 0))),
                 "description": self.WMO.get(code, "—"),
                 "weatherCode": code,
-                "city": city,
+                "city": city or getattr(company, "company", ""),
             }
             cache.set(weather_key, payload, 60 * 30)
             return Response(payload, status=200)
