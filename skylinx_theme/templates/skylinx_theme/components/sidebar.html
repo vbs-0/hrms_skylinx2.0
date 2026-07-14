@@ -114,7 +114,8 @@
       background-color 0.22s ease,
       box-shadow 0.22s ease;
   }
-  .sideboxmain.sidebox-active {
+  .sideboxmain.sidebox-active,
+  .sideboxmain.active {
     box-shadow: 0 4px 14px -4px rgba(227, 78, 56, 0.45);
   }
 
@@ -158,10 +159,9 @@
   .dark #sidebar a.sideboxmain.active { color: #f8fafc !important; }
   .dark #sidebar .sidebar-top-header .sidebar-text { color: #ffffff !important; }
 
-  /* Home Page is the landing page, so its .active pill made it look
-     permanently hovered — suppress the resting highlight, keep real hover. */
-  #sidebar a.sideboxmain[data-menu="Home Page"].active:not(:hover) {
-    background: transparent !important;
+  /* Keep the first navigation item clear of the company header. */
+  #sidebar a.sideboxmain[data-menu="Home Page"] {
+    margin-top: 1rem;
   }
 
   /* Respect users who prefer reduced motion */
