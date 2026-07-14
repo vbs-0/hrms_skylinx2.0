@@ -105,9 +105,9 @@
   /* ── Timeline ── */
   .timeline-wrap { position: relative; padding-left: 1.1rem; border-left: 2px solid #e2e8f0; }
   .timeline-dot {
-    position: absolute; left: -10px; top: 4px;
+    position: absolute; left: -1.1rem; top: 4px; transform: translateX(-50%);
     width: 10px; height: 10px; border-radius: 50%;
-    background: #fff; border: 2.5px solid #6366f1;
+    background: #fff; border: 2.5px solid #f97316;
   }
 
   /* ── Badges ── */
@@ -561,7 +561,7 @@
           <div class="relative pl-4 border-l-2 border-slate-100 space-y-4">
             {% for act in company_recent_activities %}
               <div class="relative">
-                <span class="absolute top-1.5 bg-white border-2 rounded-full w-2.5 h-2.5" style="left: -17px; transform: translateX(-50%); border-color: {% if 'out' in act.title|lower %}#ef4444{% elif 'in' in act.title|lower %}#22c55e{% else %}#f97316{% endif %};"></span>
+                <span class="absolute top-1.5 bg-white border-2 rounded-full w-2.5 h-2.5" style="left: -17px; transform: translateX(-50%); border-color: {% if 'checked out' in act.title|lower %}#ef4444{% elif 'checked in' in act.title|lower %}#22c55e{% else %}#f97316{% endif %};"></span>
                 <h5 class="text-xs font-bold" style="color: #0f172a;">{{ act.title }}</h5>
                 <p class="text-[10px] text-slate-400 mt-0.5">{{ act.time }}</p>
               </div>
@@ -732,7 +732,7 @@
 
         <!-- Announcements + Buzz -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem;">
-          <div class="chart-card">
+          <div class="chart-card" style="border-color: #3b82f6; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.15);">
             <div class="card-header">
               <span class="card-title">Announcements</span>
               <a href="/announcement-list/" class="card-link">View all</a>
@@ -849,7 +849,7 @@
           <div class="timeline-wrap">
             {% for act in recent_activities %}
               <div style="position: relative; margin-bottom: 0.85rem;">
-                <span class="timeline-dot"></span>
+                <span class="timeline-dot" style="border-color: {% if 'checked out' in act.title|lower %}#ef4444{% elif 'checked in' in act.title|lower %}#22c55e{% else %}#f97316{% endif %};"></span>
                 <div style="display: flex; align-items: baseline; gap: 5px;">
                   <span style="font-size: 12px;">{{ act.icon|default:"●" }}</span>
                   <span style="font-size: 13px; font-weight: 700; color: #0f172a;">{{ act.title }}</span>
