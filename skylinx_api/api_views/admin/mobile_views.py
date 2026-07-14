@@ -20,6 +20,13 @@ from notifications.models import Notification
 from geofencing.models import GeoFencing
 from facedetection.models import FaceDetection
 from geopy.distance import geodesic
+from skylinx_api.api_views.attendance.mobile_views import geofence_distance_meters
+
+
+def _distance_for(employee, lat, lng):
+    company = employee.get_company()
+    geofence = GeoFencing.objects.filter(company_id=company).first() if company else None
+    return geofence_distance_meters(geofence, lat, lng)
 
 def get_company_settings(company):
     geofence_radius = 100
@@ -393,18 +400,6 @@ class MobileAdminDailyReportAPIView(APIView):
             target_date = date.today()
             
         activities = AttendanceActivity.objects.filter(attendance_date=target_date)
-
-        from skylinx_api.api_views.attendance.mobile_views import geofence_distance_meters
-        geofence_by_company = {}
-
-        def _distance_for(emp_obj, lat, lng):
-            company = emp_obj.get_company()
-            key = company.id if company else None
-            if key not in geofence_by_company:
-                geofence_by_company[key] = (
-                    GeoFencing.objects.filter(company_id=company).first() if company else None
-                )
-            return geofence_distance_meters(geofence_by_company[key], lat, lng)
 
         events = []
         check_ins = 0

@@ -24,6 +24,7 @@ from base.models import CompanyLeaves, EmployeeShiftDay, Holidays
 from employee.models import Employee
 from notifications.signals import notify
 from skylinx_api.auth import CompanyScopedJWTAuthentication
+from base.rbac import hierarchy_rank
 
 
 def _mail_async(to_email, subject, body):
@@ -98,7 +99,7 @@ def _hr_recipients(employee):
 
 
 def _is_attendance_manager(user):
-    return user.has_perm("attendance.change_attendance")
+    return hierarchy_rank(user) <= 2
 
 
 def _request_payload(a):

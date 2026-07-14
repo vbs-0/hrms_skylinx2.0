@@ -1,4 +1,4 @@
-from base.rbac import is_platform_owner
+from base.rbac import hierarchy_rank, is_platform_owner
 from skylinx.skylinx_middlewares import set_selected_company
 from django.contrib.auth import authenticate
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -19,8 +19,9 @@ def get_mobile_user_data(user):
     except Exception:
         employee = None
 
+    rank = hierarchy_rank(user)
     role = "employee"
-    if is_platform_owner(user) or user.has_perm("employee.add_employee"):
+    if rank <= 2:
         role = "admin"
 
     profile_data = None
@@ -245,8 +246,8 @@ def get_mobile_user_data(user):
         "permissions": {
             "can_approve_leaves": user.has_perm("leave.change_leaverequest"),
             "can_add_holidays": user.has_perm("base.add_holidays"),
-            "can_view_reports": user.has_perm("attendance.view_attendance"),
-            "can_manage_attendance": user.has_perm("attendance.change_attendance"),
+            "can_view_reports": rank <= 2,
+            "can_manage_attendance": rank <= 2,
             "can_view_live_map": user.has_perm("geofencing.view_geofencing"),
             "can_manage_selfies": user.has_perm("facedetection.view_facedetection"),
             "can_manage_announcements": (
