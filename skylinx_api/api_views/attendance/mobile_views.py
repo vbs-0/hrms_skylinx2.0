@@ -31,11 +31,16 @@ from geofencing.models import GeoFencing
 
 
 def _geofence_exempt(employee):
-    """Hybrid/Work-From-Home employees (WorkType.geofence_exempt=True) skip
-    geofence checks entirely — check-in/out gate and continuous exit alerts."""
+    """Skip geofence checks entirely for: Hybrid/Work-From-Home employees
+    (WorkType.geofence_exempt=True), or employees individually exempted on
+    the company's GeoFencing settings (GeoFencing.exempted_employees)."""
     wi = getattr(employee, "employee_work_info", None)
     work_type = getattr(wi, "work_type_id", None) if wi else None
-    return bool(work_type and work_type.geofence_exempt)
+    if work_type and work_type.geofence_exempt:
+        return True
+    return GeoFencing.objects.filter(
+        company_id=employee.get_company(), exempted_employees=employee
+    ).exists()
 
 
 def _just_exited_geofence(previous):

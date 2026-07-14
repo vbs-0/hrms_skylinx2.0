@@ -158,11 +158,15 @@
                     <form hx-post="{% url 'update-own-profile-image' %}" hx-target="#uploadPhotoModalBody"
                         hx-encoding="multipart/form-data" id="file-form">
                         {% csrf_token %}
-                        <div class="oh-profile-section__modal-avatar">
-                            <img src="{{form.instance.get_avatar}}" class="oh-profile-section__modal-image preview"
-                                alt="Username" />
+                        <div id="cropStage" style="width:200px;height:200px;border-radius:50%;overflow:hidden;
+                             position:relative;margin:0 auto;background:#f1f5f9;cursor:grab;touch-action:none;">
+                            <img id="cropImg" class="preview" src="{{form.instance.get_avatar}}" alt="Username"
+                                 style="position:absolute;top:0;left:0;transform-origin:0 0;user-select:none;
+                                        pointer-events:none;max-width:none;" />
                         </div>
-                        <input type="file" name="employee_profile" id="id_employee_profile"
+                        <input type="range" id="cropZoom" min="100" max="300" value="100"
+                               style="width:200px;display:none;margin:10px auto 0;" />
+                        <input type="file" id="id_employee_profile_source" accept="image/*"
                             class="oh-input oh-input--file oh-input--file-sm mt-4" />
                         <div class="d-flex justify-content-between w-100 align-items-center mt-4">
                             <button class="oh-btn oh-btn--light-danger mr-1" hx-target="#personalMessage"
@@ -181,38 +185,123 @@
         <div id="personalMessage"></div>
         <script>
             $(document).ready(function () {
-                $("#id_employee_profile").change(function (e) {
-                    const file = this.files[0];
-                    const reader = new FileReader();
+                var stage = document.getElementById("cropStage");
+                var img = document.getElementById("cropImg");
+                var zoomSlider = document.getElementById("cropZoom");
+                var STAGE = 200;
+                var natural = { w: 0, h: 0 };
+                var baseScale = 1;
+                var pos = { x: 0, y: 0 };
+                var drag = null;
 
+                function applyTransform() {
+                    var scale = baseScale * (zoomSlider.value / 100);
+                    img.style.width = (natural.w * scale) + "px";
+                    img.style.height = (natural.h * scale) + "px";
+                    img.style.left = pos.x + "px";
+                    img.style.top = pos.y + "px";
+                }
+                function clampPos(scale) {
+                    var w = natural.w * scale, h = natural.h * scale;
+                    pos.x = Math.min(0, Math.max(STAGE - w, pos.x));
+                    pos.y = Math.min(0, Math.max(STAGE - h, pos.y));
+                }
+                function loadIntoCropper(url) {
+                    var probe = new Image();
+                    probe.onload = function () {
+                        natural.w = probe.naturalWidth;
+                        natural.h = probe.naturalHeight;
+                        baseScale = STAGE / Math.min(natural.w, natural.h);
+                        zoomSlider.value = 100;
+                        zoomSlider.style.display = "block";
+                        pos.x = (STAGE - natural.w * baseScale) / 2;
+                        pos.y = (STAGE - natural.h * baseScale) / 2;
+                        img.src = url;
+                        applyTransform();
+                    };
+                    probe.src = url;
+                }
+
+                $("#id_employee_profile_source").change(function () {
+                    var file = this.files[0];
+                    if (!file) return;
+                    var reader = new FileReader();
                     reader.addEventListener("load", function () {
-                        const imageUrl = reader.result;
-                        $(".preview").attr("src", imageUrl);
+                        loadIntoCropper(reader.result);
                     });
-
                     reader.readAsDataURL(file);
                 });
+
+                zoomSlider.addEventListener("input", function () {
+                    var scale = baseScale * (zoomSlider.value / 100);
+                    clampPos(scale);
+                    applyTransform();
+                });
+
+                function startDrag(x, y) {
+                    if (!natural.w) return;
+                    drag = { x: x, y: y, startX: pos.x, startY: pos.y };
+                    stage.style.cursor = "grabbing";
+                }
+                function moveDrag(x, y) {
+                    if (!drag) return;
+                    pos.x = drag.startX + (x - drag.x);
+                    pos.y = drag.startY + (y - drag.y);
+                    clampPos(baseScale * (zoomSlider.value / 100));
+                    applyTransform();
+                }
+                function endDrag() {
+                    drag = null;
+                    stage.style.cursor = "grab";
+                }
+                stage.addEventListener("mousedown", function (e) { startDrag(e.clientX, e.clientY); });
+                window.addEventListener("mousemove", function (e) { moveDrag(e.clientX, e.clientY); });
+                window.addEventListener("mouseup", endDrag);
+                stage.addEventListener("touchstart", function (e) {
+                    var t = e.touches[0]; startDrag(t.clientX, t.clientY);
+                });
+                stage.addEventListener("touchmove", function (e) {
+                    var t = e.touches[0]; moveDrag(t.clientX, t.clientY); e.preventDefault();
+                }, { passive: false });
+                stage.addEventListener("touchend", endDrag);
+
+                function buildCroppedBlob(callback) {
+                    if (!natural.w) { callback(null); return; }
+                    var scale = baseScale * (zoomSlider.value / 100);
+                    var OUT = 400;
+                    var canvas = document.createElement("canvas");
+                    canvas.width = OUT;
+                    canvas.height = OUT;
+                    var ctx = canvas.getContext("2d");
+                    var sx = -pos.x / scale, sy = -pos.y / scale;
+                    var sSize = STAGE / scale;
+                    ctx.drawImage(img, sx, sy, sSize, sSize, 0, 0, OUT, OUT);
+                    canvas.toBlob(function (blob) { callback(blob); }, "image/jpeg", 0.92);
+                }
+
                 $("#file-form").submit(function (e) {
                     e.preventDefault();
-
-                    var formData = new FormData($(this)[0]);
-
-                    $.ajax({
-                        url: '{% url "update-own-profile-image" %}',
-                        type: "POST",
-                        data: formData,
-                        async: false,
-                        cache: false,
-                        contentType: false,
-                        processData: false,
-                        success: function (response) {
-                            $("#personalMessage").html(response);
-                        },
-                        error: function (xhr, status, error) {
-                            // console.log(xhr.responseText);
-                        },
+                    var form = this;
+                    buildCroppedBlob(function (blob) {
+                        var formData = new FormData(form);
+                        if (blob) {
+                            formData.append("employee_profile", blob, "profile.jpg");
+                        }
+                        $.ajax({
+                            url: '{% url "update-own-profile-image" %}',
+                            type: "POST",
+                            data: formData,
+                            cache: false,
+                            contentType: false,
+                            processData: false,
+                            success: function (response) {
+                                $("#personalMessage").html(response);
+                            },
+                            error: function (xhr, status, error) {
+                                // console.log(xhr.responseText);
+                            },
+                        });
                     });
-
                     return false;
                 });
             });

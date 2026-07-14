@@ -22,6 +22,13 @@ class GeoFencing(models.Model):
         default=False,
         help_text="Block mobile check-in/out when outside the geofence (instead of just flagging it).",
     )
+    exempted_employees = models.ManyToManyField(
+        "employee.Employee",
+        blank=True,
+        related_name="geofence_exemptions",
+        verbose_name="Exempted Employees",
+        help_text="These employees skip geofence checks entirely, regardless of location.",
+    )
 
     def clean(self):
         if self.company_id is None:
