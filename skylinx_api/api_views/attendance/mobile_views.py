@@ -38,6 +38,10 @@ def _geofence_exempt(employee):
     return bool(work_type and work_type.geofence_exempt)
 
 
+def _just_exited_geofence(previous):
+    return previous is not None and previous.within_geofence
+
+
 def _company_alert_recipients(employee):
     """Users who should get location/geofence alerts for this employee:
     reporting manager + the employee's company's HR Managers and Company
@@ -602,7 +606,7 @@ class MobileLocationLogAPIView(APIView):
                     actor_content_type=user_ct,
                     actor_object_id=str(request.user.id),
                     verb="GPS Off",
-                    description=f"{employee.employee_first_name} {employee.employee_last_name} turned off GPS location services at {timezone.now().strftime('%I:%M %p')}.",
+                    description=f"{employee.employee_first_name} {employee.employee_last_name} turned off GPS location services at {timezone.localtime().strftime('%I:%M %p')}.",
                     level="warning"
                 )
 
@@ -615,7 +619,7 @@ class MobileLocationLogAPIView(APIView):
                 .order_by("-captured_at")
                 .first()
             )
-            just_exited = previous is None or previous.within_geofence
+            just_exited = _just_exited_geofence(previous)
             if just_exited:
                 from django.contrib.contenttypes.models import ContentType
                 from notifications.models import Notification
@@ -628,7 +632,7 @@ class MobileLocationLogAPIView(APIView):
                         actor_content_type=user_ct,
                         actor_object_id=str(request.user.id),
                         verb="Left Geofence",
-                        description=f"{employee.employee_first_name} {employee.employee_last_name} left the geofence zone mid-shift at {timezone.now().strftime('%I:%M %p')}.",
+                        description=f"{employee.employee_first_name} {employee.employee_last_name} left the geofence zone mid-shift at {timezone.localtime().strftime('%I:%M %p')}.",
                         level="danger"
                     )
 

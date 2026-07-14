@@ -264,7 +264,13 @@ class MobileAdminSelfieFeedAPIView(APIView):
                         "userId": str(user.id),
                         "eventType": "check_in",
                         "selfieUrl": request.build_absolute_uri(detail.check_in_selfie.url),
+                        "attendanceActivityId": str(act.id),
+                        "latitude": detail.check_in_lat,
+                        "longitude": detail.check_in_lng,
                         "withinGeofence": detail.within_geofence,
+                        "distanceFromCenterMeters": _distance_for(
+                            emp, detail.check_in_lat, detail.check_in_lng
+                        ),
                         "createdAt": act.in_datetime.isoformat() if act.in_datetime else act.created_at.isoformat(),
                         "user": user_data
                     })
@@ -277,7 +283,13 @@ class MobileAdminSelfieFeedAPIView(APIView):
                         "userId": str(user.id),
                         "eventType": "check_out",
                         "selfieUrl": request.build_absolute_uri(detail.check_out_selfie.url),
+                        "attendanceActivityId": str(act.id),
+                        "latitude": detail.check_out_lat,
+                        "longitude": detail.check_out_lng,
                         "withinGeofence": detail.check_out_within_geofence,
+                        "distanceFromCenterMeters": _distance_for(
+                            emp, detail.check_out_lat, detail.check_out_lng
+                        ),
                         "createdAt": act.out_datetime.isoformat() if act.out_datetime else act.created_at.isoformat(),
                         "user": user_data
                     })
@@ -432,6 +444,9 @@ class MobileAdminDailyReportAPIView(APIView):
                     "userId": str(user.id),
                     "eventType": "check_in",
                     "selfieUrl": selfie_url,
+                    "attendanceActivityId": str(act.id),
+                    "latitude": detail.check_in_lat if detail else None,
+                    "longitude": detail.check_in_lng if detail else None,
                     "withinGeofence": within_gf,
                     "distanceFromCenterMeters": _distance_for(
                         emp,
@@ -459,6 +474,9 @@ class MobileAdminDailyReportAPIView(APIView):
                     "userId": str(user.id),
                     "eventType": "check_out",
                     "selfieUrl": selfie_url,
+                    "attendanceActivityId": str(act.id),
+                    "latitude": detail.check_out_lat if detail else None,
+                    "longitude": detail.check_out_lng if detail else None,
                     "withinGeofence": within_gf,
                     "distanceFromCenterMeters": _distance_for(
                         emp,
