@@ -3,7 +3,11 @@
     {% for breadcrumb in breadcrumbs %}
         {% if forloop.first or forloop.last %}
             <li>
-                <a href="{% if breadcrumb.found %}{{ breadcrumb.url }}{% else %}#{% endif %}">{% trans breadcrumb.name %}</a>
+                {% if breadcrumb.name|lower == "emplinx" %}
+                    <a href="/">{% trans "Home Page" %}</a>
+                {% else %}
+                    <a href="{% if breadcrumb.found %}{{ breadcrumb.url }}{% else %}#{% endif %}">{% trans breadcrumb.name %}</a>
+                {% endif %}
             </li>
         {% else %}
             {% if forloop.counter == 2 and breadcrumbs|length > 2 %}

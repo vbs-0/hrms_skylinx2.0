@@ -118,6 +118,52 @@
     box-shadow: 0 4px 14px -4px rgba(227, 78, 56, 0.45);
   }
 
+  /* ── Sidebar surface colors (light + dark) ──
+     The container/submenu panels use bg-white with no dark: variant, so
+     style them here; text spans already carry dark: utilities which work
+     now that darkMode:'class' is set in the tailwind config. */
+  #sidebar { background: #f8fafc !important; }
+  .dark #sidebar { background: #0f172a !important; border-right-color: #334155 !important; }
+  .dark #sidebar .sidebar-top-header { border-bottom-color: #334155 !important; }
+  .dark #sidebar .sidebox,
+  .dark #sidebarSharedPanel { background: #1e293b !important; }
+  .dark #sidebar .sidebox h5,
+  .dark #sidebarSharedPanel h5 { color: #f1f5f9; border-bottom-color: #334155 !important; }
+  .dark #sidebar .sidebox ul li a,
+  .dark #sidebarSharedPanel ul li a { color: #cbd5e1; }
+
+  /* Nav icons are dark-line PNGs drawn for a white sidebar — on the dark
+     surface they read as a faded/washed-out gray blob. Invert to white,
+     dim slightly at rest so the active/hover state (full white) still pops. */
+  .dark #sidebar .sideboxmain img,
+  .dark #sidebar button[onclick] img {
+    filter: brightness(0) invert(1) !important;
+    opacity: 0.65;
+  }
+  .dark #sidebar .sideboxmain:hover img,
+  .dark #sidebar .sideboxmain.active img,
+  .dark #sidebar .sideboxmain.sidebox-active img {
+    opacity: 1;
+  }
+  .dark #sidebar .sideboxmain.active,
+  .dark #sidebar .sideboxmain.sidebox-active { background: #1e293b !important; }
+  .dark #sidebar .sideboxmain:hover { background: #1e293b !important; }
+  /* Label text: Tailwind's dark:text-slate-300 utility isn't reliably
+     re-generated after the class toggles at runtime — pin it directly. */
+  .dark #sidebar .sidebar-text,
+  .dark #sidebar .sideboxmain span,
+  .dark #sidebar a.sideboxmain { color: #cbd5e1 !important; }
+  .dark #sidebar .sideboxmain.active span,
+  .dark #sidebar .sideboxmain.sidebox-active span,
+  .dark #sidebar a.sideboxmain.active { color: #f8fafc !important; }
+  .dark #sidebar .sidebar-top-header .sidebar-text { color: #ffffff !important; }
+
+  /* Home Page is the landing page, so its .active pill made it look
+     permanently hovered — suppress the resting highlight, keep real hover. */
+  #sidebar a.sideboxmain[data-menu="Home Page"].active:not(:hover) {
+    background: transparent !important;
+  }
+
   /* Respect users who prefer reduced motion */
   @media (prefers-reduced-motion: reduce) {
     .sidebox,

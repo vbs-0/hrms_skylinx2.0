@@ -6,16 +6,26 @@
   #ohMainContent {
     padding-top: 4.25rem !important;
     padding-bottom: 0.5rem !important;
+    padding-left: 0.75rem !important;
     overflow: auto !important;
     background-color: #f1f5f9;
   }
 
   /* ── Sidebar Pinned Mode for Homepage (Desktop Only) ── */
   @media (min-width: 1024px) {
-    #main-content-wrapper { margin-left: 260px !important; width: calc(100% - 260px) !important; }
-    #header > div, #submodules-toolbar { width: calc(100% - 260px) !important; left: 260px !important; }
+    /* Make body scrollable so absolute elements scroll with the page */
+    body { overflow: auto !important; background-color: #f1f5f9 !important; }
+    #main-content-wrapper { height: auto !important; overflow: visible !important; margin-left: 260px !important; width: calc(100% - 260px) !important; }
+    #header > div, #submodules-toolbar { width: calc(100% - 260px) !important; left: 260px !important; top: 0 !important; z-index: 40 !important; }
     #sidebarToggle, #sidebarCloseToggle { display: none !important; }
-    #sidebar { box-shadow: none !important; border-right: 1px solid #e2e8f0; }
+    /* Blend the sidebar into the homepage background and make it scroll */
+    #sidebar, body.sidebar-toggled #sidebar { position: absolute !important; bottom: auto !important; min-height: 100vh; box-shadow: none !important; border-right: none !important; background: #f1f5f9 !important; transform: none !important; }
+    /* Make the logo header FIXED so it blends with the top bar even when scrolling */
+    /* height matches the navbar (75px) so both bottom borders form one line */
+    #sidebar .sidebar-top-header { position: fixed !important; top: 0 !important; left: 0 !important; width: 260px !important; height: 75px !important; z-index: 60 !important; background: #ffffff !important; }
+    #sidebar nav.sidebar-scroll { margin-top: 75px !important; }
+    /* Let the inner sidebar container grow naturally without a scrollbar, pushed down by the fixed logo */
+    #sidebar nav.sidebar-scroll { height: auto !important; overflow: visible !important; margin-top: 65px !important; }
     body::before { display: none !important; }
   }
 
@@ -33,26 +43,27 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: transparent;
-    border: none;
-    padding: 0.55rem 0.4rem;
+    background: #ffffff;
+    border: 1px solid var(--card-glow-color, #e2e8f0);
+    border-radius: 16px;
+    padding: 1rem 0.5rem;
     text-decoration: none !important;
-    transition: transform 0.2s ease;
+    transition: all 0.25s ease;
     text-align: center;
     cursor: pointer;
+    box-shadow: 0 4px 14px var(--card-glow-shadow, rgba(0,0,0,0.02));
   }
   .quick-action-btn:hover {
-    transform: scale(1.08) translateY(-4px);
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px var(--card-glow-shadow, rgba(0,0,0,0.08));
   }
   .quick-action-img {
-    width: 60px;
-    height: 60px;
+    width: 62px; height: 62px;
     object-fit: contain;
     margin-bottom: 4px;
   }
   .quick-action-label {
-    font-size: 11px;
-    font-weight: 700;
+    font-size: 13px; font-weight: 700;
     color: #475569;
     white-space: nowrap;
   }
@@ -115,11 +126,37 @@
 
   /* ── Dark Mode ── */
   .dark #ohMainContent { background-color: #0f172a !important; }
+  .dark body { background-color: #0f172a !important; }
+  @media (min-width: 1024px) {
+    /* Must out-rank the light pinned-mode rule `body.sidebar-toggled #sidebar`
+       (specificity 1-1-1) — plain `.dark #sidebar` (1-1-0) loses to it. */
+    .dark #sidebar,
+    body.dark #sidebar,
+    body.dark.sidebar-toggled #sidebar,
+    .dark body.sidebar-toggled #sidebar { background: #0f172a !important; border-right: none !important; }
+    .dark #sidebar .sidebar-top-header,
+    body.dark.sidebar-toggled #sidebar .sidebar-top-header {
+      background: #0f172a !important;
+      border-bottom-color: #1e293b !important;
+    }
+    /* Top navbar: dark.css maps bg-white to neutral #242424, which clashes
+       with the slate-navy sidebar/content — align it to the same family. */
+    body.dark #header > div {
+      background: #0f172a !important;
+      border-bottom-color: #1e293b !important;
+    }
+  }
+
+  /* Hide Breadcrumbs on Homepage */
+  #breadcrumbs-container { display: none !important; }
   .dark .info-pill,
   .dark .stat-card,
   .dark .chart-card {
     background: #1e293b !important; border-color: #334155 !important; color: #cbd5e1;
   }
+  .dark .card-title,
+  .dark .stat-val,
+  .dark .quick-action-label { color: #f8fafc !important; }
   .dark .card-title { color: #f1f5f9; }
   .dark .quick-action-label { color: #cbd5e1; }
   .dark .stat-lbl { color: #94a3b8; }
@@ -150,9 +187,17 @@
   .dark #ohMainContent .hover\:bg-slate-50:hover { background-color: #334155 !important; }
   /* Per-row hover set via onmouseover/onmouseout inline JS (light-only colors) */
   .dark #ohMainContent div[onmouseover*="#f8fafc"]:hover { background: #334155 !important; }
+  /* Quick-access icon cards: keep each card's colored glow border, darken the surface */
+  .dark .quick-action-btn {
+    background: #1e293b !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  }
+  .dark .quick-action-btn:hover { box-shadow: 0 10px 25px var(--card-glow-shadow, rgba(0,0,0,0.45)); }
+  /* Date & time pill keeps its saffron glow on a dark surface */
+  .dark #ohMainContent div[style*="border: 1px solid #f97316"] { background: #1e293b !important; }
 </style>
 
-<div style="max-width: 1600px; margin: 0 auto; padding: 0.6rem 1.2rem; font-family: 'Outfit', 'Inter', sans-serif;">
+<div style="width: 100%; padding-top: 1.5rem; font-family: 'Outfit', 'Inter', sans-serif;">
 
   <!-- ── Greeting Row ── -->
   <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
@@ -168,7 +213,7 @@
         {% endif %}
       </p>
     </div>
-    <div style="display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 6px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+    <div style="display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #f97316; border-radius: 12px; padding: 6px 14px; box-shadow: 0 0 10px rgba(249, 115, 22, 0.25);">
       <div id="local-time" style="font-size: 1.1rem; font-weight: 800; color: #4f46e5; font-variant-numeric: tabular-nums;">--:--:--</div>
       <div style="width: 1px; height: 14px; background: #cbd5e1;"></div>
       <div id="local-date" style="font-size: 11px; font-weight: 600; color: #64748b;">Loading...</div>
@@ -189,52 +234,52 @@
     <!-- ════════════════════════════════════════ -->
     <!-- ═══════════ ADMIN DASHBOARD ════════════ -->
     <!-- ════════════════════════════════════════ -->
-    <div class="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-6 items-start">
+{# no items-start: right column stretches so Recent Activity (flex:1) fills to the same bottom edge #}
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
 
-      <!-- LEFT & CENTER AREA (8 columns) -->
-      <div class="flex flex-col gap-6">
+      <!-- LEFT & CENTER AREA (3 columns) -->
+      <div class="flex flex-col gap-8 lg:col-span-3">
 
         <!-- Quick Access Modules (Admin layout) -->
-        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 1.25rem 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <h3 class="text-sm font-bold mb-3" style="color: #0f172a; margin-top: 0;">Quick Access Modules</h3>
-          <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-y-4 gap-x-2">
-            <a href="/employee/employee-view/" class="quick-action-btn">
+        <div class="mb-4">
+          <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-y-4 gap-x-4">
+            <a href="/employee/employee-view/" class="quick-action-btn" style="--card-glow-color: #3b82f6; --card-glow-shadow: rgba(59, 130, 246, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/employee.png' %}" class="quick-action-img" alt="Employee">
               <span class="quick-action-label">Employee</span>
             </a>
-            <a href="/attendance/attendance-view/" class="quick-action-btn">
+            <a href="/attendance/attendance-view/" class="quick-action-btn" style="--card-glow-color: #3b82f6; --card-glow-shadow: rgba(59, 130, 246, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/attendance.png' %}" class="quick-action-img" alt="Attendance">
               <span class="quick-action-label">Attendance</span>
             </a>
-            <a href="/leave/user-request-view/" class="quick-action-btn">
+            <a href="/leave/user-request-view/" class="quick-action-btn" style="--card-glow-color: #10b981; --card-glow-shadow: rgba(16, 185, 129, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/leave.png' %}" class="quick-action-img" alt="Leave">
               <span class="quick-action-label">Leave</span>
             </a>
-            <a href="/payroll/view-payslip/" class="quick-action-btn">
+            <a href="/payroll/view-payslip/" class="quick-action-btn" style="--card-glow-color: #a855f7; --card-glow-shadow: rgba(168, 85, 247, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/payroll.png' %}" class="quick-action-img" alt="Payroll">
               <span class="quick-action-label">Payroll</span>
             </a>
-            <a href="/project/dashboard/" class="quick-action-btn">
+            <a href="/project/dashboard/" class="quick-action-btn" style="--card-glow-color: #14b8a6; --card-glow-shadow: rgba(20, 184, 166, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/projects.png' %}" class="quick-action-img" alt="Projects">
               <span class="quick-action-label">Projects</span>
             </a>
-            <a href="/asset/asset-category-view/" class="quick-action-btn">
+            <a href="/asset/asset-category-view/" class="quick-action-btn" style="--card-glow-color: #64748b; --card-glow-shadow: rgba(100, 116, 139, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/assets.png' %}" class="quick-action-img" alt="Assets">
               <span class="quick-action-label">Assets</span>
             </a>
-            <a href="/helpdesk/faq-category-view/" class="quick-action-btn">
+            <a href="/helpdesk/faq-category-view/" class="quick-action-btn" style="--card-glow-color: #3b82f6; --card-glow-shadow: rgba(59, 130, 246, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/support.png' %}" class="quick-action-img" alt="Support">
               <span class="quick-action-label">Support</span>
             </a>
-            <a href="/pms/objective-list-view/" class="quick-action-btn">
+            <a href="/pms/objective-list-view/" class="quick-action-btn" style="--card-glow-color: #f43f5e; --card-glow-shadow: rgba(244, 63, 94, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/pms.png' %}" class="quick-action-img" alt="PMS">
               <span class="quick-action-label">PMS</span>
             </a>
-            <a href="/konnect/" class="quick-action-btn">
+            <a href="/konnect/" class="quick-action-btn" style="--card-glow-color: #eab308; --card-glow-shadow: rgba(234, 179, 8, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/buzz.png' %}" class="quick-action-img" alt="Buzz">
               <span class="quick-action-label">Buzz</span>
             </a>
-            <a href="/holiday-calendar/" class="quick-action-btn">
+            <a href="/holiday-calendar/" class="quick-action-btn" style="--card-glow-color: #f97316; --card-glow-shadow: rgba(249, 115, 22, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/holiday-calendar.png' %}" class="quick-action-img" alt="Holiday">
               <span class="quick-action-label">Holiday</span>
             </a>
@@ -244,52 +289,52 @@
         <!-- Metrics / Charts grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <!-- Total Employees -->
-          <div class="flex flex-col justify-center h-[130px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div class="flex flex-col justify-center h-[130px] text-center" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
             <div>
-              <div class="flex justify-between items-center">
+              <div class="flex justify-center items-center text-center">
                 <span class="text-xs font-bold" style="color: #64748b;">Total Employees</span>
                 
               </div>
-              <h3 class="text-2xl font-extrabold mt-1" style="color: #0f172a; margin-bottom: 0;">{{ total_employees }}</h3>
+              <h3 class="text-2xl font-extrabold mt-1 text-center" style="color: #0f172a; margin-bottom: 0; text-align: center;">{{ total_employees }}</h3>
               
             </div>
             
           </div>
 
           <!-- Attendance Rate -->
-          <div class="flex flex-col justify-center h-[130px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div class="flex flex-col justify-center h-[130px] text-center" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
             <div>
-              <div class="flex justify-between items-center">
+              <div class="flex justify-center items-center text-center">
                 <span class="text-xs font-bold" style="color: #64748b;">Attendance Rate</span>
                 
               </div>
-              <h3 class="text-2xl font-extrabold mt-1" style="color: #0f172a; margin-bottom: 0;">{{ attendance_rate }}%</h3>
+              <h3 class="text-2xl font-extrabold mt-1 text-center" style="color: #0f172a; margin-bottom: 0; text-align: center;">{{ attendance_rate }}%</h3>
               
             </div>
             
           </div>
 
           <!-- Leave Taken -->
-          <div class="flex flex-col justify-center h-[130px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div class="flex flex-col justify-center h-[130px] text-center" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
             <div>
-              <div class="flex justify-between items-center">
+              <div class="flex justify-center items-center text-center">
                 <span class="text-xs font-bold" style="color: #64748b;">Leave Taken Today</span>
                 
               </div>
-              <h3 class="text-2xl font-extrabold mt-1" style="color: #0f172a; margin-bottom: 0;">{{ leave_today_count }}</h3>
+              <h3 class="text-2xl font-extrabold mt-1 text-center" style="color: #0f172a; margin-bottom: 0; text-align: center;">{{ leave_today_count }}</h3>
               
             </div>
             
           </div>
 
           <!-- Payroll Total -->
-          <div class="flex flex-col justify-center h-[130px]" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div class="flex flex-col justify-center h-[130px] text-center" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
             <div>
-              <div class="flex justify-between items-center">
+              <div class="flex justify-center items-center text-center">
                 <span class="text-xs font-bold" style="color: #64748b;">Payroll This Month</span>
                 
               </div>
-              <h3 class="text-2xl font-extrabold mt-1" style="color: #0f172a; margin-bottom: 0;">{{ payroll_total }}</h3>
+              <h3 class="text-2xl font-extrabold mt-1 text-center" style="color: #0f172a; margin-bottom: 0; text-align: center;">{{ payroll_total }}</h3>
               
             </div>
             
@@ -346,8 +391,8 @@
         </div>
 
         <!-- Announcements + Buzz -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="chart-card">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="chart-card" style="border-color: #3b82f6; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.15);">
             <div class="card-header">
               <span class="card-title">Announcements</span>
               <a href="/announcement-list/" class="card-link">View all</a>
@@ -366,11 +411,11 @@
             </div>
           </div>
 
-          <div class="chart-card">
-            <div class="card-header">
-              <span class="card-title">Employee Buzz</span>
-              <a href="/konnect/" class="card-link">View all</a>
-            </div>
+          <div class="chart-card" style="border-color: #eab308; box-shadow: 0 4px 14px rgba(234, 179, 8, 0.15);">
+              <div class="card-header">
+                <span class="card-title">Employee Buzz</span>
+                <a href="/konnect/" class="card-link">View all</a>
+              </div>
             {% for post in buzz_posts|slice:":1" %}
               <div>
                 <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem;">
@@ -403,24 +448,24 @@
 
           <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem;">
 
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0.75rem; text-align: center;">
-              <div style="font-size: 1.75rem; font-weight: 900; color: #0f172a; line-height: 1;">{{ total_employees|default:0 }}</div>
-              <div style="font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Total</div>
+            <div class="bg-secondary-50 dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-xl p-3 text-center">
+              <div class="text-[1.75rem] font-black text-secondary-900 dark:text-white leading-none">{{ total_employees|default:0 }}</div>
+              <div class="text-[9px] font-bold text-secondary-400 dark:text-secondary-300 uppercase tracking-[0.05em] mt-1">Total</div>
             </div>
 
-            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 0.75rem; text-align: center;">
-              <div style="font-size: 1.75rem; font-weight: 900; color: #15803d; line-height: 1;">{{ checked_in_count|default:0 }}</div>
-              <div style="font-size: 9px; font-weight: 700; color: #16a34a; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Present</div>
+            <div class="bg-success-light/20 dark:bg-success-dark/20 border border-success-light dark:border-success-dark rounded-xl p-3 text-center">
+              <div class="text-[1.75rem] font-black text-success-dark dark:text-success-light leading-none">{{ checked_in_count|default:0 }}</div>
+              <div class="text-[9px] font-bold text-success dark:text-success-light uppercase tracking-[0.05em] mt-1">Present</div>
             </div>
 
-            <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 0.75rem; text-align: center;">
-              <div style="font-size: 1.75rem; font-weight: 900; color: #b45309; line-height: 1;">{{ on_leave_count|default:0 }}</div>
-              <div style="font-size: 9px; font-weight: 700; color: #d97706; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">On Leave</div>
+            <div class="bg-warning-light/20 dark:bg-warning-dark/20 border border-warning-light dark:border-warning-dark rounded-xl p-3 text-center">
+              <div class="text-[1.75rem] font-black text-warning-dark dark:text-warning-light leading-none">{{ on_leave_count|default:0 }}</div>
+              <div class="text-[9px] font-bold text-warning dark:text-warning-light uppercase tracking-[0.05em] mt-1">On Leave</div>
             </div>
 
-            <div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 12px; padding: 0.75rem; text-align: center;">
-              <div style="font-size: 1.75rem; font-weight: 900; color: #b91c1c; line-height: 1;">{{ absent_count|default:0 }}</div>
-              <div style="font-size: 9px; font-weight: 700; color: #dc2626; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Absent</div>
+            <div class="bg-danger-light/20 dark:bg-danger-dark/20 border border-danger-light dark:border-danger-dark rounded-xl p-3 text-center">
+              <div class="text-[1.75rem] font-black text-danger-dark dark:text-danger-light leading-none">{{ absent_count|default:0 }}</div>
+              <div class="text-[9px] font-bold text-danger dark:text-danger-light uppercase tracking-[0.05em] mt-1">Absent</div>
             </div>
 
           </div>
@@ -442,8 +487,8 @@
 
       </div>
 
-      <!-- RIGHT SIDEBAR (4 columns) -->
-      <div class="flex flex-col gap-5" style="width: 260px;">
+      <!-- RIGHT SIDEBAR (1 column) -->
+      <div class="flex flex-col gap-6 w-full lg:col-span-1">
 
         <!-- Pending Approvals (Admin view) -->
         <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
@@ -517,12 +562,12 @@
           <div class="relative pl-4 border-l-2 border-slate-100 space-y-4">
             {% for act in company_recent_activities %}
               <div class="relative">
-                <span class="absolute -left-[19px] top-1.5 bg-white border-2 border-indigo-500 rounded-full w-2.5 h-2.5"></span>
+                <span class="absolute top-1.5 bg-white border-2 rounded-full w-2.5 h-2.5" style="left: -17px; transform: translateX(-50%); border-color: {% if 'out' in act.title|lower %}#ef4444{% elif 'in' in act.title|lower %}#22c55e{% else %}#f97316{% endif %};"></span>
                 <h5 class="text-xs font-bold" style="color: #0f172a;">{{ act.title }}</h5>
                 <p class="text-[10px] text-slate-400 mt-0.5">{{ act.time }}</p>
               </div>
             {% empty %}
-              <p style="font-size: 11px; color: #94a3b8; margin: 0;">No recent activity yet.</p>
+              <p style="font-size: 11px; color: #94a3b8; margin: 0; text-align: center;">No recent activity yet.</p>
             {% endfor %}
           </div>
         </div>
@@ -579,48 +624,48 @@
         </div>
 
         <!-- Quick Access -->
-        <div class="chart-card" style="padding: 0.9rem 1.1rem;">
-          <div class="card-header" style="margin-bottom: 0.5rem;">
+        <div class="mb-4">
+          <div class="card-header" style="margin-bottom: 0.5rem; padding-left: 0.5rem;">
             <span class="card-title">Quick Access</span>
           </div>
           <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem 0.5rem;">
-            <a href="/employee/shift-request-view/" class="quick-action-btn">
+            <a href="/employee/shift-request-view/" class="quick-action-btn" style="--card-glow-color: #3b82f6; --card-glow-shadow: rgba(59, 130, 246, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/employee.png' %}" class="quick-action-img" alt="Employee">
               <span class="quick-action-label">Employee</span>
             </a>
-            <a href="/attendance/view-my-attendance/" class="quick-action-btn">
+            <a href="/attendance/view-my-attendance/" class="quick-action-btn" style="--card-glow-color: #3b82f6; --card-glow-shadow: rgba(59, 130, 246, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/attendance.png' %}" class="quick-action-img" alt="Attendance">
               <span class="quick-action-label">Attendance</span>
             </a>
-            <a href="/leave/user-request-view/" class="quick-action-btn">
+            <a href="/leave/user-request-view/" class="quick-action-btn" style="--card-glow-color: #10b981; --card-glow-shadow: rgba(16, 185, 129, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/leave.png' %}" class="quick-action-img" alt="Leave">
               <span class="quick-action-label">Leave</span>
             </a>
-            <a href="/payroll/view-payslip/" class="quick-action-btn">
+            <a href="/payroll/view-payslip/" class="quick-action-btn" style="--card-glow-color: #a855f7; --card-glow-shadow: rgba(168, 85, 247, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/payroll.png' %}" class="quick-action-img" alt="Payroll">
               <span class="quick-action-label">Payroll</span>
             </a>
-            <a href="/project/dashboard/" class="quick-action-btn">
+            <a href="/project/dashboard/" class="quick-action-btn" style="--card-glow-color: #14b8a6; --card-glow-shadow: rgba(20, 184, 166, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/projects.png' %}" class="quick-action-img" alt="Projects">
               <span class="quick-action-label">Projects</span>
             </a>
-            <a href="/asset/asset-request-allocation-view/" class="quick-action-btn">
+            <a href="/asset/asset-request-allocation-view/" class="quick-action-btn" style="--card-glow-color: #64748b; --card-glow-shadow: rgba(100, 116, 139, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/assets.png' %}" class="quick-action-img" alt="Assets">
               <span class="quick-action-label">Assets</span>
             </a>
-            <a href="/helpdesk/faq-category-view/" class="quick-action-btn">
+            <a href="/helpdesk/faq-category-view/" class="quick-action-btn" style="--card-glow-color: #3b82f6; --card-glow-shadow: rgba(59, 130, 246, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/support.png' %}" class="quick-action-img" alt="Support">
               <span class="quick-action-label">Support</span>
             </a>
-            <a href="/pms/objective-list-view/" class="quick-action-btn">
+            <a href="/pms/objective-list-view/" class="quick-action-btn" style="--card-glow-color: #f43f5e; --card-glow-shadow: rgba(244, 63, 94, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/pms.png' %}" class="quick-action-img" alt="PMS">
               <span class="quick-action-label">PMS</span>
             </a>
-            <a href="/konnect/" class="quick-action-btn">
+            <a href="/konnect/" class="quick-action-btn" style="--card-glow-color: #eab308; --card-glow-shadow: rgba(234, 179, 8, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/buzz.png' %}" class="quick-action-img" alt="Buzz">
               <span class="quick-action-label">Buzz</span>
             </a>
-            <a href="/holiday-calendar/" class="quick-action-btn">
+            <a href="/holiday-calendar/" class="quick-action-btn" style="--card-glow-color: #f97316; --card-glow-shadow: rgba(249, 115, 22, 0.25);">
               <img src="{% static 'skylinx_theme/assets/img/modules/light/holiday-calendar.png' %}" class="quick-action-img" alt="Holiday">
               <span class="quick-action-label">Holiday</span>
             </a>
@@ -707,11 +752,11 @@
             </div>
           </div>
 
-          <div class="chart-card">
-            <div class="card-header">
-              <span class="card-title">Employee Buzz</span>
-              <a href="/konnect/" class="card-link">View all</a>
-            </div>
+          <div class="chart-card" style="border-color: #eab308; box-shadow: 0 4px 14px rgba(234, 179, 8, 0.15);">
+              <div class="card-header">
+                <span class="card-title">Employee Buzz</span>
+                <a href="/konnect/" class="card-link">View all</a>
+              </div>
             {% for post in buzz_posts|slice:":1" %}
               <div>
                 <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem;">
@@ -770,7 +815,7 @@
                 <div style="display: flex; align-items: center; gap: 0.55rem;">
                   <div style="width: 28px; height: 28px; border-radius: 50%; background: #fdf2f8; color: #db2777; font-size: 9px; font-weight: 800; display: flex; align-items: center; justify-content: center;">{{ bday.name|slice:":2"|upper }}</div>
                   <div>
-                    <div style="font-size: 11px; font-weight: 700; color: #0f172a;">{{ bday.name }}</div>
+                    <div style="font-size: 13px; font-weight: 700; color: #0f172a;">{{ bday.name }}</div>
                     <div style="font-size: 9px; color: #94a3b8;">{{ bday.date_str }}</div>
                   </div>
                 </div>
@@ -808,7 +853,7 @@
                 <span class="timeline-dot"></span>
                 <div style="display: flex; align-items: baseline; gap: 5px;">
                   <span style="font-size: 12px;">{{ act.icon|default:"●" }}</span>
-                  <span style="font-size: 11px; font-weight: 700; color: #0f172a;">{{ act.title }}</span>
+                  <span style="font-size: 13px; font-weight: 700; color: #0f172a;">{{ act.title }}</span>
                 </div>
                 <div style="font-size: 10px; color: #94a3b8; margin-top: 1px;">{{ act.time }}</div>
               </div>
@@ -1007,49 +1052,57 @@
         });
       }
 
+      // Fallbacks mirror the headline context numbers instead of dummy data,
+      // so the chart never contradicts the figure printed above it.
+      const projectFallback = () => drawProjectChart(['Active'], [{{ active_projects }}]);
       fetch('/dashboard/api/projects/')
         .then(r => r.json())
         .then(data => {
           if (data.error || !data.statuses || data.statuses.length === 0) {
-            drawProjectChart(['Ongoing', 'Done', 'Planning'], [12, 8, 4]);
+            projectFallback();
           } else {
             drawProjectChart(data.statuses.map(s => s.status), data.statuses.map(s => s.count));
           }
         })
-        .catch(() => drawProjectChart(['Ongoing', 'Done', 'Planning'], [12, 8, 4]));
+        .catch(projectFallback);
 
+      const employeeFallback = () => drawEmployeeChart(['All Employees'], [{{ total_employees }}]);
       fetch('/dashboard/api/departments/')
         .then(r => r.json())
         .then(data => {
           if (data.error || !data.departments || data.departments.length === 0) {
-            drawEmployeeChart(['Technical', 'Operations', 'HR & Admin'], [848, 250, 150]);
+            employeeFallback();
           } else {
             drawEmployeeChart(data.departments.map(d => d.department), data.departments.map(d => d.count));
           }
         })
-        .catch(() => drawEmployeeChart(['Technical', 'Operations', 'HR & Admin'], [848, 250, 150]));
+        .catch(employeeFallback);
 
+      const perfFallback = () => drawPerformanceChart(['W1', 'W2', 'W3', 'W4'],
+        [{{ avg_performance }}, {{ avg_performance }}, {{ avg_performance }}, {{ avg_performance }}]);
       fetch('/dashboard/api/attendance-trend/')
         .then(r => r.json())
         .then(data => {
           if (data.error || !data.weeks || data.weeks.length === 0) {
-            drawPerformanceChart(['W1', 'W2', 'W3', 'W4'], [4.1, 4.3, 4.2, 4.4]);
+            perfFallback();
           } else {
             drawPerformanceChart(data.weeks.map(w => w.week), data.weeks.map(w => w.rate));
           }
         })
-        .catch(() => drawPerformanceChart(['W1', 'W2', 'W3', 'W4'], [4.1, 4.3, 4.2, 4.4]));
+        .catch(perfFallback);
 
-      fetch('/dashboard/api/leave-breakdown/')
+      // Expense chart: real reimbursement financials, not leave data.
+      const expenseFallback = () => drawExpenseChart(['This Month'], [{{ expenses_raw }}]);
+      fetch('/payroll/dashboard/api/reimbursement/')
         .then(r => r.json())
         .then(data => {
-          if (data.error || !data.breakdown || data.breakdown.length === 0) {
-            drawExpenseChart(['Sick', 'Casual', 'Annual'], [5, 12, 3]);
+          if (data.error || !data.by_type || data.by_type.length === 0) {
+            expenseFallback();
           } else {
-            drawExpenseChart(data.breakdown.map(b => b.type), data.breakdown.map(b => b.days));
+            drawExpenseChart(data.by_type.map(t => t.type), data.by_type.map(t => t.amount));
           }
         })
-        .catch(() => drawExpenseChart(['Sick', 'Casual', 'Annual'], [5, 12, 3]));
+        .catch(expenseFallback);
 
     {% else %}
       // --- Employee Charts ---

@@ -1361,6 +1361,7 @@ def home(request):
             pass
 
     expenses_total = "₹0"
+    expenses_raw = 0
     if apps.is_installed("payroll"):
         try:
             from payroll.models.models import Reimbursement
@@ -1369,6 +1370,7 @@ def home(request):
             ).aggregate(total=Sum("amount"))["total"]
             if expense_sum:
                 val = float(expense_sum)
+                expenses_raw = round(val, 2)
                 if val >= 100000:
                     expenses_total = f"₹{round(val / 100000, 1)} Lakhs"
                 else:
@@ -1641,6 +1643,7 @@ def home(request):
         "payroll_total": payroll_total,
         "active_projects": active_projects,
         "expenses_total": expenses_total,
+        "expenses_raw": expenses_raw,
         "shift_name": shift_name,
         "working_hours": working_hours,
         "location": location,

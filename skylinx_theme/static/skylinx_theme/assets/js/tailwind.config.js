@@ -1,4 +1,5 @@
 window.tailwind.config = {
+  darkMode: 'class',
   theme: {
     colors: {
       white: '#FFFFFF',

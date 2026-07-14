@@ -6,15 +6,7 @@
             {% if forloop.first %}
                 <li class="oh-navbar__breadcrumb-item">
                     {% if breadcrumb.name|lower == "emplinx" %}
-                        {% if breadcrumb.found %}
-                            <a href="{{breadcrumb.url}}" class="oh-navbar__breadcrumb-brand">
-                                <img src="{% static 'images/ui/skylinx-logo.png' %}" alt="EMPLINX" class="oh-navbar__breadcrumb-brand-logo">
-                            </a>
-                        {% else %}
-                            <span class="oh-navbar__breadcrumb-brand">
-                                <img src="{% static 'images/ui/skylinx-logo.png' %}" alt="EMPLINX" class="oh-navbar__breadcrumb-brand-logo">
-                            </span>
-                        {% endif %}
+                        <a href="/" class="oh-navbar__breadcrumb-link">{% trans "Home Page" %}</a>
                     {% else %}
                         {% if breadcrumb.found %}
                             <a href="{{breadcrumb.url}}" class="oh-navbar__breadcrumb-link">{% trans breadcrumb.name %}</a>
@@ -45,7 +37,9 @@
             {% endif %}
         {% else %}
             <li class="oh-navbar__breadcrumb-item">
-                {% if breadcrumb.found %}
+                {% if breadcrumb.name|lower == "emplinx" %}
+                    <a href="/" class="oh-navbar__breadcrumb-link {% if forloop.last %}active{% endif %}">{% trans "Home Page" %}</a>
+                {% elif breadcrumb.found %}
                     <a href="{{breadcrumb.url}}" class="oh-navbar__breadcrumb-link {% if forloop.last %}active{% endif %}">{% trans breadcrumb.name %}</a>
                 {% else %}
                     <a href="#" class="oh-navbar__breadcrumb-link {% if forloop.last %}active{% endif %}">{% trans breadcrumb.name %}</a>
