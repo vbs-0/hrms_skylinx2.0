@@ -42,7 +42,20 @@
     
     /* Let the inner sidebar container grow naturally below the fixed logo. */
     #sidebar nav.sidebar-scroll { height: auto !important; overflow: visible !important; padding-top: 0.75rem !important; }
-    
+
+    /* Footer's top border only spans #main-content-wrapper (which is shifted
+       260px right for the pinned sidebar) — extend it left so the line
+       continues under the sidebar too, instead of stopping at the content edge. */
+    #app-footer { position: relative; }
+    #app-footer::before {
+      content: '';
+      position: absolute;
+      top: -1px; left: -260px;
+      width: 260px; height: 1px;
+      background: #e2e8f0;
+    }
+    .dark #app-footer::before { background: #334155; }
+
     body::before { display: none !important; }
   }
 
