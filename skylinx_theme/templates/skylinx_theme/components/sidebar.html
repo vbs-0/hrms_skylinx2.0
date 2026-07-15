@@ -149,7 +149,7 @@
   .dark #sidebar .sideboxmain.active,
   .dark #sidebar .sideboxmain.sidebox-active { background: #1e293b !important; }
   .dark #sidebar .sideboxmain:hover { background: #1e293b !important; }
-  /* Label text: Tailwind's dark:text-slate-300 utility isn't reliably
+  /* Label text: Tailwind's dark:text-gray-300 utility isn't reliably
      re-generated after the class toggles at runtime — pin it directly. */
   .dark #sidebar .sidebar-text,
   .dark #sidebar .sideboxmain span,
@@ -171,12 +171,12 @@
     }
   }
 </style>
-<div id="sidebar" class="fixed inset-y-0 left-0 w-auto bg-white border-r border-r-dark-50 z-50">
+<div id="sidebar" class="fixed inset-y-0 left-0 w-[260px] bg-gray-50 dark:bg-gray-900 border-r border-r-dark-50 z-50">
   <div class="sidebar-top-header h-[65px] px-5 flex items-center gap-3 border-b border-b-dark-50 mb-4">
       <!-- Hamburger toggle button inside the sidebar itself -->
       <button
           id="sidebarCloseToggle"
-          class="sidebar-text p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition duration-200 flex items-center justify-center dark:text-slate-300 dark:hover:bg-slate-800 flex-shrink-0"
+          class="sidebar-text p-2 text-gray-600 hover:text-gray-900 hover:bg-slate-100 rounded-lg transition duration-200 flex items-center justify-center dark:text-gray-300 dark:hover:bg-slate-800 flex-shrink-0"
           onclick="toggleSidebar()"
           aria-label="Close sidebar"
       >
@@ -190,14 +190,14 @@
             onerror="this.onerror=null;this.src='/static/skylinx_theme/assets/img/skylinx-logo.png';this.classList.remove('rounded-full');"
             title="{{request.session.selected_company_instance.company}}"
           />
-          <span class="sidebar-text font-bold text-slate-800 dark:text-white text-base truncate">{{request.session.selected_company_instance.company}}</span>
+          <span class="sidebar-text font-bold text-gray-800 dark:text-white text-base truncate" style="display:inline-block; opacity:1;">{{request.session.selected_company_instance.company}}</span>
         {% elif request.session.selected_company_instance %}
           {# company selected but no icon uploaded — fall back to the app logo #}
           <img src="/static/skylinx_theme/assets/img/skylinx-logo.png" alt="Logo" class="w-10 h-10 flex-shrink-0" />
-          <span class="sidebar-text font-bold text-slate-800 dark:text-white text-base truncate">{{request.session.selected_company_instance.company}}</span>
+          <span class="sidebar-text font-bold text-gray-800 dark:text-white text-base truncate" style="display:inline-block; opacity:1;">{{request.session.selected_company_instance.company}}</span>
         {% else %}
           <img src="/static/skylinx_theme/assets/img/skylinx-logo.png" alt="Logo" class="w-10 h-10 flex-shrink-0" />
-          <span class="sidebar-text font-bold text-slate-800 dark:text-white text-base truncate">EMPLINX</span>
+          <span class="sidebar-text font-bold text-gray-800 dark:text-white text-base truncate" style="display:inline-block; opacity:1;">EMPLINX</span>
         {% endif %}
       </div>
   </div>
@@ -213,9 +213,9 @@
           onclick="return false;"
           type="button">
           <img src="{% static menues.img_src %}" alt="" class="w-4.5 h-4.5 flex-shrink-0" />
-          <span class="sidebar-text text-sm text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">{{ menues.menu }}</span>
+          <span class="sidebar-text text-sm text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap">{{ menues.menu }}</span>
           <span class="sidebar-text ml-auto mr-1">
-            <i class="fa-solid fa-lock text-xs text-slate-400"></i>
+            <i class="fa-solid fa-lock text-xs text-gray-400"></i>
           </span>
         </button>
         {% else %}
@@ -227,7 +227,7 @@
           aria-haspopup="true">
 
           <img src="{% static menues.img_src %}" alt="" class="w-4.5 h-4.5 transition duration-300 group-hover:filter group-hover:brightness-0 group-hover:invert flex-shrink-0" />
-          <span class="sidebar-text text-sm text-slate-700 dark:text-slate-300 font-medium whitespace-nowrap">{{ menues.menu }}</span>
+          <span class="sidebar-text text-sm text-slate-700 dark:text-gray-300 font-medium whitespace-nowrap">{{ menues.menu }}</span>
           
           <div class="sidebox sidebox-template absolute shadow-card mb-3 bg-white min-w-64 left-[75px]"
                role="menu"
@@ -747,7 +747,7 @@ function removeId(element, storeKey = "selectedInstances") {
 
         const activeClass = isCurrent 
           ? "submodule-tab-active font-semibold shadow-sm" 
-          : "text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900";
+          : "text-gray-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-gray-900";
 
         html += `<a href="${href}" 
                     hx-get="${href}" 
@@ -1348,9 +1348,9 @@ function removeId(element, storeKey = "selectedInstances") {
 
         // Instantly transition active tab styling for immediate user feedback
         toolbarLinksContainer.querySelectorAll("a").forEach(a => {
-          a.className = a.className.replace("submodule-tab-active font-semibold shadow-sm", "text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900");
+          a.className = a.className.replace("submodule-tab-active font-semibold shadow-sm", "text-gray-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-gray-900");
         });
-        link.className = link.className.replace("text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900", "submodule-tab-active font-semibold shadow-sm");
+        link.className = link.className.replace("text-gray-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-gray-900", "submodule-tab-active font-semibold shadow-sm");
 
         htmx.ajax("GET", href, {
           source: link,

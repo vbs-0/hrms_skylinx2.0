@@ -4,7 +4,7 @@
 {% block content %}
 <style>
   #ohMainContent {
-    padding-top: 4.25rem !important;
+    padding-top: 5.25rem !important;
     padding-bottom: 0.5rem !important;
     padding-left: 0.75rem !important;
     overflow: auto !important;
@@ -16,15 +16,33 @@
     /* Make body scrollable so absolute elements scroll with the page */
     body { overflow: auto !important; background-color: #f1f5f9 !important; }
     #main-content-wrapper { height: auto !important; overflow: visible !important; margin-left: 260px !important; width: calc(100% - 260px) !important; }
-    #header > div, #submodules-toolbar { width: calc(100% - 260px) !important; left: 260px !important; top: 0 !important; z-index: 40 !important; }
+    #header > div, #submodules-toolbar { height: 75px !important; width: calc(100% - 260px) !important; left: 260px !important; top: 0 !important; z-index: 40 !important; }
     #sidebarToggle, #sidebarCloseToggle { display: none !important; }
+    
     /* Blend the sidebar into the homepage background and make it scroll */
-    #sidebar, body.sidebar-toggled #sidebar { position: absolute !important; bottom: auto !important; min-height: 100vh; box-shadow: none !important; border-right: none !important; background: #f1f5f9 !important; transform: none !important; }
-    /* Make the logo header FIXED so it blends with the top bar even when scrolling */
-    /* height matches the navbar (75px) so both bottom borders form one line */
-    #sidebar .sidebar-top-header { position: fixed !important; top: 0 !important; left: 0 !important; width: 260px !important; height: 75px !important; z-index: 60 !important; background: #ffffff !important; }
+    #sidebar, body.sidebar-toggled #sidebar { 
+      position: absolute !important; 
+      bottom: auto !important; 
+      min-height: 100vh; 
+      box-shadow: none !important; 
+      border-right: none !important; 
+      background: #f1f5f9 !important; 
+      
+      /* CRITICAL: Prevent this absolute container from trapping the fixed logo header */
+      transform: none !important; 
+      transition: none !important;
+      filter: none !important;
+      perspective: none !important;
+      will-change: auto !important;
+      contain: none !important;
+    }
+    
+    /* Make the logo header STICKY so it blends with the top bar even when scrolling */
+    #sidebar .sidebar-top-header { position: sticky !important; top: 0 !important; left: 0 !important; width: 260px !important; height: 75px !important; z-index: 60 !important; background: #ffffff !important; }
+    
     /* Let the inner sidebar container grow naturally below the fixed logo. */
-    #sidebar nav.sidebar-scroll { height: auto !important; overflow: visible !important; margin-top: 75px !important; padding-top: 0.75rem !important; }
+    #sidebar nav.sidebar-scroll { height: auto !important; overflow: visible !important; padding-top: 0.75rem !important; }
+    
     body::before { display: none !important; }
   }
 
@@ -194,6 +212,10 @@
   .dark .quick-action-btn:hover { box-shadow: 0 10px 25px var(--card-glow-shadow, rgba(0,0,0,0.45)); }
   /* Date & time pill keeps its saffron glow on a dark surface */
   .dark #ohMainContent div[style*="border: 1px solid #f97316"] { background: #1e293b !important; }
+  /* Section tile wrappers (Dashboard Overview / Insights & Activity):
+     keep their purple/orange accent borders, darken surface + headings */
+  .dark .component-tile { background: #0f172a !important; }
+  .dark .component-tile > h2[style*="color: #1e293b"] { color: #f1f5f9 !important; }
 </style>
 
 <div style="width: 100%; padding-top: 1.5rem; font-family: 'Outfit', 'Inter', sans-serif;">
@@ -285,9 +307,12 @@
           </div>
         </div>
 
-        <!-- Metrics / Charts grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <!-- Total Employees -->
+        <!-- Metrics & Charts Tile Wrapper -->
+        <div class="component-tile" style="background: #ffffff; border: 1px solid #a855f7; border-radius: 20px; padding: 1.5rem; box-shadow: 0 10px 25px -5px rgba(168, 85, 247, 0.1); display: flex; flex-direction: column; gap: 1rem;">
+          <h2 style="font-size: 1.1rem; font-weight: 800; color: #1e293b; margin-bottom: 0.25rem;">Dashboard Overview</h2>
+          <!-- Metrics / Charts grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Total Employees -->
           <div class="flex flex-col justify-center h-[130px] text-center" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
             <div>
               <div class="flex justify-center items-center text-center">
@@ -436,6 +461,8 @@
           </div>
         </div>
 
+        </div>
+        
         <!-- Today's Attendance Snapshot -->
         <div class="chart-card" style="margin-top: 1.25rem; border-radius: 16px; padding: 1.25rem; position: relative; overflow: hidden;">
           <div class="card-header" style="margin-bottom: 1rem;">
@@ -482,13 +509,12 @@
             <span style="font-size: 10px; color: #64748b; display: flex; align-items: center; gap: 4px;"><span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>On Leave</span>
             <span style="font-size: 10px; color: #64748b; display: flex; align-items: center; gap: 4px;"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;"></span>Absent</span>
           </div>
-        </div>
-
+          </div>
       </div>
 
       <!-- RIGHT SIDEBAR (1 column) -->
-      <div class="flex flex-col gap-6 w-full lg:col-span-1">
-
+      <div class="flex flex-col gap-6 w-full lg:col-span-1 component-tile" style="background: #ffffff; border: 1px solid #f97316; border-radius: 20px; padding: 1.5rem; box-shadow: 0 10px 25px -5px rgba(249, 115, 22, 0.1);">
+        <h2 style="font-size: 1.1rem; font-weight: 800; color: #1e293b; margin-bottom: 0;">Insights & Activity</h2>
         <!-- Pending Approvals (Admin view) -->
         <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div class="flex justify-between items-center mb-3">
