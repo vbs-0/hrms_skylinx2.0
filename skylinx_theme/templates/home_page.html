@@ -492,7 +492,7 @@
         <!-- Pending Approvals (Admin view) -->
         <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div class="flex justify-between items-center mb-3">
-            <h4 class="text-sm font-bold" style="color: #0f172a; margin: 0;">Pending Approvals</h4>
+            <h4 class="text-sm font-bold" style="color: #0f172a; margin: 0;">Pending Approvals ({{ pending_approvals_count }})</h4>
             <a href="/leave/request-view/" class="text-xs text-indigo-600 hover:underline">View all</a>
           </div>
           <div class="space-y-2">
@@ -515,7 +515,8 @@
         <!-- Birthdays -->
         <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div class="flex justify-between items-center mb-3">
-            <h4 class="text-sm font-bold" style="color: #0f172a; margin: 0;">Birthdays</h4>
+            <h4 class="text-sm font-bold" style="color: #0f172a; margin: 0;">Birthdays ({{ upcoming_birthdays_count }})</h4>
+            <span class="text-[10px] text-slate-400">Next 15 days</span>
           </div>
           <div class="space-y-2">
             {% for bday in upcoming_birthdays %}
@@ -556,12 +557,12 @@
         <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02); flex: 1 1 auto;">
           <div class="flex justify-between items-center mb-3">
             <h4 class="text-sm font-bold" style="color: #0f172a; margin: 0;">Recent Activity</h4>
-            <a href="/" class="text-xs text-indigo-600 hover:underline">View all</a>
+            <a href="{% url 'recent-activity' %}" class="text-xs text-indigo-600 hover:underline">View all</a>
           </div>
           <div class="relative pl-4 border-l-2 border-slate-100 space-y-4">
             {% for act in company_recent_activities %}
               <div class="relative">
-                <span class="absolute top-1.5 bg-white border-2 rounded-full w-2.5 h-2.5" style="left: -17px; transform: translateX(-50%); border-color: {% if 'checked out' in act.title|lower %}#ef4444{% elif 'checked in' in act.title|lower %}#22c55e{% else %}#f97316{% endif %};"></span>
+                <span class="absolute top-1.5 bg-white border-2 rounded-full w-2.5 h-2.5" style="left: -17px; transform: translateX(-50%); border-color: {{ act.color }};"></span>
                 <h5 class="text-xs font-bold" style="color: #0f172a;">{{ act.title }}</h5>
                 <p class="text-[10px] text-slate-400 mt-0.5">{{ act.time }}</p>
               </div>

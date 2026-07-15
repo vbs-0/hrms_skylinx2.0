@@ -1,0 +1,36 @@
+{% extends "index.html" %}
+{% load static %}
+
+{% block content %}
+<main class="oh-wrapper" style="padding: 1.5rem;">
+  <div style="max-width: 960px; margin: 0 auto;">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1rem;">
+      <div>
+        <h1 style="font-size:1.5rem; font-weight:700; color:#0f172a; margin:0;">Recent Activity</h1>
+        <p style="font-size:.8rem; color:#64748b; margin:.25rem 0 0;">Company activity from the past 48 hours</p>
+      </div>
+      <a href="{% url 'home-page' %}" style="color:#4f46e5; font-size:.8rem;">Back to home</a>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.75rem; margin-bottom:1rem;">
+      <div style="background:#fff; border:1px solid #bbf7d0; border-radius:14px; padding:1rem;"><strong style="color:#16a34a;">{{ checkin_count }}</strong><div style="font-size:.75rem;color:#64748b;">Check-ins</div></div>
+      <div style="background:#fff; border:1px solid #fecaca; border-radius:14px; padding:1rem;"><strong style="color:#dc2626;">{{ checkout_count }}</strong><div style="font-size:.75rem;color:#64748b;">Check-outs</div></div>
+      <div style="background:#fff; border:1px solid #fed7aa; border-radius:14px; padding:1rem;"><strong style="color:#ea580c;">{{ other_count }}</strong><div style="font-size:.75rem;color:#64748b;">Other events</div></div>
+    </div>
+
+    <section style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:1.25rem;">
+      <div style="border-left:2px solid #e2e8f0; padding-left:1.25rem; display:flex; flex-direction:column; gap:1rem;">
+        {% for activity in activities %}
+          <article style="position:relative;">
+            <span style="position:absolute; left:-1.63rem; top:.3rem; width:.7rem; height:.7rem; border-radius:50%; background:#fff; border:2px solid {{ activity.color }};"></span>
+            <strong style="display:block; color:#0f172a; font-size:.85rem;">{{ activity.title }}</strong>
+            <time style="color:#64748b; font-size:.72rem;">{{ activity.at|date:"M d, Y, h:i A" }}</time>
+          </article>
+        {% empty %}
+          <p style="color:#94a3b8; font-size:.8rem; margin:0;">No activity in the past 48 hours.</p>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+</main>
+{% endblock content %}
