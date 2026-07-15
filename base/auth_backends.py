@@ -63,20 +63,11 @@ class IdentifierBackend(ModelBackend):
         for user in users:
             if not self.user_can_authenticate(user):
                 continue
+            # Only the hashed password counts. New employees get their phone
+            # SET as the initial password (hashed), so first-login-with-phone
+            # still works via check_password — but once they change it, the
+            # phone must never again act as a plain-text master key.
             if user.check_password(password):
-                logger.warning("Auth backend password match user_id=%s", user.id)
                 return user
-            employee = getattr(user, "employee_get", None)
-            if employee:
-                stored_phone = str(getattr(employee, "phone", "") or "").strip()
-                normalized_phone = _phone_key(stored_phone)
-                if password in {stored_phone, normalized_phone}:
-                    logger.warning(
-                        "Auth backend legacy phone match user_id=%s stored_phone=%s normalized_phone=%s",
-                        user.id,
-                        stored_phone,
-                        normalized_phone,
-                    )
-                    return user
         logger.warning("Auth backend failed ident=%s", ident)
         return None
