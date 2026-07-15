@@ -315,7 +315,9 @@
                      flex-shrink:0 + the flex column above keeps it pinned to the bottom of
                      the viewport on short pages instead of floating mid-screen. ── -->
                 <div id="app-footer" style="flex-shrink:0; border-top: 1px solid #e2e8f0; background: #f1f5f9; padding: 0.8rem 1rem;">
-                    <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 12px; color: #94a3b8; font-weight: 500; line-height: 1;">
+                    <!-- Right-aligned, but padding-right clears the fixed AI chat fab
+                         (56px wide, sitting 24px from the right edge) so it never overlaps. -->
+                    <div style="display: flex; align-items: center; justify-content: flex-end; padding-right: 100px; gap: 0.5rem; font-size: 12px; color: #94a3b8; font-weight: 500; line-height: 1;">
                         <span>Powered by <span style="text-decoration: underline;">Emplinx</span></span>
                     </div>
                 </div>

@@ -322,7 +322,7 @@
 
         <!-- Metrics & Charts Tile Wrapper -->
         <div class="component-tile" style="background: #ffffff; border: 1px solid #a855f7; border-radius: 20px; padding: 1.5rem; box-shadow: 0 10px 25px -5px rgba(168, 85, 247, 0.1); display: flex; flex-direction: column; gap: 1rem;">
-          <h2 style="font-size: 1.1rem; font-weight: 800; color: #1e293b; margin-bottom: 0.25rem;">Dashboard Overview</h2>
+          <h2 style="font-size: 1.1rem; font-weight: 800; color: #1e293b; margin-bottom: 0.25rem; text-align: center;">Dashboard Overview</h2>
           <!-- Metrics / Charts grid -->
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- Total Employees -->
@@ -474,10 +474,8 @@
           </div>
         </div>
 
-        </div>
-        
         <!-- Today's Attendance Snapshot -->
-        <div class="chart-card" style="margin-top: 1.25rem; border-radius: 16px; padding: 1.25rem; position: relative; overflow: hidden;">
+        <div class="chart-card" style="margin-top: 1.25rem; border-radius: 16px; padding: 1.25rem; position: relative; overflow: hidden; border: 1px solid #10b981;">
           <div class="card-header" style="margin-bottom: 1rem;">
             <span class="card-title" style="display: flex; align-items: center; gap: 0.5rem;">
               <span style="background: #e0e7ff; color: #4f46e5; border-radius: 8px; padding: 4px 6px; font-size: 13px;">👥</span>
@@ -522,12 +520,13 @@
             <span style="font-size: 10px; color: #64748b; display: flex; align-items: center; gap: 4px;"><span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>On Leave</span>
             <span style="font-size: 10px; color: #64748b; display: flex; align-items: center; gap: 4px;"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;"></span>Absent</span>
           </div>
-          </div>
+        </div>
+        </div>
       </div>
 
       <!-- RIGHT SIDEBAR (1 column) -->
       <div class="flex flex-col gap-6 w-full lg:col-span-1 component-tile" style="background: #ffffff; border: 1px solid #f97316; border-radius: 20px; padding: 1.5rem; box-shadow: 0 10px 25px -5px rgba(249, 115, 22, 0.1);">
-        <h2 style="font-size: 1.1rem; font-weight: 800; color: #1e293b; margin-bottom: 0;">Insights & Activity</h2>
+        <h2 style="font-size: 1.1rem; font-weight: 800; color: #1e293b; margin-bottom: 0; text-align: center;">Insights & Activity</h2>
         <!-- Pending Approvals (Admin view) -->
         <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div class="flex justify-between items-center mb-3">
@@ -555,7 +554,7 @@
         <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div class="flex justify-between items-center mb-3">
             <h4 class="text-sm font-bold" style="color: #0f172a; margin: 0;">Birthdays ({{ upcoming_birthdays_count }})</h4>
-            <span class="text-[10px] text-slate-400">Next 15 days</span>
+            <span class="text-[10px] text-slate-400">Next 3</span>
           </div>
           <div class="space-y-2">
             {% for bday in upcoming_birthdays %}
