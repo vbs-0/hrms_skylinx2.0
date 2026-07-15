@@ -245,6 +245,7 @@ def get_mobile_user_data(user):
         "liveLocationEnabled": subscription_enabled,
         "permissions": {
             "can_approve_leaves": user.has_perm("leave.change_leaverequest"),
+            "can_approve_expenses": user.has_perm("payroll.change_reimbursement"),
             "can_add_holidays": user.has_perm("base.add_holidays"),
             "can_view_reports": rank <= 2,
             "can_manage_attendance": rank <= 2,
