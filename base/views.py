@@ -1237,6 +1237,97 @@ class Workinfo:
         pass
 
 
+def _is_dashboard_admin(user):
+    return (
+        user.is_superuser
+        or user.is_staff
+        or user.has_perm("leave.change_leaverequest")
+        or user.has_perm("payroll.add_payslip")
+    )
+
+
+def _activity_datetime(event_date, event_time=None):
+    value = datetime.combine(event_date, event_time or datetime.min.time())
+    return timezone.make_aware(value) if timezone.is_naive(value) else value
+
+
+def _company_activity_events(request, since, limit=None):
+    """Return tenant-scoped dashboard activity, newest first."""
+    company = current_company(request)
+    if company is None and not is_platform_owner(request.user):
+        return []
+    employee_scope = (
+        {"employee_id__employee_work_info__company_id": company}
+        if company is not None
+        else {}
+    )
+    events = []
+
+    if apps.is_installed("attendance"):
+        from attendance.models import Attendance
+
+        rows = Attendance.objects.filter(
+            Q(attendance_date__gte=since.date())
+            | Q(attendance_clock_in_date__gte=since.date())
+            | Q(attendance_clock_out_date__gte=since.date()),
+            **employee_scope,
+        ).select_related("employee_id")
+        for row in rows:
+            name = row.employee_id.get_full_name() if row.employee_id else "Someone"
+            if row.attendance_clock_in:
+                at = _activity_datetime(
+                    row.attendance_clock_in_date or row.attendance_date,
+                    row.attendance_clock_in,
+                )
+                if at >= since:
+                    events.append({"title": f"{name} checked in at {row.attendance_clock_in:%I:%M %p}", "at": at, "kind": "checkin", "color": "#22c55e"})
+            if row.attendance_clock_out:
+                at = _activity_datetime(
+                    row.attendance_clock_out_date or row.attendance_date,
+                    row.attendance_clock_out,
+                )
+                if at >= since:
+                    events.append({"title": f"{name} checked out at {row.attendance_clock_out:%I:%M %p}", "at": at, "kind": "checkout", "color": "#ef4444"})
+
+    if apps.is_installed("leave"):
+        from leave.models import LeaveRequest
+
+        for row in LeaveRequest.objects.filter(created_at__gte=since, **employee_scope).select_related("employee_id"):
+            name = row.employee_id.get_full_name() if row.employee_id else "Someone"
+            events.append({"title": f"{name} submitted a leave request", "at": row.created_at, "kind": "other", "color": "#f97316"})
+
+    if apps.is_installed("payroll"):
+        from payroll.models.models import Payslip, Reimbursement
+
+        for row in Reimbursement.objects.filter(created_at__gte=since, **employee_scope).select_related("employee_id"):
+            name = row.employee_id.get_full_name() if row.employee_id else "Someone"
+            events.append({"title": f"{name} submitted an expense claim", "at": row.created_at, "kind": "other", "color": "#f97316"})
+        for row in Payslip.objects.filter(created_at__gte=since, **employee_scope).select_related("employee_id"):
+            name = row.employee_id.get_full_name() if row.employee_id else "Someone"
+            events.append({"title": f"Payslip generated for {name}", "at": row.created_at, "kind": "other", "color": "#f97316"})
+
+    events.sort(key=lambda event: event["at"], reverse=True)
+    return events[:limit] if limit else events
+
+
+@login_required
+def recent_activity(request):
+    if not _is_dashboard_admin(request.user):
+        return HttpResponse("Not allowed.", status=403)
+    cutoff = timezone.now() - timedelta(hours=48)
+    events = _company_activity_events(request, cutoff)
+    return render(
+        request,
+        "recent_activity.html",
+        {
+            "activities": events,
+            "checkin_count": sum(event["kind"] == "checkin" for event in events),
+            "checkout_count": sum(event["kind"] == "checkout" for event in events),
+            "other_count": sum(event["kind"] == "other" for event in events),
+        },
+    )
+
+
 @login_required
 def home(request):
     """
@@ -1276,9 +1367,7 @@ def home(request):
     # covers "can view MY OWN payslip", which every employee has via their
     # role's default permissions — using it here put everyone on the admin
     # dashboard. add_payslip (generate/manage payroll) is admin-only.
-    is_dashboard_admin = (
-        user.is_superuser or user.is_staff or can_approve_leave or user.has_perm("payroll.add_payslip")
-    )
+    is_dashboard_admin = _is_dashboard_admin(user)
 
     pending_leaves_count = (
         get_count_or_zero('leave', 'LeaveRequest', {'status': 'requested'}) if can_approve_leave else 0
@@ -1430,10 +1519,19 @@ def home(request):
         except Exception:
             pass
 
+    company = current_company(request)
+    employee_company_filter = (
+        {"employee_work_info__company_id": company} if company is not None else {}
+    )
     upcoming_birthdays = []
     try:
         end_date = today + timedelta(days=15)
-        for emp in Employee.objects.filter(is_active=True).exclude(dob__isnull=True):
+        birthday_qs = Employee.objects.filter(
+            is_active=True, **employee_company_filter
+        ).exclude(dob__isnull=True)
+        if company is None and not is_platform_owner(user):
+            birthday_qs = birthday_qs.none()
+        for emp in birthday_qs:
             dob = emp.dob
             try:
                 this_year_bday = dob.replace(year=today.year)
@@ -1458,11 +1556,24 @@ def home(request):
     except Exception:
         pass
 
+    upcoming_birthdays_count = len(upcoming_birthdays)
     pending_approvals = []
+    pending_approvals_count = 0
+    approval_company_filter = (
+        {"employee_id__employee_work_info__company_id": company}
+        if company is not None
+        else {}
+    )
     if can_approve_leave:
         try:
             from leave.models import LeaveRequest
-            leaves = LeaveRequest.objects.filter(status="requested")[:2]
+            leaves_qs = LeaveRequest.objects.filter(
+                status="requested", **approval_company_filter
+            )
+            if company is None and not is_platform_owner(user):
+                leaves_qs = leaves_qs.none()
+            pending_approvals_count += leaves_qs.count()
+            leaves = leaves_qs.order_by("-created_at")[:2]
             for lr in leaves:
                 pending_approvals.append({
                     "type": "Leave Request",
@@ -1476,7 +1587,13 @@ def home(request):
     if can_view_payroll:
         try:
             from payroll.models.models import Reimbursement
-            expenses = Reimbursement.objects.filter(status="requested")[:2]
+            expenses_qs = Reimbursement.objects.filter(
+                status="requested", **approval_company_filter
+            )
+            if company is None and not is_platform_owner(user):
+                expenses_qs = expenses_qs.none()
+            pending_approvals_count += expenses_qs.count()
+            expenses = expenses_qs.order_by("-created_at")[:2]
             for exp in expenses:
                 pending_approvals.append({
                     "type": "Expense Claim",
@@ -1536,20 +1653,18 @@ def home(request):
     # activity (used by the employee dashboard), which reads empty for an
     # admin/CEO account with no personal check-ins of its own.
     company_recent_activities = []
-    if is_dashboard_admin and apps.is_installed("attendance"):
+    if is_dashboard_admin:
         try:
-            from attendance.models import Attendance
-            recent_att = Attendance.objects.select_related("employee_id").order_by("-attendance_date", "-attendance_clock_in")[:8]
-            for a in recent_att:
-                clock_str = a.attendance_clock_in.strftime("%I:%M %p") if a.attendance_clock_in else ""
-                name = a.employee_id.get_full_name() if a.employee_id else "Someone"
-                company_recent_activities.append({
-                    "title": f"{name} checked in{' at ' + clock_str if clock_str else ''}",
-                    "time": a.attendance_date.strftime("%b %d") if a.attendance_date != today else "Today",
-                    "icon": "✅"
-                })
+            company_recent_activities = _company_activity_events(
+                request, timezone.now() - timedelta(hours=48), limit=8
+            )
+            for activity in company_recent_activities:
+                local_date = timezone.localtime(activity["at"]).date()
+                activity["time"] = (
+                    "Today" if local_date == today else local_date.strftime("%b %d")
+                )
         except Exception:
-            pass
+            logging.exception("Unable to build company recent activity")
 
     my_monthly_attendance = []
     try:
@@ -1650,7 +1765,9 @@ def home(request):
         "latest_announcements": latest_announcements,
         "buzz_posts": buzz_posts,
         "upcoming_birthdays": upcoming_birthdays,
+        "upcoming_birthdays_count": upcoming_birthdays_count,
         "pending_approvals": pending_approvals,
+        "pending_approvals_count": pending_approvals_count,
         "recent_activities": recent_activities,
         "company_recent_activities": company_recent_activities,
         "avg_performance": avg_performance,

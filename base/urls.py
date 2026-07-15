@@ -67,6 +67,7 @@ from skylinx_audit.models import AuditTag
 
 urlpatterns = [
     path("", views.home, name="home-page"),
+    path("recent-activity/", views.recent_activity, name="recent-activity"),
     path("terms/", views.terms_and_conditions, name="terms-view"),
     path("privacy-policy/", TemplateView.as_view(template_name="legal/privacy_policy.html"), name="privacy-policy"),
     path("terms-and-conditions/", TemplateView.as_view(template_name="legal/terms_and_conditions.html"), name="terms-and-conditions"),
