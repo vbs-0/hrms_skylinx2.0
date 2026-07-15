@@ -195,6 +195,7 @@ def geo_location_config(request):
             geofencing = form.save(commit=False)
             geofencing.company_id = get_company(request)
             geofencing.save()
+            form.save_m2m()
             messages.success(request, _("Geofencing config created successfully."))
         else:
             messages.info(request, "Not valid")
