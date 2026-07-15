@@ -1525,7 +1525,9 @@ def home(request):
     )
     upcoming_birthdays = []
     try:
-        end_date = today + timedelta(days=15)
+        # Show the nearest 3 birthdays regardless of how far out they fall,
+        # rather than a fixed day-window (which read empty most of the year).
+        end_date = today + timedelta(days=365)
         birthday_qs = Employee.objects.filter(
             is_active=True, **employee_company_filter
         ).exclude(dob__isnull=True)
@@ -1553,6 +1555,7 @@ def home(request):
                     "date_str": "Today" if days_away == 0 else "Tomorrow" if days_away == 1 else f"In {days_away} days"
                 })
         upcoming_birthdays.sort(key=lambda x: x["days_away"])
+        upcoming_birthdays = upcoming_birthdays[:3]
     except Exception:
         pass
 
