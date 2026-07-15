@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from notifications.signals import notify
 
 from payroll.models.models import Payslip, Reimbursement, Company
 from payroll.models.tax_models import PayrollSettings
@@ -101,10 +102,10 @@ class MobileExpenseListAPIView(APIView):
         except Exception:
             return Response({"success": False, "message": "Not an employee", "data": []}, status=400)
 
-        qs = Reimbursement.objects.filter(
-            employee_id=employee,
-            type="reimbursement"
-        ).order_by("-allowance_on")
+        qs = Reimbursement.objects.filter(type="reimbursement")
+        if not request.user.has_perm("payroll.change_reimbursement"):
+            qs = qs.filter(employee_id=employee)
+        qs = qs.select_related("employee_id").order_by("-allowance_on")
 
         expenses = []
         for r in qs:
@@ -115,6 +116,7 @@ class MobileExpenseListAPIView(APIView):
                 "date": r.allowance_on.isoformat() if r.allowance_on else None,
                 "status": r.status,
                 "description": r.description or "",
+                "employeeName": r.employee_id.get_full_name(),
             })
 
         return Response({"success": True, "message": "Expenses loaded", "data": expenses}, status=200)
@@ -163,6 +165,37 @@ class MobileExpenseListAPIView(APIView):
                 "status": reimbursement.status,
             }
         }, status=201)
+
+
+class MobileExpenseReviewAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, pk):
+        if not request.user.has_perm("payroll.change_reimbursement"):
+            return Response({"success": False, "message": "Not allowed"}, status=403)
+        status_value = request.data.get("status")
+        if status_value not in {"approved", "rejected"}:
+            return Response({"success": False, "message": "Status must be approved or rejected"}, status=400)
+        try:
+            expense = Reimbursement.objects.select_related(
+                "employee_id__employee_user_id"
+            ).get(pk=pk, type="reimbursement")
+        except Reimbursement.DoesNotExist:
+            return Response({"success": False, "message": "Expense not found"}, status=404)
+
+        expense.status = status_value
+        expense.save(update_fields=["status"])
+        actor = getattr(request.user, "employee_get", None)
+        recipient = expense.employee_id.employee_user_id
+        if actor and recipient:
+            notify.send(
+                actor,
+                recipient=recipient,
+                verb=f"Your expense request has been {status_value}.",
+                redirect=reverse("view-reimbursement") + f"?id={expense.id}",
+                icon="checkmark",
+            )
+        return Response({"success": True, "message": f"Expense {status_value}"})
 
 
 class MobilePayslipPDFAPIView(APIView):
