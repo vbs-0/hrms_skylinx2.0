@@ -5,6 +5,8 @@ from rest_framework.views import APIView
 
 from base.models import Announcement
 from base.rbac import is_platform_owner
+from notifications.signals import notify
+from skylinx_auth.models import SkylinxUser
 
 
 class MobileAnnouncementsAPIView(APIView):
@@ -82,6 +84,19 @@ class MobileAnnouncementsAPIView(APIView):
         company = self._company(request)
         if company:
             announcement.company_id.add(company)
+
+            recipients = SkylinxUser.objects.filter(
+                employee_get__employee_work_info__company_id=company,
+                employee_get__is_active=True,
+                is_active=True,
+            ).distinct()
+            notify.send(
+                request.user.employee_get,
+                recipient=recipients,
+                verb="A new announcement was posted.",
+                redirect="/announcement-list/",
+                icon="chatbox-ellipses",
+            )
         return Response({"success": True, "message": "Announcement created."}, status=201)
 
     def put(self, request, pk=None):

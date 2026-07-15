@@ -8,10 +8,51 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from project.models import TimeSheet
 from skylinx_api.api_serializers.project.serializers import TimeSheetSerializer
 from skylinx_api.api_views.employee.mobile_views import MobileProfilePhotoAPIView
+from skylinx_api.api_views.base.mobile_views import MobileAnnouncementsAPIView
 from skylinx_api.api_views.project.views import TimeSheetGetCreateAPIView
 
 
 class MobileHardeningTests(SimpleTestCase):
+    @patch("skylinx_api.api_views.base.mobile_views.notify.send")
+    @patch("skylinx_api.api_views.base.mobile_views.SkylinxUser.objects.filter")
+    @patch("skylinx_api.api_views.base.mobile_views.Announcement.objects.create")
+    def test_mobile_announcement_notifies_active_company_users(
+        self, create_announcement, filter_users, send_notification
+    ):
+        company = SimpleNamespace(pk=7)
+        employee = SimpleNamespace(get_company=lambda: company)
+        user = SimpleNamespace(
+            employee_get=employee,
+            has_perm=lambda permission: permission == "base.add_announcement",
+            is_authenticated=True,
+            is_superuser=False,
+        )
+        announcement = create_announcement.return_value
+        recipients = filter_users.return_value.distinct.return_value
+        request = APIRequestFactory().post(
+            "/api/v1/base/announcements/",
+            {"title": "Mobile announcement", "description": "For everyone"},
+            format="json",
+        )
+        force_authenticate(request, user=user)
+
+        response = MobileAnnouncementsAPIView.as_view()(request)
+
+        self.assertEqual(response.status_code, 201)
+        announcement.company_id.add.assert_called_once_with(company)
+        filter_users.assert_called_once_with(
+            employee_get__employee_work_info__company_id=company,
+            employee_get__is_active=True,
+            is_active=True,
+        )
+        send_notification.assert_called_once_with(
+            employee,
+            recipient=recipients,
+            verb="A new announcement was posted.",
+            redirect="/announcement-list/",
+            icon="chatbox-ellipses",
+        )
+
     def test_profile_photo_accepts_octet_stream_with_image_extension(self):
         employee = MagicMock()
         employee.save.side_effect = lambda **kwargs: setattr(
