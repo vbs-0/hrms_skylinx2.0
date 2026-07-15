@@ -597,16 +597,22 @@
             <h4 class="text-sm font-bold" style="color: #0f172a; margin: 0;">Recent Activity</h4>
             <a href="{% url 'recent-activity' %}" class="text-xs text-indigo-600 hover:underline">View all</a>
           </div>
-          <div class="relative pl-4 border-l-2 border-slate-100 space-y-4" style="overflow-y: auto; flex: 1 1 0; min-height: 0; scrollbar-width: thin;">
-            {% for act in company_recent_activities %}
-              <div class="relative">
-                <span class="absolute top-1.5 bg-white border-2 rounded-full w-3 h-3" style="left: -17px; transform: translateX(-50%); border-color: {{ act.color }}; z-index: 10; box-shadow: 0 0 0 2px white;"></span>
-                <h5 class="text-xs font-bold" style="color: #0f172a;">{{ act.title }}</h5>
-                <p class="text-[10px] text-slate-400 mt-0.5">{{ act.time }}</p>
+          <div style="overflow-y: auto; flex: 1 1 0; min-height: 0; scrollbar-width: thin;">
+            <div class="relative" style="padding-left: 22px;">
+              <!-- timeline vertical line: spans full content height and scrolls with items -->
+              <div style="position: absolute; left: 7px; top: 6px; bottom: 6px; width: 2px; background: #e2e8f0; z-index: 0;"></div>
+              <div class="space-y-4">
+                {% for act in company_recent_activities %}
+                  <div class="relative">
+                    <span class="absolute top-1.5 rounded-full" style="left: -19px; width: 11px; height: 11px; background: #fff; border: 2px solid {{ act.color }}; box-shadow: 0 0 0 2px #fff; z-index: 2;"></span>
+                    <h5 class="text-xs font-bold" style="color: #0f172a;">{{ act.title }}</h5>
+                    <p class="text-[10px] text-slate-400 mt-0.5">{{ act.time }}</p>
+                  </div>
+                {% empty %}
+                  <p style="font-size: 11px; color: #94a3b8; margin: 0; text-align: center;">No recent activity yet.</p>
+                {% endfor %}
               </div>
-            {% empty %}
-              <p style="font-size: 11px; color: #94a3b8; margin: 0; text-align: center;">No recent activity yet.</p>
-            {% endfor %}
+            </div>
           </div>
         </div>
 
