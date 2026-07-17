@@ -1506,7 +1506,13 @@ def home(request):
     if apps.is_installed("konnect"):
         try:
             from konnect.models import KonnectPost
-            posts = KonnectPost.objects.filter(is_deleted=False).order_by("-created_at")[:3]
+            # Scope to the requester's company like the main Konnect feed —
+            # without this the homepage widget leaked posts across tenants.
+            _buzz_company = current_company(request)
+            posts = KonnectPost.objects.filter(is_deleted=False)
+            if _buzz_company is not None:
+                posts = posts.filter(company=_buzz_company)
+            posts = posts.order_by("-created_at")[:3]
             for p in posts:
                 buzz_posts.append({
                     "id": p.pk,
