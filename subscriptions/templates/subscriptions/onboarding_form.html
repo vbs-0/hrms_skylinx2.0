@@ -28,6 +28,10 @@
       font-size:13px;margin-bottom:8px;}
     .errors ul{margin:4px 0 0;padding-left:18px;}
     .expiry{font-size:12px;color:#9ca3af;text-align:center;margin-top:18px;}
+    .plan-locked{margin-top:16px;padding:10px 12px;background:#f7f6ff;border:1px solid #e2e2f0;border-radius:8px;
+      display:flex;align-items:center;justify-content:space-between;font-size:14px;}
+    .plan-locked b{color:var(--ex-navy);}
+    .plan-locked span{font-size:12px;color:#9ca3af;}
   </style>
 </head>
 <body>
@@ -57,12 +61,12 @@
       <input name="admin_password" type="password" required placeholder="At least 8 characters">
       <p class="hint">You'll use this to log in as your company's admin.</p>
 
-      <label>Plan</label>
-      <select name="plan">
-        {% for p in plans %}
-          <option value="{{ p.id }}">{{ p.name }}{% if p.price %} — ₹{{ p.price }}/mo{% else %} — Free{% endif %}</option>
-        {% endfor %}
-      </select>
+      {% if invite.plan %}
+      <div class="plan-locked">
+        <span>Plan</span>
+        <b>{{ invite.plan.name }}{% if invite.plan.price %} — ₹{{ invite.plan.price }}/mo{% else %} — Free{% endif %}</b>
+      </div>
+      {% endif %}
 
       <button type="submit">Create my workspace</button>
     </form>

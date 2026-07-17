@@ -6,16 +6,25 @@
 
   <form method="post" class="bg-white rounded-md shadow-card p-5 space-y-4 mb-6">
     {% csrf_token %}
-    <div>
-      <label class="text-sm font-medium">{% trans "Client's email" %} *</label>
-      <input name="email" type="email" required class="w-full border rounded px-3 py-2 mt-1"
-             placeholder="client@example.com">
-      <p class="text-xs text-gray-400 mt-1">
-        {% blocktrans %}They'll get a one-time link, valid for {{ valid_hours }} hours, to fill in
-        their own company name and admin login. You'll be notified at support@emplinx.com when
-        they submit.{% endblocktrans %}
-      </p>
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="text-sm font-medium">{% trans "Client's email" %} *</label>
+        <input name="email" type="email" required class="w-full border rounded px-3 py-2 mt-1"
+               placeholder="client@example.com">
+      </div>
+      <div>
+        <label class="text-sm font-medium">{% trans "Plan" %} *</label>
+        <select name="plan" required class="w-full border rounded px-3 py-2 mt-1">
+          <option value="">{% trans "Choose a plan…" %}</option>
+          {% for p in plans %}<option value="{{ p.id }}">{{ p.name }} ({{ p.price }})</option>{% endfor %}
+        </select>
+      </div>
     </div>
+    <p class="text-xs text-gray-400">
+      {% blocktrans %}They'll get a one-time link, valid for {{ valid_hours }} hours, to fill in
+      their own company name and admin login — the plan is locked to what you pick here. You'll be
+      notified at support@emplinx.com when they submit.{% endblocktrans %}
+    </p>
     <button class="px-4 py-2 bg-primary-600 text-white rounded-md text-sm">{% trans "Send invite" %}</button>
   </form>
 
@@ -25,6 +34,7 @@
       <thead class="bg-gray-50 text-left text-gray-500">
         <tr>
           <th class="px-4 py-2">{% trans "Email" %}</th>
+          <th class="px-4 py-2">{% trans "Plan" %}</th>
           <th class="px-4 py-2">{% trans "Sent" %}</th>
           <th class="px-4 py-2">{% trans "Status" %}</th>
           <th class="px-4 py-2">{% trans "Company created" %}</th>
@@ -34,6 +44,7 @@
         {% for inv in invites %}
         <tr class="border-t">
           <td class="px-4 py-2">{{ inv.email }}</td>
+          <td class="px-4 py-2">{{ inv.plan.name|default:"—" }}</td>
           <td class="px-4 py-2">{{ inv.created_at|date:"d M Y, H:i" }}</td>
           <td class="px-4 py-2">
             {% if inv.used_at %}
@@ -47,7 +58,7 @@
           <td class="px-4 py-2">{{ inv.company.company|default:"—" }}</td>
         </tr>
         {% empty %}
-        <tr><td class="px-4 py-3 text-gray-400" colspan="4">{% trans "No invites sent yet." %}</td></tr>
+        <tr><td class="px-4 py-3 text-gray-400" colspan="5">{% trans "No invites sent yet." %}</td></tr>
         {% endfor %}
       </tbody>
     </table>

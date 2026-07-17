@@ -264,6 +264,11 @@ class OnboardingInvite(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
     used_at = models.DateTimeField(null=True, blank=True)
+    # Plan is locked in by the OWNER at invite time, not chosen by the client —
+    # the public form no longer offers a plan dropdown at all.
+    plan = models.ForeignKey(
+        "Plan", on_delete=models.SET_NULL, null=True, blank=True
+    )
     # filled in once the client submits, kept for the support@ notification +
     # the owner console's audit trail (password itself is never stored here —
     # only the resulting company/user, created via create_tenant()).

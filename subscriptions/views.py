@@ -552,12 +552,17 @@ def invite_client(request):
     send form. POST: create + email the invite."""
     if request.method == "POST":
         email = request.POST.get("email", "").strip()
+        plan = _plan_or_none(request.POST.get("plan"))
         if not email:
             messages.error(request, "An email address is required.")
+            return redirect("subscriptions-invite-client")
+        if not plan:
+            messages.error(request, "Please choose a plan for this invite.")
             return redirect("subscriptions-invite-client")
 
         invite = OnboardingInvite.objects.create(
             email=email,
+            plan=plan,
             created_by=request.user,
             expires_at=timezone.now() + timedelta(hours=INVITE_VALID_HOURS),
         )
@@ -571,7 +576,7 @@ def invite_client(request):
             body_html=(
                 "<p style='color:#4b4860 !important;margin:0 0 12px;'>You've been invited to set up "
                 "your company's workspace on <strong style='color:#1b1730 !important;'>EMPLINX</strong> "
-                "— attendance, payroll, leave and your whole team, in one place.</p>"
+                f"on the <strong style='color:#1b1730 !important;'>{plan.name}</strong> plan.</p>"
                 "<p style='color:#4b4860 !important;margin:0;'>Click the button below to enter your "
                 "company details and create your admin login. It only takes a minute.</p>"
             ),
@@ -582,14 +587,18 @@ def invite_client(request):
             text_fallback=f"Set up your EMPLINX workspace: {link} "
                           f"(expires in {INVITE_VALID_HOURS}h, single use).",
         )
-        messages.success(request, f"Invite sent to {email}.")
+        messages.success(request, f"Invite sent to {email} ({plan.name} plan).")
         return redirect("subscriptions-invite-client")
 
     invites = OnboardingInvite.objects.order_by("-created_at")[:50]
     return render(
         request,
         "subscriptions/invite_client.html",
-        {"invites": invites, "valid_hours": INVITE_VALID_HOURS},
+        {
+            "invites": invites,
+            "valid_hours": INVITE_VALID_HOURS,
+            "plans": Plan.objects.filter(is_active=True),
+        },
     )
 
 
@@ -611,7 +620,6 @@ def onboarding_form(request, token):
         admin_username = request.POST.get("admin_username", "").strip()
         admin_email = request.POST.get("admin_email", "").strip()
         admin_password = request.POST.get("admin_password", "").strip()
-        plan_id = request.POST.get("plan")
 
         errors = []
         if not company_name:
@@ -631,12 +639,7 @@ def onboarding_form(request, token):
             return render(
                 request,
                 "subscriptions/onboarding_form.html",
-                {
-                    "invite": invite,
-                    "plans": Plan.objects.filter(is_active=True),
-                    "errors": errors,
-                    "posted": request.POST,
-                },
+                {"invite": invite, "errors": errors, "posted": request.POST},
             )
 
         try:
@@ -646,7 +649,7 @@ def onboarding_form(request, token):
                     admin_username,
                     admin_email,
                     admin_password,
-                    _plan_or_none(plan_id),
+                    invite.plan,
                 )
                 invite.used_at = timezone.now()
                 invite.company = company
@@ -658,7 +661,6 @@ def onboarding_form(request, token):
                 "subscriptions/onboarding_form.html",
                 {
                     "invite": invite,
-                    "plans": Plan.objects.filter(is_active=True),
                     "errors": [f"Something went wrong: {e}. Please try again."],
                     "posted": request.POST,
                 },
@@ -666,7 +668,7 @@ def onboarding_form(request, token):
 
         from base.email_utils import send_from_intake
 
-        plan_obj = _plan_or_none(plan_id)
+        plan_obj = invite.plan
         send_from_intake(
             subject=f"New client onboarded: {company_name}",
             to=["support@emplinx.com"],
@@ -690,7 +692,7 @@ def onboarding_form(request, token):
     return render(
         request,
         "subscriptions/onboarding_form.html",
-        {"invite": invite, "plans": Plan.objects.filter(is_active=True), "errors": []},
+        {"invite": invite, "errors": []},
     )
 
 
