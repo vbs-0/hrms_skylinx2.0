@@ -10,6 +10,9 @@ This replaces the old per-deployment `licensing` app: instead of one license
 key for the whole install, every company (client) has its own subscription.
 """
 
+import uuid
+
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -245,3 +248,31 @@ class SupportTicketReply(models.Model):
 
     def __str__(self):
         return f"[{self.company}] {self.subject}"
+
+
+class OnboardingInvite(models.Model):
+    """A single-use, time-limited link the owner sends a prospective client so
+    THEY fill in their own company/admin details instead of the owner typing
+    them in. Submitting it calls the same create_tenant() the owner console
+    uses — this is just a self-service front door onto that flow."""
+
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    email = models.EmailField()
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    # filled in once the client submits, kept for the support@ notification +
+    # the owner console's audit trail (password itself is never stored here —
+    # only the resulting company/user, created via create_tenant()).
+    company = models.ForeignKey(
+        Company, on_delete=models.SET_NULL, null=True, blank=True
+    )
+
+    def is_valid(self):
+        return self.used_at is None and timezone.now() < self.expires_at
+
+    def __str__(self):
+        return f"invite:{self.email} ({'used' if self.used_at else 'open'})"

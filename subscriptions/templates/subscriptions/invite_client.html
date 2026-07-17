@@ -1,0 +1,56 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% block content %}
+<div class="oh-wrapper max-w-2xl">
+  <h1 class="text-lg font-semibold mb-4">{% trans "Invite a client to self-onboard" %}</h1>
+
+  <form method="post" class="bg-white rounded-md shadow-card p-5 space-y-4 mb-6">
+    {% csrf_token %}
+    <div>
+      <label class="text-sm font-medium">{% trans "Client's email" %} *</label>
+      <input name="email" type="email" required class="w-full border rounded px-3 py-2 mt-1"
+             placeholder="client@example.com">
+      <p class="text-xs text-gray-400 mt-1">
+        {% blocktrans %}They'll get a one-time link, valid for {{ valid_hours }} hours, to fill in
+        their own company name and admin login. You'll be notified at support@emplinx.com when
+        they submit.{% endblocktrans %}
+      </p>
+    </div>
+    <button class="px-4 py-2 bg-primary-600 text-white rounded-md text-sm">{% trans "Send invite" %}</button>
+  </form>
+
+  <h2 class="text-sm font-semibold text-gray-500 uppercase mb-2">{% trans "Recent invites" %}</h2>
+  <div class="bg-white rounded-md shadow-card overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-left text-gray-500">
+        <tr>
+          <th class="px-4 py-2">{% trans "Email" %}</th>
+          <th class="px-4 py-2">{% trans "Sent" %}</th>
+          <th class="px-4 py-2">{% trans "Status" %}</th>
+          <th class="px-4 py-2">{% trans "Company created" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in invites %}
+        <tr class="border-t">
+          <td class="px-4 py-2">{{ inv.email }}</td>
+          <td class="px-4 py-2">{{ inv.created_at|date:"d M Y, H:i" }}</td>
+          <td class="px-4 py-2">
+            {% if inv.used_at %}
+              <span class="text-green-600">{% trans "Completed" %}</span>
+            {% elif inv.is_valid %}
+              <span class="text-blue-600">{% trans "Pending" %}</span>
+            {% else %}
+              <span class="text-gray-400">{% trans "Expired" %}</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-2">{{ inv.company.company|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td class="px-4 py-3 text-gray-400" colspan="4">{% trans "No invites sent yet." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

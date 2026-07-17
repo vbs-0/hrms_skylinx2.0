@@ -15,6 +15,7 @@ urlpatterns = [
     path("support/reply/<int:ticket_id>/", views.support_ticket_reply, name="support-ticket-reply"),
     path("ai-company-settings/", views.company_ai_settings, name="subscriptions-company-ai-settings"),
     path("onboard/", views.onboard, name="subscriptions-onboard"),
+    path("invite-client/", views.invite_client, name="subscriptions-invite-client"),
     path(
         "company/<int:company_id>/update/",
         views.subscription_update,

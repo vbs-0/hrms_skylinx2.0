@@ -4,12 +4,49 @@ subdomain/cPanel domain without hardcoding a website.
 """
 
 import logging
+import os
 import threading
+from email.mime.image import MIMEImage
 
 from django.conf import settings
-from django.core.mail import EmailMessage
+from django.contrib.staticfiles import finders
+from django.core.mail import EmailMessage, EmailMultiAlternatives
+from django.template.loader import render_to_string
 
 logger = logging.getLogger(__name__)
+
+
+def _render_branded(heading, body_html, cta_url=None, cta_label="", cta_note=""):
+    """Render the branded onboarding email shell to an HTML string."""
+    return render_to_string(
+        "base/mail_templates/onboarding_email.html",
+        {
+            "heading": heading,
+            "body_html": body_html,
+            "cta_url": cta_url,
+            "cta_label": cta_label,
+            "cta_note": cta_note,
+        },
+    )
+
+
+def _attach_logo(msg):
+    """Embed the Emplinx logo inline as cid:company_logo (best-effort).
+    Uses skylinx-logo-email.png — the same logo pre-flattened onto the solid
+    header purple (#6b58b5), NOT the transparent app asset. Email clients
+    (Gmail especially) are unreliable about honoring real PNG alpha in inline
+    images and will matte transparent areas (like the hole in a capital P)
+    to white — baking the background in at asset-build time sidesteps that
+    entirely instead of fighting each client's renderer."""
+    path = finders.find("images/ui/skylinx-logo-email.png") or finders.find(
+        "images/ui/skylinx-logo.png"
+    )
+    if path and os.path.exists(path):
+        with open(path, "rb") as f:
+            logo = MIMEImage(f.read())
+        logo.add_header("Content-ID", "<company_logo>")
+        logo.add_header("Content-Disposition", "inline", filename="emplinx-logo.png")
+        msg.attach(logo)
 
 
 def base_url():
@@ -65,6 +102,41 @@ def send_company_welcome(company, admin_user, username):
         ),
         [admin_user.email],
     )
+
+
+def send_from_intake(subject, to, heading, body_html, cta_url=None,
+                     cta_label="", cta_note="", text_fallback=""):
+    """Fire-and-forget BRANDED email from the dedicated client-intake mailbox
+    (DynamicEmailConfiguration with purpose='client_intake'). Renders the
+    Emplinx-branded HTML shell with the logo embedded inline. Falls back to
+    the normal mail resolution if no intake config exists yet."""
+    seen = [a for a in dict.fromkeys(to) if a]
+    if not seen:
+        return
+
+    def _go():
+        from skylinx.skylinx_middlewares import _thread_locals
+        from base.backends import ConfiguredEmailBackend
+
+        try:
+            _thread_locals.email_purpose = "client_intake"
+            backend = ConfiguredEmailBackend()
+            html = _render_branded(heading, body_html, cta_url, cta_label, cta_note)
+            msg = EmailMultiAlternatives(
+                subject,
+                text_fallback or heading,
+                backend.dynamic_from_email_with_display_name,
+                seen,
+            )
+            msg.attach_alternative(html, "text/html")
+            _attach_logo(msg)
+            msg.send(fail_silently=True)
+        except Exception as exc:
+            logger.exception("send_from_intake failed: %s", exc)
+        finally:
+            _thread_locals.email_purpose = None
+
+    threading.Thread(target=_go, daemon=True).start()
 
 
 def send_employee_welcome(employee):

@@ -61,6 +61,16 @@ class DefaultSkylinxMailBackend(EmailBackend):
 
     @staticmethod
     def get_dynamic_email_config():
+        # An explicit purpose (set via base.email_utils.use_intake_mailbox())
+        # wins over everything else — used for one-off dedicated mailboxes
+        # like the client-intake sender, unrelated to who's logged in.
+        forced_purpose = getattr(_thread_locals, "email_purpose", None)
+        if forced_purpose:
+            cfg = DynamicEmailConfiguration.global_objects.filter(
+                purpose=forced_purpose
+            ).first()
+            if cfg:
+                return cfg
         request = getattr(_thread_locals, "request", None)
         company = None
         if request and not request.user.is_anonymous:

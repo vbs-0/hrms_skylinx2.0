@@ -21,6 +21,7 @@ from django.urls import include, path, re_path
 from django.views.i18n import JavaScriptCatalog
 
 import notifications.urls
+from subscriptions.views import onboarding_form
 
 from . import settings
 
@@ -101,6 +102,7 @@ urlpatterns = [
     path("employee/", include("employee.urls")),
     path("api/", include("skylinx_api.urls")),
     path("manage/", include("subscriptions.urls")),
+    path("form/<uuid:token>/", onboarding_form, name="client-onboarding-form"),
     path("buzz/", include("buzz.urls")),
     path("konnect/", include("konnect.urls")),
     path("subscription/", include("subscriptions.client_urls")),

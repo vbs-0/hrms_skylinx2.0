@@ -2655,7 +2655,10 @@ class DynamicMailConfForm(ModelForm):
     class Meta:
         model = DynamicEmailConfiguration
         fields = "__all__"
-        exclude = ["is_active"]
+        # `purpose` tags special-purpose mailboxes (e.g. the client-intake
+        # sender) that are seeded/managed automatically, not through this
+        # general company-mailserver form — keep it out of the UI.
+        exclude = ["is_active", "purpose"]
 
     # def clean(self):
     #     from_mail = self.from_email

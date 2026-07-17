@@ -34,7 +34,7 @@ from employee.models import Employee, EmployeeWorkInformation
 
 from . import billing
 from .features import PAID_FEATURES
-from .models import Plan, Subscription
+from .models import OnboardingInvite, Plan, Subscription
 from .utils import company_for_user, subscription_for_company
 
 User = get_user_model()
@@ -538,6 +538,159 @@ def onboard(request):
         request,
         "subscriptions/onboard.html",
         {"plans": Plan.objects.filter(is_active=True)},
+    )
+
+
+INVITE_VALID_HOURS = 72
+
+
+@login_required
+@superuser_required
+def invite_client(request):
+    """Owner sends a prospective client a one-time signup link instead of
+    typing their details in for them. GET: list pending/past invites + the
+    send form. POST: create + email the invite."""
+    if request.method == "POST":
+        email = request.POST.get("email", "").strip()
+        if not email:
+            messages.error(request, "An email address is required.")
+            return redirect("subscriptions-invite-client")
+
+        invite = OnboardingInvite.objects.create(
+            email=email,
+            created_by=request.user,
+            expires_at=timezone.now() + timedelta(hours=INVITE_VALID_HOURS),
+        )
+        from base.email_utils import base_url, send_from_intake
+
+        link = f"{base_url()}/form/{invite.token}/"
+        send_from_intake(
+            subject="Set up your EMPLINX workspace",
+            to=[email],
+            heading="You're invited to EMPLINX",
+            body_html=(
+                "<p style='color:#4b4860 !important;margin:0 0 12px;'>You've been invited to set up "
+                "your company's workspace on <strong style='color:#1b1730 !important;'>EMPLINX</strong> "
+                "— attendance, payroll, leave and your whole team, in one place.</p>"
+                "<p style='color:#4b4860 !important;margin:0;'>Click the button below to enter your "
+                "company details and create your admin login. It only takes a minute.</p>"
+            ),
+            cta_url=link,
+            cta_label="Set up my workspace",
+            cta_note=f"This link expires in {INVITE_VALID_HOURS} hours and can only be used once. "
+                     "If you weren't expecting this, you can safely ignore it.",
+            text_fallback=f"Set up your EMPLINX workspace: {link} "
+                          f"(expires in {INVITE_VALID_HOURS}h, single use).",
+        )
+        messages.success(request, f"Invite sent to {email}.")
+        return redirect("subscriptions-invite-client")
+
+    invites = OnboardingInvite.objects.order_by("-created_at")[:50]
+    return render(
+        request,
+        "subscriptions/invite_client.html",
+        {"invites": invites, "valid_hours": INVITE_VALID_HOURS},
+    )
+
+
+def onboarding_form(request, token):
+    """Public, token-gated self-signup form. No login required — the token
+    itself (single-use, time-limited) is the access control. Submitting
+    creates the tenant via the same create_tenant() the owner console uses,
+    then notifies support@emplinx.com (never the password) instead of the
+    owner personally, so any teammate watching that inbox can follow up."""
+    invite = get_object_or_404(OnboardingInvite, token=token)
+
+    if not invite.is_valid():
+        return render(
+            request, "subscriptions/onboarding_form_expired.html", status=410
+        )
+
+    if request.method == "POST":
+        company_name = request.POST.get("company_name", "").strip()
+        admin_username = request.POST.get("admin_username", "").strip()
+        admin_email = request.POST.get("admin_email", "").strip()
+        admin_password = request.POST.get("admin_password", "").strip()
+        plan_id = request.POST.get("plan")
+
+        errors = []
+        if not company_name:
+            errors.append("Company name is required.")
+        if not admin_username:
+            errors.append("Admin username is required.")
+        if not admin_email:
+            errors.append("Admin email is required.")
+        if len(admin_password) < 8:
+            errors.append("Password must be at least 8 characters.")
+        if admin_username and User.objects.filter(username=admin_username).exists():
+            errors.append("That username is already taken — please choose another.")
+        if admin_email and Employee.objects.filter(email__iexact=admin_email).exists():
+            errors.append("That email is already registered — please use another.")
+
+        if errors:
+            return render(
+                request,
+                "subscriptions/onboarding_form.html",
+                {
+                    "invite": invite,
+                    "plans": Plan.objects.filter(is_active=True),
+                    "errors": errors,
+                    "posted": request.POST,
+                },
+            )
+
+        try:
+            with transaction.atomic():
+                company, admin_user = create_tenant(
+                    company_name,
+                    admin_username,
+                    admin_email,
+                    admin_password,
+                    _plan_or_none(plan_id),
+                )
+                invite.used_at = timezone.now()
+                invite.company = company
+                invite.save(update_fields=["used_at", "company"])
+        except Exception as e:
+            logging.getLogger(__name__).exception("onboarding_form submission failed")
+            return render(
+                request,
+                "subscriptions/onboarding_form.html",
+                {
+                    "invite": invite,
+                    "plans": Plan.objects.filter(is_active=True),
+                    "errors": [f"Something went wrong: {e}. Please try again."],
+                    "posted": request.POST,
+                },
+            )
+
+        from base.email_utils import send_from_intake
+
+        plan_obj = _plan_or_none(plan_id)
+        send_from_intake(
+            subject=f"New client onboarded: {company_name}",
+            to=["support@emplinx.com"],
+            heading="New client onboarded 🎉",
+            body_html=(
+                "<p style='color:#4b4860 !important;margin:0 0 10px;'>A new client has completed self-signup:</p>"
+                "<table style='font-size:14px;color:#4b4860 !important;border-collapse:collapse;'>"
+                f"<tr><td style='padding:3px 12px 3px 0;color:#9a97ab !important;'>Company</td><td style='color:#1b1730 !important;'><strong>{company_name}</strong></td></tr>"
+                f"<tr><td style='padding:3px 12px 3px 0;color:#9a97ab !important;'>Admin username</td><td style='color:#1b1730 !important;'>{admin_username}</td></tr>"
+                f"<tr><td style='padding:3px 12px 3px 0;color:#9a97ab !important;'>Admin email</td><td style='color:#1b1730 !important;'>{admin_email}</td></tr>"
+                f"<tr><td style='padding:3px 12px 3px 0;color:#9a97ab !important;'>Plan</td><td style='color:#1b1730 !important;'>{plan_obj.name if plan_obj else 'default'}</td></tr>"
+                f"<tr><td style='padding:3px 12px 3px 0;color:#9a97ab !important;'>Invite sent to</td><td style='color:#1b1730 !important;'>{invite.email}</td></tr>"
+                "</table>"
+                "<p style='font-size:12px;color:#9a97ab !important;margin-top:16px;'>The password is not "
+                "included — it was set by the client and is stored hashed, as normal.</p>"
+            ),
+            text_fallback=f"New client onboarded: {company_name} ({admin_email}).",
+        )
+        return render(request, "subscriptions/onboarding_form_success.html")
+
+    return render(
+        request,
+        "subscriptions/onboarding_form.html",
+        {"invite": invite, "plans": Plan.objects.filter(is_active=True), "errors": []},
     )
 
 

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to EMPLINX</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{ --ex-purple:#6b58b5; --ex-navy:#0d2157; --ex-bg:#f7f6ff; --ex-text:#0f0b22; }
+    *{box-sizing:border-box;}
+    body{margin:0;font-family:'Inter',sans-serif;color:var(--ex-text);background:var(--ex-bg);min-height:100dvh;
+      display:flex;align-items:center;justify-content:center;padding:24px;}
+    .card{background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(13,33,87,.08);max-width:440px;width:100%;
+      padding:40px 32px;text-align:center;}
+    .check{width:56px;height:56px;border-radius:50%;background:#ecfdf5;color:#059669;display:flex;
+      align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;}
+    h1{font-size:20px;color:var(--ex-navy);margin:0 0 10px;}
+    p{color:#6b7280;font-size:14px;line-height:1.6;margin:0 0 24px;}
+    a.btn{display:inline-block;padding:11px 24px;background:var(--ex-purple);color:#fff;text-decoration:none;
+      border-radius:10px;font-weight:700;font-size:14px;}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="check">&#10003;</div>
+    <h1>Workspace created</h1>
+    <p>Your company's EMPLINX workspace is ready. You can sign in now with the admin username and password you just set.</p>
+    <a class="btn" href="/login/">Go to login</a>
+  </div>
+</body>
+</html>

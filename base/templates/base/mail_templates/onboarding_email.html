@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light only">
+  <meta name="supported-color-schemes" content="light only">
+  <style>
+    /* Force light rendering — stop Gmail/Outlook dark mode from inverting
+       or recoloring anything below, regardless of the recipient's theme. */
+    :root { color-scheme: light only; supported-color-schemes: light only; }
+    body, .force-bg-body { background:#f4f3fb !important; }
+    .force-bg-card { background:#ffffff !important; }
+    .force-text-dark { color:#1b1730 !important; }
+    .force-text-heading { color:#0d2157 !important; }
+    .force-text-body { color:#4b4860 !important; }
+    .force-text-muted { color:#9a97ab !important; }
+    .force-text-white { color:#ffffff !important; }
+    [data-ogsc] .force-bg-body, [data-ogsb] .force-bg-body { background:#f4f3fb !important; }
+    [data-ogsc] .force-bg-card, [data-ogsb] .force-bg-card { background:#ffffff !important; }
+    [data-ogsc] .force-text-dark, [data-ogsc] .force-text-heading,
+    [data-ogsc] .force-text-body, [data-ogsc] .force-text-muted { color: inherit !important; }
+  </style>
+</head>
+<body class="force-bg-body force-text-dark" style="margin:0;padding:0;background:#f4f3fb;font-family:Arial,Helvetica,sans-serif;color:#1b1730;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#f4f3fb"
+         class="force-bg-body" style="background:#f4f3fb;padding:32px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="520" cellpadding="0" cellspacing="0" bgcolor="#ffffff"
+             class="force-bg-card"
+             style="max-width:520px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;
+                    box-shadow:0 8px 32px rgba(13,33,87,.08);">
+        <!-- header band -->
+        <tr>
+          <td bgcolor="#6b58b5" style="background:#6b58b5;padding:28px 32px;" align="center">
+            <img src="cid:company_logo" alt="Emplinx" height="48"
+                 style="display:block;margin:0 auto;max-height:48px;background:#6b58b5;">
+          </td>
+        </tr>
+        <!-- body -->
+        <tr>
+          <td class="force-bg-card" bgcolor="#ffffff" style="background:#ffffff;padding:34px 36px 30px;">
+            <h1 class="force-text-heading" style="margin:0 0 14px;font-size:21px;color:#0d2157 !important;">{{ heading }}</h1>
+            <div class="force-text-body" style="font-size:15px;line-height:1.65;color:#4b4860 !important;">
+              {{ body_html|safe }}
+            </div>
+            {% if cta_url %}
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px 0 6px;">
+              <tr><td bgcolor="#6b58b5" style="border-radius:10px;background:#6b58b5;">
+                <a href="{{ cta_url }}" class="force-text-white" style="display:inline-block;padding:13px 30px;color:#ffffff !important;
+                   text-decoration:none;font-size:15px;font-weight:700;border-radius:10px;">{{ cta_label }}</a>
+              </td></tr>
+            </table>
+            {% if cta_note %}<p class="force-text-muted" style="font-size:12px;color:#9a97ab !important;margin:8px 0 0;">{{ cta_note }}</p>{% endif %}
+            {% endif %}
+          </td>
+        </tr>
+        <!-- footer -->
+        <tr>
+          <td class="force-bg-card" bgcolor="#ffffff" style="background:#ffffff;padding:18px 36px 28px;border-top:1px solid #eeecf6;">
+            <p class="force-text-muted" style="margin:0;font-size:12px;color:#a7a4b8 !important;">
+              Powered by <span style="color:#6b58b5 !important;font-weight:700;">Emplinx</span> — your workforce platform.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

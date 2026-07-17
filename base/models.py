@@ -2029,11 +2029,19 @@ class DynamicEmailConfiguration(SkylinxModel):
     """
 
     objects = SkylinxCompanyManager()
-    # Unscoped manager for the primary-config fallback. The owner's single
-    # mail server (is_primary=True) must be reachable by EVERY company's users;
-    # the scoped `objects` manager injects the caller's company and would hide
-    # it from other tenants, so we look the primary up through this instead.
+    # Unscoped manager for lookups that must ignore the caller's company (the
+    # owner's is_primary=True config, or a purpose-tagged mailbox like the
+    # client-intake sender below). The scoped `objects` manager injects the
+    # caller's company and would hide these from other tenants' users.
     global_objects = models.Manager()
+
+    # Optional tag for a config that isn't tied to any one company and isn't
+    # necessarily the general-purpose primary either — e.g. a dedicated
+    # mailbox used only for one feature (client onboarding invites).
+    purpose = models.CharField(
+        max_length=40, null=True, blank=True,
+        help_text=_("Optional tag, e.g. 'client_intake', for a dedicated mailbox."),
+    )
 
     host = models.CharField(null=True, max_length=256, verbose_name=_("Email Host"))
 
