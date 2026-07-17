@@ -135,6 +135,23 @@ class Company(SkylinxModel):
     def __str__(self) -> str:
         return str(self.company)
 
+    def delete(self, *args, **kwargs):
+        # Deleting a company cascades to EmployeeWorkInformation (severing the
+        # company link) but historically never touched the employees' login
+        # accounts — leaving orphaned users who could still sign in. Deactivate
+        # the employees and their user accounts first; records are kept (not
+        # hard-deleted) so attendance/payroll history survives.
+        from django.contrib.auth import get_user_model
+
+        from employee.models import Employee
+
+        employees = Employee.objects.filter(employee_work_info__company_id=self)
+        get_user_model().objects.filter(employee_get__in=employees).update(
+            is_active=False
+        )
+        employees.update(is_active=False)
+        return super().delete(*args, **kwargs)
+
     def company_icon_with_name(self):
 
         return format_html(
