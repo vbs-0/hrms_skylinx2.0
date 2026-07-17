@@ -2029,6 +2029,11 @@ class DynamicEmailConfiguration(SkylinxModel):
     """
 
     objects = SkylinxCompanyManager()
+    # Unscoped manager for the primary-config fallback. The owner's single
+    # mail server (is_primary=True) must be reachable by EVERY company's users;
+    # the scoped `objects` manager injects the caller's company and would hide
+    # it from other tenants, so we look the primary up through this instead.
+    global_objects = models.Manager()
 
     host = models.CharField(null=True, max_length=256, verbose_name=_("Email Host"))
 

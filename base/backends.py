@@ -64,12 +64,16 @@ class DefaultSkylinxMailBackend(EmailBackend):
         request = getattr(_thread_locals, "request", None)
         company = None
         if request and not request.user.is_anonymous:
-            company = request.user.employee_get.get_company()
+            emp = getattr(request.user, "employee_get", None)
+            company = emp.get_company() if emp else None
         configuration = DynamicEmailConfiguration.objects.filter(
             company_id=company
         ).first()
         if configuration is None:
-            configuration = DynamicEmailConfiguration.objects.filter(
+            # Fall back to the owner's single mail server. Use the UNSCOPED
+            # manager so the primary config is visible to every company's users
+            # (the scoped default manager would hide it from other tenants).
+            configuration = DynamicEmailConfiguration.global_objects.filter(
                 is_primary=True
             ).first()
         if configuration:
