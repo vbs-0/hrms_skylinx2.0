@@ -1,0 +1,1 @@
+{% extends "settings.html" %}{% load i18n %}{% block settings %}<div class="oh-inner-sidebar-content"><h1>Company Addresses</h1><form method="post">{% csrf_token %}{{ form.as_p }}{% if can_manage %}<button class="oh-btn oh-btn--secondary">Save address</button>{% endif %}</form></div>{% endblock %}

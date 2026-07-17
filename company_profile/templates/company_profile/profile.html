@@ -1,0 +1,7 @@
+{% extends "settings.html" %}{% load i18n %}{% block settings %}
+<div class="oh-inner-sidebar-content">
+  <div class="d-flex align-items-center gap-3 mb-3"><h1 class="oh-inner-sidebar-content__title">{{ company.company }} — Company Profile</h1></div>
+  <nav class="nav nav-tabs mb-3">{% for label,url_name in tabs %}<a class="nav-link {% if forloop.first %}active{% endif %}" href="{% url url_name %}">{{ label }}</a>{% endfor %}</nav>
+  <section class="oh-card p-4"><h2>Overview</h2><form method="post">{% csrf_token %}{{ form.as_p }}{% if can_manage %}<button class="oh-btn oh-btn--secondary" type="submit">Save profile</button>{% endif %}</form></section>
+  <section class="oh-card p-4 mt-3"><h2>Company identity</h2><p>Registered name: {{ company.company }}</p><p>Address: {{ company.address }}, {{ company.city }}, {{ company.state }} {{ company.zip }}</p></section>
+</div>{% endblock %}

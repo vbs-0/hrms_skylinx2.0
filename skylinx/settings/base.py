@@ -136,6 +136,7 @@ INSTALLED_APPS = [
     "subscriptions",
     "buzz",
     "konnect",
+    "company_profile",
 ]
 
 # ========================================
@@ -402,6 +403,7 @@ NESTED_SUBORDINATE_VISIBILITY = False
 TWO_FACTORS_AUTHENTICATION = False
 
 SIDEBARS = [
+    "company_profile",
     # "recruitment",  # Hidden per product decision
     # "onboarding",  # Hidden per product decision
     "employee",

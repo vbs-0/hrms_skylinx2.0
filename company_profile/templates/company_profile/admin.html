@@ -1,0 +1,1 @@
+{% extends "settings.html" %}{% block settings %}<div class="oh-inner-sidebar-content"><h1>HR Admin onboarding</h1><p>Create an HR Admin with only basic login details. They can complete company setup later.</p><form method="post">{% csrf_token %}{{ form.as_p }}<button class="oh-btn oh-btn--secondary">Create HR Admin</button></form></div>{% endblock %}

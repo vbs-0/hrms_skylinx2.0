@@ -95,6 +95,7 @@ urlpatterns = [
     path("accounts/", include("django.contrib.auth.urls")),
     path("accounts/", include("django.contrib.auth.urls")),
     path("", include("base.urls")),
+    path("", include("company_profile.urls")),
     path("", include("skylinx_automations.urls")),
     path("", include("skylinx_views.urls")),
     path("", include("skylinx_audit.urls")),
